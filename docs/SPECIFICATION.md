@@ -9,8 +9,9 @@ repository artifacts.*
 
 For motivation and repository orientation, read the [README](../README.md). For a field-by-field
 authoring guide, read [Armature model JSON](ARMATURE-MODEL_JSON.md). The [glossary](GLOSSARY.md)
-summarizes terminology and points back to its canonical sections; neither explanatory document adds
-requirements to this specification.
+summarizes terminology and points back to its canonical sections; the
+[architecture guide](ARCHITECTURE.md) explains the design rationale. None of those explanatory
+documents adds requirements to this specification.
 
 ## §1 — Scope and authority
 

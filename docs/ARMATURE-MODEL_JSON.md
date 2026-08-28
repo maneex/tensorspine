@@ -9,6 +9,7 @@ This is the practical, non-normative guide to reading and authoring an `armature
 The [JSON Schema](../schemas/armature.schema.json) defines the concrete grammar, while the
 [language specification](SPECIFICATION.md) is the sole normative authority for validity and
 denotation. The [README](../README.md) provides motivation and repository orientation; the
+[architecture guide](ARCHITECTURE.md) explains the design rationale; and the
 [glossary](GLOSSARY.md) provides a single terminology index. If this guide conflicts with the
 specification, the specification wins.
 
