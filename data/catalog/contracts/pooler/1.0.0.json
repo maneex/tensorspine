@@ -4,20 +4,32 @@
   "name": "pooler",
   "definition": {
     "version": "1.0.0",
+    "summary": "Pooling head: projects hidden states to `project_to` features, optionally normalized and reduced.",
+    "description": "Produces an embedding rather than logits: `weight` projects to `project_to`, `normalize` applies L2 normalization, `reduce` collapses the sequence to one vector (`mean`, `cls`) or keeps one vector per token (`none`, as ColBERT does). The granularity of the result is declared by the public output that reads it, not by the primitive.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2112.01488",
+        "title": "ColBERTv2 (Santhanam et al., 2021)",
+        "kind": "paper",
+        "description": "Per-token embeddings, projected and L2-normalized."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the hidden state."
       },
       "project_to": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the embedding."
       },
       "normalize": {
         "type": {
@@ -28,7 +40,12 @@
           ]
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Normalization of each output vector.",
+        "value_descriptions": {
+          "l2": "Unit L2 norm.",
+          "none": "No normalization."
+        }
       },
       "reduce": {
         "type": {
@@ -43,6 +60,12 @@
         "affects_template": true,
         "default": {
           "literal": "none"
+        },
+        "description": "Reduction over the sequence.",
+        "value_descriptions": {
+          "mean": "Mean over the positions.",
+          "cls": "The first position.",
+          "none": "One vector per position."
         }
       }
     },
@@ -67,7 +90,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Hidden state."
         }
       },
       "outputs": {
@@ -91,7 +115,8 @@
             }
           },
           "note": "granularity is carried by the public OUTPUT, not by the primitive",
-          "role": "activation.embedding"
+          "role": "activation.embedding",
+          "description": "The embedding."
         }
       }
     },
@@ -120,7 +145,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "The projection, `project_to × width`."
       }
     },
     "constants": {},

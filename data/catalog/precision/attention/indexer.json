@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.indexer",
   "definition": {
+    "summary": "Projections of the sparse index of latent attention.",
     "admissible": [
       "bf16",
       "f16",

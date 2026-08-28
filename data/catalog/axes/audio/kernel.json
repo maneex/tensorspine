@@ -4,6 +4,7 @@
   "name": "audio.kernel",
   "definition": {
     "space": "value",
+    "summary": "Support of a temporal convolution, in frames.",
     "note": "support of a temporal convolution"
   }
 }

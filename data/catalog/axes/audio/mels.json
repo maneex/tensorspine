@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "audio.mels",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Mel bins of a spectrogram frame."
   }
 }

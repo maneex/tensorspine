@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "ffn.up_projection",
   "definition": {
+    "summary": "Up, or fused gate and up, projection of a feed-forward network or expert.",
     "admissible": [
       "bf16",
       "f16",

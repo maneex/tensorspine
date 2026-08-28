@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.output_up",
   "definition": {
+    "summary": "Up projection of a grouped low-rank attention output.",
     "admissible": [
       "bf16",
       "f16",

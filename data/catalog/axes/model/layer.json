@@ -4,6 +4,7 @@
   "name": "model.layer",
   "definition": {
     "space": "value",
+    "summary": "Structural position of a layer within a stack.",
     "note": "structural position of a layer within a stack"
   }
 }

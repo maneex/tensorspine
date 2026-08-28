@@ -4,20 +4,35 @@
   "name": "residual.altup_correct",
   "definition": {
     "version": "1.0.0",
+    "summary": "AltUp correction: updates every stream from the computed active stream and rescales it.",
+    "description": "Given the predicted streams and the layer's output on the active one, `correction` (`streams × streams`) propagates the difference to every stream; `correct_scale` rescales the active output.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2301.13310",
+        "title": "Alternating Updates for Efficient Transformers (Baykal et al., 2023)",
+        "kind": "paper",
+        "description": "Parallel residual streams with one active stream per layer."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of one stream."
       },
       "streams": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of parallel residual streams."
       }
     },
     "ports": {
@@ -49,7 +64,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Predicted streams, from `residual.altup_predict`."
         },
         "activated": {
           "shape": {
@@ -70,7 +86,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The layer's output on the active stream."
         }
       },
       "outputs": {
@@ -101,7 +118,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Corrected streams."
         },
         "active": {
           "shape": {
@@ -122,7 +140,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Rescaled active stream."
         }
       }
     },
@@ -151,7 +170,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Correction coefficients."
       },
       "correct_scale": {
         "role": "residual.stream",
@@ -169,7 +189,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Per-channel scale of the active stream."
       }
     },
     "constants": {},

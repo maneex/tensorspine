@@ -1009,56 +1009,6 @@
         "description": "Cross-attention aligns the source domain onto the query domain."
       }
     ],
-    "examples": [
-      {
-        "name": "llama3_8b_decoder",
-        "summary": "Grouped-query causal self-attention of Llama 3 8B.",
-        "model": "llama3-8b",
-        "description": "Eight KV heads for thirty-two query heads: the fused `qkv` projection has `32 + 2*8` head blocks, and the cache holds eight heads per position.",
-        "arguments": {
-          "width": 4096,
-          "heads": 32,
-          "head_dim": 128,
-          "kv_heads": 8,
-          "mask": "causal"
-        }
-      },
-      {
-        "name": "whisper_cross_attention",
-        "summary": "Cross-attention of the Whisper decoder over the encoder output.",
-        "model": "whisper-large-v3",
-        "description": "`source` names the encoder's domain: the cache is indexed by `audio`, frozen once the encoder has run, and shared by every decoding step of the same source.",
-        "arguments": {
-          "width": 1280,
-          "heads": 20,
-          "head_dim": 64,
-          "mask": "none",
-          "source": "audio",
-          "q_bias": true,
-          "v_bias": true,
-          "out_bias": true
-        }
-      },
-      {
-        "name": "voxtral_streaming_encoder",
-        "summary": "Streaming causal encoder with a 750-token window.",
-        "model": "voxtral-realtime",
-        "description": "The window rule wins over the streaming rule: with `window` present, the cache is a ring of 750 positions whatever `streaming` says.",
-        "arguments": {
-          "width": 1280,
-          "heads": 32,
-          "head_dim": 64,
-          "mask": "causal",
-          "streaming": true,
-          "window": {
-            "span": 750
-          },
-          "q_bias": true,
-          "v_bias": true,
-          "out_bias": true
-        }
-      }
-    ],
     "note": "Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants."
   }
 }

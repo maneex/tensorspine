@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "frontend.bias",
   "definition": {
+    "summary": "Biases of the audio front-end convolutions.",
     "admissible": [
       "f32",
       "bf16",

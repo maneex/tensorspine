@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.output_gate",
   "definition": {
+    "summary": "Per-head output gate projection.",
     "admissible": [
       "bf16",
       "f16",

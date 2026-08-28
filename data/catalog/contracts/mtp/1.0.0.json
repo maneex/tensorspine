@@ -4,20 +4,37 @@
   "name": "mtp",
   "definition": {
     "version": "1.0.0",
+    "summary": "Multi-token prediction: one projection per prediction depth, applied to the hidden state.",
+    "description": "`weight` is declared with multiplicity `layers`: one `width × width` projection per additional token predicted ahead. The primitive carries the projections only; the blocks of each prediction depth are ordinary occurrences of the model.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2404.19737",
+        "title": "Better & Faster Large Language Models via Multi-token Prediction (Gloeckle et al., 2024)",
+        "kind": "paper"
+      },
+      {
+        "url": "https://arxiv.org/abs/2412.19437",
+        "title": "DeepSeek-V3 Technical Report (DeepSeek-AI, 2024)",
+        "kind": "paper",
+        "description": "Sequential multi-token prediction modules with a projection per depth."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the hidden state."
       },
       "layers": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of prediction depths, hence of projections."
       }
     },
     "ports": {
@@ -41,7 +58,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Hidden state."
         }
       },
       "outputs": {
@@ -64,7 +82,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Projected hidden state."
         }
       }
     },
@@ -96,7 +115,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection of one prediction depth, `layers` times."
       }
     },
     "constants": {},

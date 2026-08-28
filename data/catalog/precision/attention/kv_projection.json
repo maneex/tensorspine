@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.kv_projection",
   "definition": {
+    "summary": "Latent key/value projection.",
     "admissible": [
       "bf16",
       "f16",

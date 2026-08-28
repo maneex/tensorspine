@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.qkv_projection",
   "definition": {
+    "summary": "Fused query/key/value projection.",
     "admissible": [
       "bf16",
       "f16",

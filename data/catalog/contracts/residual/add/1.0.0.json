@@ -4,13 +4,16 @@
   "name": "residual.add",
   "definition": {
     "version": "1.0.0",
+    "summary": "Residual addition: `a + b`.",
+    "description": "An occurrence with two input ports, not an annotation on a step: the value graph says which output feeds `a` and which feeds `b`, and the values live at a cut follow from it.",
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of both operands."
       }
     },
     "ports": {
@@ -34,7 +37,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "First operand, usually the residual stream."
         },
         "b": {
           "shape": {
@@ -55,7 +59,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Second operand, usually a branch output."
         }
       },
       "outputs": {
@@ -78,7 +83,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The sum."
         }
       }
     },

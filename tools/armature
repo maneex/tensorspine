@@ -7,7 +7,7 @@
     armature --view     [PATH ...]    render a self-contained HTML page.
     armature --document catalog [PATH ...]
                                       render the catalog as one Markdown file;
-                                      PATHs are the corpus it cross-references.
+                                      PATHs say where delegated bodies live.
 
 With no PATH, every model of the default model directory is taken. Every
 location defaults to the layout of the repository and can be overridden.
@@ -74,8 +74,8 @@ def build_parser():
     command.add_argument('--document', metavar='WHAT', choices=['catalog'],
                          help='render WHAT as one Markdown document. `catalog`: every '
                               'contract, axis and precision role of the bases, with the '
-                              'documentation fields they carry; PATHs are the corpus '
-                              'cross-referenced (cited by, delegated bodies). Writes to -o, '
+                              'documentation fields they carry. PATHs only say where the '
+                              'bodies of delegated contracts are looked for. Writes to -o, '
                               'or to stdout.')
 
     parser.add_argument('paths', nargs='*', metavar='PATH',
@@ -154,7 +154,7 @@ def main(argv=None):
     if args.document:
         import document
         # The page goes to stdout when no -o is given; the status line must not.
-        print(f"document  {args.document}  ({len(documents)} corpus document(s))",
+        print(f"document  {args.document}",
               file=sys.stderr if args.output is None else sys.stdout)
         return document.run(documents, bases, args.schemas, args.output, relative_to=ROOT)
 

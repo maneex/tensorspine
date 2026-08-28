@@ -4,34 +4,51 @@
   "name": "projector.temporal_stack",
   "definition": {
     "version": "1.0.0",
+    "summary": "Audio-language projector: stacks `merge_count` consecutive frames, then two bias-free projections.",
+    "description": "`merge_count` consecutive encoder outputs are concatenated into one `source_width * merge_count` vector, projected to `width` by `input` and again by `output`. The output is in the token domain.",
+    "tags": [
+      "multimodal"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2507.13264",
+        "title": "Voxtral (Mistral AI, 2025)",
+        "kind": "paper",
+        "description": "The audio-language adapter: frames downsampled by concatenation, then an MLP."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the language model."
       },
       "source_width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the audio encoder."
       },
       "merge_count": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Frames stacked into one token."
       },
       "source": {
         "type": {
           "kind": "port_reference"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "The port whose position domain the stacking consumes."
       }
     },
     "ports": {
@@ -55,7 +72,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Encoder outputs, in the audio width."
         }
       },
       "outputs": {
@@ -78,7 +96,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "One token per stacked group."
         }
       }
     },
@@ -115,7 +134,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection from the stacked frames to `width`."
       },
       "output": {
         "role": "projector.projection",
@@ -141,7 +161,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Second projection, `width → width`."
       }
     },
     "constants": {},
@@ -155,7 +176,6 @@
       ]
     },
     "partitions": [],
-    "note": "Temporal stacking followed by two bias-free projections.",
     "domain_transforms": [
       {
         "from_port": "input",
@@ -163,8 +183,10 @@
         "relation": "merge",
         "factor": {
           "argument": "merge_count"
-        }
+        },
+        "description": "`merge_count` frames become one token."
       }
-    ]
+    ],
+    "note": "Temporal stacking followed by two bias-free projections."
   }
 }

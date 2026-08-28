@@ -4,27 +4,32 @@
   "name": "conditioning.multiplicative",
   "definition": {
     "version": "1.0.0",
+    "summary": "Per-layer conditioning: gates the input, multiplies by the condition, projects back and normalizes.",
+    "description": "The input is projected by `gate` to `condition_width` and multiplied element-wise with `condition`; `projection` brings the product back to `width`, and `norm` normalizes it (RMS, `eps`). The result is what the layer adds to its residual.",
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`."
       },
       "condition_width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Width of the conditioning vector."
       },
       "eps": {
         "type": {
           "kind": "real"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Epsilon of the normalization; changes no tensor."
       }
     },
     "ports": {
@@ -48,7 +53,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Hidden state of the layer."
         },
         "condition": {
           "shape": {
@@ -69,7 +75,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The layer's conditioning vector."
         }
       },
       "outputs": {
@@ -92,7 +99,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The conditioned contribution."
         }
       }
     },
@@ -121,7 +129,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Gate projection from `width` to `condition_width`."
       },
       "projection": {
         "role": "conditioning.feature",
@@ -147,7 +156,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection from `condition_width` back to `width`."
       },
       "norm": {
         "role": "norm.scale",
@@ -165,7 +175,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the output normalization."
       }
     },
     "constants": {},

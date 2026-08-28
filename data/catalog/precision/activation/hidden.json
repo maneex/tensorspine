@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "activation.hidden",
   "definition": {
+    "summary": "Hidden activations: the residual stream and the values between primitives.",
     "admissible": [
       "bf16",
       "f16",

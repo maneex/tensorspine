@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.q_rank",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Rank of the query bottleneck of latent attention."
   }
 }

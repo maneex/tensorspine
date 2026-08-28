@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "residual.hyper_connection",
   "definition": {
+    "summary": "Mixing coefficients of hyper-connections.",
     "admissible": [
       "f32",
       "bf16"

@@ -4,34 +4,51 @@
   "name": "mix.doubly_stochastic",
   "definition": {
     "version": "2.0.0",
+    "summary": "Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition.",
+    "description": "Both inputs are read as `multiplicity` streams of `width`. `fn` and `base` hold the mixing coefficients — `(2 + multiplicity) × multiplicity` per stream: how each stream is read into the layer, and how the layer's output and the streams are written back — projected onto doubly stochastic matrices by `iterations` Sinkhorn iterations with tolerance `eps`; `scale` holds three learned coefficients. An occurrence with two input ports, not a step annotation: it replaces `residual.add`.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2409.19606",
+        "title": "Hyper-Connections (Zhu et al., 2024)",
+        "kind": "paper",
+        "description": "Learned mixing of several residual streams in place of the residual addition."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of one stream."
       },
       "multiplicity": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of parallel residual streams."
       },
       "iterations": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Sinkhorn iterations projecting the mix onto doubly stochastic matrices."
       },
       "eps": {
         "type": {
           "kind": "real"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Numerical epsilon of the projection."
       }
     },
     "ports": {
@@ -55,7 +72,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The residual streams."
         },
         "b": {
           "shape": {
@@ -76,7 +94,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The branch output."
         }
       },
       "outputs": {
@@ -99,7 +118,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The mixed streams."
         }
       }
     },
@@ -153,7 +173,8 @@
             }
           ]
         },
-        "note": "collapse/expand matrix of the residual streams, projected onto the doubly stochastic matrices by Sinkhorn"
+        "note": "collapse/expand matrix of the residual streams, projected onto the doubly stochastic matrices by Sinkhorn",
+        "description": "Input-dependent mixing coefficients: a projection from the flattened streams to the `(2 + multiplicity) × multiplicity` mix."
       },
       "base": {
         "role": "residual.hyper_connection",
@@ -187,7 +208,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Static mixing coefficients, same layout."
       },
       "scale": {
         "role": "residual.hyper_connection",
@@ -205,7 +227,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Three learned scaling coefficients."
       }
     },
     "constants": {},

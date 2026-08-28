@@ -4,20 +4,32 @@
   "name": "ffn.dense",
   "definition": {
     "version": "1.1.0",
+    "summary": "Dense feed-forward network: an up projection, a non-linearity, then a down projection.",
+    "description": "`in` projects to `inner`, the activation is applied, `out` projects back to `width`. The same conditioning and sparsity options as `ffn.gated`, without the gate half.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1706.03762",
+        "title": "Attention Is All You Need (Vaswani et al., 2017)",
+        "kind": "paper",
+        "description": "The position-wise feed-forward network."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`."
       },
       "inner": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Inner width."
       },
       "activation": {
         "type": {
@@ -31,7 +43,14 @@
         },
         "required": true,
         "affects_template": false,
-        "note": "selects the non-linearity; changes no template"
+        "note": "selects the non-linearity; changes no template",
+        "description": "Non-linearity applied after the up projection.",
+        "value_descriptions": {
+          "silu": "SiLU.",
+          "gelu": "Exact GELU.",
+          "gelu_tanh": "Tanh-approximated GELU.",
+          "relu2": "Squared ReLU."
+        }
       },
       "in_bias": {
         "type": {
@@ -41,7 +60,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "Learned bias on the up projection."
       },
       "out_bias": {
         "type": {
@@ -51,7 +71,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "Learned bias on the down projection."
       },
       "condition_dim": {
         "type": {
@@ -59,14 +80,16 @@
         },
         "required": false,
         "affects_template": true,
-        "note": "rank of the temporal conditioning projector"
+        "note": "rank of the temporal conditioning projector",
+        "description": "Rank of the conditioning projector; present, `condition_in` and `condition_out` exist."
       },
       "condition": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "How the conditioning signal is applied. Opaque."
       },
       "activation_sparsity": {
         "type": {
@@ -74,7 +97,8 @@
         },
         "required": false,
         "affects_template": false,
-        "note": "structural fraction of activations zeroed after selection"
+        "note": "structural fraction of activations zeroed after selection",
+        "description": "Fraction of activations zeroed after selection. Opaque."
       }
     },
     "ports": {
@@ -98,7 +122,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Residual-stream activation."
         }
       },
       "outputs": {
@@ -121,7 +146,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "FFN output."
         }
       }
     },
@@ -150,7 +176,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Up projection."
       },
       "out": {
         "role": "ffn.down_projection",
@@ -176,7 +203,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Down projection."
       },
       "in_bias": {
         "role": "ffn.projection_bias",
@@ -205,7 +233,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the up projection."
       },
       "out_bias": {
         "role": "ffn.projection_bias",
@@ -234,7 +263,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the down projection."
       },
       "condition_in": {
         "role": "conditioning.projection",
@@ -263,7 +293,8 @@
         },
         "present_when": {
           "present": "condition_dim"
-        }
+        },
+        "description": "Projection of the input into the conditioning rank."
       },
       "condition_out": {
         "role": "conditioning.projection",
@@ -292,7 +323,8 @@
         },
         "present_when": {
           "present": "condition_dim"
-        }
+        },
+        "description": "Projection of the conditioning rank back to `width`."
       }
     },
     "constants": {},
@@ -322,7 +354,8 @@
           ]
         },
         "status": "exact",
-        "per": "token"
+        "per": "token",
+        "description": "Two `width × inner` projections per token."
       }
     },
     "partitions": [
@@ -331,7 +364,8 @@
           "argument_axis": "ffn.inner"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across the inner width; the down projection needs an all-reduce."
       }
     ],
     "note": "Dense FFN: one up projection and one down projection."

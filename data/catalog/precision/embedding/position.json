@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "embedding.position",
   "definition": {
+    "summary": "Learned position tables.",
     "admissible": [
       "f32",
       "bf16",

@@ -4,27 +4,39 @@
   "name": "residual.laurel",
   "definition": {
     "version": "1.0.0",
+    "summary": "LAuReL branch: a low-rank projection of the input, normalized, to be added to the residual.",
+    "description": "`left` projects `width` to `rank`, `right` projects back to `width`, and `norm` (RMS, `eps`) normalizes the result: a learned, low-rank augmentation of the residual connection.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2411.07501",
+        "title": "LAuReL: Learned Augmented Residual Layer (Menghani et al., 2024)",
+        "kind": "paper"
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`."
       },
       "rank": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Rank of the low-rank pair."
       },
       "eps": {
         "type": {
           "kind": "real"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Epsilon of the normalization; changes no tensor."
       }
     },
     "ports": {
@@ -48,7 +60,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Residual-stream activation."
         }
       },
       "outputs": {
@@ -71,7 +84,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The branch to add to the residual."
         }
       }
     },
@@ -100,7 +114,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Down projection, `width → rank`."
       },
       "right": {
         "role": "residual.low_rank",
@@ -126,7 +141,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Up projection, `rank → width`."
       },
       "norm": {
         "role": "norm.scale",
@@ -144,7 +160,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the output normalization."
       }
     },
     "constants": {},

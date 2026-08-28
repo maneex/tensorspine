@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.kv_heads",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Key/value heads; the head axis of a KV cache."
   }
 }

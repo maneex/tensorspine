@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "moe.experts",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Routed experts of a mixture of experts."
   }
 }

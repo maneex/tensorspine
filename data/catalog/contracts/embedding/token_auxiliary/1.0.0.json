@@ -4,41 +4,48 @@
   "name": "embedding.token_auxiliary",
   "definition": {
     "version": "1.0.0",
+    "summary": "Token embedding that also emits a per-layer auxiliary vector for every layer of the stack.",
+    "description": "Besides the usual `output`, the primitive computes `auxiliary`: for each of `layers` layers, a `per_layer_width` vector obtained by summing a per-layer table lookup of the token (`per_layer_embed`, over a vocabulary of `per_layer_vocabulary`) with a projection of the main embedding (`per_layer_model_projection`), normalized by `per_layer_projection_norm`. Each layer then selects its slice with `conditioning.layer_select` and applies it with `conditioning.multiplicative`.",
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the main embedding."
       },
       "vocabulary": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of token identifiers."
       },
       "layers": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of layers receiving an auxiliary vector."
       },
       "per_layer_width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Width of one auxiliary vector."
       },
       "per_layer_vocabulary": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Size of the per-layer table's vocabulary."
       }
     },
     "ports": {
@@ -54,7 +61,8 @@
             }
           },
           "note": "token identifier: rank-zero scalar",
-          "role": "activation.token_index"
+          "role": "activation.token_index",
+          "description": "Token identifier: a rank-zero integer per token."
         }
       },
       "outputs": {
@@ -77,7 +85,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The embedded token."
         },
         "auxiliary": {
           "shape": {
@@ -106,7 +115,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "One `per_layer_width` vector per layer, for the whole stack."
         }
       }
     },
@@ -139,7 +149,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Token table."
       },
       "per_layer_embed": {
         "role": "embedding.table",
@@ -173,7 +184,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Per-layer table: for each token of its vocabulary, `layers × per_layer_width` values."
       },
       "per_layer_model_projection": {
         "role": "conditioning.feature",
@@ -207,7 +219,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection of the main embedding into the per-layer widths of every layer."
       },
       "per_layer_projection_norm": {
         "role": "norm.scale",
@@ -225,7 +238,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the normalization applied to the projected per-layer vector."
       }
     },
     "constants": {},
@@ -245,7 +259,8 @@
           "argument_axis": "model.vocabulary"
         },
         "semantics": "preserved",
-        "communication": "all_gather"
+        "communication": "all_gather",
+        "description": "Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered."
       }
     ],
     "note": "Token embedding enriched with a per-layer auxiliary table and projection."

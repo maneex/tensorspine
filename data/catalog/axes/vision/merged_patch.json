@@ -4,6 +4,7 @@
   "name": "vision.merged_patch",
   "definition": {
     "space": "value",
+    "summary": "Concatenation of the patches merged into one token.",
     "note": "patches merged by spatial_merge_size**2"
   }
 }

@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "moe.router",
   "definition": {
+    "summary": "Routing projection of a mixture of experts.",
     "admissible": [
       "f32",
       "bf16",

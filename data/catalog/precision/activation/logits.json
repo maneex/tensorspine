@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "activation.logits",
   "definition": {
+    "summary": "Output logits.",
     "admissible": [
       "f32",
       "bf16",

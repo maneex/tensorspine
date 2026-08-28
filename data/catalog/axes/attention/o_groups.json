@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.o_groups",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Groups of the low-rank output projection."
   }
 }

@@ -4,6 +4,7 @@
   "name": "sequence.position",
   "definition": {
     "space": "value",
+    "summary": "A learned position, or one slot of position history.",
     "note": "learned position within a sequence"
   }
 }

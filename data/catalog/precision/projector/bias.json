@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "projector.bias",
   "definition": {
+    "summary": "Biases of a vision-language projector.",
     "admissible": [
       "f32",
       "bf16",

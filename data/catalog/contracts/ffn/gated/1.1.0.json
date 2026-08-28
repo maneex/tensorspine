@@ -4,20 +4,32 @@
   "name": "ffn.gated",
   "definition": {
     "version": "1.1.0",
+    "summary": "Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection.",
+    "description": "`in` fuses the gate and up projections into `2*inner` rows; the activation is applied to the gate half and multiplied by the up half, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is described by the opaque `condition`; `activation_sparsity` zeroes a structural fraction of the activations.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2002.05202",
+        "title": "GLU Variants Improve Transformer (Shazeer, 2020)",
+        "kind": "paper",
+        "description": "SwiGLU, GEGLU and the fused gate/up form."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`."
       },
       "inner": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Inner width: the size of the gate and up outputs."
       },
       "activation": {
         "type": {
@@ -31,7 +43,14 @@
         },
         "required": true,
         "affects_template": false,
-        "note": "selects the non-linearity; changes no template"
+        "note": "selects the non-linearity; changes no template",
+        "description": "Non-linearity applied to the gate half.",
+        "value_descriptions": {
+          "silu": "SiLU (SwiGLU).",
+          "gelu": "Exact GELU (GEGLU).",
+          "gelu_tanh": "Tanh-approximated GELU.",
+          "relu2": "Squared ReLU."
+        }
       },
       "in_bias": {
         "type": {
@@ -41,7 +60,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "Learned bias on the fused gate/up projection."
       },
       "out_bias": {
         "type": {
@@ -51,7 +71,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "Learned bias on the down projection."
       },
       "condition_dim": {
         "type": {
@@ -59,14 +80,16 @@
         },
         "required": false,
         "affects_template": true,
-        "note": "rank of the temporal conditioning projector"
+        "note": "rank of the temporal conditioning projector",
+        "description": "Rank of the conditioning projector; present, `condition_in` and `condition_out` exist."
       },
       "condition": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "How the conditioning signal is applied. Opaque."
       },
       "activation_sparsity": {
         "type": {
@@ -74,7 +97,8 @@
         },
         "required": false,
         "affects_template": false,
-        "note": "structural fraction of activations zeroed after selection"
+        "note": "structural fraction of activations zeroed after selection",
+        "description": "Fraction of activations zeroed after selection. Opaque."
       }
     },
     "ports": {
@@ -98,7 +122,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Residual-stream activation."
         }
       },
       "outputs": {
@@ -121,7 +146,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "FFN output."
         }
       }
     },
@@ -176,7 +202,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Fused gate and up projection."
       },
       "out": {
         "role": "ffn.down_projection",
@@ -202,7 +229,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Down projection."
       },
       "in_bias": {
         "role": "ffn.projection_bias",
@@ -239,7 +267,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the fused projection, over both halves."
       },
       "out_bias": {
         "role": "ffn.projection_bias",
@@ -268,7 +297,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the down projection."
       },
       "condition_in": {
         "role": "conditioning.projection",
@@ -297,7 +327,8 @@
         },
         "present_when": {
           "present": "condition_dim"
-        }
+        },
+        "description": "Projection of the input into the conditioning rank."
       },
       "condition_out": {
         "role": "conditioning.projection",
@@ -326,7 +357,8 @@
         },
         "present_when": {
           "present": "condition_dim"
-        }
+        },
+        "description": "Projection of the conditioning rank back to `width`."
       }
     },
     "constants": {},
@@ -356,7 +388,8 @@
           ]
         },
         "status": "exact",
-        "per": "token"
+        "per": "token",
+        "description": "Three `width × inner` projections per token."
       }
     },
     "partitions": [
@@ -365,7 +398,8 @@
           "argument_axis": "ffn.inner"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across the inner width; the down projection needs an all-reduce."
       }
     ],
     "note": "Gated FFN: gate and up projections, multiplicative activation, then down projection."

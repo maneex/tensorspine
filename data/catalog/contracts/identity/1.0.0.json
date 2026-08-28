@@ -4,13 +4,16 @@
   "name": "identity",
   "definition": {
     "version": "1.0.0",
+    "summary": "Fan-out point: passes its input to its output unchanged.",
+    "description": "A public input is a single endpoint and a value edge has one destination; when a value must feed several ports — the first norm and the residual `a` of a pre-norm trunk — it goes through an identity occurrence whose output is bound to each of them. No parameter, no computation.",
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width passed through."
       }
     },
     "ports": {
@@ -34,7 +37,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The value to fan out."
         }
       },
       "outputs": {
@@ -57,7 +61,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The same value."
         }
       }
     },

@@ -20,6 +20,14 @@
         "name": "sequence-operator",
         "summary": "Communicates tokens along the sequence and therefore carries state (§4.1).",
         "description": "Only a sequence operator carries state. Every other primitive is stateless: a runtime needs no allocation strategy for it beyond its parameters and activations."
+      },
+      {
+        "name": "multimodal",
+        "summary": "Crosses a modality boundary: audio or vision into the token stream."
+      },
+      {
+        "name": "parallel-residual",
+        "summary": "The residual is several parallel streams (§3.5): AltUp, hyper-connections."
       }
     ],
     "note": "Catalogue of logical primitives, independent of any library: physical fusions, shards, quantizations and synthetic tensors are outside the contract vocabulary."

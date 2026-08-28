@@ -4,6 +4,8 @@
   "name": "attention.qkv_flat",
   "definition": {
     "space": "value",
+    "summary": "Fused query/key/value projection width.",
+    "description": "Under grouped-query attention `(heads + 2*kv_heads) * head_dim` is not a product of declared axes, so the axis carries no factors and the shape alone does not say how to partition it by head (O5.10).",
     "note": "fused QKV width; under GQA this is not an exact product, hence no factors"
   }
 }

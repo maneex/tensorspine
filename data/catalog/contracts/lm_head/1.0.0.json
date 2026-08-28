@@ -4,20 +4,32 @@
   "name": "lm_head",
   "definition": {
     "version": "1.0.0",
+    "summary": "Output head: projects the hidden state to one logit per vocabulary entry.",
+    "description": "`weight` has the same role and the same axes in the same order as `embed.weight`, so the two may share one tensor without a view (weight tying).",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1608.05859",
+        "title": "Using the Output Embedding to Improve Language Models (Press & Wolf, 2017)",
+        "kind": "paper",
+        "description": "Tying the embedding table and the output head."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the hidden state."
       },
       "vocabulary": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of vocabulary entries."
       }
     },
     "ports": {
@@ -41,7 +53,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Final hidden state."
         }
       },
       "outputs": {
@@ -64,7 +77,8 @@
               "self": true
             }
           },
-          "role": "activation.logits"
+          "role": "activation.logits",
+          "description": "One logit per vocabulary entry."
         }
       }
     },
@@ -98,7 +112,8 @@
             }
           ]
         },
-        "note": "same role, same axis identities IN THE SAME ORDER as embed.weight: sharing is direct, with no view"
+        "note": "same role, same axis identities IN THE SAME ORDER as embed.weight: sharing is direct, with no view",
+        "description": "The output projection, `vocabulary × width`."
       }
     },
     "constants": {},
@@ -117,7 +132,8 @@
           "argument_axis": "model.vocabulary"
         },
         "semantics": "preserved",
-        "communication": "all_gather"
+        "communication": "all_gather",
+        "description": "Vocabulary parallelism: each shard computes a slice of the logits; the slices are gathered."
       }
     ],
     "logical_cost": {
@@ -137,7 +153,8 @@
           ]
         },
         "status": "exact",
-        "per": "token"
+        "per": "token",
+        "description": "One `width × vocabulary` projection per token."
       }
     }
   }

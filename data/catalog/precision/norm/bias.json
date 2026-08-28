@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "norm.bias",
   "definition": {
+    "summary": "Bias of a layer normalization.",
     "admissible": [
       "f32",
       "bf16",

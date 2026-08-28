@@ -4,13 +4,19 @@
   "name": "splice",
   "definition": {
     "version": "2.0.0",
+    "summary": "Inserts an already-projected stream into the token sequence.",
+    "description": "Both inputs are in the token domain at `width`: `text` is the embedded token sequence, `source` a stream already projected to `width` (image patches, audio frames). The output is the token sequence with the stream spliced in at its placeholder positions. No parameter, no state.",
+    "tags": [
+      "multimodal"
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the token stream."
       }
     },
     "ports": {
@@ -34,7 +40,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Embedded token sequence."
         },
         "source": {
           "shape": {
@@ -55,7 +62,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Projected stream to insert."
         }
       },
       "outputs": {
@@ -78,7 +86,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Token sequence with the stream inserted."
         }
       }
     },

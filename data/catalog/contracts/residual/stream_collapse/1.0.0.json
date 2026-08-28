@@ -4,20 +4,35 @@
   "name": "residual.stream_collapse",
   "definition": {
     "version": "1.0.0",
+    "summary": "Collapses `streams` residual streams back to one: projects the auxiliary streams and reduces.",
+    "description": "Each of the `streams - 1` auxiliary streams is projected by its own `width × width` matrix and reduced with the active stream into one `width` vector.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2301.13310",
+        "title": "Alternating Updates for Efficient Transformers (Baykal et al., 2023)",
+        "kind": "paper",
+        "description": "Parallel residual streams with one active stream per layer."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of one stream."
       },
       "streams": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of parallel residual streams."
       }
     },
     "ports": {
@@ -49,7 +64,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The residual streams."
         }
       },
       "outputs": {
@@ -72,7 +88,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The single stream."
         }
       }
     },
@@ -112,7 +129,8 @@
               "literal": 1
             }
           ]
-        }
+        },
+        "description": "Projection of one auxiliary stream, `streams - 1` times."
       }
     },
     "constants": {},

@@ -4,20 +4,27 @@
   "name": "residual.stream_inject",
   "definition": {
     "version": "1.0.0",
+    "summary": "Reinjects a modified active stream into the set of residual streams.",
+    "description": "Replaces the active stream among `streams` with the given `active` vector; the other streams pass through. No parameter.",
+    "tags": [
+      "parallel-residual"
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of one stream."
       },
       "streams": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of parallel residual streams."
       }
     },
     "ports": {
@@ -49,7 +56,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The residual streams."
         },
         "active": {
           "shape": {
@@ -70,7 +78,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The modified active stream."
         }
       },
       "outputs": {
@@ -101,7 +110,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The streams with the active one replaced."
         }
       }
     },

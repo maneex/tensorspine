@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "deltanet.value_dim",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Flattened value width of a gated-delta layer, `value_heads * head_dim`."
   }
 }

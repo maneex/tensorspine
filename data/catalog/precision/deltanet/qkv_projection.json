@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "deltanet.qkv_projection",
   "definition": {
+    "summary": "Fused query/key/value projection of a gated-delta layer.",
     "admissible": [
       "bf16",
       "f16",

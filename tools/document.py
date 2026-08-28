@@ -2,31 +2,35 @@
 
 A contract is written for a validator: tagged expressions, ordered rules,
 conditions over arguments. This command writes it back for a person, and
-adds nothing the catalog does not say. Three sources feed the page:
+adds nothing the catalog does not say. Two sources feed the page:
 
   * the DEFINITION of every unit — arguments, ports, slots, states, costs,
     partitions — rendered in full, with expressions printed in infix and
     conditions in words. This is the part that exists today and is never
     optional: a contract with no prose is still documented by its facts;
   * the DOCUMENTATION fields of the units — `summary`, `description`,
-    `external_docs`, `tags`, `deprecated`, `examples`, the `description` of
-    every argument, port, slot, state, rule — whose shape is fixed by
+    `external_docs`, `tags`, `deprecated`, the `description` of every
+    argument, port, slot, state, rule — whose shape is fixed by
     schemas/armature-documentation.schema.json. They are inert everywhere
-    else (§10.2): --validate and --d1 never read them;
-  * the CORPUS given on the command line, for cross-references: which model
-    cites which contract, and where the body of a delegated contract lives.
+    else (§10.2): --validate and --d1 never read them.
+
+A unit's page says what the unit declares, and nothing about who uses it:
+there is no "cited by" index. Model documents are read for one purpose only,
+finding the body of a delegated contract, which lives beside the models that
+invoke it (catalog.body_path); the PATHs of the command line say where to
+look.
 
 The generator never invents prose. A unit without a summary is rendered
 without one and counted in the coverage appendix; it is not summarised from
 its `note`, which is a maintainer's aside (the why), not a description of
-the unit (the what). A malformed documentation field, or an example the
-contract rejects, is a refusal with its cause (I7) — the command exits 1 and
-writes nothing. Findings that are legal but worth knowing — a grammar key
-this generator does not know, a condition citing an undeclared argument, a
-tag no base declares — go to the findings appendix and never block.
+the unit (the what). A malformed documentation field is a refusal with its
+cause (I7) — the command exits 1 and writes nothing. Findings that are legal
+but worth knowing — a grammar key this generator does not know, a condition
+citing an undeclared argument, a tag no base declares — go to the findings
+appendix and never block.
 
-The output is deterministic: the same catalog and corpus give the same
-bytes, so the rendered file can be committed and diffed.
+The output is deterministic: the same catalog gives the same bytes at the
+same location, so the rendered file can be committed and diffed.
 """
 import collections
 import glob
@@ -39,7 +43,7 @@ from jsonschema import Draft202012Validator
 
 import catalog as catalog_mod
 import schema as schema_mod
-from expr import UNRESOLVED, contract_condition, contract_value
+from expr import contract_value
 
 DOC_SCHEMA_ROLE = 'documentation'
 DOC_SCHEMA_ID = 'https://armature.dev/schema/2.0/documentation.json'
@@ -74,17 +78,13 @@ GRAMMAR = {
 # Which fragment of the documentation schema governs the documentation of a
 # site, and therefore which keys are documentation there.
 FRAGMENT = {
-    'contract': 'contract_documentation', 'delegated': 'contract_documentation',
+    'contract': 'unit_documentation', 'delegated': 'unit_documentation',
     'axis': 'unit_documentation', 'precision_role': 'unit_documentation',
     'base': 'base_documentation', 'argument': 'argument_documentation',
 }
 for _site in ('port', 'parameter', 'constant', 'state', 'component', 'rule', 'operation',
               'alias', 'cost', 'partition', 'transform'):
     FRAGMENT[_site] = 'element_documentation'
-
-DTYPE_BYTES = {'bool': 1, 'u4': 0.5, 'i4': 0.5, 'fp4': 0.5, 'u8': 1, 'i8': 1,
-               'f8e4m3': 1, 'f8e4m3fn': 1, 'f8e5m2': 1, 'i16': 2, 'f16': 2, 'bf16': 2,
-               'i32': 4, 'f32': 4, 'i64': 8, 'f64': 8}
 
 
 # --- the report: refusals block, findings inform -------------------------------
@@ -245,7 +245,8 @@ def _group(c):
 
 
 def arguments_cited(node, out=None):
-    """Every `argument` reference inside an expression or condition tree."""
+    """Every argument an expression or condition tree refers to, by `argument`
+    or by `present`."""
     out = out if out is not None else set()
     if isinstance(node, dict):
         for key in ('argument', 'present'):
@@ -293,16 +294,6 @@ def origin_str(o):
     return json.dumps(o)
 
 
-def fmt_int(v):
-    if isinstance(v, bool):
-        return json.dumps(v)
-    if isinstance(v, int):
-        return f"{v:,}"
-    if isinstance(v, float):
-        return f"{v:,.4g}" if v != int(v) else f"{int(v):,}"
-    return json.dumps(v)
-
-
 # --- Markdown helpers -----------------------------------------------------------
 
 def cell(s):
@@ -339,7 +330,6 @@ def heading(level, text, ident=None):
     lines = []
     if ident:
         lines.append(f'<a id="{ident}" name="{ident}"></a>')
-        lines.append('')  # blank line: otherwise Markdown folds the heading into the anchor's paragraph
     lines.append(f"{'#' * level} {text}")
     lines.append('')
     return lines
@@ -419,41 +409,12 @@ def load_units(bases):
     return manifests, units
 
 
-def scan_corpus(model_paths, report):
-    """What the given model documents cite."""
-    corpus = []
-    for path in sorted(model_paths):
-        try:
-            with open(path, encoding='utf-8') as f:
-                model = json.load(f)
-        except (OSError, ValueError) as e:
-            report.find(os.path.basename(path), f"not read as a model document: {e}")
-            continue
-        if model.get('schema') != 'armature/2.0' or 'occurrences' not in model:
-            report.find(os.path.basename(path), "not an armature/2.0 model document; ignored")
-            continue
-        cites = collections.Counter()
-        for o in model['occurrences'].values():
-            cites[(o['contract']['name'], o['contract']['version'])] += 1
-        for comp in model.get('compositions', {}).values():
-            for o in comp['occurrences'].values():
-                cites[(o['contract']['name'], o['contract']['version'])] += 1
-        external = sorted(q['source']['name'] for q in model.get('quantities', {}).values()
-                          if q.get('source', {}).get('kind') == 'external')
-        corpus.append({'id': model.get('model', '?'),
-                       'stem': os.path.basename(path)[:-len('.json')],
-                       'path': path, 'model': model, 'cites': cites, 'external': external})
-    return corpus
-
-
-def find_body(definition, corpus, model_paths):
+def find_body(definition, model_paths):
     """The body of a delegated contract: `<last URI segment>.json`, looked for
-    in the directories of the corpus (catalog.body_path resolves it beside the
-    invoking model, which a catalog page does not have)."""
+    in the directories of the given model documents (catalog.body_path
+    resolves it beside the invoking model, which a catalog page does not
+    have). Returns (path, model) or None."""
     segment = definition['model']['uri'].split('.')[-1]
-    for entry in corpus:
-        if entry['stem'] == segment:
-            return entry
     dirs = []
     for p in model_paths:
         d = os.path.dirname(os.path.abspath(p))
@@ -463,97 +424,8 @@ def find_body(definition, corpus, model_paths):
         candidate = os.path.join(d, segment + '.json')
         if os.path.isfile(candidate):
             with open(candidate, encoding='utf-8') as f:
-                model = json.load(f)
-            return {'id': model.get('model', '?'), 'stem': segment, 'path': candidate,
-                    'model': model, 'cites': collections.Counter(), 'external': []}
+                return candidate, json.load(f)
     return None
-
-
-# --- examples: documentation the contract executes ------------------------------
-
-def _typed(value, decl, path, where, report):
-    """A literal example value against an argument declaration. Returns the
-    value, or None after a refusal."""
-    t = decl['type']
-    kind = t['kind']
-    ok = True
-    if kind == 'cardinality':
-        ok = isinstance(value, int) and not isinstance(value, bool) and value >= 0
-    elif kind in ('real', 'physical'):
-        ok = isinstance(value, (int, float)) and not isinstance(value, bool)
-    elif kind == 'boolean':
-        ok = isinstance(value, bool)
-    elif kind == 'enum':
-        ok = value in t['values']
-    elif kind == 'port_reference':
-        ok = isinstance(value, str) and value != ''
-    elif kind == 'record':
-        if not isinstance(value, dict):
-            ok = False
-        else:
-            out = {}
-            for field, fdecl in t['fields'].items():
-                if field in value:
-                    out[field] = _typed(value[field], fdecl, f"{path}.{field}", where, report)
-                elif 'default' in fdecl:
-                    out[field] = contract_value(fdecl['default'], out)
-                elif fdecl.get('required'):
-                    report.refuse(where, f"example argument '{path}': required field "
-                                         f"'{field}' missing")
-            for field in value:
-                if field not in t['fields']:
-                    report.refuse(where, f"example argument '{path}': unknown field '{field}'")
-            return out
-    if not ok:
-        report.refuse(where, f"example argument '{path}' = {json.dumps(value)} is not a "
-                             f"{kind}" + (f" of {t['values']}" if kind == 'enum' else ''))
-        return None
-    return value
-
-
-def resolve_example(definition, example, where, report):
-    """The resolved argument map of an example: declared types checked (V3),
-    unknown and missing arguments refused (V2), defaults applied."""
-    declared = definition['arguments']
-    args = {}
-    defaulted = set()
-    for name, value in example['arguments'].items():
-        if name not in declared:
-            report.refuse(where, f"example argument '{name}' is not declared by the contract")
-            continue
-        args[name] = _typed(value, declared[name], name, where, report)
-    # Defaults may cite other arguments (§4.6): apply in passes until stable.
-    pending = [n for n in declared if n not in args and 'default' in declared[n]]
-    progress = True
-    while pending and progress:
-        progress = False
-        for name in list(pending):
-            v = contract_value(declared[name]['default'], args)
-            if v is not None and v is not UNRESOLVED:
-                args[name] = v
-                defaulted.add(name)
-                pending.remove(name)
-                progress = True
-    for name, decl in declared.items():
-        if name not in args and decl.get('required'):
-            report.refuse(where, f"example: required argument '{name}' missing")
-    return args, defaulted
-
-
-def numeric_shape(shape, args):
-    parts, total = [], 1
-    for a in shape['axes']:
-        v = contract_value(a['extent'], args)
-        if v is None or v is UNRESOLVED:
-            parts.append(f"{a['name']}=?")
-            total = None
-        else:
-            parts.append(f"{a['name']}={fmt_int(v)}")
-            if total is not None:
-                total *= v
-    if not parts:
-        return 'scalar', 1
-    return ' × '.join(parts), total
 
 
 # --- vocabulary in use -----------------------------------------------------------
@@ -570,25 +442,23 @@ class Vocabulary:
     def rows(self):
         for field in sorted(self.seen):
             for value in sorted(self.seen[field]):
-                who = sorted(self.seen[field][value])
-                yield field, value, len(who), ', '.join(who)
+                yield field, value, len(self.seen[field][value])
 
 
 # --- the renderer -----------------------------------------------------------------
 
 class Renderer:
-    def __init__(self, manifests, units, cat, corpus, model_paths, docs, report, bases,
+    def __init__(self, manifests, units, cat, model_paths, docs, report, bases,
                  relative_to, output_dir=None):
         self.manifests = manifests
-        self.output_dir = output_dir
         self.units = units
         self.cat = cat
-        self.corpus = corpus
         self.model_paths = model_paths
         self.docs = docs
         self.report = report
         self.bases = bases
         self.relative_to = relative_to
+        self.output_dir = output_dir
         self.vocab = Vocabulary()
         self.contracts = sorted((u for u in units.values() if u['kind'] == 'contract'),
                                 key=lambda u: (u['name'], catalog_mod._semver(u['definition']['version'])))
@@ -601,55 +471,10 @@ class Renderer:
             for t in m['definition'].get('tags', []) or []:
                 if isinstance(t, dict) and 'name' in t:
                     self.declared_tags.setdefault(t['name'], t)
-        self.tag_users = collections.defaultdict(list)
-        self.axis_users = collections.defaultdict(set)     # axis -> {contract link}
-        self.role_users = collections.defaultdict(set)     # role -> {contract.slot}
-        self.cited_by = collections.defaultdict(list)      # (name, version) -> [(stem, n)]
-        for entry in corpus:
-            for ref, n in sorted(entry['cites'].items()):
-                self.cited_by[ref].append((entry['stem'], n))
         self.axis_names = {u['name'] for u in self.axes}
         self.role_names = {u['name'] for u in self.roles}
-        self._index_references()
 
-    # -- indexes computed before rendering ------------------------------------------
-    def _index_references(self):
-        for u in self.contracts:
-            d = u['definition']
-            who = u['name']
-            if 'model' in d:
-                continue
-            def shape_axes(shape):
-                for a in shape.get('axes', []):
-                    yield a['axis']
-                    for f in a.get('factors', []):
-                        yield f['axis']
-            for side in ('inputs', 'outputs'):
-                for pname, p in d['ports'][side].items():
-                    for ax in shape_axes(p['shape']):
-                        self.axis_users[ax].add(who)
-                    self.role_users[p['role']].add(f"{who}.{pname} (port)")
-            for section, tag in (('parameters', 'parameter'), ('constants', 'constant')):
-                for sname, s in d.get(section, {}).items():
-                    for ax in shape_axes(s['shape']):
-                        self.axis_users[ax].add(who)
-                    self.role_users[s['role']].add(f"{who}.{sname} ({tag})")
-            for sname, s in d.get('state_ports', {}).items():
-                for ax in s.get('key_axes', []):
-                    self.axis_users[ax].add(who)
-                for cname, c in s['payload'].items():
-                    for ax in shape_axes(c['shape']):
-                        self.axis_users[ax].add(who)
-                    self.role_users[c['role']].add(f"{who}.{sname}.{cname} (state)")
-            for p in d.get('partitions', []):
-                t = p['target']
-                for key in ('argument_axis', 'instance_key_axis'):
-                    if key in t:
-                        self.axis_users[t[key]].add(who)
-                for key in ('value_axis', 'payload_axis'):
-                    if key in t:
-                        self.axis_users[t[key]['axis']].add(who)
-
+    # -- helpers -----------------------------------------------------------------------
     def rel(self, path):
         """A path shown relative to the repository when it is inside it, absolute
         otherwise — `../../../tmp/x` names nothing a reader can find."""
@@ -708,7 +533,6 @@ class Renderer:
     def tags_line(self, docs, where):
         tags = docs.get('tags') or []
         for t in tags:
-            self.tag_users[t].append(where)
             if t not in self.declared_tags:
                 self.report.find(where, f"tag '{t}' is declared by no base manifest")
         if not tags:
@@ -741,7 +565,6 @@ class Renderer:
         out += self.axes_section()
         out += self.roles_section()
         out += self.tags_section()
-        out += self.corpus_section()
         out += self.appendix()
         return '\n'.join(out).rstrip('\n') + '\n'
 
@@ -788,8 +611,7 @@ class Renderer:
         bases = ', '.join(f"`{self.rel(b)}`" for b in self.bases)
         out.append(f"Bases consulted, in order: {bases}. "
                    f"{len(self.contracts)} contracts, {len(self.axes)} axes, "
-                   f"{len(self.roles)} precision roles; corpus of {len(self.corpus)} "
-                   f"document(s) for cross-references.")
+                   f"{len(self.roles)} precision roles.")
         out.append('')
         out += heading(2, 'Contents')
         out += ['- [How to read this document](#how-to-read)',
@@ -802,18 +624,17 @@ class Renderer:
         out += ['- [Axes](#axes)', '- [Precision roles](#precision-roles)']
         if self.declared_tags:
             out.append('- [Tags](#tags)')
-        out += ['- [Corpus cross-reference](#corpus)',
-                '- [Appendix A — Roles by slot](#appendix-a)',
-                '- [Appendix B — Closed vocabulary in use](#appendix-b)',
-                '- [Appendix C — Documentation coverage](#appendix-c)',
-                '- [Appendix D — Findings](#appendix-d)', '']
+        out += ['- [Appendix A — Closed vocabulary in use](#appendix-a)',
+                '- [Appendix B — Documentation coverage](#appendix-b)',
+                '- [Appendix C — Findings](#appendix-c)', '']
         out += heading(2, 'How to read this document', 'how-to-read')
+        schema_link = self.rewrite_url('schemas/armature-documentation.schema.json')
         out += [
             "Every unit is rendered from its definition first, then from its documentation. "
             "Facts — types, defaults, shapes, laws — come from the definition and cannot "
             "disagree with it; prose comes from `summary` and `description` fields "
-            "(" + self.rewrite_url("schemas/armature-documentation.schema.json") + "), and a maintainer's `note` is quoted "
-            "as written. Nothing is inferred: a unit without a summary has none.",
+            f"({schema_link}), and a maintainer's `note` is quoted as written. Nothing is "
+            "inferred: a unit without a summary has none.",
             '',
             "- **Expressions** are contract arguments by name; `a.b` is a field of a record "
             "argument. Operators: `+ - * /`, `mod`, `ceil(a / b)`, `floor(a / b)`, `min`, "
@@ -831,10 +652,6 @@ class Renderer:
             "only the computation.",
             "- **State rules** are ordered; the first rule whose condition holds decides the "
             "law, access geometry, sharing and indexing of the state (§4.3).",
-            "- **Examples** are executed: the contract is applied to the example's arguments "
-            "and the consequences — present slots with numeric shapes, the state rule that "
-            "fires, the payload per position — are printed. Byte figures use the default "
-            "dtype of each precision role and are illustrative.",
             '',
         ]
         return out
@@ -853,7 +670,6 @@ class Renderer:
         for u in self.contracts:
             d = u['definition']
             name, version = u['name'], d['version']
-            docs = {k: d[k] for k in ('summary', 'deprecated') if k in d}
             if 'model' in d:
                 shape = 'delegated body'
             else:
@@ -862,26 +678,23 @@ class Renderer:
                          f"{len(d['ports']['inputs'])}→{len(d['ports']['outputs'])} ports · "
                          f"{len(d.get('parameters', {}))} params"
                          + (f" · state {states}" if states else ''))
-            cited = self.cited_by.get((name, version), [])
             rows.append([self.link_contract(name, version),
-                         ('*deprecated* ' if 'deprecated' in docs else '') + docs.get('summary', ''),
-                         shape, f"{len(cited)} document(s)" if cited else '—'])
+                         ('*deprecated* ' if 'deprecated' in d else '') + d.get('summary', ''),
+                         shape])
         out += ['### Contracts', '']
-        out += table(['Contract', 'Summary', 'Shape', 'Cited by'], rows)
+        out += table(['Contract', 'Summary', 'Shape'], rows)
         out += ['### Axes', '']
-        out += table(['Axis', 'Space', 'Summary', 'Cited by'],
+        out += table(['Axis', 'Space', 'Summary'],
                      [[link('axis', u['name']), u['definition']['space'],
-                       u['definition'].get('summary', ''),
-                       f"{len(self.axis_users.get(u['name'], ()))} contract(s)"]
+                       u['definition'].get('summary', '')]
                       for u in self.axes])
         out += ['### Precision roles', '']
-        out += table(['Role', 'Admissible', 'Default', 'Sensitivity', 'Summary', 'Cited by'],
+        out += table(['Role', 'Admissible', 'Default', 'Sensitivity', 'Summary'],
                      [[link('role', u['name']),
                        ', '.join(f"`{t}`" for t in u['definition']['admissible']),
                        code(u['definition']['default']),
                        u['definition'].get('sensitivity', '—'),
-                       u['definition'].get('summary', ''),
-                       f"{len(self.role_users.get(u['name'], ()))} slot(s)"]
+                       u['definition'].get('summary', '')]
                       for u in self.roles])
         return out
 
@@ -919,9 +732,9 @@ class Renderer:
         if ext:
             out += ['External documentation:', ''] + ext
         if delegated:
-            out += self.delegated_body(u, docs, where, label)
+            out += self.delegated_body(u, where)
         else:
-            out += self.at_a_glance(d, name, version)
+            out += self.at_a_glance(d)
             out += self.arguments(d, where, label)
             out += self.ports(d, where, label)
             out += self.parameters(d, where, label)
@@ -931,13 +744,11 @@ class Renderer:
             out += self.cost(d, where, label)
             out += self.partitions(d, where, label)
             out += self.transforms(d, where, label)
-            out += self.constraints(d, where, label)
-            out += self.examples(d, docs, where, label)
+            out += self.constraints(d)
             self.check_conditions(d, where)
-        out += self.cited(name, version)
         return out
 
-    def at_a_glance(self, d, name, version):
+    def at_a_glance(self, d):
         declared = d['arguments']
         template = sum(1 for a in declared.values() if a.get('affects_template'))
         required = sum(1 for a in declared.values() if a.get('required'))
@@ -947,15 +758,13 @@ class Renderer:
             for r in s['rules']:
                 laws.add(r['law'])
         cost = ', '.join(f"`{k}`" for k in d.get('logical_cost', {})) or '—'
-        cited = self.cited_by.get((name, version), [])
         rows = [[f"{len(declared)} ({required} required, {template} template)",
                  str(len(d['ports']['inputs'])), str(len(d['ports']['outputs'])),
                  str(len(d.get('parameters', {}))), str(len(d.get('constants', {}))),
                  (', '.join(f"`{s}`" for s in states) + (f" ({', '.join(sorted(laws))})" if laws else '')) or 'none',
-                 str(len(d.get('partitions', []))), cost,
-                 f"{len(cited)} document(s)" if cited else '—']]
+                 str(len(d.get('partitions', []))), cost]]
         return table(['Arguments', 'Inputs', 'Outputs', 'Parameters', 'Constants', 'State ports',
-                      'Partitions', 'Logical cost', 'Cited by'], rows)
+                      'Partitions', 'Logical cost'], rows)
 
     def argument_rows(self, arguments, where, label, prefix='', depth=0):
         rows, enums = [], []
@@ -1236,7 +1045,7 @@ class Renderer:
         out += table(['From port', 'To port', 'Relation', 'Factor', 'Description'], rows)
         return out
 
-    def constraints(self, d, where, label):
+    def constraints(self, d):
         cs = d.get('constraints')
         if not cs:
             return []
@@ -1251,10 +1060,9 @@ class Renderer:
         declare can never fire (present) or resolve (compare): worth knowing."""
         declared = declared_argument_paths(d['arguments'])
         sites = []
-        for section in ('ports',):
-            for side in ('inputs', 'outputs'):
-                for pname, p in d['ports'][side].items():
-                    sites.append((f"port {pname}", p))
+        for side in ('inputs', 'outputs'):
+            for pname, p in d['ports'][side].items():
+                sites.append((f"port {pname}", p))
         for section in ('parameters', 'constants', 'state_ports'):
             for sname, s in d.get(section, {}).items():
                 sites.append((f"{section} {sname}", s))
@@ -1269,127 +1077,7 @@ class Renderer:
                                  f"cites argument '{ref}', which this contract does not "
                                  f"declare — the condition can never hold")
 
-    def examples(self, d, docs, where, label):
-        exs = docs.get('examples')
-        if not exs:
-            return []
-        out = ['##### Examples', '']
-        for ex in exs:
-            ex_where = f"{where} example {ex['name']}"
-            out += [f"**Example `{ex['name']}`**" +
-                    (f" — from `{ex['model']}`" if ex.get('model') else ''), '']
-            if ex.get('model') and not any(e['stem'] == ex['model'] for e in self.corpus):
-                self.report.find(ex_where, f"names model '{ex['model']}', not in the corpus given")
-            if 'summary' in ex:
-                out += [f"*{ex['summary']}*", '']
-            if 'description' in ex:
-                out += prose(ex['description'])
-            before = len(self.report.refusals)
-            args, defaulted = resolve_example(d, ex, ex_where, self.report)
-            rows = []
-            for aname, decl in d['arguments'].items():
-                if aname not in args:
-                    continue
-                v = args[aname]
-                rows.append([code(aname), code(json.dumps(v)) if isinstance(v, (dict, list)) else code(json.dumps(v)),
-                             'default' if aname in defaulted else 'given'])
-            out += table(['Argument', 'Value', 'Origin'], rows)
-            if len(self.report.refusals) > before:
-                out += ['*(rejected — see the findings)*', '']
-                continue
-            out += self.consequences(d, args)
-        return out
-
-    def consequences(self, d, args):
-        out = ['Consequences:', '']
-        total_elements = 0
-        rows = []
-        for sname, s in d.get('parameters', {}).items():
-            if 'present_when' in s and not contract_condition(s['present_when'], args):
-                continue
-            shape, n = numeric_shape(s['shape'], args)
-            mult = contract_value(s['multiplicity'], args) if 'multiplicity' in s else 1
-            if mult is UNRESOLVED or mult is None:
-                mult = None
-            count = n * mult if (n is not None and mult is not None) else None
-            if count is not None:
-                total_elements += count
-            rows.append([code(sname), shape, f"× {fmt_int(mult)}" if mult not in (1, None) else '',
-                         fmt_int(count) if count is not None else '?'])
-        if rows:
-            out += ['Parameter slots present:', '']
-            out += table(['Slot', 'Shape', 'Multiplicity', 'Elements'], rows)
-            out += [f"Total: {fmt_int(total_elements)} parameter elements per occurrence.", '']
-        else:
-            out += ['No parameter slot is present.', '']
-        absent = [sname for sname, s in d.get('parameters', {}).items()
-                  if 'present_when' in s and not contract_condition(s['present_when'], args)]
-        if absent:
-            out += ['Absent for these arguments: ' + ', '.join(f"`{s}`" for s in absent), '']
-        for sname, s in d.get('state_ports', {}).items():
-            if not contract_condition(s['present_when'], args):
-                out += [f"State port `{sname}`: absent.", '']
-                continue
-            applicable = [(i, r) for i, r in enumerate(s['rules'], 1)
-                          if contract_condition(r['when'], args)]
-            if not applicable:
-                out += [f"State port `{sname}`: present, but no rule applies (V9).", '']
-                continue
-            i, r = applicable[0]
-            law = f"rule {i}: {r['law']} / {r['access']} / {r['sharing']}, indexed by {origin_str(r['indexed_by'])}"
-            for key in ('span', 'stride'):
-                if key in r:
-                    v = contract_value(r[key], args)
-                    law += f", {key} " + (expr(r[key]) if v is UNRESOLVED or v is None else fmt_int(v))
-            if len(applicable) > 1:
-                law += f" (ambiguous: rules {', '.join(str(j) for j, _ in applicable)} also match)"
-            out += [f"State port `{sname}`: present — {law}.", '']
-            rows = []
-            per_position = 0
-            per_bytes = 0.0
-            bytes_known = True
-            for cname, c in s['payload'].items():
-                if 'present_when' in c and not contract_condition(c['present_when'], args):
-                    continue
-                shape, n = numeric_shape(c['shape'], args)
-                mult = contract_value(c['multiplicity'], args) if 'multiplicity' in c else 1
-                if mult is UNRESOLVED or mult is None:
-                    mult = None
-                count = n * mult if (n is not None and mult is not None) else None
-                role = self.cat['precision'].get(c['role'], {})
-                dtype = role.get('default')
-                if count is not None:
-                    per_position += count
-                    if dtype in DTYPE_BYTES:
-                        per_bytes += count * DTYPE_BYTES[dtype]
-                    else:
-                        bytes_known = False
-                else:
-                    bytes_known = False
-                rows.append([code(cname), shape, fmt_int(count) if count is not None else '?',
-                             code(dtype) if dtype else '—'])
-            out += table(['Component', 'Shape', 'Elements', 'Default dtype'], rows)
-            line = f"Per indexed position: {fmt_int(per_position)} elements"
-            if bytes_known and per_bytes:
-                line += f", {fmt_int(int(per_bytes))} bytes at the roles' default dtypes"
-            out += [line + '.', '']
-        for k, c in d.get('logical_cost', {}).items():
-            v = contract_value(c['expression'], args)
-            if v is UNRESOLVED or v is None:
-                continue
-            out += [f"Logical cost `{k}`: {fmt_int(v)} per {c['per']} ({c['status']}).", '']
-        return out
-
-    def cited(self, name, version):
-        cited = self.cited_by.get((name, version), [])
-        out = ['##### Cited by', '']
-        if not cited:
-            return out + ['No document of the corpus cites this contract directly.', '']
-        out.append(', '.join(f"{link('model', stem, text=f'`{stem}`')} ({n} site{'s' if n != 1 else ''})"
-                             for stem, n in cited))
-        return out + ['']
-
-    def delegated_body(self, u, docs, where, label):
+    def delegated_body(self, u, where):
         d = u['definition']
         m = d['model']
         out = ['##### Body', '']
@@ -1397,18 +1085,19 @@ class Renderer:
                    + (f", body version `{m['version']}`" if m.get('version') else ''))
         if m.get('note'):
             out.append(f"- *Note: {m['note']}*")
-        body = find_body(d, self.corpus, self.model_paths)
-        if body is None:
-            out.append(f"- Body not found beside the corpus (`{m['uri'].split('.')[-1]}.json`).")
-            self.report.find(where, "body not found in the corpus directories")
+        found = find_body(d, self.model_paths)
+        if found is None:
+            out.append(f"- Body not found beside the model documents given "
+                       f"(`{m['uri'].split('.')[-1]}.json`).")
+            self.report.find(where, "body not found beside the model documents given")
             return out + ['']
-        body_link = link('model', body['stem'], text=f"`{self.rel(body['path'])}`")
-        out.append(f"- Resolved to {body_link}"
-                   + (f" (declares model id `{body['id']}`)" if body['id'] != m['id'] else ''))
-        if body['id'] != m['id']:
-            self.report.find(where, f"body declares model id '{body['id']}', contract says '{m['id']}'")
+        path, model = found
+        declared_id = model.get('model', '?')
+        out.append(f"- Resolved to `{self.rel(path)}`"
+                   + (f" (declares model id `{declared_id}`)" if declared_id != m['id'] else ''))
+        if declared_id != m['id']:
+            self.report.find(where, f"body declares model id '{declared_id}', contract says '{m['id']}'")
         out.append('')
-        model = body['model']
         rows = []
         for qname, q in model.get('quantities', {}).items():
             src = q.get('source', {})
@@ -1453,9 +1142,9 @@ class Renderer:
             seen.add(ref)
             d = self.cat['contracts'].get(ref[0])
             if d is not None and 'model' in d:
-                body = find_body(d, self.corpus, self.model_paths)
-                if body is not None:
-                    self.closure(body['model'], seen)
+                found = find_body(d, self.model_paths)
+                if found is not None:
+                    self.closure(found[1], seen)
         return seen
 
     def quantity_domain(self, dom):
@@ -1471,6 +1160,17 @@ class Renderer:
         return code(json.dumps(dom))
 
     # -- axes and roles --------------------------------------------------------------------
+    def unit_details(self, u, docs, where):
+        """The prose of an axis or a role, below its table row."""
+        if not any(k in docs for k in ('description', 'external_docs', 'deprecated', 'tags')):
+            return []
+        out = [f"**`{u['name']}`**", ''] + self.deprecated_lines(docs, where)
+        if 'description' in docs:
+            out += prose(docs['description'])
+        out += self.tags_line(docs, u['name'])
+        out += external_docs_lines(docs, self.rewrite_url)
+        return out
+
     def axes_section(self):
         out = heading(2, 'Axes', 'axes')
         out += ["An axis names a dimension. Shapes unify by axis identity (V4): the same "
@@ -1483,19 +1183,10 @@ class Renderer:
             where = self.rel(u['path'])
             docs = self.docs.of('axis', d, where, u['name'], primary='summary')
             self.vocab.add('axis space', d['space'], u['name'])
-            users = sorted(self.axis_users.get(u['name'], ()))
             rows.append([f'<a id="{anchor("axis", u["name"])}"></a>`{u["name"]}`', d['space'],
-                         describe({'description': docs['summary']} if 'summary' in docs else {}, d),
-                         ', '.join(self.link_contract(c) for c in users) or '—'])
-            if any(k in docs for k in ('description', 'external_docs', 'deprecated')):
-                details += [f"**`{u['name']}`**", ''] + self.deprecated_lines(docs, where)
-                if 'description' in docs:
-                    details += prose(docs['description'])
-                details += self.tags_line(docs, u['name'])
-                details += external_docs_lines(docs, self.rewrite_url)
-            else:
-                details += self.tags_line(docs, u['name'])
-        out += table(['Axis', 'Space', 'Summary', 'Cited by'], rows)
+                         describe({'description': docs['summary']} if 'summary' in docs else {}, d)])
+            details += self.unit_details(u, docs, where)
+        out += table(['Axis', 'Space', 'Summary'], rows)
         if details:
             out += ['### Details', ''] + details
         return out
@@ -1514,84 +1205,42 @@ class Renderer:
             self.vocab.add('precision sensitivity', d.get('sensitivity'), u['name'])
             for t in d['admissible']:
                 self.vocab.add('dtype admissible', t, u['name'])
-            users = sorted(self.role_users.get(u['name'], ()))
             rows.append([f'<a id="{anchor("role", u["name"])}"></a>`{u["name"]}`',
                          ', '.join(f"`{t}`" for t in d['admissible']), code(d['default']),
                          d.get('sensitivity', '—'),
-                         describe({'description': docs['summary']} if 'summary' in docs else {}, d),
-                         ', '.join(f"`{s}`" for s in users) or '—'])
-            if any(k in docs for k in ('description', 'external_docs', 'deprecated')):
-                details += [f"**`{u['name']}`**", ''] + self.deprecated_lines(docs, where)
-                if 'description' in docs:
-                    details += prose(docs['description'])
-                details += self.tags_line(docs, u['name'])
-                details += external_docs_lines(docs, self.rewrite_url)
-            else:
-                details += self.tags_line(docs, u['name'])
-        out += table(['Role', 'Admissible', 'Default', 'Sensitivity', 'Summary', 'Cited by'], rows)
+                         describe({'description': docs['summary']} if 'summary' in docs else {}, d)])
+            details += self.unit_details(u, docs, where)
+        out += table(['Role', 'Admissible', 'Default', 'Sensitivity', 'Summary'], rows)
         if details:
             out += ['### Details', ''] + details
         return out
 
     def tags_section(self):
-        if not self.declared_tags and not self.tag_users:
+        if not self.declared_tags:
             return []
         out = heading(2, 'Tags', 'tags')
-        out += ['Editorial groupings declared by the base manifest and cited by units.', '']
-        names = sorted(set(self.declared_tags) | set(self.tag_users))
-        for t in names:
-            decl = self.declared_tags.get(t)
+        out += ['Editorial groupings declared by the base manifest; a unit that carries a tag '
+                'says so in its own section.', '']
+        for t in sorted(self.declared_tags):
+            decl = self.declared_tags[t]
             out += heading(3, f"`{t}`", anchor('tag', t))
-            if decl:
-                if 'summary' in decl:
-                    out += [f"**{decl['summary']}**", '']
-                if 'description' in decl:
-                    out += prose(decl['description'])
-                out += external_docs_lines(decl, self.rewrite_url)
-            else:
-                out += ['*Not declared by any base manifest.*', '']
-            users = self.tag_users.get(t, [])
-            out.append('Units: ' + (', '.join(f"`{u}`" for u in users) if users else 'none') + '.')
-            out.append('')
-        return out
-
-    def corpus_section(self):
-        out = heading(2, 'Corpus cross-reference', 'corpus')
-        if not self.corpus:
-            return out + ['No model document was given.', '']
-        out += ['The documents given on the command line, and the contracts each cites '
-                'directly (site counts before expansion). A parametric document lists the '
-                'external quantities an assignment must supply.', '']
-        rows = []
-        for e in self.corpus:
-            kind = 'model'
-            if e['external']:
-                kind = 'parametric body/template (external: ' + ', '.join(f"`{x}`" for x in e['external']) + ')'
-            cites = ', '.join(f"{self.link_contract(n, v)} ×{c}" for (n, v), c in sorted(e['cites'].items()))
-            rows.append([f'<a id="{anchor("model", e["stem"])}"></a>`{e["stem"]}`', code(e['id']),
-                         kind, cites])
-        out += table(['Document', 'Model id', 'Kind', 'Contracts cited'], rows)
+            if 'summary' in decl:
+                out += [f"**{decl['summary']}**", '']
+            if 'description' in decl:
+                out += prose(decl['description'])
+            out += external_docs_lines(decl, self.rewrite_url)
         return out
 
     # -- appendices --------------------------------------------------------------------------
     def appendix(self):
-        out = heading(2, 'Appendix A — Roles by slot', 'appendix-a')
-        out += ['Every parameter slot, port and state component of the catalog, by precision '
-                'role: what a precision policy decides at once.', '']
-        rows = []
-        for role in sorted(set(self.role_users) | self.role_names):
-            users = sorted(self.role_users.get(role, ()))
-            rows.append([self.link_role(role), str(len(users)), ', '.join(f"`{u}`" for u in users) or '—'])
-        out += table(['Role', 'Sites', 'Slots'], rows)
+        out = heading(2, 'Appendix A — Closed vocabulary in use', 'appendix-a')
+        out += ['Every value of every closed enumeration that at least one unit uses, and how '
+                'many units use it. A runtime that implements these values implements the '
+                'whole catalog as it stands.', '']
+        out += table(['Field', 'Value', 'Units'],
+                     [[f, code(v), str(n)] for f, v, n in self.vocab.rows()])
 
-        out += heading(2, 'Appendix B — Closed vocabulary in use', 'appendix-b')
-        out += ['Every value of every closed enumeration that at least one unit uses, with the '
-                'units using it. A runtime that implements these values implements the whole '
-                'catalog as it stands.', '']
-        out += table(['Field', 'Value', 'Units', 'Which'],
-                     [[f, code(v), str(n), w] for f, v, n, w in self.vocab.rows()])
-
-        out += heading(2, 'Appendix C — Documentation coverage', 'appendix-c')
+        out += heading(2, 'Appendix B — Documentation coverage', 'appendix-b')
         out += ['Sites that carry a `summary` (units) or a `description` (elements). A missing '
                 'entry is rendered as absent, never invented.', '']
         rows = []
@@ -1600,11 +1249,11 @@ class Renderer:
             rows.append([site_kind, str(done), str(total), pct])
         out += table(['Site', 'Documented', 'Total', 'Coverage'], rows)
         for site_kind, labels in self.report.undocumented.items():
-            if site_kind in ('contract', 'delegated', 'axis', 'precision_role', 'base'):
+            if site_kind in ('contract', 'axis', 'precision_role', 'base'):
                 out.append(f"- Undocumented {site_kind}s: " + ', '.join(f"`{l}`" for l in labels))
         out.append('')
 
-        out += heading(2, 'Appendix D — Findings', 'appendix-d')
+        out += heading(2, 'Appendix C — Findings', 'appendix-c')
         if self.report.findings:
             out += ['Legal, and worth knowing. None of these blocks generation.', '']
             for f in self.report.findings:
@@ -1619,8 +1268,9 @@ class Renderer:
 
 def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None):
     """Render the catalog of the given bases to Markdown. Returns the exit status:
-    0 written, 1 refused (malformed documentation, rejected example, unreadable
-    catalog), with the causes on stderr."""
+    0 written, 1 refused (malformed documentation, unreadable catalog), with the
+    causes on stderr. `model_paths` only say where delegated bodies are looked
+    for."""
     status = sys.stderr if output is None else sys.stdout
     try:
         cat = catalog_mod.load(*catalog_bases)
@@ -1634,12 +1284,11 @@ def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None):
     except FileNotFoundError as e:
         print(f"  {e}", file=sys.stderr)
         return 1
-    corpus = scan_corpus(model_paths, report)
     target = None
     if output is not None:
         target = os.path.join(output, 'catalog.md') if os.path.isdir(output) else output
     output_dir = os.path.dirname(os.path.abspath(target)) if target else None
-    renderer = Renderer(manifests, units, cat, corpus, model_paths, docs, report, catalog_bases,
+    renderer = Renderer(manifests, units, cat, model_paths, docs, report, catalog_bases,
                         relative_to, output_dir)
     text = renderer.render()
     if report.refusals:
@@ -1655,8 +1304,7 @@ def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None):
             f.write(text)
     covered = report.coverage.get('contract', [0, 0])
     print(f"  {len(renderer.contracts)} contracts, {len(renderer.axes)} axes, "
-          f"{len(renderer.roles)} precision roles, {len(corpus)} corpus document(s) -> {target}",
-          file=status)
+          f"{len(renderer.roles)} precision roles -> {target}", file=status)
     print(f"  {covered[0]}/{covered[1]} contracts carry a summary; "
           f"{len(report.findings)} advisory finding(s)", file=status)
     return 0

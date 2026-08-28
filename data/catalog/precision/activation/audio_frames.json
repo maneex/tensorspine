@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "activation.audio_frames",
   "definition": {
+    "summary": "Mel-spectrogram input frames.",
     "admissible": [
       "f32",
       "f16"

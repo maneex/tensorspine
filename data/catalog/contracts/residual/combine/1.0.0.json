@@ -4,34 +4,40 @@
   "name": "residual.combine",
   "definition": {
     "version": "1.0.0",
+    "summary": "Weighted combination of two branches: `left*left_scale + right*right_scale`, times `output_scale`.",
+    "description": "The scales are opaque scalars: they change the computation, not a tensor. Used where a model averages two branches or scales a residual.",
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of both operands."
       },
       "left_scale": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Factor applied to `left`. Opaque."
       },
       "right_scale": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Factor applied to `right`. Opaque."
       },
       "output_scale": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Factor applied to the sum. Opaque."
       }
     },
     "ports": {
@@ -55,7 +61,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "First branch."
         },
         "right": {
           "shape": {
@@ -76,7 +83,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Second branch."
         }
       },
       "outputs": {
@@ -99,7 +107,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The weighted combination."
         }
       }
     },

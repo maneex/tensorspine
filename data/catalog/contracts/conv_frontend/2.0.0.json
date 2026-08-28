@@ -4,27 +4,43 @@
   "name": "conv_frontend",
   "definition": {
     "version": "2.0.0",
+    "summary": "Audio front end: two temporal convolutions over mel frames, the second strided, plus optional learned positions.",
+    "description": "`frames` carries `mels` features per frame; `conv1_weight` maps them to `width` with a kernel of `kernel` frames, and `conv2_weight` applies a second convolution with stride `stride`, which sets the ratio between input frames and output positions. `position` adds a learned position table when the encoder does not use rotary positions. Output positions are in the `position` domain of the audio stream.",
+    "tags": [
+      "multimodal"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2212.04356",
+        "title": "Robust Speech Recognition via Large-Scale Weak Supervision (Radford et al., 2022)",
+        "kind": "paper",
+        "description": "The Whisper encoder stem: two convolutions, the second with stride two."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the encoder."
       },
       "mels": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Mel bins per frame."
       },
       "stride": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Stride of the second convolution: input frames per output position."
       },
       "kernel": {
         "type": {
@@ -34,7 +50,8 @@
         "affects_template": true,
         "default": {
           "literal": 3
-        }
+        },
+        "description": "Kernel support of both convolutions, in frames."
       },
       "bias": {
         "type": {
@@ -44,7 +61,8 @@
         "affects_template": true,
         "default": {
           "literal": true
-        }
+        },
+        "description": "The convolutions carry a learned bias."
       },
       "position": {
         "type": {
@@ -52,7 +70,8 @@
         },
         "required": false,
         "affects_template": true,
-        "note": "number of learned positions; absent for RoPE"
+        "note": "number of learned positions; absent for RoPE",
+        "description": "Number of learned positions; absent when positions are rotary."
       }
     },
     "ports": {
@@ -76,7 +95,8 @@
               "self": true
             }
           },
-          "role": "activation.audio_frames"
+          "role": "activation.audio_frames",
+          "description": "Mel-spectrogram frames."
         }
       },
       "outputs": {
@@ -99,7 +119,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Encoder input: one vector per output position."
         }
       }
     },
@@ -136,7 +157,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "First convolution, `mels → width`."
       },
       "conv1_bias": {
         "role": "frontend.bias",
@@ -165,7 +187,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the first convolution."
       },
       "conv2_weight": {
         "role": "frontend.convolution",
@@ -199,7 +222,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Second convolution, `width → width`, strided."
       },
       "conv2_bias": {
         "role": "frontend.bias",
@@ -228,7 +252,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the second convolution."
       },
       "position": {
         "role": "embedding.position",
@@ -257,7 +282,8 @@
         },
         "present_when": {
           "present": "position"
-        }
+        },
+        "description": "Learned position table."
       }
     },
     "constants": {},

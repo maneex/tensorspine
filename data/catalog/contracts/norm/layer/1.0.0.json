@@ -4,20 +4,31 @@
   "name": "norm.layer",
   "definition": {
     "version": "1.0.0",
+    "summary": "Layer normalization with a learned scale and bias.",
+    "description": "Centers and scales the input over `width` (variance plus `eps`), then applies `weight` and `bias`.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1607.06450",
+        "title": "Layer Normalization (Ba, Kiros & Hinton, 2016)",
+        "kind": "paper"
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width normalized over."
       },
       "eps": {
         "type": {
           "kind": "real"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Added to the variance before the root; changes no tensor."
       }
     },
     "ports": {
@@ -41,7 +52,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The value to normalize."
         }
       },
       "outputs": {
@@ -64,7 +76,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The normalized value."
         }
       }
     },
@@ -85,7 +98,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Per-channel scale."
       },
       "bias": {
         "role": "norm.bias",
@@ -103,7 +117,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Per-channel bias."
       }
     },
     "constants": {},

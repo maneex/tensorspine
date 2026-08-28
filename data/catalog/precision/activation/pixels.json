@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "activation.pixels",
   "definition": {
+    "summary": "Image pixels at the input of a patch embedding.",
     "admissible": [
       "f32",
       "bf16",

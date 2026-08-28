@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.index_heads",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Heads of the sparse index."
   }
 }

@@ -4,6 +4,7 @@
   "name": "model.feature",
   "definition": {
     "space": "value",
+    "summary": "Feature axis of an output projection that is not the model width, such as a pooler's embedding.",
     "note": "feature axis of an output projection"
   }
 }

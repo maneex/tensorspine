@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.o_rank",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Rank of one output group; flattened as `o_groups * o_rank`."
   }
 }

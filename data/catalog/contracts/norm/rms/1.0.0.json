@@ -4,20 +4,31 @@
   "name": "norm.rms",
   "definition": {
     "version": "1.0.0",
+    "summary": "Root-mean-square normalization with a learned scale.",
+    "description": "Divides the input by its root mean square over `width` (plus `eps`) and multiplies by `weight`. No bias and no centering: that is what makes it non-interchangeable with `norm.layer`.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1910.07467",
+        "title": "Root Mean Square Layer Normalization (Zhang & Sennrich, 2019)",
+        "kind": "paper"
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width normalized over."
       },
       "eps": {
         "type": {
           "kind": "real"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Added to the mean square before the root; changes no tensor."
       }
     },
     "ports": {
@@ -41,7 +52,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The value to normalize."
         }
       },
       "outputs": {
@@ -64,7 +76,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The normalized value."
         }
       }
     },
@@ -85,7 +98,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Per-channel scale."
       }
     },
     "constants": {},

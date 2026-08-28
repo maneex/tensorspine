@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "vision.patch",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Patch side, in pixels."
   }
 }

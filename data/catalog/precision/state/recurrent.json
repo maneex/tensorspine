@@ -3,6 +3,8 @@
   "kind": "precision_role",
   "name": "state.recurrent",
   "definition": {
+    "summary": "Fixed-size recurrent state.",
+    "description": "A recurrent state is overwritten at every position and accumulates rounding: `f32` by default, `bf16` admissible, nothing narrower.",
     "admissible": [
       "f32",
       "bf16"

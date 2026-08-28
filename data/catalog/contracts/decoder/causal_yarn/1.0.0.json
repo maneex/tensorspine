@@ -4,6 +4,16 @@
   "name": "decoder.causal_yarn",
   "definition": {
     "version": "1.0.0",
+    "summary": "Pre-norm causal decoder stack with grouped-query attention, RoPE with YaRN scaling and a gated FFN, as a body.",
+    "description": "A delegated contract: its meaning is the family of graphs its body `decoder-causal-yarn.json` denotes, one per assignment of `width`, `layers`, `heads`, `kv_heads`, `head_dim`, `inner`, `eps` and `precision`. Invoking it costs a consumer nothing beyond the primitives the body cites (§8.1); parameters, state and costs are derived from the expanded body (§4.6).",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2309.00071",
+        "title": "YaRN: Efficient Context Window Extension of Large Language Models (Peng et al., 2023)",
+        "kind": "paper",
+        "description": "The rotary scaling the body's attention uses."
+      }
+    ],
     "model": {
       "uri": "models-v2.decoder-causal-yarn",
       "id": "decoder_causal_yarn",

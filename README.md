@@ -212,11 +212,12 @@ qualified identity; a contract's filename is its version, allowing versions to c
 Contract names describe structure (`attention.latent_compressed`, `sequence.gated_delta`,
 `residual.altup_predict`), never a checkpoint, vendor or Python class.
 
-A unit may also carry documentation — `summary`, `description`, `external_docs`, `tags`,
-`deprecated`, executed `examples`, and a `description` on every argument, port, slot and state
-rule — beside its `note`. Those fields are inert for validation and derivation (§10.2); their shape
-is fixed by `schemas/armature-documentation.schema.json`, and `--document catalog` renders them.
-See the [documentation model](docs/CATALOG-DOCUMENTATION.md).
+A unit also carries documentation — `summary`, `description`, `external_docs`, `tags`,
+`deprecated`, and a `description` on every argument, port, slot and state rule — beside its `note`.
+Those fields are inert for validation and derivation (§10.2); their shape is fixed by
+`schemas/armature-documentation.schema.json`, and `--document catalog` renders them into the
+[catalog reference](docs/CATALOG-REFERENCE.md). See the
+[documentation model](docs/CATALOG-DOCUMENTATION.md).
 
 ### Models
 
@@ -272,7 +273,7 @@ python3 tools/armature --validate data/models/decoder-causal-yarn.json \
 - `--d1` unrolls loops, evaluates indices and expands delegated contracts. Canonical IDs use
   `<composition>/<site>[<i>=<v>,…]`.
 - `--view` produces a self-contained HTML inspector.
-- `--document catalog` renders every unit of the catalog bases — definitions, documentation
-  fields, executed examples — into one Markdown file, cross-referenced with the model documents
-  given (default: the whole corpus). Malformed documentation or a rejected example is a refusal
+- `--document catalog` renders every unit of the catalog bases — definitions and documentation
+  fields — into one Markdown file. The model documents given (default: `data/models/`) only say
+  where the bodies of delegated contracts are looked for. Malformed documentation is a refusal
   (exit 1); a unit without documentation is rendered from its definition alone.

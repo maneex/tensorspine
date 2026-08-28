@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "vision.channels",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Image channels."
   }
 }

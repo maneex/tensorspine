@@ -4,27 +4,32 @@
   "name": "conditioning.layer_select",
   "definition": {
     "version": "1.0.0",
+    "summary": "Selects, from the per-layer auxiliary vectors, the slice that belongs to one layer.",
+    "description": "The input carries one `width` vector per layer (`layers × width`); the opaque `layer` names which one this occurrence forwards. No parameter, no computation beyond the selection.",
     "arguments": {
       "layers": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of layers in the input."
       },
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Width of one slice."
       },
       "layer": {
         "type": {
           "kind": "opaque"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Which layer's slice to select. Opaque."
       }
     },
     "ports": {
@@ -56,7 +61,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The vectors of every layer."
         }
       },
       "outputs": {
@@ -79,7 +85,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The selected layer's vector."
         }
       }
     },

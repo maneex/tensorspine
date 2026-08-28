@@ -4,34 +4,50 @@
   "name": "vit_block",
   "definition": {
     "version": "1.0.0",
+    "summary": "Vision-transformer block projections: fused QKV, attention output, FFN up and down.",
+    "description": "The learned tensors of one bidirectional vision block: `qkv`, whose fused axis is an exact product `projection × head × channel` and therefore declares its factors; `out`; and a dense FFN `in` / `ffn_out`. A vision tower processes an image in one pass without causality, so the block carries no state.",
+    "tags": [
+      "multimodal"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2010.11929",
+        "title": "An Image is Worth 16x16 Words (Dosovitskiy et al., 2020)",
+        "kind": "paper"
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the vision tower."
       },
       "heads": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Attention heads."
       },
       "head_dim": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Dimension of one head."
       },
       "inner": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Inner width of the FFN."
       }
     },
     "ports": {
@@ -55,7 +71,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Patch activations."
         }
       },
       "outputs": {
@@ -78,7 +95,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Block output."
         }
       }
     },
@@ -145,7 +163,8 @@
             }
           ]
         },
-        "note": "without GQA the fused axis IS an exact product: the projection x head x channel decomposition is declarable"
+        "note": "without GQA the fused axis IS an exact product: the projection x head x channel decomposition is declarable",
+        "description": "Fused query, key and value projection: `3 × heads × head_dim` rows."
       },
       "out": {
         "role": "attention.output_projection",
@@ -179,7 +198,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Attention output projection."
       },
       "in": {
         "role": "ffn.up_projection",
@@ -205,7 +225,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "FFN up projection."
       },
       "ffn_out": {
         "role": "ffn.down_projection",
@@ -231,7 +252,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "FFN down projection."
       }
     },
     "constants": {},
@@ -250,14 +272,16 @@
           "argument_axis": "attention.heads"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across heads."
       },
       {
         "target": {
           "argument_axis": "ffn.inner"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across the FFN inner width."
       }
     ],
     "note": "no state: a vision tower processes an image in one pass, without causality"

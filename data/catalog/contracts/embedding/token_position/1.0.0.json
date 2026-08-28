@@ -4,27 +4,40 @@
   "name": "embedding.token_position",
   "definition": {
     "version": "1.0.0",
+    "summary": "Token embedding plus a learned position table.",
+    "description": "The embedded token is summed with a learned vector for its position, one of `positions`. `weight` is shareable with an output head, as in `embed`.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2212.04356",
+        "title": "Robust Speech Recognition via Large-Scale Weak Supervision (Radford et al., 2022)",
+        "kind": "paper",
+        "description": "The Whisper decoder's learned position embedding."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the embedding."
       },
       "vocabulary": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of token identifiers."
       },
       "positions": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of positions the table covers: the maximum sequence length."
       }
     },
     "ports": {
@@ -40,7 +53,8 @@
             }
           },
           "note": "token identifier: rank-zero scalar",
-          "role": "activation.token_index"
+          "role": "activation.token_index",
+          "description": "Token identifier: a rank-zero integer per token."
         }
       },
       "outputs": {
@@ -63,7 +77,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The embedded token."
         }
       }
     },
@@ -96,7 +111,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Token table."
       },
       "position": {
         "role": "embedding.position",
@@ -122,7 +138,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Position table, `positions × width`."
       }
     },
     "constants": {},
@@ -141,7 +158,8 @@
           "argument_axis": "model.vocabulary"
         },
         "semantics": "preserved",
-        "communication": "all_gather"
+        "communication": "all_gather",
+        "description": "Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered."
       }
     ],
     "note": "Sum of a token table and a learned position table."

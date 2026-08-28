@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "norm.scale",
   "definition": {
+    "summary": "Scale of a normalization.",
     "admissible": [
       "f32",
       "bf16",

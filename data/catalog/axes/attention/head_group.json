@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.head_group",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "A group of heads of a grouped output projection: `heads * head_dim / o_groups` channels."
   }
 }

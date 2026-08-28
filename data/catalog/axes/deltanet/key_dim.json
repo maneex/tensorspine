@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "deltanet.key_dim",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Flattened key width of a gated-delta layer, `key_heads * head_dim`."
   }
 }

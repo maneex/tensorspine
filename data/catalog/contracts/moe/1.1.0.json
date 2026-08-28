@@ -4,34 +4,66 @@
   "name": "moe",
   "definition": {
     "version": "1.1.0",
+    "summary": "Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts.",
+    "description": "Each token is scored by `router` against `experts` experts and sent to the `top_k` best; an expert is a gated FFN (`in` fuses gate and up, `out` projects down). `shared` experts of inner width `shared_inner` are applied to every token, optionally weighted by a learned `shared_gate`. `score_bias` adds a learned per-expert bias to the routing scores before selection (load balancing without an auxiliary loss); `hash_vocabulary` replaces learned routing by a fixed token-to-experts table.\n\n`norm_topk`, `routing`, `scale`, `scoring` and `swiglu_limit` are opaque: they change how scores are computed and combined, not which tensors exist. The set of experts a batch activates is not the per-token count: `top_k` bounds a token, `experts` bounds a batch (§4.5).",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1701.06538",
+        "title": "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer (Shazeer et al., 2017)",
+        "kind": "paper",
+        "description": "Top-k routing between expert networks."
+      },
+      {
+        "url": "https://arxiv.org/abs/2401.06066",
+        "title": "DeepSeekMoE (Dai et al., 2024)",
+        "kind": "paper",
+        "description": "Fine-grained experts and shared experts applied to every token."
+      },
+      {
+        "url": "https://arxiv.org/abs/2412.19437",
+        "title": "DeepSeek-V3 Technical Report (DeepSeek-AI, 2024)",
+        "kind": "paper",
+        "description": "Auxiliary-loss-free load balancing by a per-expert score bias."
+      },
+      {
+        "url": "https://arxiv.org/abs/2106.04426",
+        "title": "Hash Layers For Large Sparse Models (Roller et al., 2021)",
+        "kind": "paper",
+        "description": "Routing by a fixed token-to-expert table."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`."
       },
       "experts": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of routed experts."
       },
       "top_k": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Experts activated per token."
       },
       "inner": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Inner width of one routed expert."
       },
       "shared": {
         "type": {
@@ -41,35 +73,40 @@
         "affects_template": true,
         "default": {
           "literal": 0
-        }
+        },
+        "description": "Number of shared experts applied to every token; zero for none."
       },
       "norm_topk": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Whether the selected scores are renormalized. Opaque."
       },
       "routing": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Routing policy details. Opaque."
       },
       "scale": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Scaling applied to the routed outputs. Opaque."
       },
       "scoring": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Scoring function of the router. Opaque."
       },
       "shared_inner": {
         "type": {
@@ -79,14 +116,16 @@
         "affects_template": true,
         "default": {
           "argument": "inner"
-        }
+        },
+        "description": "Inner width of one shared expert."
       },
       "swiglu_limit": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Clamp applied inside the gated activation. Opaque."
       },
       "shared_gate": {
         "type": {
@@ -96,7 +135,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "The shared experts' output is weighted by a learned gate projection."
       },
       "score_bias": {
         "type": {
@@ -106,7 +146,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "A learned per-expert bias is added to the routing scores before selection."
       },
       "hash_vocabulary": {
         "type": {
@@ -114,7 +155,8 @@
         },
         "required": false,
         "affects_template": true,
-        "note": "vocabulary of the token to experts table"
+        "note": "vocabulary of the token to experts table",
+        "description": "Size of a fixed token-to-experts table; present, routing is a table lookup rather than `router`."
       }
     },
     "ports": {
@@ -138,7 +180,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Residual-stream activation."
         }
       },
       "outputs": {
@@ -161,7 +204,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Weighted sum of the activated experts' outputs."
         }
       }
     },
@@ -190,7 +234,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Routing scores: one row per expert."
       },
       "in": {
         "role": "ffn.up_projection",
@@ -251,7 +296,8 @@
             }
           ]
         },
-        "note": "SwiGLU experts: fused gate and up, hence the factor 2"
+        "note": "SwiGLU experts: fused gate and up, hence the factor 2",
+        "description": "Gate and up projections of every routed expert, fused."
       },
       "out": {
         "role": "ffn.down_projection",
@@ -285,7 +331,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Down projection of every routed expert."
       },
       "shared_in": {
         "role": "ffn.up_projection",
@@ -351,7 +398,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Gate and up projections of one shared expert, `shared` times."
       },
       "shared_out": {
         "role": "ffn.down_projection",
@@ -391,7 +439,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Down projection of one shared expert, `shared` times."
       },
       "shared_gate": {
         "role": "moe.shared_gate",
@@ -420,7 +469,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Gate projection weighting the shared experts' output."
       },
       "score_bias": {
         "role": "moe.score_bias",
@@ -449,7 +499,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Per-expert bias added to the routing scores."
       },
       "hash_table": {
         "role": "moe.hash_table",
@@ -478,7 +529,8 @@
         },
         "present_when": {
           "present": "hash_vocabulary"
-        }
+        },
+        "description": "Fixed assignment of each token identifier to `top_k` experts."
       }
     },
     "constants": {},
@@ -497,14 +549,16 @@
           "argument_axis": "moe.experts"
         },
         "semantics": "preserved",
-        "communication": "all_to_all"
+        "communication": "all_to_all",
+        "description": "Expert parallelism: tokens are exchanged between expert shards."
       },
       {
         "target": {
           "argument_axis": "ffn.inner"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Tensor parallelism inside every expert; the down projection needs an all-reduce."
       }
     ],
     "logical_cost": {
@@ -535,7 +589,8 @@
           ]
         },
         "status": "exact",
-        "per": "token"
+        "per": "token",
+        "description": "Three `width × inner` projections per activated expert, routed and shared."
       }
     }
   }

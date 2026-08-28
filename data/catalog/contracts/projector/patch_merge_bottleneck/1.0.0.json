@@ -4,34 +4,43 @@
   "name": "projector.patch_merge_bottleneck",
   "definition": {
     "version": "1.0.0",
+    "summary": "Vision-language projector: normalizes, merges patches by a mixing matrix, then a two-projection bottleneck.",
+    "description": "Patches are normalized (`norm`), `merge_count` of them combined by the learned `merger` into one `source_width` vector, projected to `width` by `linear_in` and refined by `linear_out` (`width → width`). Bias-free.",
+    "tags": [
+      "multimodal"
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the language model."
       },
       "source_width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the vision tower."
       },
       "merge_count": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Patches merged into one token."
       },
       "source": {
         "type": {
           "kind": "port_reference"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "The port whose patch domain the merge consumes."
       }
     },
     "ports": {
@@ -55,7 +64,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Embedded patches, in the vision width."
         }
       },
       "outputs": {
@@ -78,7 +88,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "One token per merged group."
         }
       }
     },
@@ -99,7 +110,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the pre-merge normalization."
       },
       "merger": {
         "role": "projector.patch_merger",
@@ -133,7 +145,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Mixing matrix from `merge_count` concatenated patches to one `source_width` vector."
       },
       "linear_in": {
         "role": "projector.projection",
@@ -159,7 +172,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection from the vision width to the language width."
       },
       "linear_out": {
         "role": "projector.projection",
@@ -185,7 +199,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Second projection, `width → width`."
       }
     },
     "constants": {},
@@ -199,7 +214,6 @@
       ]
     },
     "partitions": [],
-    "note": "Patch merging by a mixing matrix, then a two-projection bottleneck.",
     "domain_transforms": [
       {
         "from_port": "input",
@@ -207,8 +221,10 @@
         "relation": "merge",
         "factor": {
           "argument": "merge_count"
-        }
+        },
+        "description": "`merge_count` patches become one token."
       }
-    ]
+    ],
+    "note": "Patch merging by a mixing matrix, then a two-projection bottleneck."
   }
 }

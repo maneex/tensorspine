@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "pooler.projection",
   "definition": {
+    "summary": "Projection of a pooling head.",
     "admissible": [
       "bf16",
       "f16",

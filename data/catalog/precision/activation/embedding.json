@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "activation.embedding",
   "definition": {
+    "summary": "Output embedding of a pooling head.",
     "admissible": [
       "f32",
       "bf16"

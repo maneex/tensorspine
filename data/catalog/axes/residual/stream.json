@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "residual.stream",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Parallel residual streams (AltUp, hyper-connections)."
   }
 }

@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "state.conv",
   "definition": {
+    "summary": "Convolution history state.",
     "admissible": [
       "bf16",
       "f16"

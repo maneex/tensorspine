@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "sequence.compression",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Positions folded into one compressed cache entry."
   }
 }

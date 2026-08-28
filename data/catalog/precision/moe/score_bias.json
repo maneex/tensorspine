@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "moe.score_bias",
   "definition": {
+    "summary": "Per-expert routing score bias.",
     "admissible": [
       "f32",
       "bf16",

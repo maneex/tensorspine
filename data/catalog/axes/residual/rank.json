@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "residual.rank",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Rank of a low-rank residual branch (LAuReL)."
   }
 }

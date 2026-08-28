@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "deltanet.output_projection",
   "definition": {
+    "summary": "Output projection of a gated-delta layer.",
     "admissible": [
       "bf16",
       "f16",

@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "deltanet.value_heads",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Value heads of a gated-delta layer; one state matrix each."
   }
 }

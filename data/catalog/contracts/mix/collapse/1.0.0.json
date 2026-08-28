@@ -4,20 +4,35 @@
   "name": "mix.collapse",
   "definition": {
     "version": "1.0.0",
+    "summary": "Hyper-connections head: reduces the `multiplicity` residual streams to one before the final norm.",
+    "description": "`fn` projects the flattened streams to `multiplicity` read coefficients, `base` holds their static part and `scale` one coefficient; the streams are combined accordingly into a single `width` vector.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2409.19606",
+        "title": "Hyper-Connections (Zhu et al., 2024)",
+        "kind": "paper",
+        "description": "Learned mixing of several residual streams in place of the residual addition."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of one stream."
       },
       "multiplicity": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of parallel residual streams."
       }
     },
     "ports": {
@@ -41,7 +56,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The residual streams."
         }
       },
       "outputs": {
@@ -64,7 +80,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The single stream."
         }
       }
     },
@@ -101,7 +118,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Input-dependent read coefficients."
       },
       "base": {
         "role": "residual.hyper_connection",
@@ -119,7 +137,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Static read coefficients."
       },
       "scale": {
         "role": "residual.hyper_connection",
@@ -137,7 +156,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Learned scaling coefficient."
       }
     },
     "constants": {},

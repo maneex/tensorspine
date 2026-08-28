@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "moe.hash_table",
   "definition": {
+    "summary": "Fixed token-to-experts routing table: integers.",
     "admissible": [
       "i32",
       "i64"

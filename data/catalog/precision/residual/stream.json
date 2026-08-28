@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "residual.stream",
   "definition": {
+    "summary": "Projections and coefficients of AltUp streams.",
     "admissible": [
       "bf16",
       "f16",

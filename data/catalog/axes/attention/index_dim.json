@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.index_dim",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Dimension of one sparse-index head and of a cached index key."
   }
 }

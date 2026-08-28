@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "model.vocabulary",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Token identifiers of a vocabulary."
   }
 }

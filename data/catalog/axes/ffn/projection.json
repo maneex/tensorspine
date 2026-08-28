@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "ffn.projection",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Which projection within a fused axis: gate or up; query, key or value."
   }
 }

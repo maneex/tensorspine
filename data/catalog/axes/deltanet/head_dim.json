@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "deltanet.head_dim",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Dimension of one gated-delta head; the state matrix is `head_dim × head_dim`."
   }
 }

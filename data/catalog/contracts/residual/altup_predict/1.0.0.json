@@ -4,20 +4,35 @@
   "name": "residual.altup_predict",
   "definition": {
     "version": "1.0.0",
+    "summary": "AltUp prediction: mixes the `streams` residual streams and selects the active one.",
+    "description": "The input carries `streams` parallel residual streams. A router (`router`, after `router_norm`) computes mixing coefficients; `prediction` (`streams*streams × streams`) applies them to predict every stream from the current ones; the active stream is emitted separately for the layer to compute on.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2301.13310",
+        "title": "Alternating Updates for Efficient Transformers (Baykal et al., 2023)",
+        "kind": "paper",
+        "description": "Parallel residual streams with one active stream per layer."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of one stream."
       },
       "streams": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of parallel residual streams."
       }
     },
     "ports": {
@@ -49,7 +64,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The residual streams."
         }
       },
       "outputs": {
@@ -80,7 +96,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Predicted streams."
         },
         "active": {
           "shape": {
@@ -101,7 +118,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The stream the layer computes on."
         }
       }
     },
@@ -138,7 +156,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Prediction coefficients: one `streams × streams` block per stream."
       },
       "router": {
         "role": "residual.stream",
@@ -164,7 +183,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Router projection producing the mixing coefficients."
       },
       "router_norm": {
         "role": "norm.scale",
@@ -182,7 +202,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the router's input normalization."
       }
     },
     "constants": {},

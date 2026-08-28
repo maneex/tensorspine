@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "embedding.bias",
   "definition": {
+    "summary": "Bias of a patch embedding.",
     "admissible": [
       "f32",
       "bf16",

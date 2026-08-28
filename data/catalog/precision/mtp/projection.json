@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "mtp.projection",
   "definition": {
+    "summary": "Multi-token prediction projections.",
     "admissible": [
       "bf16",
       "f16",

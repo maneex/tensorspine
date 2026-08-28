@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "embedding.table",
   "definition": {
+    "summary": "Token embedding tables, and the output heads tied to them.",
     "admissible": [
       "bf16",
       "f16",

@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "moe.shared_gate",
   "definition": {
+    "summary": "Gate projection of the shared experts.",
     "admissible": [
       "f32",
       "bf16",

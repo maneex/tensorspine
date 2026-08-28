@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "embedding.projection",
   "definition": {
+    "summary": "Patch projection of a patch embedding.",
     "admissible": [
       "bf16",
       "f16",

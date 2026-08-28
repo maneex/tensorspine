@@ -4,6 +4,7 @@
   "name": "token.type",
   "definition": {
     "space": "value",
+    "summary": "Segment type of an encoder with segment embeddings.",
     "note": "segment type of an encoder with segment embeddings"
   }
 }

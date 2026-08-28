@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.projection_bias",
   "definition": {
+    "summary": "Biases of the attention projections.",
     "admissible": [
       "f32",
       "bf16",

@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "instance.session",
   "definition": {
-    "space": "instance"
+    "space": "instance",
+    "summary": "Instance key: a session, one sequence being served."
   }
 }

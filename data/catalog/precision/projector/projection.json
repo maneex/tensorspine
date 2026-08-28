@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "projector.projection",
   "definition": {
+    "summary": "Projections of a vision-language or audio-language projector.",
     "admissible": [
       "bf16",
       "f16",

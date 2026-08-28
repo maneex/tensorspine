@@ -4,48 +4,67 @@
   "name": "attention.latent_compressed",
   "definition": {
     "version": "1.0.0",
+    "summary": "Latent attention: low-rank query and output projections, one compressed latent KV, optional sparse index.",
+    "description": "Keys and values are not stored per head: `kv` projects each position to one `head_dim` latent vector, normalized by `kv_norm`, and the heads attend to that latent directly — there is no per-head key or value tensor, and the cache holds `head_dim` values per position whatever `heads` is. Queries go through a rank-`q_rank` bottleneck (`q_a`, `q_a_norm`, `q_b`) and the output projection through `o_groups` groups of rank `o_rank` (`o_a`, `o_b`). Learned `sinks` give each head a logit that absorbs attention mass without reading a position.\n\n`compress` folds `compress.ratio` consecutive positions into one cached latent: the `kv` cache grows by one entry every `compress.ratio` positions (its stride), and the open group is kept in the `compressor` state — a ring of `compress.overlap * compress.ratio` positions — with its own position table (`compressor_ape`), key/value-and-gate projection (`compressor_kv_gate`) and normalization. `window` adds a `sliding` cache of the last `window.span` uncompressed latents. `index`, when present, adds a sparse selector: `index.heads` small heads of `index.head_dim` score every cached key (`index_q`, `index_weights`; keys kept in the `index` state and compressed the same way) and keep the `index.topk` best positions for the full attention.\n\n`rope` is opaque: it changes the computation, not a tensor or a state. The main state ports are declared in every configuration: this primitive is stateful whatever `mask` says.",
+    "tags": [
+      "sequence-operator"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2405.04434",
+        "title": "DeepSeek-V2 (DeepSeek-AI, 2024)",
+        "kind": "paper",
+        "description": "Multi-head latent attention: one compressed latent per position instead of per-head keys and values."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`."
       },
       "heads": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of query heads; every head reads the same latent."
       },
       "head_dim": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Dimension of one head and of the cached latent."
       },
       "q_rank": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Rank of the query bottleneck: `q_a` projects to it, `q_b` expands it to the heads."
       },
       "o_groups": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of groups of the low-rank output projection; each group covers `heads*head_dim / o_groups` channels."
       },
       "o_rank": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Rank of one output group."
       },
       "mask": {
         "type": {
@@ -57,7 +76,13 @@
           ]
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Which positions a query may attend to.",
+        "value_descriptions": {
+          "causal": "Each position attends to itself and to earlier positions.",
+          "chunked": "Causal within fixed chunks.",
+          "none": "Every position attends to every other."
+        }
       },
       "window": {
         "type": {
@@ -69,12 +94,14 @@
                 "unit": "tokens"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Window span, in tokens."
             }
           }
         },
         "required": false,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Sliding window of uncompressed latents: the `sliding` cache holds the last `window.span` positions."
       },
       "compress": {
         "type": {
@@ -85,19 +112,22 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Positions folded into one cached latent; also the stride at which the caches grow."
             },
             "overlap": {
               "type": {
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Positions of context the compressor keeps around a group boundary."
             }
           }
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Temporal compression of the latent cache."
       },
       "index": {
         "type": {
@@ -108,40 +138,46 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Dimension of one index head and of a cached index key."
             },
             "heads": {
               "type": {
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Number of index heads."
             },
             "topk": {
               "type": {
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Positions the index keeps per query."
             },
             "overlap": {
               "type": {
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Overlap of the index compressor, as `compress.overlap` is for the main cache."
             }
           }
         },
         "required": false,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Sparse index: a small attention that selects the positions the full attention reads."
       },
       "rope": {
         "type": {
           "kind": "opaque"
         },
         "required": true,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Rotary position encoding configuration. Opaque: it changes the computation, not a tensor or a state."
       }
     },
     "ports": {
@@ -165,7 +201,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Residual-stream activation: one vector of `width` per element of the indexing domain."
         }
       },
       "outputs": {
@@ -188,7 +225,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Attention output after the grouped low-rank output projection."
         }
       }
     },
@@ -217,7 +255,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Query down-projection to rank `q_rank`."
       },
       "kv": {
         "role": "attention.kv_projection",
@@ -243,7 +282,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Latent projection: one `head_dim` vector per position, shared by every head — the cached quantity."
       },
       "q_a_norm": {
         "role": "norm.scale",
@@ -261,7 +301,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the normalization applied to the query bottleneck."
       },
       "q_b": {
         "role": "attention.query_up",
@@ -295,7 +336,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Query up-projection from the bottleneck to the heads."
       },
       "kv_norm": {
         "role": "norm.scale",
@@ -313,7 +355,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the normalization applied to the latent."
       },
       "o_a": {
         "role": "attention.output_down",
@@ -363,7 +406,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Output down-projection: `o_groups` groups, each from its `heads*head_dim / o_groups` channels to rank `o_rank`."
       },
       "o_b": {
         "role": "attention.output_up",
@@ -397,7 +441,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Output up-projection from the concatenated group ranks to `width`."
       },
       "sinks": {
         "role": "attention.sink",
@@ -415,7 +460,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "One learned logit per head that absorbs attention mass without reading a position."
       },
       "compressor_ape": {
         "role": "attention.compressor",
@@ -449,7 +495,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Learned position table over the `compress.ratio` positions of a compression group."
       },
       "compressor_kv_gate": {
         "role": "attention.compressor",
@@ -491,7 +538,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection of the input to the compressor's key/value and gate, over the overlap window."
       },
       "compressor_norm": {
         "role": "norm.scale",
@@ -509,7 +557,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the compressor's normalization."
       },
       "index_q": {
         "role": "attention.indexer",
@@ -546,7 +595,8 @@
         },
         "present_when": {
           "present": "index"
-        }
+        },
+        "description": "Query projection of the sparse index, from the query bottleneck."
       },
       "index_weights": {
         "role": "attention.indexer",
@@ -575,7 +625,8 @@
         },
         "present_when": {
           "present": "index"
-        }
+        },
+        "description": "Per-index-head weights over the input."
       },
       "index_compressor_ape": {
         "role": "attention.compressor",
@@ -612,7 +663,8 @@
         },
         "present_when": {
           "present": "index"
-        }
+        },
+        "description": "Position table of the index compressor."
       },
       "index_compressor_kv_gate": {
         "role": "attention.compressor",
@@ -652,7 +704,8 @@
         },
         "present_when": {
           "present": "index"
-        }
+        },
+        "description": "Key/value-and-gate projection of the index compressor."
       },
       "index_compressor_norm": {
         "role": "norm.scale",
@@ -673,7 +726,8 @@
         },
         "present_when": {
           "present": "index"
-        }
+        },
+        "description": "Scale of the index compressor's normalization."
       }
     },
     "constants": {},
@@ -696,7 +750,8 @@
                 }
               ]
             },
-            "role": "state.kv"
+            "role": "state.kv",
+            "description": "The cached latent of one group."
           }
         },
         "key_axes": [
@@ -705,13 +760,16 @@
         ],
         "operations": {
           "append": {
-            "effect": "append"
+            "effect": "append",
+            "description": "Add an entry at the end."
           },
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read the cached entries for a query."
           },
           "evict": {
-            "effect": "evict"
+            "effect": "evict",
+            "description": "Drop entries no longer needed."
           }
         },
         "rules": [
@@ -727,9 +785,11 @@
             },
             "stride": {
               "argument": "compress.ratio"
-            }
+            },
+            "description": "Grows by one latent every `compress.ratio` positions."
           }
-        ]
+        ],
+        "description": "Compressed latent cache: one `head_dim` vector per group of `compress.ratio` positions."
       },
       "sliding": {
         "present_when": {
@@ -749,7 +809,8 @@
                 }
               ]
             },
-            "role": "state.kv"
+            "role": "state.kv",
+            "description": "One uncompressed latent."
           }
         },
         "key_axes": [
@@ -758,13 +819,16 @@
         ],
         "operations": {
           "append": {
-            "effect": "append"
+            "effect": "append",
+            "description": "Add an entry at the end."
           },
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read the cached entries for a query."
           },
           "evict": {
-            "effect": "evict"
+            "effect": "evict",
+            "description": "Drop entries no longer needed."
           }
         },
         "rules": [
@@ -780,9 +844,11 @@
             },
             "span": {
               "argument": "window.span"
-            }
+            },
+            "description": "Ring of `window.span` positions."
           }
-        ]
+        ],
+        "description": "Uncompressed latents of the last `window.span` positions."
       },
       "compressor": {
         "present_when": {
@@ -813,7 +879,8 @@
                 }
               ]
             },
-            "role": "state.recurrent"
+            "role": "state.recurrent",
+            "description": "Key/value and gate of the positions in the open group."
           }
         },
         "key_axes": [
@@ -822,13 +889,16 @@
         ],
         "operations": {
           "append": {
-            "effect": "append"
+            "effect": "append",
+            "description": "Add an entry at the end."
           },
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read the cached entries for a query."
           },
           "evict": {
-            "effect": "evict"
+            "effect": "evict",
+            "description": "Drop entries no longer needed."
           }
         },
         "rules": [
@@ -852,9 +922,11 @@
                   "argument": "compress.ratio"
                 }
               ]
-            }
+            },
+            "description": "Ring over the open group: `compress.overlap * compress.ratio` positions."
           }
-        ]
+        ],
+        "description": "The open compression group: the positions to be folded into the next cached latent."
       },
       "index": {
         "present_when": {
@@ -874,7 +946,8 @@
                 }
               ]
             },
-            "role": "state.index"
+            "role": "state.index",
+            "description": "One index key per group."
           }
         },
         "key_axes": [
@@ -883,13 +956,16 @@
         ],
         "operations": {
           "append": {
-            "effect": "append"
+            "effect": "append",
+            "description": "Add an entry at the end."
           },
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read the cached entries for a query."
           },
           "evict": {
-            "effect": "evict"
+            "effect": "evict",
+            "description": "Drop entries no longer needed."
           }
         },
         "rules": [
@@ -905,9 +981,11 @@
             },
             "stride": {
               "argument": "compress.ratio"
-            }
+            },
+            "description": "Grows at the compression stride."
           }
-        ]
+        ],
+        "description": "Keys of the sparse index, compressed at the same stride as the latent cache."
       },
       "index_compressor": {
         "present_when": {
@@ -938,7 +1016,8 @@
                 }
               ]
             },
-            "role": "state.recurrent"
+            "role": "state.recurrent",
+            "description": "Open group of the index compressor."
           }
         },
         "key_axes": [
@@ -947,13 +1026,16 @@
         ],
         "operations": {
           "append": {
-            "effect": "append"
+            "effect": "append",
+            "description": "Add an entry at the end."
           },
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read the cached entries for a query."
           },
           "evict": {
-            "effect": "evict"
+            "effect": "evict",
+            "description": "Drop entries no longer needed."
           }
         },
         "rules": [
@@ -977,9 +1059,11 @@
                   "argument": "compress.ratio"
                 }
               ]
-            }
+            },
+            "description": "Ring over the open index group."
           }
-        ]
+        ],
+        "description": "The open group of the index compressor."
       }
     },
     "effects": {
@@ -996,21 +1080,24 @@
           "argument_axis": "attention.heads"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across heads; the output needs an all-reduce."
       },
       {
         "target": {
           "argument_axis": "attention.o_groups"
         },
         "semantics": "preserved",
-        "communication": "all_gather"
+        "communication": "all_gather",
+        "description": "Partition across output groups; the group outputs are gathered."
       },
       {
         "target": {
           "instance_key_axis": "instance.session"
         },
         "semantics": "preserved",
-        "communication": "none"
+        "communication": "none",
+        "description": "Instance-key axis: sessions are independent."
       },
       {
         "target": {
@@ -1021,7 +1108,8 @@
           }
         },
         "semantics": "preserved",
-        "communication": "none"
+        "communication": "none",
+        "description": "The latent cache partitions along `head_dim`, with no communication."
       }
     ],
     "note": "Latent attention with low-rank projections, temporal compression and an optional sparse index."

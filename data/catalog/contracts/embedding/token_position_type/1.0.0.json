@@ -4,34 +4,48 @@
   "name": "embedding.token_position_type",
   "definition": {
     "version": "1.0.0",
+    "summary": "BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm.",
+    "description": "Three lookups are summed — the token in `weight`, its position in `position`, its segment type in `token_type` — and the sum is normalized by a LayerNorm with scale and bias.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1810.04805",
+        "title": "BERT (Devlin et al., 2018)",
+        "kind": "paper",
+        "description": "Token, position and segment embeddings."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the embedding."
       },
       "vocabulary": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of token identifiers."
       },
       "positions": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of positions the table covers."
       },
       "token_types": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of segment types."
       }
     },
     "ports": {
@@ -47,7 +61,8 @@
             }
           },
           "note": "token identifier: rank-zero scalar",
-          "role": "activation.token_index"
+          "role": "activation.token_index",
+          "description": "Token identifier: a rank-zero integer per token."
         }
       },
       "outputs": {
@@ -70,7 +85,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The normalized embedding."
         }
       }
     },
@@ -103,7 +119,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Token table."
       },
       "position": {
         "role": "embedding.position",
@@ -129,7 +146,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Position table."
       },
       "token_type": {
         "role": "embedding.token_type",
@@ -155,7 +173,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Segment-type table."
       },
       "norm": {
         "role": "norm.scale",
@@ -173,7 +192,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the LayerNorm."
       },
       "norm_bias": {
         "role": "norm.bias",
@@ -191,7 +211,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Bias of the LayerNorm."
       }
     },
     "constants": {},
@@ -210,7 +231,8 @@
           "argument_axis": "model.vocabulary"
         },
         "semantics": "preserved",
-        "communication": "all_gather"
+        "communication": "all_gather",
+        "description": "Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered."
       }
     ],
     "note": "Word + position + segment type sum, followed by a LayerNorm."

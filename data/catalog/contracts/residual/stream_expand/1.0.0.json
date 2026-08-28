@@ -4,20 +4,35 @@
   "name": "residual.stream_expand",
   "definition": {
     "version": "1.0.0",
+    "summary": "Expands the active stream into `streams` residual streams, one projection per auxiliary stream.",
+    "description": "The first stream is the input itself; each of the `streams - 1` others is a `width × width` projection of it (`projection`, multiplicity `streams - 1`).",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2301.13310",
+        "title": "Alternating Updates for Efficient Transformers (Baykal et al., 2023)",
+        "kind": "paper",
+        "description": "Parallel residual streams with one active stream per layer."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of one stream."
       },
       "streams": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of parallel residual streams."
       }
     },
     "ports": {
@@ -41,7 +56,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The single stream."
         }
       },
       "outputs": {
@@ -72,7 +88,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "`streams` streams."
         }
       }
     },
@@ -112,7 +129,8 @@
               "literal": 1
             }
           ]
-        }
+        },
+        "description": "Projection producing one auxiliary stream, `streams - 1` times."
       }
     },
     "constants": {},

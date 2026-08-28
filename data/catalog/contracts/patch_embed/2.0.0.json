@@ -4,27 +4,49 @@
   "name": "patch_embed",
   "definition": {
     "version": "2.0.0",
+    "summary": "Patch embedding: projects each image or video patch to `width`.",
+    "description": "A patch is `channels × temporal_patch × patch × patch` pixels; `weight` is their projection (a convolution whose stride is the patch), `bias` is optional, and `position` an optional learned table over `pos` patch positions. Output positions are in the `patch` domain.",
+    "tags": [
+      "multimodal"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2010.11929",
+        "title": "An Image is Worth 16x16 Words (Dosovitskiy et al., 2020)",
+        "kind": "paper",
+        "description": "Patch embedding of a vision transformer."
+      },
+      {
+        "url": "https://arxiv.org/abs/2409.12191",
+        "title": "Qwen2-VL (Wang et al., 2024)",
+        "kind": "paper",
+        "description": "Temporal patches: a 3D patch embedding shared by images and video."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the vision tower."
       },
       "patch": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Spatial patch side, in pixels."
       },
       "channels": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Image channels."
       },
       "temporal_patch": {
         "type": {
@@ -34,14 +56,16 @@
         "affects_template": true,
         "default": {
           "literal": 1
-        }
+        },
+        "description": "Frames per patch, for video; one for images."
       },
       "pos": {
         "type": {
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of learned patch positions; absent when positions are rotary or computed."
       },
       "bias": {
         "type": {
@@ -51,7 +75,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "The projection carries a learned bias."
       }
     },
     "ports": {
@@ -99,7 +124,8 @@
               "self": true
             }
           },
-          "role": "activation.pixels"
+          "role": "activation.pixels",
+          "description": "One patch of pixels."
         }
       },
       "outputs": {
@@ -122,7 +148,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The embedded patch."
         }
       }
     },
@@ -175,7 +202,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Patch projection."
       },
       "bias": {
         "role": "embedding.bias",
@@ -204,7 +232,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the projection."
       },
       "position": {
         "role": "embedding.position",
@@ -233,7 +262,8 @@
         },
         "present_when": {
           "present": "pos"
-        }
+        },
+        "description": "Learned position table."
       }
     },
     "constants": {},

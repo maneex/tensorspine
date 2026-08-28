@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "activation.token_index",
   "definition": {
+    "summary": "Token identifiers: integers by semantics, not by storage choice.",
     "admissible": [
       "i32",
       "i64"

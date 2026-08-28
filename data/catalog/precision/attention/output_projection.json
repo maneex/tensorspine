@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.output_projection",
   "definition": {
+    "summary": "Attention output projection.",
     "admissible": [
       "bf16",
       "f16",

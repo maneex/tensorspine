@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "conditioning.feature",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Width of a conditioning vector: per-layer inputs and their projections."
   }
 }

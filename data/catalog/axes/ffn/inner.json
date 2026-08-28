@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "ffn.inner",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Inner width of a feed-forward network."
   }
 }

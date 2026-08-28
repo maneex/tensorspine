@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "attention.query_down",
   "definition": {
+    "summary": "Query down projection of latent attention.",
     "admissible": [
       "bf16",
       "f16",

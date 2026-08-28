@@ -4,34 +4,51 @@
   "name": "sequence.gated_delta",
   "definition": {
     "version": "2.0.0",
+    "summary": "Gated DeltaNet layer: a per-head matrix state updated by the delta rule, behind a short causal convolution.",
+    "description": "A linear-attention substitute for a sequence operator. Each position produces queries and keys for `key_heads` heads and values for `value_heads` heads (`qkv`), an output gate (`z`) and per-head decay controls (`a`, `b`, `dt_bias`, `A_log`); after the causal convolution `conv` over the last `conv.history` positions, the `recurrent` state — one `head_dim × head_dim` matrix per value head — is decayed and updated by the delta rule, read to produce the output, normalized (`norm`), gated by `out_gate` and projected back to `width` (`out`).\n\nThe state has a fixed size: it does not grow with the sequence, cannot be addressed by position, and can be shared between sessions only at a fork point. For a runtime that is the whole difference from a KV cache: zero bytes per token, nothing to page.",
+    "tags": [
+      "sequence-operator"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2412.06464",
+        "title": "Gated Delta Networks: Improving Mamba2 with Delta Rule (Yang et al., 2024)",
+        "kind": "paper",
+        "description": "The gated delta rule and its chunked, hardware-efficient form."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`."
       },
       "key_heads": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of query/key heads."
       },
       "value_heads": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of value heads, and of recurrent state matrices."
       },
       "head_dim": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Dimension of one head; the state matrix of a value head is `head_dim × head_dim`."
       },
       "out_gate": {
         "type": {
@@ -47,6 +64,13 @@
         "affects_template": true,
         "default": {
           "literal": "none"
+        },
+        "description": "Activation applied to the gate `z` before it multiplies the read-out.",
+        "value_descriptions": {
+          "silu": "SiLU gate.",
+          "swish": "Swish gate.",
+          "sigmoid": "Sigmoid gate.",
+          "none": "No gate activation."
         }
       },
       "conv": {
@@ -58,26 +82,30 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Channels of the convolution: the projected query, key and value width."
             },
             "kernel": {
               "type": {
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Kernel support, in positions."
             },
             "history": {
               "type": {
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Positions of history the `conv` state keeps between invocations."
             }
           }
         },
         "required": false,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Causal depthwise convolution applied to the projected inputs before the recurrence."
       }
     },
     "ports": {
@@ -101,7 +129,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Residual-stream activation."
         }
       },
       "outputs": {
@@ -124,7 +153,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Layer output after normalization, gating and the output projection."
         }
       }
     },
@@ -185,7 +215,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Fused query, key and value projection: `2*key_heads*head_dim` query/key channels and `value_heads*head_dim` value channels."
       },
       "z": {
         "role": "deltanet.gate_projection",
@@ -219,7 +250,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Output gate projection."
       },
       "b": {
         "role": "deltanet.decay_projection",
@@ -245,7 +277,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection of the per-head update strength of the delta rule."
       },
       "a": {
         "role": "deltanet.decay_projection",
@@ -271,7 +304,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection of the per-head decay input."
       },
       "conv_weight": {
         "role": "deltanet.convolution",
@@ -297,7 +331,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Depthwise causal convolution kernel."
       },
       "dt_bias": {
         "role": "deltanet.scalar",
@@ -315,7 +350,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Per-head bias of the decay time step."
       },
       "A_log": {
         "role": "deltanet.scalar",
@@ -333,7 +369,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Per-head log decay rate."
       },
       "norm": {
         "role": "norm.scale",
@@ -351,7 +388,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the normalization applied to the read-out, per head channel."
       },
       "out": {
         "role": "deltanet.output_projection",
@@ -385,7 +423,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Output projection from the value heads back to `width`."
       }
     },
     "constants": {},
@@ -424,7 +463,8 @@
                 }
               ]
             },
-            "role": "state.recurrent"
+            "role": "state.recurrent",
+            "description": "The state matrix of one value head."
           }
         },
         "key_axes": [
@@ -433,10 +473,12 @@
         ],
         "operations": {
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read the state to produce the output."
           },
           "write": {
-            "effect": "write"
+            "effect": "write",
+            "description": "Overwrite the state after the update."
           }
         },
         "rules": [
@@ -449,9 +491,11 @@
             "sharing": "at_fork_point",
             "indexed_by": {
               "self": true
-            }
+            },
+            "description": "Fixed size, read as a whole; shareable only at a fork point."
           }
-        ]
+        ],
+        "description": "The delta-rule state: one `head_dim × head_dim` matrix per value head, overwritten at every position."
       },
       "conv": {
         "present_when": {
@@ -479,7 +523,8 @@
                 }
               ]
             },
-            "role": "state.conv"
+            "role": "state.conv",
+            "description": "The last `conv.history` inputs of the convolution."
           }
         },
         "key_axes": [
@@ -488,10 +533,12 @@
         ],
         "operations": {
           "append": {
-            "effect": "append"
+            "effect": "append",
+            "description": "Push the current input."
           },
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read the history for the convolution."
           }
         },
         "rules": [
@@ -507,9 +554,11 @@
             },
             "span": {
               "argument": "conv.history"
-            }
+            },
+            "description": "Ring of `conv.history` positions."
           }
-        ]
+        ],
+        "description": "Input history of the causal convolution."
       }
     },
     "effects": {
@@ -526,14 +575,16 @@
           "argument_axis": "deltanet.value_heads"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Partition across value heads; the output projection needs an all-reduce."
       },
       {
         "target": {
           "instance_key_axis": "instance.session"
         },
         "semantics": "preserved",
-        "communication": "none"
+        "communication": "none",
+        "description": "Instance-key axis: sessions are independent."
       }
     ],
     "logical_cost": {
@@ -556,7 +607,8 @@
           ]
         },
         "status": "exact",
-        "per": "token"
+        "per": "token",
+        "description": "State update and read-out: two `head_dim × head_dim` products per value head and token."
       }
     },
     "note": "Gated-delta recurrent layer with a short causal convolution and a per-head matrix state."

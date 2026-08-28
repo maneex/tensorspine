@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.heads",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Query heads; also the flattened `heads * head_dim` projection width."
   }
 }

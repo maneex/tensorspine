@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "deltanet.conv_width",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Channels of the causal convolution of a gated-delta layer."
   }
 }

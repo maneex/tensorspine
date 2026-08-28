@@ -4,34 +4,51 @@
   "name": "projector.patch_merge_mlp",
   "definition": {
     "version": "1.0.0",
+    "summary": "Vision-language projector: merges `merge_count` patches, normalizes, then a two-layer MLP with biases.",
+    "description": "The `merge_count` embedded patches of a group are normalized (`norm`, `norm_bias`), concatenated into one `source_width * merge_count` vector, passed through `hidden` (same width) with a non-linearity and projected to `width` by `output`. The output is in the token domain: the merge is the domain transform from patches to tokens.",
+    "tags": [
+      "multimodal"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2409.12191",
+        "title": "Qwen2-VL (Wang et al., 2024)",
+        "kind": "paper",
+        "description": "The patch merger: adjacent patches concatenated and projected by an MLP."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the language model."
       },
       "source_width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the vision tower."
       },
       "merge_count": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Patches merged into one token."
       },
       "source": {
         "type": {
           "kind": "port_reference"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "The port whose patch domain the merge consumes."
       }
     },
     "ports": {
@@ -55,7 +72,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Embedded patches, in the vision width."
         }
       },
       "outputs": {
@@ -78,7 +96,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "One token per merged group."
         }
       }
     },
@@ -99,7 +118,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Scale of the pre-merge normalization."
       },
       "norm_bias": {
         "role": "norm.bias",
@@ -117,7 +137,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Bias of the pre-merge normalization."
       },
       "hidden": {
         "role": "projector.projection",
@@ -159,7 +180,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "First projection over the concatenated patches."
       },
       "hidden_bias": {
         "role": "projector.bias",
@@ -185,7 +207,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Bias of the first projection."
       },
       "output": {
         "role": "projector.projection",
@@ -219,7 +242,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Projection to the language width."
       },
       "output_bias": {
         "role": "projector.bias",
@@ -237,7 +261,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Bias of the output projection."
       }
     },
     "constants": {},
@@ -251,7 +276,6 @@
       ]
     },
     "partitions": [],
-    "note": "Patch concatenation, LayerNorm and a projection MLP with biases.",
     "domain_transforms": [
       {
         "from_port": "input",
@@ -259,8 +283,10 @@
         "relation": "merge",
         "factor": {
           "argument": "merge_count"
-        }
+        },
+        "description": "`merge_count` patches become one token."
       }
-    ]
+    ],
+    "note": "Patch concatenation, LayerNorm and a projection MLP with biases."
   }
 }

@@ -4,20 +4,32 @@
   "name": "embed",
   "definition": {
     "version": "1.0.0",
+    "summary": "Token embedding: looks up one `width` vector per token identifier.",
+    "description": "The learned table `weight` may be shared with an output head of the same shape (weight tying): the slot is `shareable` with role `embedding.table`, and a model ties the two by giving them one parameter identity.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1608.05859",
+        "title": "Using the Output Embedding to Improve Language Models (Press & Wolf, 2017)",
+        "kind": "paper",
+        "description": "Tying the embedding table and the output head."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of the embedding."
       },
       "vocabulary": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of token identifiers."
       }
     },
     "ports": {
@@ -33,7 +45,8 @@
             }
           },
           "note": "token identifier: rank-zero scalar",
-          "role": "activation.token_index"
+          "role": "activation.token_index",
+          "description": "Token identifier: a rank-zero integer per token."
         }
       },
       "outputs": {
@@ -56,7 +69,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "The embedded token."
         }
       }
     },
@@ -89,7 +103,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "The embedding table, `vocabulary × width`."
       }
     },
     "constants": {},
@@ -108,7 +123,8 @@
           "argument_axis": "model.vocabulary"
         },
         "semantics": "preserved",
-        "communication": "all_gather"
+        "communication": "all_gather",
+        "description": "Vocabulary parallelism: each shard holds a slice of the table; the looked-up rows are gathered."
       }
     ]
   }

@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "deltanet.key_heads",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Query/key heads of a gated-delta layer."
   }
 }

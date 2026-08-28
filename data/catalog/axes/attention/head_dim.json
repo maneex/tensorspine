@@ -3,6 +3,7 @@
   "kind": "axis",
   "name": "attention.head_dim",
   "definition": {
-    "space": "value"
+    "space": "value",
+    "summary": "Dimension of one attention head."
   }
 }

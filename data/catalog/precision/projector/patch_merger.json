@@ -3,6 +3,7 @@
   "kind": "precision_role",
   "name": "projector.patch_merger",
   "definition": {
+    "summary": "Patch-mixing matrix of a vision-language projector.",
     "admissible": [
       "bf16",
       "f16",
