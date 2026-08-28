@@ -7,6 +7,11 @@
 self-contained: syntax, validity, and denotation do not depend on source code, tools, or other
 repository artifacts.*
 
+For motivation and repository orientation, read the [README](../README.md). For a field-by-field
+authoring guide, read [Armature model JSON](ARMATURE-MODEL_JSON.md). The [glossary](GLOSSARY.md)
+summarizes terminology and points back to its canonical sections; neither explanatory document adds
+requirements to this specification.
+
 ## §1 — Scope and authority
 
 This document specifies what a model document can express and what a primitive contract must contain
@@ -55,7 +60,7 @@ A model document contains exactly:
 | **Catalog identity** | The immutable reference to the contract set used by the model (O1.1, §8.2). |
 | **Quantities** | The namespace of dimensions and scalars (§2.1). |
 | **Occurrences** | Graph nodes (§3). |
-| **Compositions** | Subgraphs, repetitions, and patterns whose expansion is normative (§5). |
+| **Compositions** | Finite indexed families of occurrence templates whose expansion is normative (§5). |
 | **Bindings** | Value edges, tensor bindings, and state identities (§3.4). |
 | **Public inputs and outputs** | Interfaces with indexing domains (§2.3). |
 
@@ -179,7 +184,10 @@ contracted primitive, not an annotation.
 
 ## §4 — Primitive semantic contracts
 
-Contracts provide coverage: a new primitive can be added without changing the language.
+A primitive contract is the immutable, versioned semantic definition referenced by an occurrence.
+It declares the primitive's arguments and derives its ports, logical tensors, state, effects, costs,
+and legal partitions. Contracts provide coverage: a new primitive can be added without changing the
+language.
 
 ### 4.1 — Contract contents *(O9.2, semantic part)*
 
@@ -194,6 +202,11 @@ Contracts provide coverage: a new primitive can be added without changing the la
 | **Logical cost** | Operations and bytes logically read and written, never operations actually executed. |
 | **Semantic partitions** | Axes whose partition preserves meaning and the resulting logical communication (O7.1). |
 | **Rejection conditions** | Cases the contract cannot interpret (§8.1). |
+
+Within a declared shape, the **axis** supplies a dimension's catalog identity, its **extent** is the
+expression that supplies the dimension's size, and its **nature** describes the dimension's use at
+that site. A port or logical tensor's **role** identifies its semantic use for precision policy; the
+role is distinct from the dtype selected under that policy.
 
 Every primitive has a contract; only primitives with state ports have a state contract. Token
 embeddings, feed-forward networks, mixtures of experts, patch projections, and output heads are
@@ -251,6 +264,10 @@ loss**, never present non-partitionability as a known fact.
 > `instantiated states = contract(primitive, arguments) × graph occurrences × state identities`
 
 A contract supplies the template; the graph supplies instance count and relationships.
+
+**State liveness** is the number of distinct state-allocation equivalence classes that may be active
+at once. It sizes simultaneous state memory. This is distinct from **value liveness**, which records
+the graph values live across a cut and determines that cut's logical payload.
 
 | Element | Reference | Authority |
 |---|---|---|
@@ -330,6 +347,10 @@ expressible; any future form must use ports, never common tensor identities.
 A document denotes one finite occurrence graph. Families, stacks, trunks, repetitions, and patterns
 are syntactic sugar with the expansion defined here. All validity rules apply to the expanded graph.
 
+A **composition** is a named, finite, indexed family of occurrence templates. Expansion evaluates
+its index ranges and conditions, then emits ordinary occurrences with deterministic identifiers; a
+composition is not a runtime node or an independently nested graph.
+
 ### 5.2 — Deterministic expansion
 
 These rules are normative:
@@ -342,6 +363,18 @@ These rules are normative:
    unresolved references are rejected (I1).
 4. **Order:** a composition emits occurrences in its defined order, identically on every reading.
 5. **Multiple trunks:** several trunks may coexist (O3.3), and a trunk may carry no state.
+
+The concrete representations use three related but non-interchangeable condition fields:
+
+- model-level `when` is evaluated from model quantities and in-scope composition indices and
+  controls whether a graph site or binding is emitted;
+- contract-level `present_when` is evaluated from resolved primitive arguments and controls whether
+  a port, parameter, constant, or state slot exists;
+- `when` on an ordered contract rule is also evaluated from resolved arguments and controls whether
+  that rule applies to a present element.
+
+All conditions that affect denotation must resolve deterministically. A field from one context
+cannot substitute for a field from another.
 
 ### 5.3 — Indexing domains and invocation boundaries
 
@@ -385,9 +418,9 @@ code or human knowledge of a named mechanism:
 | Product | Content |
 |---|---|
 | **D1** | **Expanded graph:** occurrences, edges, and families. |
-| **D2** | **Values:** the value and shape inventory, including values live at every cut. |
+| **D2** | **Values:** the value and shape inventory, including value liveness at every cut. |
 | **D3** | **Parameter tensors:** shapes, roles, sharing, and total count. |
-| **D4** | **Complete state:** templates, instances, keys, liveness, and permitted operations. |
+| **D4** | **Complete state:** templates, instances, keys, state liveness, and permitted operations. |
 | **D5** | **Logical costs:** parameters, activations, state per token, computation, and cut traffic. |
 | **D6** | **Legal cuts and semantic partition axes.** |
 
