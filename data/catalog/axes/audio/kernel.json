@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "audio.kernel",
+  "definition": {
+    "space": "value",
+    "note": "support of a temporal convolution"
+  }
+}

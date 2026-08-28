@@ -1,0 +1,927 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "attention.dense",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "head_dim": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "kv_heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "argument": "heads"
+        },
+        "note": "without GQA, as many KV heads as Q heads: a fact of the primitive, hence a contract default"
+      },
+      "mask": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "causal",
+            "chunked",
+            "none"
+          ]
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "window": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "span": {
+              "type": {
+                "kind": "physical",
+                "unit": "tokens"
+              },
+              "required": true,
+              "affects_template": true
+            }
+          }
+        },
+        "required": false,
+        "affects_template": true
+      },
+      "source": {
+        "type": {
+          "kind": "port_reference"
+        },
+        "required": false,
+        "affects_template": true,
+        "note": "port K and V come from; absent = self-attention"
+      },
+      "streaming": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true
+      },
+      "rope": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "qk_norm": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "temperature": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "q_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        },
+        "note": "learned Q bias; a synthetic runtime zero stays false"
+      },
+      "k_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        },
+        "note": "learned K bias; a synthetic runtime zero stays false"
+      },
+      "v_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        }
+      },
+      "out_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        }
+      },
+      "output_gate": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        },
+        "note": "per-head gate projection, distinct from Q"
+      },
+      "qk_norm_weight": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        },
+        "note": "Q/K RMSNorm has a learned scale"
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        },
+        "source_values": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "argument": "source"
+            }
+          },
+          "optional": true,
+          "present_when": {
+            "present": "source"
+          },
+          "note": "cross-attention: K/V come from ANOTHER trunk. The `source` argument names the domain; this port carries the value.",
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "qkv": {
+        "role": "attention.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "present_when": {
+          "not": {
+            "present": "q_rank"
+          }
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "qkv_flat",
+              "axis": "attention.qkv_flat",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "argument": "heads"
+                      },
+                      {
+                        "op": "multiply",
+                        "args": [
+                          {
+                            "literal": 2
+                          },
+                          {
+                            "argument": "kv_heads"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "note": "usual fused shape; under GQA this is not an exact product, hence no factors"
+      },
+      "out": {
+        "role": "attention.output_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "present_when": {
+          "not": {
+            "present": "o_rank"
+          }
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "heads_flat",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "q_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "query",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "q_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "k_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "key",
+              "axis": "attention.kv_heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "kv_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "k_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "v_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value",
+              "axis": "attention.kv_heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "kv_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "v_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "out_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "out_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "q_gate": {
+        "role": "attention.output_gate",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "heads_flat",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "output_gate"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "q_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "qk_norm_weight"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "k_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "qk_norm_weight"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {
+      "kv": {
+        "present_when": {
+          "any": [
+            {
+              "not": {
+                "compare": {
+                  "operator": "equal",
+                  "left": {
+                    "argument": "mask"
+                  },
+                  "right": {
+                    "literal": "none"
+                  }
+                }
+              }
+            },
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "streaming"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
+            },
+            {
+              "present": "source"
+            }
+          ]
+        },
+        "payload": {
+          "k": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.kv"
+          },
+          "v": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.kv"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append"
+          },
+          "read": {
+            "effect": "read"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "mask"
+                    },
+                    "right": {
+                      "literal": "none"
+                    }
+                  }
+                },
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "streaming"
+                    },
+                    "right": {
+                      "literal": true
+                    }
+                  }
+                },
+                {
+                  "not": {
+                    "present": "source"
+                  }
+                },
+                {
+                  "not": {
+                    "present": "window"
+                  }
+                }
+              ]
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_position",
+            "indexed_by": {
+              "self": true
+            },
+            "carried_across": "fragment"
+          },
+          {
+            "when": {
+              "present": "source"
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_source",
+            "indexed_by": {
+              "argument": "source"
+            },
+            "frozen_after": "source_complete"
+          },
+          {
+            "when": {
+              "all": [
+                {
+                  "present": "window"
+                },
+                {
+                  "not": {
+                    "present": "source"
+                  }
+                }
+              ]
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "argument": "window.span"
+            }
+          },
+          {
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "mask"
+                    },
+                    "right": {
+                      "literal": "chunked"
+                    }
+                  }
+                },
+                {
+                  "not": {
+                    "present": "source"
+                  }
+                },
+                {
+                  "not": {
+                    "present": "window"
+                  }
+                }
+              ]
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "context": "analysis.chunk_span"
+            }
+          },
+          {
+            "when": {
+              "all": [
+                {
+                  "not": {
+                    "present": "source"
+                  }
+                },
+                {
+                  "not": {
+                    "present": "window"
+                  }
+                },
+                {
+                  "not": {
+                    "all": [
+                      {
+                        "compare": {
+                          "operator": "equal",
+                          "left": {
+                            "argument": "mask"
+                          },
+                          "right": {
+                            "literal": "none"
+                          }
+                        }
+                      },
+                      {
+                        "compare": {
+                          "operator": "equal",
+                          "left": {
+                            "argument": "streaming"
+                          },
+                          "right": {
+                            "literal": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "compare": {
+                      "operator": "equal",
+                      "left": {
+                        "argument": "mask"
+                      },
+                      "right": {
+                        "literal": "chunked"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_position",
+            "indexed_by": {
+              "self": true
+            }
+          }
+        ]
+      }
+    },
+    "effects": {
+      "reads": [
+        "input",
+        "source_values"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "attention.heads"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce"
+      },
+      {
+        "target": {
+          "argument_axis": "attention.kv_heads"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce",
+        "when": {
+          "compare": {
+            "operator": "greater",
+            "left": {
+              "argument": "kv_heads"
+            },
+            "right": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      {
+        "target": {
+          "instance_key_axis": "instance.session"
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "note": "instance-key axis, always legal"
+      },
+      {
+        "target": {
+          "payload_axis": {
+            "state": "kv",
+            "component": "k",
+            "axis": "attention.kv_heads"
+          }
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "note": "KV payload partition by head: target tagged payload, not argument"
+      }
+    ],
+    "domain_transforms": [
+      {
+        "from_port": "source_values",
+        "to_port": "output",
+        "relation": "align",
+        "note": "cross-attention: K/V come from another indexing domain (§14.4). The output stays in the query domain; attention aligns the source onto it."
+      }
+    ],
+    "note": "Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants."
+  }
+}

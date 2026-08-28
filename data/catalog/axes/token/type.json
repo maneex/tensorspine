@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "token.type",
+  "definition": {
+    "space": "value",
+    "note": "segment type of an encoder with segment embeddings"
+  }
+}

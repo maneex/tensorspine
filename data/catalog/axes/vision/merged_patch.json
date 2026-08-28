@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "vision.merged_patch",
+  "definition": {
+    "space": "value",
+    "note": "patches merged by spatial_merge_size**2"
+  }
+}

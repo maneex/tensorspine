@@ -1,0 +1,4254 @@
+{
+  "schema": "armature/2.0",
+  "model": "llama4_scout",
+  "catalog": [
+    {
+      "base": "catalog/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 5120
+      }
+    },
+    "heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 40
+      }
+    },
+    "kv_heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "hd": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128
+      }
+    },
+    "vocab": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 202048
+      }
+    },
+    "experts": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 16
+      }
+    },
+    "ffn_expert": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8192
+      }
+    },
+    "ffn_shared": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8192
+      }
+    },
+    "chunk": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8192
+      }
+    },
+    "eps": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 0.00001
+      }
+    },
+    "precision": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {},
+  "occurrences": {
+    "embed": {
+      "contract": {
+        "name": "embed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "input",
+        "embedding"
+      ]
+    },
+    "final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ]
+    },
+    "lm_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "output",
+        "head"
+      ]
+    }
+  },
+  "compositions": {
+    "decoder": {
+      "indices": {
+        "blk": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "literal": 12
+          },
+          "step": {
+            "literal": 1
+          }
+        }
+      },
+      "families": [
+        "decoder"
+      ],
+      "occurrences": {
+        "l0_attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l0_attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "chunked"
+            },
+            "qk_norm": {
+              "literal": "rms"
+            },
+            "window": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
+                }
+              }
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 500000
+                },
+                "scaling": {
+                  "record": {
+                    "kind": {
+                      "literal": "llama3"
+                    },
+                    "factor": {
+                      "literal": 16
+                    },
+                    "low": {
+                      "literal": 1
+                    },
+                    "high": {
+                      "literal": 1
+                    },
+                    "orig_ctx": {
+                      "literal": 8192
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "families": [
+            "local_attention"
+          ]
+        },
+        "l0_attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l0_moe_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l0_moe": {
+          "contract": {
+            "name": "moe",
+            "version": "1.1.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
+            },
+            "inner": {
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
+            }
+          },
+          "families": [
+            "mixture"
+          ]
+        },
+        "l0_moe_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l1_attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l1_attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "chunked"
+            },
+            "qk_norm": {
+              "literal": "rms"
+            },
+            "window": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
+                }
+              }
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 500000
+                },
+                "scaling": {
+                  "record": {
+                    "kind": {
+                      "literal": "llama3"
+                    },
+                    "factor": {
+                      "literal": 16
+                    },
+                    "low": {
+                      "literal": 1
+                    },
+                    "high": {
+                      "literal": 1
+                    },
+                    "orig_ctx": {
+                      "literal": 8192
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "families": [
+            "local_attention"
+          ]
+        },
+        "l1_attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l1_moe_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l1_moe": {
+          "contract": {
+            "name": "moe",
+            "version": "1.1.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
+            },
+            "inner": {
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
+            }
+          },
+          "families": [
+            "mixture"
+          ]
+        },
+        "l1_moe_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l2_attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l2_attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "chunked"
+            },
+            "qk_norm": {
+              "literal": "rms"
+            },
+            "window": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
+                }
+              }
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 500000
+                },
+                "scaling": {
+                  "record": {
+                    "kind": {
+                      "literal": "llama3"
+                    },
+                    "factor": {
+                      "literal": 16
+                    },
+                    "low": {
+                      "literal": 1
+                    },
+                    "high": {
+                      "literal": 1
+                    },
+                    "orig_ctx": {
+                      "literal": 8192
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "families": [
+            "local_attention"
+          ]
+        },
+        "l2_attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l2_moe_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l2_moe": {
+          "contract": {
+            "name": "moe",
+            "version": "1.1.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
+            },
+            "inner": {
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
+            }
+          },
+          "families": [
+            "mixture"
+          ]
+        },
+        "l2_moe_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "g_attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "g_attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "causal"
+            },
+            "qk_norm": {
+              "literal": "rms"
+            },
+            "temperature": {
+              "record": {
+                "scale": {
+                  "literal": 0.1
+                },
+                "floor": {
+                  "quantity": "chunk"
+                }
+              }
+            }
+          },
+          "families": [
+            "global_attention"
+          ]
+        },
+        "g_attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "g_moe_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "g_moe": {
+          "contract": {
+            "name": "moe",
+            "version": "1.1.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
+            },
+            "inner": {
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
+            }
+          },
+          "families": [
+            "mixture"
+          ]
+        },
+        "g_moe_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "decoder.l0_attn_n.carry": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "index": "i"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 1
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_attn_r.a_carry": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "index": "i"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 1
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_attn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_attn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_moe_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_moe_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_moe.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_moe_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_attn_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_attn_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_attn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_attn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_moe_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_moe_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_moe.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_moe_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_attn_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_attn_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l1_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_attn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_attn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_moe_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_moe_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_moe.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_moe_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_attn_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_attn_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l2_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_attn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_attn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_moe_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_moe_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_moe.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.g_moe_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.entry": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_n",
+            "indices": {
+              "blk": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "decoder.entry.a": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "l0_attn_r",
+            "indices": {
+              "blk": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "a"
+        }
+      },
+      "final_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "g_moe_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "literal": 12
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
+        }
+      },
+      "lm_head.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "embed.weight": {
+        "tensor": {
+          "name": "embed.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "final_n.weight": {
+        "tensor": {
+          "name": "final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "lm_head.weight": {
+        "tensor": {
+          "name": "lm_head.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "lm_head"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_attn_n.weight": {
+        "tensor": {
+          "name": "decoder.l0_attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_attn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_attn.qkv": {
+        "tensor": {
+          "name": "decoder.l0_attn.qkv",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "qkv"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_attn.out": {
+        "tensor": {
+          "name": "decoder.l0_attn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe_n.weight": {
+        "tensor": {
+          "name": "decoder.l0_moe_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe.router": {
+        "tensor": {
+          "name": "decoder.l0_moe.router",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "router"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe.in": {
+        "tensor": {
+          "name": "decoder.l0_moe.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe.out": {
+        "tensor": {
+          "name": "decoder.l0_moe.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe.shared_in": {
+        "tensor": {
+          "name": "decoder.l0_moe.shared_in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe.shared_out": {
+        "tensor": {
+          "name": "decoder.l0_moe.shared_out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_attn_n.weight": {
+        "tensor": {
+          "name": "decoder.l1_attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_attn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_attn.qkv": {
+        "tensor": {
+          "name": "decoder.l1_attn.qkv",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "qkv"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_attn.out": {
+        "tensor": {
+          "name": "decoder.l1_attn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe_n.weight": {
+        "tensor": {
+          "name": "decoder.l1_moe_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.router": {
+        "tensor": {
+          "name": "decoder.l1_moe.router",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "router"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.in": {
+        "tensor": {
+          "name": "decoder.l1_moe.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.out": {
+        "tensor": {
+          "name": "decoder.l1_moe.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.shared_in": {
+        "tensor": {
+          "name": "decoder.l1_moe.shared_in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.shared_out": {
+        "tensor": {
+          "name": "decoder.l1_moe.shared_out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_attn_n.weight": {
+        "tensor": {
+          "name": "decoder.l2_attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_attn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_attn.qkv": {
+        "tensor": {
+          "name": "decoder.l2_attn.qkv",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "qkv"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_attn.out": {
+        "tensor": {
+          "name": "decoder.l2_attn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe_n.weight": {
+        "tensor": {
+          "name": "decoder.l2_moe_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.router": {
+        "tensor": {
+          "name": "decoder.l2_moe.router",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "router"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.in": {
+        "tensor": {
+          "name": "decoder.l2_moe.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.out": {
+        "tensor": {
+          "name": "decoder.l2_moe.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.shared_in": {
+        "tensor": {
+          "name": "decoder.l2_moe.shared_in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.shared_out": {
+        "tensor": {
+          "name": "decoder.l2_moe.shared_out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_attn_n.weight": {
+        "tensor": {
+          "name": "decoder.g_attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_attn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_attn.qkv": {
+        "tensor": {
+          "name": "decoder.g_attn.qkv",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "qkv"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_attn.out": {
+        "tensor": {
+          "name": "decoder.g_attn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe_n.weight": {
+        "tensor": {
+          "name": "decoder.g_moe_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe.router": {
+        "tensor": {
+          "name": "decoder.g_moe.router",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "router"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe.in": {
+        "tensor": {
+          "name": "decoder.g_moe.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe.out": {
+        "tensor": {
+          "name": "decoder.g_moe.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe.shared_in": {
+        "tensor": {
+          "name": "decoder.g_moe.shared_in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe.shared_out": {
+        "tensor": {
+          "name": "decoder.g_moe.shared_out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      }
+    },
+    "constants": {},
+    "states": {
+      "decoder.g_attn.kv": {
+        "identity": {
+          "name": "decoder.g_attn.kv",
+          "indices": {
+            "layer": {
+              "index": "i"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_attn",
+              "indices": {
+                "blk": {
+                  "index": "i"
+                }
+              }
+            },
+            "state": "kv"
+          }
+        ],
+        "keys": {
+          "axes": [
+            {
+              "name": "layer",
+              "source": {
+                "occurrence_index": "i"
+              }
+            },
+            {
+              "name": "session",
+              "source": {
+                "context": "request.session"
+              }
+            },
+            {
+              "name": "branch",
+              "source": {
+                "context": "request.branch"
+              }
+            }
+          ],
+          "sharing": {
+            "equal_on": [
+              "layer",
+              "session",
+              "branch"
+            ]
+          }
+        },
+        "liveness": {
+          "classes_by": [
+            "layer",
+            "session",
+            "branch"
+          ],
+          "max_active_classes": {
+            "expression": {
+              "op": "multiply",
+              "args": [
+                {
+                  "literal": 12
+                },
+                {
+                  "context": "analysis.max_active_sessions"
+                },
+                {
+                  "context": "analysis.max_branches_per_session"
+                }
+              ]
+            },
+            "status": "upper_bound",
+            "provenance": [
+              {
+                "context": "analysis.max_active_sessions"
+              },
+              {
+                "context": "analysis.max_branches_per_session"
+              }
+            ]
+          }
+        },
+        "visits": [
+          {
+            "unit": "request",
+            "phase": "generation",
+            "upper_bound": {
+              "expression": {
+                "context": "request.max_tokens"
+              },
+              "status": "upper_bound",
+              "provenance": [
+                {
+                  "context": "request.max_tokens"
+                }
+              ]
+            }
+          }
+        ],
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l0_attn.kv": {
+        "identity": {
+          "name": "decoder.l0_attn.kv",
+          "indices": {
+            "layer": {
+              "index": "i"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_attn",
+              "indices": {
+                "blk": {
+                  "index": "i"
+                }
+              }
+            },
+            "state": "kv"
+          }
+        ],
+        "keys": {
+          "axes": [
+            {
+              "name": "layer",
+              "source": {
+                "occurrence_index": "i"
+              }
+            },
+            {
+              "name": "session",
+              "source": {
+                "context": "request.session"
+              }
+            },
+            {
+              "name": "branch",
+              "source": {
+                "context": "request.branch"
+              }
+            }
+          ],
+          "sharing": {
+            "equal_on": [
+              "layer",
+              "session",
+              "branch"
+            ]
+          }
+        },
+        "liveness": {
+          "classes_by": [
+            "layer",
+            "session",
+            "branch"
+          ],
+          "max_active_classes": {
+            "expression": {
+              "op": "multiply",
+              "args": [
+                {
+                  "literal": 12
+                },
+                {
+                  "context": "analysis.max_active_sessions"
+                },
+                {
+                  "context": "analysis.max_branches_per_session"
+                }
+              ]
+            },
+            "status": "upper_bound",
+            "provenance": [
+              {
+                "context": "analysis.max_active_sessions"
+              },
+              {
+                "context": "analysis.max_branches_per_session"
+              }
+            ]
+          }
+        },
+        "visits": [
+          {
+            "unit": "request",
+            "phase": "generation",
+            "upper_bound": {
+              "expression": {
+                "context": "request.max_tokens"
+              },
+              "status": "upper_bound",
+              "provenance": [
+                {
+                  "context": "request.max_tokens"
+                }
+              ]
+            }
+          }
+        ],
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l1_attn.kv": {
+        "identity": {
+          "name": "decoder.l1_attn.kv",
+          "indices": {
+            "layer": {
+              "index": "i"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_attn",
+              "indices": {
+                "blk": {
+                  "index": "i"
+                }
+              }
+            },
+            "state": "kv"
+          }
+        ],
+        "keys": {
+          "axes": [
+            {
+              "name": "layer",
+              "source": {
+                "occurrence_index": "i"
+              }
+            },
+            {
+              "name": "session",
+              "source": {
+                "context": "request.session"
+              }
+            },
+            {
+              "name": "branch",
+              "source": {
+                "context": "request.branch"
+              }
+            }
+          ],
+          "sharing": {
+            "equal_on": [
+              "layer",
+              "session",
+              "branch"
+            ]
+          }
+        },
+        "liveness": {
+          "classes_by": [
+            "layer",
+            "session",
+            "branch"
+          ],
+          "max_active_classes": {
+            "expression": {
+              "op": "multiply",
+              "args": [
+                {
+                  "literal": 12
+                },
+                {
+                  "context": "analysis.max_active_sessions"
+                },
+                {
+                  "context": "analysis.max_branches_per_session"
+                }
+              ]
+            },
+            "status": "upper_bound",
+            "provenance": [
+              {
+                "context": "analysis.max_active_sessions"
+              },
+              {
+                "context": "analysis.max_branches_per_session"
+              }
+            ]
+          }
+        },
+        "visits": [
+          {
+            "unit": "request",
+            "phase": "generation",
+            "upper_bound": {
+              "expression": {
+                "context": "request.max_tokens"
+              },
+              "status": "upper_bound",
+              "provenance": [
+                {
+                  "context": "request.max_tokens"
+                }
+              ]
+            }
+          }
+        ],
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.l2_attn.kv": {
+        "identity": {
+          "name": "decoder.l2_attn.kv",
+          "indices": {
+            "layer": {
+              "index": "i"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_attn",
+              "indices": {
+                "blk": {
+                  "index": "i"
+                }
+              }
+            },
+            "state": "kv"
+          }
+        ],
+        "keys": {
+          "axes": [
+            {
+              "name": "layer",
+              "source": {
+                "occurrence_index": "i"
+              }
+            },
+            {
+              "name": "session",
+              "source": {
+                "context": "request.session"
+              }
+            },
+            {
+              "name": "branch",
+              "source": {
+                "context": "request.branch"
+              }
+            }
+          ],
+          "sharing": {
+            "equal_on": [
+              "layer",
+              "session",
+              "branch"
+            ]
+          }
+        },
+        "liveness": {
+          "classes_by": [
+            "layer",
+            "session",
+            "branch"
+          ],
+          "max_active_classes": {
+            "expression": {
+              "op": "multiply",
+              "args": [
+                {
+                  "literal": 12
+                },
+                {
+                  "context": "analysis.max_active_sessions"
+                },
+                {
+                  "context": "analysis.max_branches_per_session"
+                }
+              ]
+            },
+            "status": "upper_bound",
+            "provenance": [
+              {
+                "context": "analysis.max_active_sessions"
+              },
+              {
+                "context": "analysis.max_branches_per_session"
+              }
+            ]
+          }
+        },
+        "visits": [
+          {
+            "unit": "request",
+            "phase": "generation",
+            "upper_bound": {
+              "expression": {
+                "context": "request.max_tokens"
+              },
+              "status": "upper_bound",
+              "provenance": [
+                {
+                  "context": "request.max_tokens"
+                }
+              ]
+            }
+          }
+        ],
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "interfaces": {
+    "inputs": {
+      "tokens": {
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "tokens"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "self"
+        }
+      }
+    },
+    "outputs": {
+      "main": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "logits"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "tokens"
+        },
+        "generative": true
+      }
+    }
+  }
+}

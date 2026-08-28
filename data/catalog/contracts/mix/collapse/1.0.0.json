@@ -1,0 +1,156 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "mix.collapse",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "multiplicity": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "fn": {
+        "role": "residual.hyper_connection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "out",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "multiplicity"
+              }
+            },
+            {
+              "name": "streams",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "multiplicity"
+                  },
+                  {
+                    "argument": "width"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "base": {
+        "role": "residual.hyper_connection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "stream",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "multiplicity"
+              }
+            }
+          ]
+        }
+      },
+      "scale": {
+        "role": "residual.hyper_connection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "coefficient",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "literal": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [],
+    "note": "mHC head: final reduction of the residual streams before the output norm."
+  }
+}

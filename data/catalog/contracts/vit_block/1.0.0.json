@@ -1,0 +1,265 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "vit_block",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "head_dim": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "inner": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "qkv": {
+        "role": "attention.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "qkv_flat",
+              "axis": "attention.qkv_flat",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "literal": 3
+                  },
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              },
+              "factors": [
+                {
+                  "name": "projection",
+                  "axis": "ffn.projection",
+                  "nature": "projection",
+                  "extent": {
+                    "literal": 3
+                  }
+                },
+                {
+                  "name": "head",
+                  "axis": "attention.heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "heads"
+                  }
+                },
+                {
+                  "name": "channel",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "note": "without GQA the fused axis IS an exact product: the projection x head x channel decomposition is declarable"
+      },
+      "out": {
+        "role": "attention.output_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "heads_flat",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "in": {
+        "role": "ffn.up_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "ffn_out": {
+        "role": "ffn.down_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "attention.heads"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce"
+      },
+      {
+        "target": {
+          "argument_axis": "ffn.inner"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce"
+      }
+    ],
+    "note": "no state: a vision tower processes an image in one pass, without causality"
+  }
+}

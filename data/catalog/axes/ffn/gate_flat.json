@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "ffn.gate_flat",
+  "definition": {
+    "space": "value",
+    "note": "fused gate and up: exact product projection x inner, hence factors"
+  }
+}

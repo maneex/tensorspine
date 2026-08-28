@@ -1,0 +1,238 @@
+# Armature
+
+**Armature declares a model's logical structure — dimensions, parameter tensors, persistent state
+and value graph — independently of the code that computes it.**
+
+Today that structure is embedded in a reference implementation and re-created by hand in every
+serving engine. Armature records it once, in a fixed vocabulary, so runtimes can derive what they
+need for placement and serving.
+
+*Serving a model should not require rewriting it.* Kernels, sharding, quantisation layouts and
+hardware placement are outside Armature's scope.
+
+## 1. Why Armature
+
+> **Why does every serving engine have to rewrite every model?**
+
+vLLM carries 389 hand-maintained architecture files. llama.cpp requires an enum, tensor-name and
+hyperparameter tables, a graph builder, and architecture cases across its switches. ZML requires a
+Zig module per model. The same model is transcribed once per engine: the unit of work is the
+model–engine pair.
+
+Published weights, configuration and runnable reference code are not enough for an engine to load a
+model directly. Specialised kernels, paged attention, fused projections and quantisation hooks do
+require engine-specific computation. Re-declaring the model's layers, dimensions, tensors and state
+does not.
+
+The structure is currently welded to the reference implementation. During transcription —
+`modeling_x.py` → `vllm/model_executor/models/x.py` → `x.zig` — computation survives, but intent does
+not: which dimension is a head count, which tensor is growing state, or which axis can be
+partitioned. Contribution guides document this transcription process, so every engine keeps
+re-deriving the same information.
+
+Armature has two goals:
+
+1. **A model is data, not a software version.** A new model must not require rebuilding, releasing or
+   redeploying the serving layer. Offline model compilation and fragmentation remain allowed.
+2. **Serving adapts to available infrastructure.** The same model should run on one accelerator,
+   eight accelerators, or a heterogeneous cluster — even slowly. Feasibility comes before
+   performance.
+
+### What runtimes need
+
+Before computing a token, a runtime must answer two groups of questions.
+
+**State**
+
+- How many cache bytes are needed per token?
+- Does each state grow with context, or is it bounded?
+- Is it block-decomposable, and therefore pageable, shareable and offloadable?
+- How many instances exist: one per layer, or one per layer family?
+- How many concurrent sequences fit in memory?
+
+**Placement**
+
+- How large are one layer and the whole model?
+- If the model does not fit, where and into how many pieces should it be cut?
+- Which parallelism fits the machine or cluster?
+- How many bytes cross each cut per token?
+
+Existing formats omit these semantics:
+
+- A `config.json` value such as `linear_attention` names a mechanism, not its memory consequence:
+  fixed-size recurrent state, zero cost per token, not pageable. It serialises constructor arguments
+  for rebuilding a module, not for planning memory.
+- Compute graphs such as StableHLO, `nn.Module` and GGML describe computation, not lifetime. Once
+  state is a tensor argument, growing KV and bounded recurrent state look alike.
+
+Each engine therefore reconstructs state and placement information in architecture-specific code.
+
+### Current limits
+
+vLLM documents the consequence:
+
+```
+Since the SSM state is not managed by the block manager, SSM models are
+incompatible with prefix caching, KV cache offloading, and prefill-decode
+disaggregation.
+
+SSM state management is a little hacky and is managed by the model definition.
+```
+
+State semantics hidden in a model definition cannot be used by a general manager, disabling three
+major throughput features. vLLM also documents that its hybrid manager does not support models
+without full-attention layers or with more than two attention types. The repository corpus already
+reaches that boundary:
+
+| Model                          | State structures | Distinct natures                                        |
+|--------------------------------|-----------------:|---------------------------------------------------------|
+| `llama3-8b`                    |                1 | growing KV                                              |
+| `llama4-scout`                 |                2 | growing KV, windowed KV                                 |
+| `qwen3.5-397b`, `qwen3.8-27b` |                3 | KV, recurrent state, convolution ring                   |
+| `deepseek-v4-pro`              |                4 | compressed KV, indexer keys, very compressed KV, window |
+
+This is an expressiveness limit: the manager recognises hard-coded cases instead of reading a
+declaration.
+
+StableHLO and ONNX solve computation portability but discard state lifetime. `onnxruntime-genai`
+therefore adds `genai_config.json` beside the `.onnx`; that file has one `head_size`, which does not
+cover models with several head dimensions. vLLM's two-attention limit and ONNX GenAI's single head
+size are the same failure: a vocabulary fixed around one architecture generation.
+
+Hand-derived plans also fail quietly. They may waste memory, reduce concurrency, crash far from the
+cause, disable prefix caching, or choose a slow cut without exposing a reference value to check.
+
+## 2. Model
+
+Armature must be:
+
+- **declarative:** consequences are computed, not inferred by a person from mechanism names;
+- **engine-independent:** it does not add another engine-specific model format;
+- **loadable without rebuilding the runtime:** state natures form a closed vocabulary that a runtime
+  can implement in advance;
+- **extensible:** new operations can be added as primitives that reuse those state natures;
+- **verifiable:** derived values can be recomputed and contradicted.
+
+The format separates causes from consequences:
+
+- **A model declares causes:** source quantities, primitives and arguments, repetition, value flow,
+  parameter and state sharing, and public interfaces.
+- **Primitive contracts declare consequences:** shapes, parameter slots, state slots and ports. A
+  model never copies them.
+
+For example, declaring dense attention with its width, query heads, KV heads and causal mask also
+determines its tensors, shapes and state behavior through the contract.
+
+The closed vocabulary lets runtimes know every allocation strategy before a model arrives. New
+models use new combinations of the vocabulary, or new primitives with existing state natures.
+
+Each primitive is a versioned **contract**. A model pins `{name, version}`. Changing slots, shapes,
+ports or states creates a new version beside the old one; there is no global catalog version.
+
+### Derived results
+
+The corpus shows the compression achieved by declaration:
+
+- `llama3-8b`: 3 root occurrences, 1 composition and 9 quantities expand to 195 occurrences, 258
+  value edges, 195 parameter slots grouped into 9 tensor identities, and 32 state identities.
+- `deepseek-v4-pro`: 4 root occurrences and 3 compositions expand to 370 occurrences and 1,681
+  parameter slots.
+- `gemma3n-kvshare`: 30 state slots resolve to 20 identities, making KV sharing machine-readable.
+
+Six products are specified: **D1** expanded graph, **D2** values and liveness at cuts, **D3**
+parameter tensors, **D4** complete states, **D5** logical costs, and **D6** semantic cuts and
+partitions. D1 is implemented; D2–D6 provide the state and placement answers listed above.
+
+## 3. Repository
+
+```
+armature/
+├── data/
+│   ├── catalog/                  vocabulary, one unit per file
+│   │   ├── catalog.json          `base` unit naming the catalog
+│   │   ├── axes/                 37 named axes
+│   │   ├── contracts/            36 versioned contracts
+│   │   └── precision/            54 precision roles
+│   └── models/                   12 model documents
+├── schemas/
+│   └── armature.schema.json      model grammar (JSON Schema 2020-12)
+├── tools/
+│   ├── armature                  CLI: --validate, --lint, --d1, --view
+│   ├── validate.py  lint.py  d1.py  view.py
+│   └── catalog.py  expr.py  schema.py
+├── CLAUDE.md
+└── README.md
+```
+
+### Catalog
+
+`data/catalog/` contains one logical vocabulary unit per file. The path is its dot-separated
+qualified identity; a contract's filename is its version, allowing versions to coexist.
+
+| File                                   | Identity                | Kind             |
+|----------------------------------------|-------------------------|------------------|
+| `contracts/attention/dense/1.0.0.json` | `attention.dense@1.0.0` | `contract`       |
+| `axes/model/width.json`                | `model.width`           | `axis`           |
+| `precision/norm/scale.json`            | `norm.scale`            | `precision_role` |
+| `catalog.json`                         | `armature.reference`    | `base`           |
+
+- A **contract** declares a primitive's arguments, ports, shapes, parameters and states.
+- An **axis** names a dimension (`model.width`, `attention.kv_heads`, `moe.experts`); flattened axes
+  list their factors.
+- A **precision role** defines admissible dtypes, a default and sensitivity.
+
+Contract names describe structure (`attention.latent_compressed`, `sequence.gated_delta`,
+`residual.altup_predict`), never a checkpoint, vendor or Python class.
+
+### Models
+
+`data/models/` contains twelve documents: text decoders (`llama3-8b`, `llama4-scout`,
+`shieldstral-3b`), MoE and multi-state models (`qwen3.5-397b`, `qwen3.8-27b`, `deepseek-v4-pro`),
+audio (`whisper-large-v3`, `voxtral-realtime`), retrieval (`colbert-v2`), shared KV
+(`gemma3n-kvshare`), a composite (`shieldstral-3b-composite`), and the
+`decoder-causal-yarn.json` template.
+
+The template has `external` quantities that must be assigned during validation; the other eleven
+documents validate as written.
+
+After expanding compositions and evaluating `present_when`, `bindings` must be **total and unique**:
+every slot has exactly one binding, except for weight tying, state sharing between occurrences, and
+slots disabled by their contract condition.
+
+### Schema
+
+`schemas/armature.schema.json` permits exactly nine top-level sections: `schema`, `model`, `catalog`,
+`quantities`, `constants`, `occurrences`, `compositions`, `bindings` and `interfaces`.
+
+Expressions are tagged unions (`{"literal": …}`, `{"quantity": …}`, `{"index": …}` or
+`{"op": …, "args": […]}`), never ambiguous strings. Every quantity has a `regime` and `source`,
+distinguishing values read from configuration from values supplied later.
+
+Schemas are indexed by their `$id` under `https://armature.dev/schema/2.0/`, not by filename. Only
+the model schema is currently in the live tree; catalog-unit and D1 schemas are not yet present.
+
+### Tools
+
+The project uses Python 3 and `jsonschema` ≥ 4.x, with no build step. `--view` also requires Graphviz
+`dot` on `PATH`. `tools/armature` is the entry point; paths default to the repository layout, and
+commands without a model path process all of `data/models/`.
+
+```sh
+python3 tools/armature --validate                       # whole corpus
+python3 tools/armature --validate data/models/llama3-8b.json
+python3 tools/armature --lint                           # advisory hygiene checks
+python3 tools/armature --d1   data/models/llama3-8b.json -o /path/out.d1.json
+python3 tools/armature --view data/models/llama3-8b.json -o /path/out.html
+
+# Templates require external quantity assignments.
+python3 tools/armature --validate data/models/decoder-causal-yarn.json \
+  --assign '{"width":3072,"layers":26,"heads":32,"kv_heads":8,"head_dim":128,
+             "inner":9216,"eps":0.00001,"precision":"bf16"}'
+```
+
+- `--validate` checks grammar, catalog resolution, arguments, shapes, domains, bindings and
+  acyclicity; it stops at the first error and exits 1.
+- `--lint` reports optional authoring advice and always exits 0.
+- `--d1` unrolls loops, evaluates indices and expands delegated contracts. Canonical IDs use
+  `<composition>/<site>[<i>=<v>,…]`.
+- `--view` produces a self-contained HTML inspector.

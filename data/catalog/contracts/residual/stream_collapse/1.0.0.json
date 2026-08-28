@@ -1,0 +1,131 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "residual.stream_collapse",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "streams": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "projection": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "multiplicity": {
+          "op": "subtract",
+          "args": [
+            {
+              "argument": "streams"
+            },
+            {
+              "literal": 1
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [],
+    "note": "Projection of the auxiliary streams, then reduction onto the active stream."
+  }
+}

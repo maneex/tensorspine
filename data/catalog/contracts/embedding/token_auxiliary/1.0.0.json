@@ -1,0 +1,253 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "embedding.token_auxiliary",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "vocabulary": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "layers": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "per_layer_width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "per_layer_vocabulary": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "tokens": {
+          "shape": {
+            "axes": []
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "note": "token identifier: rank-zero scalar",
+          "role": "activation.token_index"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        },
+        "auxiliary": {
+          "shape": {
+            "axes": [
+              {
+                "name": "layer",
+                "axis": "model.layer",
+                "nature": "structural",
+                "extent": {
+                  "argument": "layers"
+                }
+              },
+              {
+                "name": "condition",
+                "axis": "conditioning.feature",
+                "nature": "feature",
+                "extent": {
+                  "argument": "per_layer_width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "weight": {
+        "role": "embedding.table",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "embedding.table"
+          ],
+          "note": "sharing allowed between embedding table and output head: same axis identities in the same order, no view required"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "vocabulary",
+              "axis": "model.vocabulary",
+              "nature": "structural",
+              "extent": {
+                "argument": "vocabulary"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "per_layer_embed": {
+        "role": "embedding.table",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "vocabulary",
+              "axis": "model.vocabulary",
+              "nature": "structural",
+              "extent": {
+                "argument": "per_layer_vocabulary"
+              }
+            },
+            {
+              "name": "layer_features",
+              "axis": "conditioning.feature",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "layers"
+                  },
+                  {
+                    "argument": "per_layer_width"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "per_layer_model_projection": {
+        "role": "conditioning.feature",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "layer_features",
+              "axis": "conditioning.feature",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "layers"
+                  },
+                  {
+                    "argument": "per_layer_width"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "per_layer_projection_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "per_layer",
+              "axis": "conditioning.feature",
+              "nature": "feature",
+              "extent": {
+                "argument": "per_layer_width"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "tokens"
+      ],
+      "writes": [
+        "output",
+        "auxiliary"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.vocabulary"
+        },
+        "semantics": "preserved",
+        "communication": "all_gather"
+      }
+    ],
+    "note": "Token embedding enriched with a per-layer auxiliary table and projection."
+  }
+}

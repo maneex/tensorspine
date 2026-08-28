@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "model.feature",
+  "definition": {
+    "space": "value",
+    "note": "feature axis of an output projection"
+  }
+}

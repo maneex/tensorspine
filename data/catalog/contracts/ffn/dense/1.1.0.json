@@ -1,0 +1,339 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "ffn.dense",
+  "definition": {
+    "version": "1.1.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "inner": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "activation": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "silu",
+            "gelu",
+            "gelu_tanh",
+            "relu2"
+          ]
+        },
+        "required": true,
+        "affects_template": false,
+        "note": "selects the non-linearity; changes no template"
+      },
+      "in_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        }
+      },
+      "out_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        }
+      },
+      "condition_dim": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "note": "rank of the temporal conditioning projector"
+      },
+      "condition": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "activation_sparsity": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false,
+        "note": "structural fraction of activations zeroed after selection"
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "in": {
+        "role": "ffn.up_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "out": {
+        "role": "ffn.down_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            }
+          ]
+        }
+      },
+      "in_bias": {
+        "role": "ffn.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "in_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "out_bias": {
+        "role": "ffn.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "out_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "condition_in": {
+        "role": "conditioning.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "condition",
+              "axis": "conditioning.feature",
+              "nature": "feature",
+              "extent": {
+                "argument": "condition_dim"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "condition_dim"
+        }
+      },
+      "condition_out": {
+        "role": "conditioning.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "condition",
+              "axis": "conditioning.feature",
+              "nature": "feature",
+              "extent": {
+                "argument": "condition_dim"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "condition_dim"
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "logical_cost": {
+      "operations": {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 4
+            },
+            {
+              "argument": "width"
+            },
+            {
+              "argument": "inner"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "token"
+      }
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "ffn.inner"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce"
+      }
+    ],
+    "note": "Dense FFN: one up projection and one down projection."
+  }
+}

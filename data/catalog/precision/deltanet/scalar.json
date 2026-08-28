@@ -1,0 +1,14 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "deltanet.scalar",
+  "definition": {
+    "admissible": [
+      "f32",
+      "bf16",
+      "f16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision"
+  }
+}

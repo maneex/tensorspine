@@ -1,0 +1,225 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "mix.doubly_stochastic",
+  "definition": {
+    "version": "2.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "multiplicity": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "iterations": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": false
+      },
+      "eps": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "affects_template": false
+      }
+    },
+    "ports": {
+      "inputs": {
+        "a": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        },
+        "b": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "fn": {
+        "role": "residual.hyper_connection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "mix",
+              "axis": "model.feature",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "literal": 2
+                      },
+                      {
+                        "argument": "multiplicity"
+                      }
+                    ]
+                  },
+                  {
+                    "argument": "multiplicity"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "streams",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "multiplicity"
+                  },
+                  {
+                    "argument": "width"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "note": "collapse/expand matrix of the residual streams, projected onto the doubly stochastic matrices by Sinkhorn"
+      },
+      "base": {
+        "role": "residual.hyper_connection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "mix",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "literal": 2
+                      },
+                      {
+                        "argument": "multiplicity"
+                      }
+                    ]
+                  },
+                  {
+                    "argument": "multiplicity"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "scale": {
+        "role": "residual.hyper_connection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "coefficient",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "literal": 3
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "a",
+        "b"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [],
+    "note": "Hyper-connections: the residual is a stack of `multiplicity` parallel streams. Replaces residual.add; this is not a step annotation."
+  }
+}

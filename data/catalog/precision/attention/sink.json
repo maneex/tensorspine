@@ -1,0 +1,14 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "attention.sink",
+  "definition": {
+    "admissible": [
+      "f32",
+      "bf16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision",
+    "note": "one scalar per head; its sensitivity is numerical, not storage"
+  }
+}

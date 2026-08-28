@@ -1,0 +1,13 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "moe.hash_table",
+  "definition": {
+    "admissible": [
+      "i32",
+      "i64"
+    ],
+    "default": "i64",
+    "sensitivity": "full_precision"
+  }
+}

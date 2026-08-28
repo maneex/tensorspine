@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "sequence.position",
+  "definition": {
+    "space": "value",
+    "note": "learned position within a sequence"
+  }
+}

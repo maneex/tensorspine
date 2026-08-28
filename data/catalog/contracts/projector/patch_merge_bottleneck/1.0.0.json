@@ -1,0 +1,214 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "projector.patch_merge_bottleneck",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "source_width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "merge_count": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "source": {
+        "type": {
+          "kind": "port_reference"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "source_width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "source",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "source_width"
+              }
+            }
+          ]
+        }
+      },
+      "merger": {
+        "role": "projector.patch_merger",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "source",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "source_width"
+              }
+            },
+            {
+              "name": "merged",
+              "axis": "vision.merged_patch",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "source_width"
+                  },
+                  {
+                    "argument": "merge_count"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "linear_in": {
+        "role": "projector.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "source",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "source_width"
+              }
+            }
+          ]
+        }
+      },
+      "linear_out": {
+        "role": "projector.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [],
+    "note": "Patch merging by a mixing matrix, then a two-projection bottleneck.",
+    "domain_transforms": [
+      {
+        "from_port": "input",
+        "to_port": "output",
+        "relation": "merge",
+        "factor": {
+          "argument": "merge_count"
+        }
+      }
+    ]
+  }
+}

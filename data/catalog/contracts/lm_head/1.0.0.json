@@ -1,0 +1,144 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "lm_head",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "vocabulary": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "logits": {
+          "shape": {
+            "axes": [
+              {
+                "name": "vocabulary",
+                "axis": "model.vocabulary",
+                "nature": "structural",
+                "extent": {
+                  "argument": "vocabulary"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.logits"
+        }
+      }
+    },
+    "parameters": {
+      "weight": {
+        "role": "embedding.table",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "embedding.table"
+          ],
+          "note": "sharing allowed between embedding table and output head: same axis identities in the same order, no view required"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "vocabulary",
+              "axis": "model.vocabulary",
+              "nature": "structural",
+              "extent": {
+                "argument": "vocabulary"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "note": "same role, same axis identities IN THE SAME ORDER as embed.weight: sharing is direct, with no view"
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "logits"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.vocabulary"
+        },
+        "semantics": "preserved",
+        "communication": "all_gather"
+      }
+    ],
+    "logical_cost": {
+      "operations": {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 2
+            },
+            {
+              "argument": "width"
+            },
+            {
+              "argument": "vocabulary"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "token"
+      }
+    }
+  }
+}

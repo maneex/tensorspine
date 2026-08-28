@@ -1,0 +1,1827 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://armature.dev/schema/2.0/model.json",
+  "title": "Armature Model Schema 2.0",
+  "type": "object",
+  "required": [
+    "schema",
+    "model",
+    "catalog",
+    "quantities",
+    "constants",
+    "occurrences",
+    "compositions",
+    "bindings",
+    "interfaces"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "armature/2.0"
+    },
+    "model": {
+      "$ref": "#/$defs/model_id"
+    },
+    "catalog": {
+      "$ref": "#/$defs/catalog_reference"
+    },
+    "quantities": {
+      "$ref": "#/$defs/quantity_map"
+    },
+    "constants": {
+      "$ref": "#/$defs/constant_map"
+    },
+    "occurrences": {
+      "$ref": "#/$defs/occurrence_map"
+    },
+    "compositions": {
+      "$ref": "#/$defs/composition_map"
+    },
+    "bindings": {
+      "$ref": "#/$defs/bindings"
+    },
+    "interfaces": {
+      "$ref": "#/$defs/interfaces"
+    }
+  },
+  "anyOf": [
+    {
+      "properties": {
+        "occurrences": {
+          "minProperties": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "compositions": {
+          "minProperties": 1
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+    },
+    "qualified_name": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*$"
+    },
+    "public_name": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/identifier"
+        },
+        {
+          "not": {
+            "const": "self"
+          }
+        }
+      ]
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "semantic_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "content_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "uri_reference": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uri-reference"
+    },
+    "catalog_reference": {
+      "$comment": "A list of bases, consulted in order: the first that carries an identity provides it. No global version — each occurrence already pins (name, version) of its contract, and that is the only opposable identity (§8.2).",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/catalog_base_reference"
+      }
+    },
+    "catalog_base_reference": {
+      "type": "object",
+      "required": [
+        "base"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/uri_reference"
+        }
+      }
+    },
+    "contract_reference": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/qualified_name"
+        },
+        "version": {
+          "$ref": "#/$defs/semantic_version"
+        }
+      }
+    },
+    "scalar_literal": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ]
+    },
+    "epistemic_status": {
+      "enum": [
+        "exact",
+        "upper_bound",
+        "lower_bound",
+        "estimate"
+      ]
+    },
+    "literal_expression": {
+      "type": "object",
+      "required": [
+        "literal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "literal": {
+          "$ref": "#/$defs/scalar_literal"
+        }
+      }
+    },
+    "quantity_expression": {
+      "type": "object",
+      "required": [
+        "quantity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "quantity": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "index_expression": {
+      "type": "object",
+      "required": [
+        "index"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "context_expression": {
+      "type": "object",
+      "required": [
+        "context"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/qualified_name"
+        }
+      }
+    },
+    "unary_operation_expression": {
+      "type": "object",
+      "required": [
+        "op",
+        "args"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "negate",
+            "absolute"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/scalar_expression"
+          }
+        }
+      }
+    },
+    "binary_operation_expression": {
+      "type": "object",
+      "required": [
+        "op",
+        "args"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "subtract",
+            "divide",
+            "ceil_divide",
+            "floor_divide",
+            "modulo"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/scalar_expression"
+          }
+        }
+      }
+    },
+    "nary_operation_expression": {
+      "type": "object",
+      "required": [
+        "op",
+        "args"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "add",
+            "multiply",
+            "min",
+            "max"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/scalar_expression"
+          }
+        }
+      }
+    },
+    "conditional_expression": {
+      "type": "object",
+      "required": [
+        "if",
+        "then",
+        "else"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "if": {
+          "$ref": "#/$defs/condition"
+        },
+        "then": {
+          "$ref": "#/$defs/scalar_expression"
+        },
+        "else": {
+          "$ref": "#/$defs/scalar_expression"
+        }
+      }
+    },
+    "interface_call": {
+      "type": "object",
+      "required": [
+        "contract",
+        "arguments",
+        "result",
+        "status",
+        "provenance"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/contract_reference"
+        },
+        "arguments": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/argument_value"
+          }
+        },
+        "result": {
+          "$ref": "#/$defs/identifier"
+        },
+        "status": {
+          "$ref": "#/$defs/epistemic_status"
+        },
+        "provenance": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/fact_reference"
+          }
+        }
+      }
+    },
+    "call_expression": {
+      "type": "object",
+      "required": [
+        "call"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "call": {
+          "$ref": "#/$defs/interface_call"
+        }
+      }
+    },
+    "scalar_expression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/literal_expression"
+        },
+        {
+          "$ref": "#/$defs/quantity_expression"
+        },
+        {
+          "$ref": "#/$defs/index_expression"
+        },
+        {
+          "$ref": "#/$defs/context_expression"
+        },
+        {
+          "$ref": "#/$defs/unary_operation_expression"
+        },
+        {
+          "$ref": "#/$defs/binary_operation_expression"
+        },
+        {
+          "$ref": "#/$defs/nary_operation_expression"
+        },
+        {
+          "$ref": "#/$defs/conditional_expression"
+        },
+        {
+          "$ref": "#/$defs/call_expression"
+        }
+      ]
+    },
+    "boolean_condition": {
+      "type": "object",
+      "required": [
+        "boolean"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "boolean": {
+          "type": "boolean"
+        }
+      }
+    },
+    "not_condition": {
+      "type": "object",
+      "required": [
+        "not"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "$ref": "#/$defs/condition"
+        }
+      }
+    },
+    "all_condition": {
+      "type": "object",
+      "required": [
+        "all"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        }
+      }
+    },
+    "any_condition": {
+      "type": "object",
+      "required": [
+        "any"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        }
+      }
+    },
+    "comparison_condition": {
+      "type": "object",
+      "required": [
+        "compare"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "compare": {
+          "type": "object",
+          "required": [
+            "operator",
+            "left",
+            "right"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "operator": {
+              "enum": [
+                "equal",
+                "not_equal",
+                "less",
+                "less_or_equal",
+                "greater",
+                "greater_or_equal"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/scalar_expression"
+            },
+            "right": {
+              "$ref": "#/$defs/scalar_expression"
+            }
+          }
+        }
+      }
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/boolean_condition"
+        },
+        {
+          "$ref": "#/$defs/not_condition"
+        },
+        {
+          "$ref": "#/$defs/all_condition"
+        },
+        {
+          "$ref": "#/$defs/any_condition"
+        },
+        {
+          "$ref": "#/$defs/comparison_condition"
+        }
+      ]
+    },
+    "record_argument": {
+      "type": "object",
+      "required": [
+        "record"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "record": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/argument_value"
+          }
+        }
+      }
+    },
+    "argument_value": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/scalar_expression"
+        },
+        {
+          "$ref": "#/$defs/record_argument"
+        }
+      ]
+    },
+    "cardinality_type": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "cardinality"
+        }
+      }
+    },
+    "real_type": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "real"
+        }
+      }
+    },
+    "physical_type": {
+      "type": "object",
+      "required": [
+        "kind",
+        "unit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "physical"
+        },
+        "unit": {
+          "enum": [
+            "bytes",
+            "elements",
+            "tokens",
+            "seconds",
+            "operations"
+          ]
+        }
+      }
+    },
+    "enum_type": {
+      "type": "object",
+      "required": [
+        "kind",
+        "values"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "enum"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/scalar_literal"
+          }
+        }
+      }
+    },
+    "boolean_type": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "boolean"
+        }
+      }
+    },
+    "quantity_type": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/cardinality_type"
+        },
+        {
+          "$ref": "#/$defs/real_type"
+        },
+        {
+          "$ref": "#/$defs/physical_type"
+        },
+        {
+          "$ref": "#/$defs/enum_type"
+        },
+        {
+          "$ref": "#/$defs/boolean_type"
+        }
+      ]
+    },
+    "domain_bound": {
+      "type": "object",
+      "required": [
+        "value",
+        "inclusive"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/scalar_expression"
+        },
+        "inclusive": {
+          "type": "boolean"
+        }
+      }
+    },
+    "interval_domain": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "interval"
+        },
+        "lower": {
+          "$ref": "#/$defs/domain_bound"
+        },
+        "upper": {
+          "$ref": "#/$defs/domain_bound"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "lower"
+          ]
+        },
+        {
+          "required": [
+            "upper"
+          ]
+        }
+      ]
+    },
+    "set_domain": {
+      "type": "object",
+      "required": [
+        "kind",
+        "values"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "set"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/scalar_literal"
+          }
+        }
+      }
+    },
+    "quantity_domain": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/interval_domain"
+        },
+        {
+          "$ref": "#/$defs/set_domain"
+        }
+      ]
+    },
+    "root_occurrence_selector": {
+      "type": "object",
+      "required": [
+        "kind",
+        "occurrence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "root"
+        },
+        "occurrence": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "index_assignment": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/scalar_expression"
+      }
+    },
+    "generated_occurrence_selector": {
+      "type": "object",
+      "required": [
+        "kind",
+        "composition",
+        "occurrence",
+        "indices"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "generated"
+        },
+        "composition": {
+          "$ref": "#/$defs/identifier"
+        },
+        "occurrence": {
+          "$ref": "#/$defs/identifier"
+        },
+        "indices": {
+          "$ref": "#/$defs/index_assignment"
+        }
+      }
+    },
+    "occurrence_selector": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/root_occurrence_selector"
+        },
+        {
+          "$ref": "#/$defs/generated_occurrence_selector"
+        }
+      ]
+    },
+    "argument_fact_reference": {
+      "type": "object",
+      "required": [
+        "argument"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "argument": {
+          "type": "object",
+          "required": [
+            "occurrence",
+            "name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "occurrence": {
+              "$ref": "#/$defs/occurrence_selector"
+            },
+            "name": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        }
+      }
+    },
+    "fact_reference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "quantity"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "quantity": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "index"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "index": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "constant"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "constant": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "context"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/qualified_name"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "contract"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "contract": {
+              "$ref": "#/$defs/contract_reference"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/argument_fact_reference"
+        },
+        {
+          "type": "object",
+          "required": [
+            "interface"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "interface": {
+              "$ref": "#/$defs/contract_reference"
+            }
+          }
+        }
+      ]
+    },
+    "derivation": {
+      "type": "object",
+      "required": [
+        "expression",
+        "status",
+        "provenance"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "$ref": "#/$defs/scalar_expression"
+        },
+        "status": {
+          "$ref": "#/$defs/epistemic_status"
+        },
+        "provenance": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/fact_reference"
+          }
+        }
+      }
+    },
+    "upper_bound_derivation": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/derivation"
+        },
+        {
+          "properties": {
+            "status": {
+              "enum": [
+                "exact",
+                "upper_bound"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "literal_source": {
+      "type": "object",
+      "required": [
+        "kind",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "literal"
+        },
+        "value": {
+          "$ref": "#/$defs/scalar_literal"
+        }
+      }
+    },
+    "external_source": {
+      "type": "object",
+      "required": [
+        "kind",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "external"
+        },
+        "name": {
+          "$ref": "#/$defs/qualified_name"
+        }
+      }
+    },
+    "derived_source": {
+      "type": "object",
+      "required": [
+        "kind",
+        "derivation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "derived"
+        },
+        "derivation": {
+          "$ref": "#/$defs/derivation"
+        }
+      }
+    },
+    "quantity_source": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/literal_source"
+        },
+        {
+          "$ref": "#/$defs/external_source"
+        },
+        {
+          "$ref": "#/$defs/derived_source"
+        }
+      ]
+    },
+    "quantity_definition": {
+      "type": "object",
+      "required": [
+        "regime",
+        "type",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "regime": {
+          "enum": [
+            "model_constant",
+            "model_variable"
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/quantity_type"
+        },
+        "domain": {
+          "$ref": "#/$defs/quantity_domain"
+        },
+        "source": {
+          "$ref": "#/$defs/quantity_source"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "regime": {
+                "const": "model_constant"
+              }
+            },
+            "required": [
+              "regime"
+            ]
+          },
+          "then": {
+            "properties": {
+              "source": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/literal_source"
+                  },
+                  {
+                    "$ref": "#/$defs/derived_source"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "regime": {
+                "const": "model_variable"
+              }
+            },
+            "required": [
+              "regime"
+            ]
+          },
+          "then": {
+            "required": [
+              "domain"
+            ],
+            "properties": {
+              "source": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/external_source"
+                  },
+                  {
+                    "$ref": "#/$defs/derived_source"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "quantity_map": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/quantity_definition"
+      }
+    },
+    "dtype": {
+      "enum": [
+        "bool",
+        "u4",
+        "i4",
+        "u8",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "fp4",
+        "f8e4m3",
+        "f8e4m3fn",
+        "f8e5m2",
+        "bf16",
+        "f16",
+        "f32",
+        "f64"
+      ]
+    },
+    "dtype_expression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/dtype"
+        },
+        {
+          "$ref": "#/$defs/quantity_expression"
+        }
+      ]
+    },
+    "shape_factor": {
+      "type": "object",
+      "required": [
+        "name",
+        "extent"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "extent": {
+          "$ref": "#/$defs/scalar_expression"
+        }
+      }
+    },
+    "shape_axis": {
+      "type": "object",
+      "required": [
+        "name",
+        "extent"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "extent": {
+          "$ref": "#/$defs/scalar_expression"
+        },
+        "factors": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/shape_factor"
+          }
+        }
+      }
+    },
+    "shape": {
+      "type": "object",
+      "required": [
+        "axes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/shape_axis"
+          }
+        }
+      }
+    },
+    "content_identity": {
+      "type": "object",
+      "required": [
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "#/$defs/content_digest"
+        },
+        "uri": {
+          "$ref": "#/$defs/uri_reference"
+        }
+      }
+    },
+    "constant_definition": {
+      "type": "object",
+      "required": [
+        "identity",
+        "shape",
+        "dtype"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "$ref": "#/$defs/content_identity"
+        },
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "dtype": {
+          "$ref": "#/$defs/dtype_expression"
+        },
+        "multiplicity": {
+          "$ref": "#/$defs/scalar_expression"
+        }
+      }
+    },
+    "constant_map": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/constant_definition"
+      }
+    },
+    "family_list": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/qualified_name"
+      }
+    },
+    "argument_map": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/argument_value"
+      }
+    },
+    "occurrence_definition": {
+      "type": "object",
+      "required": [
+        "contract",
+        "arguments",
+        "families"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "contract": {
+          "$ref": "#/$defs/contract_reference"
+        },
+        "arguments": {
+          "$ref": "#/$defs/argument_map"
+        },
+        "families": {
+          "$ref": "#/$defs/family_list"
+        },
+        "dtypes": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/dtype_expression"
+          }
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
+        }
+      }
+    },
+    "occurrence_map": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/occurrence_definition"
+      }
+    },
+    "finite_range": {
+      "type": "object",
+      "required": [
+        "start",
+        "stop",
+        "step"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/scalar_expression"
+        },
+        "stop": {
+          "$ref": "#/$defs/scalar_expression"
+        },
+        "step": {
+          "$ref": "#/$defs/scalar_expression"
+        }
+      }
+    },
+    "index_ranges": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/finite_range"
+      }
+    },
+    "composition_definition": {
+      "type": "object",
+      "required": [
+        "indices",
+        "families",
+        "occurrences"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "indices": {
+          "$ref": "#/$defs/index_ranges"
+        },
+        "families": {
+          "$ref": "#/$defs/family_list"
+        },
+        "occurrences": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/occurrence_definition"
+          }
+        }
+      }
+    },
+    "composition_map": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/composition_definition"
+      }
+    },
+    "value_endpoint": {
+      "type": "object",
+      "required": [
+        "occurrence",
+        "port"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "occurrence": {
+          "$ref": "#/$defs/occurrence_selector"
+        },
+        "port": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "parameter_endpoint": {
+      "type": "object",
+      "required": [
+        "occurrence",
+        "parameter"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "occurrence": {
+          "$ref": "#/$defs/occurrence_selector"
+        },
+        "parameter": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "constant_endpoint": {
+      "type": "object",
+      "required": [
+        "occurrence",
+        "constant"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "occurrence": {
+          "$ref": "#/$defs/occurrence_selector"
+        },
+        "constant": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "state_endpoint": {
+      "type": "object",
+      "required": [
+        "occurrence",
+        "state"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "occurrence": {
+          "$ref": "#/$defs/occurrence_selector"
+        },
+        "state": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "value_binding": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "for_each": {
+          "$ref": "#/$defs/index_ranges"
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "from": {
+          "$ref": "#/$defs/value_endpoint"
+        },
+        "to": {
+          "$ref": "#/$defs/value_endpoint"
+        }
+      }
+    },
+    "symbol_instance": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/qualified_name"
+        },
+        "indices": {
+          "$ref": "#/$defs/index_assignment"
+        }
+      }
+    },
+    "parameter_binding": {
+      "type": "object",
+      "required": [
+        "tensor",
+        "members"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "for_each": {
+          "$ref": "#/$defs/index_ranges"
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "tensor": {
+          "$ref": "#/$defs/symbol_instance"
+        },
+        "dtype": {
+          "$ref": "#/$defs/dtype_expression"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/parameter_endpoint"
+          }
+        }
+      }
+    },
+    "constant_binding": {
+      "type": "object",
+      "required": [
+        "constant",
+        "members"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "for_each": {
+          "$ref": "#/$defs/index_ranges"
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "constant": {
+          "$ref": "#/$defs/identifier"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/constant_endpoint"
+          }
+        }
+      }
+    },
+    "key_axis_source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "occurrence_index"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "occurrence_index": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "context"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "context": {
+              "$ref": "#/$defs/qualified_name"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "quantity"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "quantity": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "literal"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "literal": {
+              "$ref": "#/$defs/scalar_literal"
+            }
+          }
+        }
+      ]
+    },
+    "key_axis": {
+      "type": "object",
+      "required": [
+        "name",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "$ref": "#/$defs/key_axis_source"
+        }
+      }
+    },
+    "sharing_relation": {
+      "type": "object",
+      "required": [
+        "equal_on"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "equal_on": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        }
+      }
+    },
+    "state_keys": {
+      "type": "object",
+      "required": [
+        "axes",
+        "sharing"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/key_axis"
+          }
+        },
+        "sharing": {
+          "$ref": "#/$defs/sharing_relation"
+        }
+      }
+    },
+    "state_liveness": {
+      "type": "object",
+      "required": [
+        "classes_by",
+        "max_active_classes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "classes_by": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "max_active_classes": {
+          "$ref": "#/$defs/upper_bound_derivation"
+        }
+      }
+    },
+    "visit_bound": {
+      "type": "object",
+      "required": [
+        "unit",
+        "phase",
+        "upper_bound"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "unit": {
+          "$ref": "#/$defs/qualified_name"
+        },
+        "phase": {
+          "$ref": "#/$defs/qualified_name"
+        },
+        "upper_bound": {
+          "$ref": "#/$defs/upper_bound_derivation"
+        }
+      }
+    },
+    "index_domain": {
+      "type": "object",
+      "required": [
+        "kind",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "sequence",
+            "token",
+            "position",
+            "patch",
+            "fragment"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/qualified_name"
+        }
+      }
+    },
+    "invocation_boundary": {
+      "type": "object",
+      "required": [
+        "retains",
+        "domain"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "retains": {
+          "oneOf": [
+            {
+              "const": "all"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/identifier"
+              }
+            }
+          ]
+        },
+        "domain": {
+          "$ref": "#/$defs/index_domain"
+        }
+      }
+    },
+    "state_binding": {
+      "type": "object",
+      "required": [
+        "identity",
+        "members",
+        "keys",
+        "liveness",
+        "visits"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "for_each": {
+          "$ref": "#/$defs/index_ranges"
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "identity": {
+          "$ref": "#/$defs/symbol_instance"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/state_endpoint"
+          }
+        },
+        "keys": {
+          "$ref": "#/$defs/state_keys"
+        },
+        "liveness": {
+          "$ref": "#/$defs/state_liveness"
+        },
+        "visits": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/visit_bound"
+          }
+        },
+        "invocation_boundary": {
+          "$ref": "#/$defs/invocation_boundary"
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "required": [
+        "values",
+        "parameters",
+        "constants",
+        "states"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "values": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/value_binding"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/parameter_binding"
+          }
+        },
+        "constants": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/constant_binding"
+          }
+        },
+        "states": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state_binding"
+          }
+        }
+      }
+    },
+    "public_input": {
+      "type": "object",
+      "required": [
+        "to",
+        "domain"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "$ref": "#/$defs/value_endpoint"
+        },
+        "domain": {
+          "$ref": "#/$defs/index_domain"
+        }
+      }
+    },
+    "public_output": {
+      "type": "object",
+      "required": [
+        "from",
+        "domain",
+        "generative"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/value_endpoint"
+        },
+        "domain": {
+          "$ref": "#/$defs/index_domain"
+        },
+        "generative": {
+          "type": "boolean"
+        }
+      }
+    },
+    "interfaces": {
+      "type": "object",
+      "required": [
+        "inputs",
+        "outputs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/public_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/public_input"
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/public_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/public_output"
+          }
+        }
+      }
+    }
+  }
+}

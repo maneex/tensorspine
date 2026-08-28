@@ -1,0 +1,15 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "state.kv",
+  "definition": {
+    "admissible": [
+      "bf16",
+      "f16",
+      "f8e4m3"
+    ],
+    "default": "bf16",
+    "sensitivity": "quantizable",
+    "note": "the cache is the first candidate for quantization"
+  }
+}

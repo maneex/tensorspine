@@ -1,0 +1,542 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "moe",
+  "definition": {
+    "version": "1.1.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "experts": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "top_k": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "inner": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "shared": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": 0
+        }
+      },
+      "norm_topk": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "routing": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "scale": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "scoring": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "shared_inner": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "argument": "inner"
+        }
+      },
+      "swiglu_limit": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": false,
+        "affects_template": false
+      },
+      "shared_gate": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        }
+      },
+      "score_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        }
+      },
+      "hash_vocabulary": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "note": "vocabulary of the token to experts table"
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "router": {
+        "role": "moe.router",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "experts",
+              "axis": "moe.experts",
+              "nature": "structural",
+              "extent": {
+                "argument": "experts"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "in": {
+        "role": "ffn.up_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "experts",
+              "axis": "moe.experts",
+              "nature": "structural",
+              "extent": {
+                "argument": "experts"
+              }
+            },
+            {
+              "name": "gate_flat",
+              "axis": "ffn.gate_flat",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "literal": 2
+                  },
+                  {
+                    "argument": "inner"
+                  }
+                ]
+              },
+              "factors": [
+                {
+                  "name": "projection",
+                  "axis": "ffn.projection",
+                  "nature": "projection",
+                  "extent": {
+                    "literal": 2
+                  }
+                },
+                {
+                  "name": "inner",
+                  "axis": "ffn.inner",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "inner"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "note": "SwiGLU experts: fused gate and up, hence the factor 2"
+      },
+      "out": {
+        "role": "ffn.down_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "experts",
+              "axis": "moe.experts",
+              "nature": "structural",
+              "extent": {
+                "argument": "experts"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            }
+          ]
+        }
+      },
+      "shared_in": {
+        "role": "ffn.up_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "present_when": {
+          "compare": {
+            "operator": "greater",
+            "left": {
+              "argument": "shared"
+            },
+            "right": {
+              "literal": 0
+            }
+          }
+        },
+        "multiplicity": {
+          "argument": "shared"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "gate_flat",
+              "axis": "ffn.gate_flat",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "literal": 2
+                  },
+                  {
+                    "argument": "shared_inner"
+                  }
+                ]
+              },
+              "factors": [
+                {
+                  "name": "projection",
+                  "axis": "ffn.projection",
+                  "nature": "projection",
+                  "extent": {
+                    "literal": 2
+                  }
+                },
+                {
+                  "name": "inner",
+                  "axis": "ffn.inner",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "shared_inner"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "shared_out": {
+        "role": "ffn.down_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "present_when": {
+          "compare": {
+            "operator": "greater",
+            "left": {
+              "argument": "shared"
+            },
+            "right": {
+              "literal": 0
+            }
+          }
+        },
+        "multiplicity": {
+          "argument": "shared"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "shared_inner"
+              }
+            }
+          ]
+        }
+      },
+      "shared_gate": {
+        "role": "moe.shared_gate",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "shared_gate"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "score_bias": {
+        "role": "moe.score_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "experts",
+              "axis": "moe.experts",
+              "nature": "structural",
+              "extent": {
+                "argument": "experts"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "score_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "hash_table": {
+        "role": "moe.hash_table",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "vocabulary",
+              "axis": "model.vocabulary",
+              "nature": "structural",
+              "extent": {
+                "argument": "hash_vocabulary"
+              }
+            },
+            {
+              "name": "selected",
+              "axis": "moe.experts",
+              "nature": "structural",
+              "extent": {
+                "argument": "top_k"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "hash_vocabulary"
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "moe.experts"
+        },
+        "semantics": "preserved",
+        "communication": "all_to_all"
+      },
+      {
+        "target": {
+          "argument_axis": "ffn.inner"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce"
+      }
+    ],
+    "logical_cost": {
+      "operations": {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 6
+            },
+            {
+              "argument": "width"
+            },
+            {
+              "argument": "inner"
+            },
+            {
+              "op": "add",
+              "args": [
+                {
+                  "argument": "top_k"
+                },
+                {
+                  "argument": "shared"
+                }
+              ]
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "token"
+      }
+    }
+  }
+}

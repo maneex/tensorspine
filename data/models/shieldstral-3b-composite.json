@@ -1,0 +1,1431 @@
+{
+  "schema": "armature/2.0",
+  "model": "shieldstral_1_0_3b_composite",
+  "catalog": [
+    {
+      "base": "catalog/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 3072
+      }
+    },
+    "layers": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 26
+      }
+    },
+    "heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 32
+      }
+    },
+    "kv_heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "hd": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128
+      }
+    },
+    "ffn": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 9216
+      }
+    },
+    "vocab": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 131072
+      }
+    },
+    "vit_layers": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 24
+      }
+    },
+    "d_vis": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1024
+      }
+    },
+    "vit_heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 16
+      }
+    },
+    "vit_hd": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 64
+      }
+    },
+    "vit_ffn": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 4096
+      }
+    },
+    "patch": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 14
+      }
+    },
+    "eps": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 0.00001
+      }
+    },
+    "precision": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {},
+  "occurrences": {
+    "patch_embed": {
+      "contract": {
+        "name": "patch_embed",
+        "version": "2.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d_vis"
+        },
+        "patch": {
+          "quantity": "patch"
+        },
+        "channels": {
+          "literal": 3
+        }
+      },
+      "families": [
+        "input",
+        "vision"
+      ]
+    },
+    "embed": {
+      "contract": {
+        "name": "embed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "input",
+        "embedding"
+      ]
+    },
+    "splice": {
+      "contract": {
+        "name": "splice",
+        "version": "2.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        }
+      },
+      "families": [
+        "input",
+        "fusion"
+      ]
+    },
+    "text": {
+      "contract": {
+        "name": "decoder.causal_yarn",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "layers": {
+          "quantity": "layers"
+        },
+        "heads": {
+          "quantity": "heads"
+        },
+        "kv_heads": {
+          "quantity": "kv_heads"
+        },
+        "head_dim": {
+          "quantity": "hd"
+        },
+        "inner": {
+          "quantity": "ffn"
+        },
+        "eps": {
+          "quantity": "eps"
+        },
+        "precision": {
+          "quantity": "precision"
+        }
+      },
+      "families": [
+        "decoder",
+        "instance"
+      ]
+    },
+    "final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ]
+    },
+    "lm_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "output",
+        "head"
+      ]
+    },
+    "vision_pre_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d_vis"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "vision",
+        "normalization"
+      ]
+    },
+    "vision_projector": {
+      "contract": {
+        "name": "projector.patch_merge_bottleneck",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "source_width": {
+          "quantity": "d_vis"
+        },
+        "merge_count": {
+          "literal": 4
+        },
+        "source": {
+          "literal": "vision"
+        }
+      },
+      "families": [
+        "input",
+        "projection"
+      ]
+    }
+  },
+  "compositions": {
+    "vision": {
+      "indices": {
+        "blk": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "quantity": "vit_layers"
+          },
+          "step": {
+            "literal": 1
+          }
+        }
+      },
+      "families": [
+        "vision"
+      ],
+      "occurrences": {
+        "attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d_vis"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d_vis"
+            },
+            "heads": {
+              "quantity": "vit_heads"
+            },
+            "kv_heads": {
+              "quantity": "vit_heads"
+            },
+            "head_dim": {
+              "quantity": "vit_hd"
+            },
+            "mask": {
+              "literal": "none"
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 10000
+                },
+                "layout": {
+                  "literal": "2d"
+                }
+              }
+            }
+          },
+          "families": [
+            "sequence_operator"
+          ]
+        },
+        "attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d_vis"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "ffn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d_vis"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "ffn": {
+          "contract": {
+            "name": "ffn.gated",
+            "version": "1.1.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d_vis"
+            },
+            "inner": {
+              "quantity": "vit_ffn"
+            },
+            "activation": {
+              "literal": "silu"
+            }
+          },
+          "families": [
+            "feed_forward"
+          ]
+        },
+        "ffn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d_vis"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "vision.attn_n.carry": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "index": "i"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 1
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.attn_r.a_carry": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "index": "i"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 1
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.attn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.attn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.ffn_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.ffn_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.ffn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.ffn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "vision.entry": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_pre_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_n",
+            "indices": {
+              "blk": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "vision.entry.a": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_pre_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "a"
+        }
+      },
+      "splice.text": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "splice"
+          },
+          "port": "text"
+        }
+      },
+      "splice.source": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "vit_layers"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_projector"
+          },
+          "port": "input"
+        }
+      },
+      "text.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "splice"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "text"
+          },
+          "port": "hidden"
+        }
+      },
+      "final_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "text"
+          },
+          "port": "hidden_out"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
+        }
+      },
+      "lm_head.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "input"
+        }
+      },
+      "patch_embed.vision_pre_n": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "patch_embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_pre_n"
+          },
+          "port": "input"
+        }
+      },
+      "vision_projector.splice": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_projector"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "splice"
+          },
+          "port": "source"
+        }
+      }
+    },
+    "parameters": {
+      "patch_embed.weight": {
+        "tensor": {
+          "name": "patch_embed.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "patch_embed"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "final_n.weight": {
+        "tensor": {
+          "name": "final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_pre_n.weight": {
+        "tensor": {
+          "name": "vision_pre_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_pre_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.norm": {
+        "tensor": {
+          "name": "vision_projector.norm"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "norm"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.merger": {
+        "tensor": {
+          "name": "vision_projector.merger"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "merger"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.linear_in": {
+        "tensor": {
+          "name": "vision_projector.linear_in"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "linear_in"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.linear_out": {
+        "tensor": {
+          "name": "vision_projector.linear_out"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "linear_out"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.attn_n.weight": {
+        "tensor": {
+          "name": "vision.attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "attn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.attn.qkv": {
+        "tensor": {
+          "name": "vision.attn.qkv",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "qkv"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.attn.out": {
+        "tensor": {
+          "name": "vision.attn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.ffn_n.weight": {
+        "tensor": {
+          "name": "vision.ffn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "ffn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.ffn.in": {
+        "tensor": {
+          "name": "vision.ffn.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "ffn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.ffn.out": {
+        "tensor": {
+          "name": "vision.ffn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "ffn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "tied_embeddings": {
+        "tensor": {
+          "name": "tied_embeddings"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "weight"
+          },
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "lm_head"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      }
+    },
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "pixels": {
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "patch_embed"
+          },
+          "port": "pixels"
+        },
+        "domain": {
+          "kind": "patch",
+          "source": "self"
+        }
+      },
+      "tokens": {
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "tokens"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "self"
+        }
+      }
+    },
+    "outputs": {
+      "verdict": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "logits"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "tokens"
+        },
+        "generative": true
+      }
+    }
+  }
+}

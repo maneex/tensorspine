@@ -1,0 +1,8 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "attention.index_heads",
+  "definition": {
+    "space": "value"
+  }
+}

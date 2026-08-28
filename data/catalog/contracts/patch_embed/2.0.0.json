@@ -1,0 +1,251 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "patch_embed",
+  "definition": {
+    "version": "2.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "patch": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "channels": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "temporal_patch": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": 1
+        }
+      },
+      "pos": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true
+      },
+      "bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": false
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "pixels": {
+          "shape": {
+            "axes": [
+              {
+                "name": "channels",
+                "axis": "vision.channels",
+                "nature": "feature",
+                "extent": {
+                  "argument": "channels"
+                }
+              },
+              {
+                "name": "temporal",
+                "axis": "sequence.position",
+                "nature": "structural",
+                "extent": {
+                  "argument": "temporal_patch"
+                }
+              },
+              {
+                "name": "patch_h",
+                "axis": "vision.patch",
+                "nature": "structural",
+                "extent": {
+                  "argument": "patch"
+                }
+              },
+              {
+                "name": "patch_w",
+                "axis": "vision.patch",
+                "nature": "structural",
+                "extent": {
+                  "argument": "patch"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "patch",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.pixels"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "patch",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "weight": {
+        "role": "embedding.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "channels",
+              "axis": "vision.channels",
+              "nature": "feature",
+              "extent": {
+                "argument": "channels"
+              }
+            },
+            {
+              "name": "temporal",
+              "axis": "sequence.position",
+              "nature": "structural",
+              "extent": {
+                "argument": "temporal_patch"
+              }
+            },
+            {
+              "name": "patch_h",
+              "axis": "vision.patch",
+              "nature": "structural",
+              "extent": {
+                "argument": "patch"
+              }
+            },
+            {
+              "name": "patch_w",
+              "axis": "vision.patch",
+              "nature": "structural",
+              "extent": {
+                "argument": "patch"
+              }
+            }
+          ]
+        }
+      },
+      "bias": {
+        "role": "embedding.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "position": {
+        "role": "embedding.position",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "position",
+              "axis": "sequence.position",
+              "nature": "structural",
+              "extent": {
+                "argument": "pos"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "pos"
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "pixels"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": []
+  }
+}

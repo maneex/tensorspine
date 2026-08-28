@@ -1,0 +1,190 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "residual.altup_correct",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "streams": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "predictions": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        },
+        "activated": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "streams": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        },
+        "active": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "correction": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "out",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "streams"
+              }
+            },
+            {
+              "name": "in",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "streams"
+              }
+            }
+          ]
+        }
+      },
+      "correct_scale": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "predictions",
+        "activated"
+      ],
+      "writes": [
+        "streams",
+        "active"
+      ]
+    },
+    "partitions": [],
+    "note": "AltUp correction of the stream set and scaling of the active stream."
+  }
+}

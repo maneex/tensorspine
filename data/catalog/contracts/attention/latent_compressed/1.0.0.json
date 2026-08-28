@@ -1,0 +1,1029 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "attention.latent_compressed",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "head_dim": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "q_rank": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "o_groups": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "o_rank": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "mask": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "causal",
+            "chunked",
+            "none"
+          ]
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "window": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "span": {
+              "type": {
+                "kind": "physical",
+                "unit": "tokens"
+              },
+              "required": true,
+              "affects_template": true
+            }
+          }
+        },
+        "required": false,
+        "affects_template": true
+      },
+      "compress": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "ratio": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            },
+            "overlap": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            }
+          }
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "index": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "head_dim": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            },
+            "heads": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            },
+            "topk": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            },
+            "overlap": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            }
+          }
+        },
+        "required": false,
+        "affects_template": true
+      },
+      "rope": {
+        "type": {
+          "kind": "opaque"
+        },
+        "required": true,
+        "affects_template": false
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "q_a": {
+        "role": "attention.query_down",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "q_rank",
+              "axis": "attention.q_rank",
+              "nature": "feature",
+              "extent": {
+                "argument": "q_rank"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "kv": {
+        "role": "attention.kv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "q_a_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "q_rank",
+              "axis": "attention.q_rank",
+              "nature": "feature",
+              "extent": {
+                "argument": "q_rank"
+              }
+            }
+          ]
+        }
+      },
+      "q_b": {
+        "role": "attention.query_up",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "heads",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "q_rank",
+              "axis": "attention.q_rank",
+              "nature": "feature",
+              "extent": {
+                "argument": "q_rank"
+              }
+            }
+          ]
+        }
+      },
+      "kv_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        }
+      },
+      "o_a": {
+        "role": "attention.output_down",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "group_rank",
+              "axis": "attention.o_rank",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "o_groups"
+                  },
+                  {
+                    "argument": "o_rank"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "head_group",
+              "axis": "attention.head_group",
+              "nature": "feature",
+              "extent": {
+                "op": "floor_divide",
+                "args": [
+                  {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "argument": "heads"
+                      },
+                      {
+                        "argument": "head_dim"
+                      }
+                    ]
+                  },
+                  {
+                    "argument": "o_groups"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "o_b": {
+        "role": "attention.output_up",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "group_rank",
+              "axis": "attention.o_rank",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "o_groups"
+                  },
+                  {
+                    "argument": "o_rank"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "sinks": {
+        "role": "attention.sink",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "heads",
+              "axis": "attention.heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "heads"
+              }
+            }
+          ]
+        }
+      },
+      "compressor_ape": {
+        "role": "attention.compressor",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "ratio",
+              "axis": "sequence.compression",
+              "nature": "structural",
+              "extent": {
+                "argument": "compress.ratio"
+              }
+            },
+            {
+              "name": "overlap",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "compress.overlap"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "compressor_kv_gate": {
+        "role": "attention.compressor",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "kv_gate",
+              "axis": "attention.head_dim",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "literal": 2
+                  },
+                  {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "argument": "compress.overlap"
+                      },
+                      {
+                        "argument": "head_dim"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "compressor_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        }
+      },
+      "index_q": {
+        "role": "attention.indexer",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "index_heads",
+              "axis": "attention.index_heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "index.heads"
+                  },
+                  {
+                    "argument": "index.head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "q_rank",
+              "axis": "attention.q_rank",
+              "nature": "feature",
+              "extent": {
+                "argument": "q_rank"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "index"
+        }
+      },
+      "index_weights": {
+        "role": "attention.indexer",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "index_heads",
+              "axis": "attention.index_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "index.heads"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "index"
+        }
+      },
+      "index_compressor_ape": {
+        "role": "attention.compressor",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "ratio",
+              "axis": "sequence.compression",
+              "nature": "structural",
+              "extent": {
+                "argument": "compress.ratio"
+              }
+            },
+            {
+              "name": "overlap",
+              "axis": "attention.index_dim",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "index.overlap"
+                  },
+                  {
+                    "argument": "index.head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "index"
+        }
+      },
+      "index_compressor_kv_gate": {
+        "role": "attention.compressor",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "kv_gate",
+              "axis": "attention.index_dim",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "literal": 2
+                  },
+                  {
+                    "argument": "index.overlap"
+                  },
+                  {
+                    "argument": "index.head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "index"
+        }
+      },
+      "index_compressor_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "index_dim",
+              "axis": "attention.index_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "index.head_dim"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "index"
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {
+      "kv": {
+        "present_when": {
+          "boolean": true
+        },
+        "payload": {
+          "latent": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "latent",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.kv"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append"
+          },
+          "read": {
+            "effect": "read"
+          },
+          "evict": {
+            "effect": "evict"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_position",
+            "indexed_by": {
+              "self": true
+            },
+            "stride": {
+              "argument": "compress.ratio"
+            }
+          }
+        ]
+      },
+      "sliding": {
+        "present_when": {
+          "boolean": true
+        },
+        "payload": {
+          "latent": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "latent",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.kv"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append"
+          },
+          "read": {
+            "effect": "read"
+          },
+          "evict": {
+            "effect": "evict"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "argument": "window.span"
+            }
+          }
+        ]
+      },
+      "compressor": {
+        "present_when": {
+          "boolean": true
+        },
+        "payload": {
+          "partial": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "partial",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "literal": 2
+                      },
+                      {
+                        "argument": "compress.overlap"
+                      },
+                      {
+                        "argument": "head_dim"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "role": "state.recurrent"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append"
+          },
+          "read": {
+            "effect": "read"
+          },
+          "evict": {
+            "effect": "evict"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "op": "multiply",
+              "args": [
+                {
+                  "argument": "compress.overlap"
+                },
+                {
+                  "argument": "compress.ratio"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "index": {
+        "present_when": {
+          "present": "index"
+        },
+        "payload": {
+          "key": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "key",
+                  "axis": "attention.index_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "index.head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.index"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append"
+          },
+          "read": {
+            "effect": "read"
+          },
+          "evict": {
+            "effect": "evict"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_position",
+            "indexed_by": {
+              "self": true
+            },
+            "stride": {
+              "argument": "compress.ratio"
+            }
+          }
+        ]
+      },
+      "index_compressor": {
+        "present_when": {
+          "present": "index"
+        },
+        "payload": {
+          "partial": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "partial",
+                  "axis": "attention.index_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "literal": 2
+                      },
+                      {
+                        "argument": "index.overlap"
+                      },
+                      {
+                        "argument": "index.head_dim"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "role": "state.recurrent"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append"
+          },
+          "read": {
+            "effect": "read"
+          },
+          "evict": {
+            "effect": "evict"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "op": "multiply",
+              "args": [
+                {
+                  "argument": "index.overlap"
+                },
+                {
+                  "argument": "compress.ratio"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "attention.heads"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce"
+      },
+      {
+        "target": {
+          "argument_axis": "attention.o_groups"
+        },
+        "semantics": "preserved",
+        "communication": "all_gather"
+      },
+      {
+        "target": {
+          "instance_key_axis": "instance.session"
+        },
+        "semantics": "preserved",
+        "communication": "none"
+      },
+      {
+        "target": {
+          "payload_axis": {
+            "state": "kv",
+            "component": "latent",
+            "axis": "attention.head_dim"
+          }
+        },
+        "semantics": "preserved",
+        "communication": "none"
+      }
+    ],
+    "note": "Latent attention with low-rank projections, temporal compression and an optional sparse index."
+  }
+}

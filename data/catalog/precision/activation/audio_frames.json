@@ -1,0 +1,13 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "activation.audio_frames",
+  "definition": {
+    "admissible": [
+      "f32",
+      "f16"
+    ],
+    "default": "f32",
+    "sensitivity": "reduced"
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "pooler",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "project_to": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "normalize": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "l2",
+            "none"
+          ]
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "reduce": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "mean",
+            "cls",
+            "none"
+          ]
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": "none"
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.feature",
+                "nature": "feature",
+                "extent": {
+                  "argument": "project_to"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "note": "granularity is carried by the public OUTPUT, not by the primitive",
+          "role": "activation.embedding"
+        }
+      }
+    },
+    "parameters": {
+      "weight": {
+        "role": "pooler.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.feature",
+              "nature": "feature",
+              "extent": {
+                "argument": "project_to"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": []
+  }
+}

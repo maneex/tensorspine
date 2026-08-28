@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""armature — one entry point for the model documents of this repository.
+
+    armature --validate [PATH ...]    grammar, then meaning. The gate.
+    armature --lint     [PATH ...]    hygiene. Advisory, never blocks.
+    armature --d1       [PATH ...]    emit D1, the expanded graph (§16.1).
+    armature --view     [PATH ...]    render a self-contained HTML page.
+
+With no PATH, every model of the default model directory is taken. Every
+location defaults to the layout of the repository and can be overridden.
+
+`--validate` and `--lint` answer different questions, and the difference is not
+one of severity. A validation error is a refusal with its cause, as §8.1
+requires; a lint finding is an opinion a reasonable author may decline. So
+`--validate` exits 1 on the first document that fails, and `--lint` always
+exits 0.
+
+Exit status: 0 nothing wrong, 1 at least one document failed, 2 bad usage.
+"""
+import argparse
+import glob
+import json
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+
+DEFAULT_MODELS = os.path.join(ROOT, 'data', 'models')
+DEFAULT_CATALOG = os.path.join(ROOT, 'data', 'catalog')
+DEFAULT_SCHEMAS = os.path.join(ROOT, 'schemas')
+
+
+def collect(paths, default_dir):
+    """The documents to work on: what was named, or every model of the default
+    directory. A directory expands to the JSON files it holds."""
+    if not paths:
+        paths = [default_dir]
+    documents = []
+    for p in paths:
+        if os.path.isdir(p):
+            documents.extend(sorted(glob.glob(os.path.join(p, '*.json'))))
+        else:
+            documents.append(p)
+    return documents
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog='armature',
+        description='Validate, lint, expand and visualize armature/2.0 model documents.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="A validation error is a refusal; a lint finding is advice. "
+               "That is why --lint always exits 0.")
+
+    command = parser.add_mutually_exclusive_group(required=True)
+    command.add_argument('--validate', action='store_true',
+                         help='check the document against its schema, then against the '
+                              'catalog: resolution, arguments, shapes, domains, bindings, '
+                              'acyclicity. Exits 1 on any refusal.')
+    command.add_argument('--lint', action='store_true',
+                         help='report what is legal but worth knowing: a declared catalog '
+                              'base nothing resolves from, contracts and axes the corpus '
+                              'never calls. Always exits 0.')
+    command.add_argument('--d1', action='store_true',
+                         help='emit D1, the expanded graph: loops unrolled, indices '
+                              'evaluated, delegated contracts expanded in place.')
+    command.add_argument('--view', action='store_true',
+                         help='render a self-contained HTML page. Needs Graphviz on PATH.')
+
+    parser.add_argument('paths', nargs='*', metavar='PATH',
+                        help=f'model documents, or a directory of them '
+                             f'(default: {os.path.relpath(DEFAULT_MODELS, ROOT)}/)')
+    parser.add_argument('-o', '--output', metavar='PATH',
+                        help='where to write, for --d1 and --view. A directory takes one '
+                             'file per model; omitted, output lands beside its model.')
+    parser.add_argument('--catalog', metavar='DIR', action='append',
+                        help=f'a catalog base, repeatable. Bases are consulted in order '
+                             f'(default: {os.path.relpath(DEFAULT_CATALOG, ROOT)}/)')
+    parser.add_argument('--schemas', metavar='DIR', default=DEFAULT_SCHEMAS,
+                        help=f'directory holding the JSON Schemas; they are indexed by '
+                             f'their own $id (default: {os.path.relpath(DEFAULT_SCHEMAS, ROOT)}/)')
+    parser.add_argument('--assign', metavar='JSON',
+                        help='values for the external quantities of a parametric body, '
+                             'as a JSON object. A body denotes one graph per admissible '
+                             'assignment (§4.6), so it needs one to be read alone.')
+    return parser
+
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    documents = collect(args.paths, DEFAULT_MODELS)
+    if not documents:
+        print("no model document to work on", file=sys.stderr)
+        return 2
+    missing = [p for p in documents if not os.path.isfile(p)]
+    if missing:
+        for p in missing:
+            print(f"no such file: {p}", file=sys.stderr)
+        return 2
+
+    bases = args.catalog or [DEFAULT_CATALOG]
+    assignment = {}
+    if args.assign:
+        try:
+            assignment = json.loads(args.assign)
+        except json.JSONDecodeError as e:
+            print(f"--assign is not valid JSON: {e}", file=sys.stderr)
+            return 2
+        if not isinstance(assignment, dict):
+            print("--assign expects a JSON object", file=sys.stderr)
+            return 2
+
+    if args.validate:
+        import validate
+        print(f"validate  {len(documents)} document(s)")
+        failed, skipped = validate.run(documents, args.schemas, bases, assignment)
+        print(f"  {len(documents) - failed - skipped}/{len(documents)} pass"
+              + (f", {skipped} need an assignment" if skipped else "")
+              + (f", {failed} fail" if failed else ""))
+        return 1 if failed else 0
+
+    if args.lint:
+        import lint
+        print(f"lint  {len(documents)} document(s)")
+        return lint.run(documents, bases, relative_to=ROOT)
+
+    if args.d1:
+        import d1
+        print(f"d1  {len(documents)} document(s)")
+        failed, skipped = d1.run(documents, bases, args.output, assignment)
+        return 1 if failed else 0
+
+    if args.view:
+        import view
+        print(f"view  {len(documents)} document(s)")
+        failed = view.run(documents, args.output)
+        return 1 if failed else 0
+
+    parser.print_help()
+    return 2
+
+
+if __name__ == '__main__':
+    sys.exit(main())

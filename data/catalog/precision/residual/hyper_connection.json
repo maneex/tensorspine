@@ -1,0 +1,13 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "residual.hyper_connection",
+  "definition": {
+    "admissible": [
+      "f32",
+      "bf16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "state.recurrent",
+  "definition": {
+    "admissible": [
+      "f32",
+      "bf16"
+    ],
+    "default": "f32",
+    "sensitivity": "full_precision",
+    "note": "a recurrent state accumulates: precision drift compounds in it"
+  }
+}

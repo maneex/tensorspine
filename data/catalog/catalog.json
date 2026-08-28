@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "base",
+  "name": "armature.reference",
+  "definition": {
+    "catalog": "armature/reference",
+    "note": "Catalogue of logical primitives, independent of any library: physical fusions, shards, quantizations and synthetic tensors are outside the contract vocabulary."
+  }
+}

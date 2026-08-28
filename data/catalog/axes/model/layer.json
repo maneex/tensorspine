@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "model.layer",
+  "definition": {
+    "space": "value",
+    "note": "structural position of a layer within a stack"
+  }
+}

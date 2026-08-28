@@ -1,0 +1,564 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "sequence.gated_delta",
+  "definition": {
+    "version": "2.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "key_heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "value_heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "head_dim": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "out_gate": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "silu",
+            "swish",
+            "sigmoid",
+            "none"
+          ]
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": "none"
+        }
+      },
+      "conv": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "width": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            },
+            "kernel": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            },
+            "history": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": true
+            }
+          }
+        },
+        "required": false,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "qkv": {
+        "role": "deltanet.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "qkv_flat",
+              "axis": "attention.qkv_flat",
+              "nature": "projection",
+              "extent": {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "literal": 2
+                      },
+                      {
+                        "op": "multiply",
+                        "args": [
+                          {
+                            "argument": "key_heads"
+                          },
+                          {
+                            "argument": "head_dim"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "argument": "value_heads"
+                      },
+                      {
+                        "argument": "head_dim"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "z": {
+        "role": "deltanet.gate_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_flat",
+              "axis": "deltanet.value_dim",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "value_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "b": {
+        "role": "deltanet.decay_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "a": {
+        "role": "deltanet.decay_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "conv_weight": {
+        "role": "deltanet.convolution",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "conv_width",
+              "axis": "deltanet.conv_width",
+              "nature": "feature",
+              "extent": {
+                "argument": "conv.width"
+              }
+            },
+            {
+              "name": "kernel",
+              "axis": "audio.kernel",
+              "nature": "structural",
+              "extent": {
+                "argument": "conv.kernel"
+              }
+            }
+          ]
+        }
+      },
+      "dt_bias": {
+        "role": "deltanet.scalar",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            }
+          ]
+        }
+      },
+      "A_log": {
+        "role": "deltanet.scalar",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            }
+          ]
+        }
+      },
+      "norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "deltanet.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        }
+      },
+      "out": {
+        "role": "deltanet.output_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "value_flat",
+              "axis": "deltanet.value_dim",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "value_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {
+      "recurrent": {
+        "present_when": {
+          "boolean": true
+        },
+        "payload": {
+          "s": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "value_heads",
+                  "axis": "deltanet.value_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "value_heads"
+                  }
+                },
+                {
+                  "name": "row",
+                  "axis": "deltanet.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                },
+                {
+                  "name": "col",
+                  "axis": "deltanet.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.recurrent"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "read": {
+            "effect": "read"
+          },
+          "write": {
+            "effect": "write"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "fixed",
+            "access": "aggregate",
+            "sharing": "at_fork_point",
+            "indexed_by": {
+              "self": true
+            }
+          }
+        ]
+      },
+      "conv": {
+        "present_when": {
+          "present": "conv"
+        },
+        "payload": {
+          "w": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "conv_width",
+                  "axis": "deltanet.conv_width",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "conv.width"
+                  }
+                },
+                {
+                  "name": "history",
+                  "axis": "sequence.position",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "conv.history"
+                  }
+                }
+              ]
+            },
+            "role": "state.conv"
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append"
+          },
+          "read": {
+            "effect": "read"
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "argument": "conv.history"
+            }
+          }
+        ]
+      }
+    },
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "deltanet.value_heads"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce"
+      },
+      {
+        "target": {
+          "instance_key_axis": "instance.session"
+        },
+        "semantics": "preserved",
+        "communication": "none"
+      }
+    ],
+    "logical_cost": {
+      "operations": {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 2
+            },
+            {
+              "argument": "value_heads"
+            },
+            {
+              "argument": "head_dim"
+            },
+            {
+              "argument": "head_dim"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "token"
+      }
+    },
+    "note": "Gated-delta recurrent layer with a short causal convolution and a per-head matrix state."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "decoder.causal_yarn",
+  "definition": {
+    "version": "1.0.0",
+    "model": {
+      "uri": "models-v2.decoder-causal-yarn",
+      "id": "decoder_causal_yarn",
+      "note": "parametric body: models-v2/decoder-causal-yarn.json"
+    },
+    "note": "Pre-norm causal decoder with grouped attention, RoPE/YARN and a gated FFN."
+  }
+}

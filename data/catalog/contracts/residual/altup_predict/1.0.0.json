@@ -1,0 +1,202 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "residual.altup_predict",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "streams": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "predictions": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        },
+        "active": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "prediction": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "out",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "streams"
+                  },
+                  {
+                    "argument": "streams"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "in",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "streams"
+              }
+            }
+          ]
+        }
+      },
+      "router": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "altup",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "streams"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      },
+      "router_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "predictions",
+        "active"
+      ]
+    },
+    "partitions": [],
+    "note": "AltUp prediction and active-stream selection."
+  }
+}

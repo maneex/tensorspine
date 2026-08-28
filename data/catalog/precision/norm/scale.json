@@ -1,0 +1,15 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "norm.scale",
+  "definition": {
+    "admissible": [
+      "f32",
+      "bf16",
+      "f16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision",
+    "note": "a quantized normalization scale shifts the whole layer"
+  }
+}

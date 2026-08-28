@@ -1,0 +1,275 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "conv_frontend",
+  "definition": {
+    "version": "2.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "mels": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "stride": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "kernel": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": 3
+        }
+      },
+      "bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "affects_template": true,
+        "default": {
+          "literal": true
+        }
+      },
+      "position": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "note": "number of learned positions; absent for RoPE"
+      }
+    },
+    "ports": {
+      "inputs": {
+        "frames": {
+          "shape": {
+            "axes": [
+              {
+                "name": "mels",
+                "axis": "audio.mels",
+                "nature": "feature",
+                "extent": {
+                  "argument": "mels"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "position",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.audio_frames"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "position",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "conv1_weight": {
+        "role": "frontend.convolution",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "mels",
+              "axis": "audio.mels",
+              "nature": "feature",
+              "extent": {
+                "argument": "mels"
+              }
+            },
+            {
+              "name": "kernel",
+              "axis": "audio.kernel",
+              "nature": "structural",
+              "extent": {
+                "argument": "kernel"
+              }
+            }
+          ]
+        }
+      },
+      "conv1_bias": {
+        "role": "frontend.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "conv2_weight": {
+        "role": "frontend.convolution",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "kernel",
+              "axis": "audio.kernel",
+              "nature": "structural",
+              "extent": {
+                "argument": "kernel"
+              }
+            }
+          ]
+        }
+      },
+      "conv2_bias": {
+        "role": "frontend.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        }
+      },
+      "position": {
+        "role": "embedding.position",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "position",
+              "axis": "sequence.position",
+              "nature": "structural",
+              "extent": {
+                "argument": "position"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "present": "position"
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "frames"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": []
+  }
+}

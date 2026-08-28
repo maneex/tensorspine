@@ -1,0 +1,16 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "pooler.projection",
+  "definition": {
+    "admissible": [
+      "bf16",
+      "f16",
+      "f32",
+      "f8e4m3",
+      "fp4"
+    ],
+    "default": "bf16",
+    "sensitivity": "quantizable"
+  }
+}

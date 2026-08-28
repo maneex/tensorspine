@@ -1,0 +1,266 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "projector.patch_merge_mlp",
+  "definition": {
+    "version": "1.0.0",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "source_width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "merge_count": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "affects_template": true
+      },
+      "source": {
+        "type": {
+          "kind": "port_reference"
+        },
+        "required": true,
+        "affects_template": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "source_width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden"
+        }
+      }
+    },
+    "parameters": {
+      "norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "source",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "source_width"
+              }
+            }
+          ]
+        }
+      },
+      "norm_bias": {
+        "role": "norm.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "source",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "source_width"
+              }
+            }
+          ]
+        }
+      },
+      "hidden": {
+        "role": "projector.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "merged_out",
+              "axis": "vision.merged_patch",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "source_width"
+                  },
+                  {
+                    "argument": "merge_count"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "merged_in",
+              "axis": "vision.merged_patch",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "source_width"
+                  },
+                  {
+                    "argument": "merge_count"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "hidden_bias": {
+        "role": "projector.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "merged",
+              "axis": "vision.merged_patch",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "source_width"
+                  },
+                  {
+                    "argument": "merge_count"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "output": {
+        "role": "projector.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "merged",
+              "axis": "vision.merged_patch",
+              "nature": "feature",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "source_width"
+                  },
+                  {
+                    "argument": "merge_count"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "output_bias": {
+        "role": "projector.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [],
+    "note": "Patch concatenation, LayerNorm and a projection MLP with biases.",
+    "domain_transforms": [
+      {
+        "from_port": "input",
+        "to_port": "output",
+        "relation": "merge",
+        "factor": {
+          "argument": "merge_count"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "schema": "armature-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "attention.qkv_flat",
+  "definition": {
+    "space": "value",
+    "note": "fused QKV width; under GQA this is not an exact product, hence no factors"
+  }
+}
