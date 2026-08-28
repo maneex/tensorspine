@@ -4,27 +4,67 @@
   "name": "attention.dense",
   "definition": {
     "version": "1.0.0",
+    "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
+    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `source` makes it **cross-attention**: keys and values come from the `source_values` port, in the indexing domain the argument names, and the cache is frozen once that source is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` are opaque: they change the computation, never a tensor or a state, which is why they carry no template effect. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.",
+    "tags": [
+      "sequence-operator"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1706.03762",
+        "title": "Attention Is All You Need (Vaswani et al., 2017)",
+        "kind": "paper",
+        "description": "Scaled dot-product attention with multiple heads."
+      },
+      {
+        "url": "https://arxiv.org/abs/1911.02150",
+        "title": "Fast Transformer Decoding: One Write-Head is All You Need (Shazeer, 2019)",
+        "kind": "paper",
+        "description": "Multi-query attention: `kv_heads = 1`."
+      },
+      {
+        "url": "https://arxiv.org/abs/2305.13245",
+        "title": "GQA: Training Generalized Multi-Query Transformer Models (Ainslie et al., 2023)",
+        "kind": "paper",
+        "description": "Grouped-query attention: `1 < kv_heads < heads`."
+      },
+      {
+        "url": "https://arxiv.org/abs/2310.06825",
+        "title": "Mistral 7B (Jiang et al., 2023)",
+        "kind": "paper",
+        "description": "Sliding-window attention with a rolling cache: the `window` argument."
+      },
+      {
+        "url": "https://arxiv.org/abs/2104.09864",
+        "title": "RoFormer: Enhanced Transformer with Rotary Position Embedding (Su et al., 2021)",
+        "kind": "paper",
+        "description": "Rotary position encoding, the usual content of the opaque `rope` argument."
+      }
+    ],
     "arguments": {
       "width": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Feature width of `input` and `output`: the residual stream dimension."
       },
       "heads": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Number of query heads."
       },
       "head_dim": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Dimension of one head; queries, keys and values share it."
       },
       "kv_heads": {
         "type": {
@@ -35,7 +75,8 @@
         "default": {
           "argument": "heads"
         },
-        "note": "without GQA, as many KV heads as Q heads: a fact of the primitive, hence a contract default"
+        "note": "without GQA, as many KV heads as Q heads: a fact of the primitive, hence a contract default",
+        "description": "Number of key/value heads. Fewer than `heads` is grouped-query attention; one is multi-query attention."
       },
       "mask": {
         "type": {
@@ -47,7 +88,13 @@
           ]
         },
         "required": true,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Which positions a query may attend to.",
+        "value_descriptions": {
+          "causal": "Each position attends to itself and to earlier positions; the cache grows with the sequence.",
+          "chunked": "Causal within fixed chunks whose span is the analysis quantity `analysis.chunk_span`; the cache is a ring over that span.",
+          "none": "Every position attends to every other. Stateless unless `streaming` or `source` says otherwise."
+        }
       },
       "window": {
         "type": {
@@ -59,12 +106,14 @@
                 "unit": "tokens"
               },
               "required": true,
-              "affects_template": true
+              "affects_template": true,
+              "description": "Window span, in tokens."
             }
           }
         },
         "required": false,
-        "affects_template": true
+        "affects_template": true,
+        "description": "Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span."
       },
       "source": {
         "type": {
@@ -72,35 +121,40 @@
         },
         "required": false,
         "affects_template": true,
-        "note": "port K and V come from; absent = self-attention"
+        "note": "port K and V come from; absent = self-attention",
+        "description": "Cross-attention: the port whose indexing domain supplies keys and values. Their values arrive on `source_values`; absent, keys and values come from `input`."
       },
       "streaming": {
         "type": {
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true
+        "affects_template": true,
+        "description": "The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`."
       },
       "rope": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Rotary position encoding configuration: base, scaling, layout. Opaque: it changes the computation, not a tensor or a state."
       },
       "qk_norm": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Normalization applied to queries and keys before the dot product (`rms` in the corpus). Opaque; the learned scale is declared separately by `qk_norm_weight`."
       },
       "temperature": {
         "type": {
           "kind": "opaque"
         },
         "required": false,
-        "affects_template": false
+        "affects_template": false,
+        "description": "Attention temperature scaling configuration. Opaque."
       },
       "q_bias": {
         "type": {
@@ -111,7 +165,8 @@
         "default": {
           "literal": false
         },
-        "note": "learned Q bias; a synthetic runtime zero stays false"
+        "note": "learned Q bias; a synthetic runtime zero stays false",
+        "description": "Learned bias on the query projection."
       },
       "k_bias": {
         "type": {
@@ -122,7 +177,8 @@
         "default": {
           "literal": false
         },
-        "note": "learned K bias; a synthetic runtime zero stays false"
+        "note": "learned K bias; a synthetic runtime zero stays false",
+        "description": "Learned bias on the key projection."
       },
       "v_bias": {
         "type": {
@@ -132,7 +188,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "Learned bias on the value projection."
       },
       "out_bias": {
         "type": {
@@ -142,7 +199,8 @@
         "affects_template": true,
         "default": {
           "literal": false
-        }
+        },
+        "description": "Learned bias on the output projection."
       },
       "output_gate": {
         "type": {
@@ -153,7 +211,8 @@
         "default": {
           "literal": false
         },
-        "note": "per-head gate projection, distinct from Q"
+        "note": "per-head gate projection, distinct from Q",
+        "description": "Per-head sigmoid gate on the attention output, computed from `input` by the `q_gate` projection."
       },
       "qk_norm_weight": {
         "type": {
@@ -164,7 +223,8 @@
         "default": {
           "literal": false
         },
-        "note": "Q/K RMSNorm has a learned scale"
+        "note": "Q/K RMSNorm has a learned scale",
+        "description": "The Q/K normalization has a learned per-channel scale: declares the `q_norm` and `k_norm` slots."
       }
     },
     "ports": {
@@ -188,7 +248,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Residual-stream activation: one vector of `width` per element of the indexing domain."
         },
         "source_values": {
           "shape": {
@@ -214,7 +275,8 @@
             "present": "source"
           },
           "note": "cross-attention: K/V come from ANOTHER trunk. The `source` argument names the domain; this port carries the value.",
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Values of the cross-attention source, in the domain named by `source`."
         }
       },
       "outputs": {
@@ -237,7 +299,8 @@
               "self": true
             }
           },
-          "role": "activation.hidden"
+          "role": "activation.hidden",
+          "description": "Attention output after the output projection and the gate, if any, in the domain of `input`."
         }
       }
     },
@@ -296,7 +359,8 @@
             }
           ]
         },
-        "note": "usual fused shape; under GQA this is not an exact product, hence no factors"
+        "note": "usual fused shape; under GQA this is not an exact product, hence no factors",
+        "description": "Fused query, key and value projection: `heads + 2*kv_heads` blocks of `head_dim` rows."
       },
       "out": {
         "role": "attention.output_projection",
@@ -335,7 +399,8 @@
               }
             }
           ]
-        }
+        },
+        "description": "Output projection from the concatenated query heads back to `width`."
       },
       "q_bias": {
         "role": "attention.projection_bias",
@@ -372,7 +437,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the query projection."
       },
       "k_bias": {
         "role": "attention.projection_bias",
@@ -409,7 +475,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the key projection."
       },
       "v_bias": {
         "role": "attention.projection_bias",
@@ -446,7 +513,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the value projection."
       },
       "out_bias": {
         "role": "attention.projection_bias",
@@ -475,7 +543,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Bias of the output projection."
       },
       "q_gate": {
         "role": "attention.output_gate",
@@ -520,7 +589,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Gate projection: one value per query channel, applied through a sigmoid to the attention output."
       },
       "q_norm": {
         "role": "norm.scale",
@@ -549,7 +619,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Learned scale of the query normalization."
       },
       "k_norm": {
         "role": "norm.scale",
@@ -578,7 +649,8 @@
               "literal": true
             }
           }
-        }
+        },
+        "description": "Learned scale of the key normalization."
       }
     },
     "constants": {},
@@ -637,7 +709,8 @@
                 }
               ]
             },
-            "role": "state.kv"
+            "role": "state.kv",
+            "description": "Keys of one position: one `head_dim` vector per KV head."
           },
           "v": {
             "shape": {
@@ -660,7 +733,8 @@
                 }
               ]
             },
-            "role": "state.kv"
+            "role": "state.kv",
+            "description": "Values of one position, same layout as `k`."
           }
         },
         "key_axes": [
@@ -669,10 +743,12 @@
         ],
         "operations": {
           "append": {
-            "effect": "append"
+            "effect": "append",
+            "description": "Write the keys and values of a new position at the end."
           },
           "read": {
-            "effect": "read"
+            "effect": "read",
+            "description": "Read every cached position for a query."
           }
         },
         "rules": [
@@ -719,7 +795,8 @@
             "indexed_by": {
               "self": true
             },
-            "carried_across": "fragment"
+            "carried_across": "fragment",
+            "description": "Bidirectional streaming encoder: fragments accumulate, and the cache is carried across fragments."
           },
           {
             "when": {
@@ -731,7 +808,8 @@
             "indexed_by": {
               "argument": "source"
             },
-            "frozen_after": "source_complete"
+            "frozen_after": "source_complete",
+            "description": "Cross-attention: indexed by the source, frozen once the source is complete."
           },
           {
             "when": {
@@ -754,7 +832,8 @@
             },
             "span": {
               "argument": "window.span"
-            }
+            },
+            "description": "Sliding window: a ring of `window.span` positions."
           },
           {
             "when": {
@@ -790,7 +869,8 @@
             },
             "span": {
               "context": "analysis.chunk_span"
-            }
+            },
+            "description": "Chunked mask: a ring over the analysis chunk span."
           },
           {
             "when": {
@@ -853,9 +933,11 @@
             "sharing": "by_position",
             "indexed_by": {
               "self": true
-            }
+            },
+            "description": "Plain causal decoding: append per position."
           }
-        ]
+        ],
+        "description": "Keys and values of every position the current query may still attend to: two components of one shape. Which law applies is decided by the first matching rule below."
       }
     },
     "effects": {
@@ -873,7 +955,8 @@
           "argument_axis": "attention.heads"
         },
         "semantics": "preserved",
-        "communication": "all_reduce"
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across query heads; the output projection needs an all-reduce."
       },
       {
         "target": {
@@ -891,7 +974,8 @@
               "literal": 1
             }
           }
-        }
+        },
+        "description": "Partition across KV heads, only when there is more than one."
       },
       {
         "target": {
@@ -899,7 +983,8 @@
         },
         "semantics": "preserved",
         "communication": "none",
-        "note": "instance-key axis, always legal"
+        "note": "instance-key axis, always legal",
+        "description": "Instance-key axis: sessions are independent."
       },
       {
         "target": {
@@ -911,7 +996,8 @@
         },
         "semantics": "preserved",
         "communication": "none",
-        "note": "KV payload partition by head: target tagged payload, not argument"
+        "note": "KV payload partition by head: target tagged payload, not argument",
+        "description": "The cache itself partitions by KV head, with no communication."
       }
     ],
     "domain_transforms": [
@@ -919,7 +1005,58 @@
         "from_port": "source_values",
         "to_port": "output",
         "relation": "align",
-        "note": "cross-attention: K/V come from another indexing domain (§14.4). The output stays in the query domain; attention aligns the source onto it."
+        "note": "cross-attention: K/V come from another indexing domain (§14.4). The output stays in the query domain; attention aligns the source onto it.",
+        "description": "Cross-attention aligns the source domain onto the query domain."
+      }
+    ],
+    "examples": [
+      {
+        "name": "llama3_8b_decoder",
+        "summary": "Grouped-query causal self-attention of Llama 3 8B.",
+        "model": "llama3-8b",
+        "description": "Eight KV heads for thirty-two query heads: the fused `qkv` projection has `32 + 2*8` head blocks, and the cache holds eight heads per position.",
+        "arguments": {
+          "width": 4096,
+          "heads": 32,
+          "head_dim": 128,
+          "kv_heads": 8,
+          "mask": "causal"
+        }
+      },
+      {
+        "name": "whisper_cross_attention",
+        "summary": "Cross-attention of the Whisper decoder over the encoder output.",
+        "model": "whisper-large-v3",
+        "description": "`source` names the encoder's domain: the cache is indexed by `audio`, frozen once the encoder has run, and shared by every decoding step of the same source.",
+        "arguments": {
+          "width": 1280,
+          "heads": 20,
+          "head_dim": 64,
+          "mask": "none",
+          "source": "audio",
+          "q_bias": true,
+          "v_bias": true,
+          "out_bias": true
+        }
+      },
+      {
+        "name": "voxtral_streaming_encoder",
+        "summary": "Streaming causal encoder with a 750-token window.",
+        "model": "voxtral-realtime",
+        "description": "The window rule wins over the streaming rule: with `window` present, the cache is a ring of 750 positions whatever `streaming` says.",
+        "arguments": {
+          "width": 1280,
+          "heads": 32,
+          "head_dim": 64,
+          "mask": "causal",
+          "streaming": true,
+          "window": {
+            "span": 750
+          },
+          "q_bias": true,
+          "v_bias": true,
+          "out_bias": true
+        }
       }
     ],
     "note": "Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants."

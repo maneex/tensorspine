@@ -4,6 +4,8 @@
   "name": "model.width",
   "definition": {
     "space": "value",
+    "summary": "Model width d: the feature dimension of the residual stream.",
+    "description": "Every primitive that reads or writes the residual stream declares its `input` and `output` shape on this axis. Shapes unify by axis identity (V4): two ports of extent `width` on `model.width` are compatible, the same extent on another axis is not.",
     "note": "model width (d)"
   }
 }

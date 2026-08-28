@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://armature.dev/schema/2.0/documentation.json",
+  "title": "Armature Catalog Documentation 2.0",
+  "$comment": "The documentation model of a catalog: what a unit may say ABOUT itself, for people. Modelled on the documentation fields of OpenAPI 3.1 (info, summary/description, externalDocs, tags, deprecated, examples) and JSON Schema (description, examples), with the same rule as both: documentation never changes what a document denotes. Every field defined here is inert for --validate, --d1 and D2–D6 (SPECIFICATION §10.2: a field no conforming implementation reads is a comment). Only --document and --lint read them. The catalog grammar (catalog.json) $refs these definitions from each site it documents; nothing here is a site of its own.",
+  "$defs": {
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[^\\r\\n]*\\S$",
+      "$comment": "One line of plain text, at most 120 characters. What the unit IS, for an index row or a table cell. Not CommonMark."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "$comment": "CommonMark. What the unit MEANS and how to use it. It must not restate a fact the definition carries — types, defaults, shapes, laws are rendered from the definition, so a description that repeats them can only drift from them."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[^\\r\\n]*\\S$"
+    },
+    "url": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "$comment": "An absolute URI, or a path relative to the repository root. The renderer rewrites a root-relative path so that it resolves from wherever the page is written; on stdout it stays root-relative."
+    },
+    "external_doc": {
+      "type": "object",
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "$ref": "#/$defs/url"
+        },
+        "title": {
+          "$ref": "#/$defs/title"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        },
+        "kind": {
+          "enum": [
+            "paper",
+            "reference_implementation",
+            "specification",
+            "discussion",
+            "other"
+          ],
+          "$comment": "Lets the renderer group links. `reference_implementation` is the modeling_x.py, the engine file, the kernel: what the contract abstracts, never what it depends on."
+        }
+      }
+    },
+    "external_docs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/external_doc"
+      },
+      "$comment": "OpenAPI allows one externalDocs object; a primitive routinely has several sources (the paper, the reference code, the discussion that fixed a convention), hence a list."
+    },
+    "tag_name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "tags": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/tag_name"
+      },
+      "$comment": "Editorial, cross-cutting grouping. Contract namespaces (attention.*, residual.*) already group by structure; a tag groups by a property that cuts across namespaces. A tag a unit cites should be declared by the base (lint)."
+    },
+    "tag_definition": {
+      "type": "object",
+      "required": [
+        "name",
+        "summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/tag_name"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        },
+        "external_docs": {
+          "$ref": "#/$defs/external_docs"
+        }
+      }
+    },
+    "tag_definitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/tag_definition"
+      }
+    },
+    "contact": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "$ref": "#/$defs/url"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "pattern": "^[^@\\s]+@[^@\\s]+$"
+        }
+      }
+    },
+    "license": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "identifier": {
+          "type": "string",
+          "minLength": 1,
+          "$comment": "An SPDX license expression."
+        },
+        "url": {
+          "$ref": "#/$defs/url"
+        }
+      }
+    },
+    "contract_reference": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+        }
+      }
+    },
+    "deprecation": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/description"
+        },
+        "superseded_by": {
+          "$ref": "#/$defs/contract_reference"
+        }
+      },
+      "$comment": "A deprecated unit keeps its identity and its meaning (§8.2): deprecation is advice to authors, not a change of denotation. OpenAPI's boolean is replaced by an object because the useful fact is what to use instead."
+    },
+    "argument_deprecation": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/description"
+        },
+        "superseded_by": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$",
+          "$comment": "Another argument of the same contract."
+        }
+      }
+    },
+    "value_descriptions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/description"
+      },
+      "$comment": "One description per enum value, keyed by the value as a string. Only on an argument (or record field) of enum type; every key must be one of its declared values (checked by --document). OpenAPI has no equivalent and resorts to x-enum-descriptions."
+    },
+    "literal_arguments": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+      },
+      "additionalProperties": true,
+      "$comment": "An argument map written with LITERAL values — JSON scalars, and objects for record or opaque arguments — never with the tagged expressions of a model document. It is checked against the contract's argument declarations exactly as an occurrence would be (V2, V3), defaults applied."
+    },
+    "example": {
+      "type": "object",
+      "required": [
+        "name",
+        "arguments"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        },
+        "arguments": {
+          "$ref": "#/$defs/literal_arguments"
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "$comment": "The corpus model this example is taken from, by file stem, when it is."
+        }
+      },
+      "$comment": "An example is executable documentation: the renderer applies the contract to it and prints the consequences — which slots exist, with which shapes, which state rule fires. An example that the contract rejects is a documentation error, not an illustration."
+    },
+    "examples": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/example"
+      }
+    },
+    "unit_documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        },
+        "external_docs": {
+          "$ref": "#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "#/$defs/tags"
+        },
+        "deprecated": {
+          "$ref": "#/$defs/deprecation"
+        }
+      },
+      "$comment": "What an axis or a precision role may say about itself. The fields sit directly in the unit's `definition`, beside `note`; this object names the set so a tool can extract and check it."
+    },
+    "contract_documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        },
+        "external_docs": {
+          "$ref": "#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "#/$defs/tags"
+        },
+        "deprecated": {
+          "$ref": "#/$defs/deprecation"
+        },
+        "examples": {
+          "$ref": "#/$defs/examples"
+        }
+      },
+      "$comment": "unit_documentation plus examples. Applies to primitive and delegated contracts alike; a delegated contract's examples are assignments of its body's external quantities."
+    },
+    "base_documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "$ref": "#/$defs/title"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "description": {
+          "$ref": "#/$defs/description"
+        },
+        "contact": {
+          "$ref": "#/$defs/contact"
+        },
+        "license": {
+          "$ref": "#/$defs/license"
+        },
+        "external_docs": {
+          "$ref": "#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "#/$defs/tag_definitions"
+        }
+      },
+      "$comment": "OpenAPI's `info` object, minus `version`: a catalog has no global version (§8.2), identity is carried contract by contract. `tags` DECLARES the tags units may cite, as OpenAPI's top-level tags array does."
+    },
+    "argument_documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/description"
+        },
+        "value_descriptions": {
+          "$ref": "#/$defs/value_descriptions"
+        },
+        "deprecated": {
+          "$ref": "#/$defs/argument_deprecation"
+        }
+      },
+      "$comment": "On an argument and on each field of a record argument."
+    },
+    "element_documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/description"
+        }
+      },
+      "$comment": "On every other documented site of a contract: a value port, a parameter or constant slot, a state port, a payload component, a state operation, a state rule, a partition, a logical-cost entry, a domain transform, an alias rule. One field: the site's other facts are already declared and rendered."
+    }
+  }
+}

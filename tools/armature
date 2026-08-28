@@ -5,6 +5,9 @@
     armature --lint     [PATH ...]    hygiene. Advisory, never blocks.
     armature --d1       [PATH ...]    emit D1, the expanded graph (§16.1).
     armature --view     [PATH ...]    render a self-contained HTML page.
+    armature --document catalog [PATH ...]
+                                      render the catalog as one Markdown file;
+                                      PATHs are the corpus it cross-references.
 
 With no PATH, every model of the default model directory is taken. Every
 location defaults to the layout of the repository and can be overridden.
@@ -68,13 +71,21 @@ def build_parser():
                               'evaluated, delegated contracts expanded in place.')
     command.add_argument('--view', action='store_true',
                          help='render a self-contained HTML page. Needs Graphviz on PATH.')
+    command.add_argument('--document', metavar='WHAT', choices=['catalog'],
+                         help='render WHAT as one Markdown document. `catalog`: every '
+                              'contract, axis and precision role of the bases, with the '
+                              'documentation fields they carry; PATHs are the corpus '
+                              'cross-referenced (cited by, delegated bodies). Writes to -o, '
+                              'or to stdout.')
 
     parser.add_argument('paths', nargs='*', metavar='PATH',
                         help=f'model documents, or a directory of them '
                              f'(default: {os.path.relpath(DEFAULT_MODELS, ROOT)}/)')
     parser.add_argument('-o', '--output', metavar='PATH',
-                        help='where to write, for --d1 and --view. A directory takes one '
-                             'file per model; omitted, output lands beside its model.')
+                        help='where to write, for --d1, --view and --document. A directory '
+                             'takes one file per model (catalog.md for --document); omitted, '
+                             '--d1 and --view land beside their model and --document writes '
+                             'to stdout.')
     parser.add_argument('--catalog', metavar='DIR', action='append',
                         help=f'a catalog base, repeatable. Bases are consulted in order '
                              f'(default: {os.path.relpath(DEFAULT_CATALOG, ROOT)}/)')
@@ -139,6 +150,13 @@ def main(argv=None):
         print(f"view  {len(documents)} document(s)")
         failed = view.run(documents, args.output)
         return 1 if failed else 0
+
+    if args.document:
+        import document
+        # The page goes to stdout when no -o is given; the status line must not.
+        print(f"document  {args.document}  ({len(documents)} corpus document(s))",
+              file=sys.stderr if args.output is None else sys.stdout)
+        return document.run(documents, bases, args.schemas, args.output, relative_to=ROOT)
 
     parser.print_help()
     return 2
