@@ -17,6 +17,9 @@ per-model code, and agree with `transformers`:
   outputs within 1e-6, the KV, convolution-history and recurrent states within 5e-6, logits and
   greedy tokens identical; on the full 32-layer model the eight greedy tokens after *"The capital
   of France is"* are `transformers`' — *" Paris.\nA. True\nB"* — at ~4–10 s per token here.
+- `qwen3.8-27b-text` (the same seven contracts, 64 layers, 50.1 GiB — larger than this machine's
+  memory): on its 4-layer fixture within 4e-6 of `transformers` at every cut and state; the full
+  model runs under `--max-ram 8` in seven blocks (below).
 
 Kernels: `embed`, `norm.rms` (zero-centred scales), `attention.dense` (causal, GQA, RoPE full or
 partial, gated query, Q/K RMS norms), `residual.add`, `ffn.gated`, `lm_head`,
@@ -109,6 +112,18 @@ random weights and on both fixtures — and the cost is printed. Whenever `--max
 and the one it closes at (D6's names), its nodes, its parameter bytes and the payload crossing into
 it, then what stays resident and the traffic — the whole model's bytes per decode step. A bound below one layer plus the resident part is refused with the numbers. On
 llama3-8b, `--max-ram 6` gives six blocks of about 3 GiB and 14.96 GiB of traffic per token.
+
+Measured on `qwen3.8-27b-text` — 50.1 GiB of bf16 weights on a 31 GB machine with about 10 GB
+free, a SATA SSD underneath — under `--max-ram 8`: 7 blocks at legal cuts, planned resident
+7.84 GiB, **allocated peak 8.29 GiB** (`fixtures/peak_rss.py`; the excess is the unbudgeted
+activations), 19.3 GiB of file-backed pages beside it that the kernel may drop; 145 s for the
+prefill and ~119 s per decode step, the process in disk wait at ~360 MiB/s with under one core
+busy — 50 GiB per token through a 500 MB/s disk. Tokens `[11751, 13, 198]` (" Paris.\n"), the
+same as the memory-mapped one-block run's, which allocated only 0.90 GiB (23 GiB of file-backed
+pages) and took 106 s for the prefill and ~98 s per step: the copy per block costs about twenty
+seconds a token here, and buys a bound. The mode measures the disk, by design; prefetching the
+next block, reading straight into the owned buffer, more cache or a faster disk are the levers,
+and none of them is the reference backend's business.
 
 
 
