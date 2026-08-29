@@ -23,8 +23,31 @@ local function anchor_id(block)
   return text:match('^<a%s+id="([^"]+)"[^>]*>%s*</a>$')
 end
 
+-- An anchor and its heading on consecutive lines parse as one paragraph
+-- (pandoc's markdown lets no heading interrupt a paragraph): split it back
+-- into an anchor paragraph and a Header. Current generators emit a blank line.
+local function split_anchor_heading(block)
+  if block.t ~= 'Para' then return nil end
+  local c = block.content
+  local i = 1
+  while c[i] and c[i].t == 'RawInline' do i = i + 1 end
+  if i == 1 or not c[i] or c[i].t ~= 'SoftBreak' then return nil end
+  local hashes = c[i + 1]
+  if not hashes or hashes.t ~= 'Str' or not hashes.text:match('^#+$') then return nil end
+  if not c[i + 2] or c[i + 2].t ~= 'Space' then return nil end
+  local anchor, rest = {}, {}
+  for j = 1, i - 1 do table.insert(anchor, c[j]) end
+  for j = i + 3, #c do table.insert(rest, c[j]) end
+  return pandoc.Para(anchor), pandoc.Header(#hashes.text, rest)
+end
+
 function Pandoc(doc)
-  local blocks = doc.blocks
+  local blocks = {}
+  for _, b in ipairs(doc.blocks) do
+    local a, h = split_anchor_heading(b)
+    if a then table.insert(blocks, a); table.insert(blocks, h)
+    else table.insert(blocks, b) end
+  end
   local anchored = {}
   -- pass 1: which ids are claimed by anchors
   for i, b in ipairs(blocks) do

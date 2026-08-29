@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="$if(lang)$$lang$$else$en$endif$">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pandoc">
+<title>$if(pagetitle)$$pagetitle$ – $endif$Armature</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="$root$style/catalog.css">
+<link rel="stylesheet" href="$root$style/doc.css">
+$for(header-includes)$
+$header-includes$
+$endfor$
+</head>
+<body>
+<div class="page">
+<aside class="nav">
+  <div class="brand">
+    <a class="name" href="$root$index.html">Armature</a>
+    <div class="kind">$if(kind)$$kind$$else$Documentation$endif$</div>
+  </div>
+  <nav class="site" aria-label="Site">
+    <a href="$root$index.html"$if(current-index)$ class="current"$endif$>Overview</a>
+    <a href="$root$spec/armature-model_json.html"$if(current-armature-model_json)$ class="current"$endif$>Model JSON guide</a>
+    <a href="$root$spec/specification.html"$if(current-specification)$ class="current"$endif$>Language specification</a>
+    <a href="$root$spec/glossary.html"$if(current-glossary)$ class="current"$endif$>Glossary</a>
+    <a href="$root$spec/architecture.html"$if(current-architecture)$ class="current"$endif$>Architecture</a>
+    <a href="$root$spec/catalog-documentation.html"$if(current-catalog-documentation)$ class="current"$endif$>Catalog documentation model</a>
+    <a href="$root$catalog/index.html">Catalog reference</a>
+    <a href="$root$models/index.html"$if(current-models)$ class="current"$endif$>Model views</a>
+  </nav>
+$if(toc)$
+<div class="label">On this page</div>
+<nav id="TOC" aria-label="Contents">
+$table-of-contents$
+</nav>
+$endif$
+</aside>
+<div class="content">
+<main>
+$body$
+</main>
+</div>
+</div>
+<script>
+(function () {
+  var toc = document.getElementById('TOC');
+  if (!toc) return;
+  var links = Array.prototype.slice.call(toc.querySelectorAll('a[href^="#"]'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('section[id]'));
+  function update() {
+    var best = null, bestTop = -Infinity;
+    sections.forEach(function (el) {
+      var top = el.getBoundingClientRect().top;
+      if (top <= 120 && top > bestTop) { best = el; bestTop = top; }
+    });
+    var chain = [];
+    while (best && best.tagName === 'SECTION') { chain.push('#' + best.id); best = best.parentNode; }
+    links.forEach(function (a) { a.classList.toggle('active', chain.indexOf(a.getAttribute('href')) !== -1); });
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(function () { update(); ticking = false; }); }
+  }, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

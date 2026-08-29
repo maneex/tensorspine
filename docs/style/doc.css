@@ -1,0 +1,46 @@
+/* Armature site — additions to catalog.css for the hand-written documents
+   (README, specification, guides). Build: tools/site.sh. */
+
+.brand a.name { color: var(--ink); }
+.brand a.name:hover { text-decoration: none; color: var(--accent); }
+.nav .label { margin-top: 28px; padding-left: 0; }
+
+/* Site navigation, above the document's own table of contents. */
+.site { display: flex; flex-direction: column; gap: 2px; margin-top: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--rule); }
+.site a { display: block; padding: 3px 0; font-size: 13.5px; color: var(--ink-3); }
+.site a:hover { color: var(--ink); text-decoration: none; }
+.site a.current { color: var(--ink); font-weight: 600; }
+
+/* Document TOC: h2 entries as sections, h3 nested beneath them. */
+#TOC > ul > li > ul > li { margin-top: 10px; }
+#TOC > ul > li > ul > li > a { font-size: 13.5px; letter-spacing: 0; text-transform: none; color: var(--ink-3); padding-bottom: 3px; }
+#TOC > ul > li > ul > li > a:hover { color: var(--ink); }
+#TOC ul ul ul { padding-left: 14px; }
+#TOC ul ul ul a { font-size: 12.5px; color: var(--muted); }
+#TOC ul ul ul ul { display: none; }
+
+/* Heading scale for prose documents (the catalog uses h4 for units). */
+h2 { font-size: 30px; }
+h3 { font-size: 22px; }
+h4 { font-size: 18px; font-weight: 600; }
+h5 { font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--ink); }
+section.level1 { gap: 32px; }
+section.level2 { gap: 24px; }
+section.level3 { gap: 18px; }
+section.level4 { gap: 14px; padding: 0; border-top: 0; }
+section.level5 { gap: 10px; }
+section.level1 > h1 + p + p { font-family: var(--sans); font-size: 16px; line-height: 1.6; color: var(--ink); }
+section.level1 > h1 + p em { color: inherit; font-size: inherit; }
+
+/* Prose tables: first column is text, not an identifier. */
+td:first-child { font-family: var(--sans); font-size: 14px; white-space: normal; }
+td:first-child code { font-family: var(--mono); font-size: 13px; }
+td code { white-space: normal; }
+
+/* Blockquotes in the guides are ordinary quotations. */
+blockquote strong:first-child { display: inline; font-size: inherit; letter-spacing: 0; text-transform: none; color: inherit; font-weight: 600; margin: 0; }
+
+/* Model index. */
+ul.models { list-style: none; padding: 0; gap: 0; }
+ul.models li { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+ul.models a { font-family: var(--mono); }

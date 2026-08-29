@@ -188,8 +188,6 @@ def expr(e):
         return e['quantity']
     if 'index' in e:
         return e['index']
-    if 'context' in e:
-        return f"context({e['context']})"
     if 'axis_extent' in e:
         return f"extent({e['axis_extent']})"
     if 'if' in e:
@@ -328,7 +326,10 @@ def link(kind, name, version=None, text=None):
 def heading(level, text, ident=None):
     lines = []
     if ident:
+        # A blank line follows: pandoc's markdown does not let a heading
+        # interrupt the paragraph an inline anchor starts.
         lines.append(f'<a id="{ident}" name="{ident}"></a>')
+        lines.append('')
     lines.append(f"{'#' * level} {text}")
     lines.append('')
     return lines
@@ -628,7 +629,7 @@ class Renderer:
             '',
             "- **Expressions** are contract arguments by name; `a.b` is a field of a record "
             "argument. Operators: `+ - * /`, `mod`, `ceil(a / b)`, `floor(a / b)`, `min`, "
-            "`max`, `abs`. `context(x)` is an analysis-time quantity the consumer supplies. "
+            "`max`, `abs`. "
             "Strings are quoted.",
             "- **Conditions** read as prose: `x present` / `x absent` test an optional "
             "argument; comparisons use `= != < <= > >=`; `always` and `never` are the "

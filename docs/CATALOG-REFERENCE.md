@@ -40,6 +40,7 @@ Bases consulted, in order: `data/catalog`. 36 contracts, 37 axes, 54 precision r
 - [Appendix C — Findings](#appendix-c)
 
 <a id="how-to-read" name="how-to-read"></a>
+
 ## How to read this document
 
 Every unit is rendered from its definition first, then from its documentation. Facts — types, defaults, shapes, laws — come from the definition and cannot disagree with it; prose comes from `summary` and `description` fields (../schemas/armature-documentation.schema.json), and a maintainer's `note` is quoted as written. Nothing is inferred: a unit without a summary has none.
@@ -51,6 +52,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 - **State rules** are ordered; the first rule whose condition holds decides the law, access geometry, sharing and indexing of the state (§4.3).
 
 <a id="overview" name="overview"></a>
+
 ## Overview
 
 ### Contracts
@@ -196,14 +198,17 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [state.recurrent](#role-state.recurrent) | `f32`, `bf16` | `f32` | full_precision | Fixed-size recurrent state. |
 
 <a id="contracts" name="contracts"></a>
+
 ## Contracts
 
 Grouped by namespace, then by name and version. A contract is pinned by `{name, version}`; two versions of one name are two contracts (§8.2).
 
 <a id="namespace-attention" name="namespace-attention"></a>
+
 ### attention.*
 
 <a id="contract-attention.dense-1.0.0" name="contract-attention.dense-1.0.0"></a>
+
 #### `attention.dense@1.0.0`
 
 *data/catalog/contracts/attention/dense/1.0.0.json*
@@ -382,6 +387,7 @@ Derivation rules, in order — the first whose condition holds applies:
 | `source_values` | `output` | align | — | Cross-attention aligns the source domain onto the query domain.<br>*Note: cross-attention: K/V come from another indexing domain (§14.4). The output stays in the query domain; attention aligns the source onto it.* |
 
 <a id="contract-attention.latent_compressed-1.0.0" name="contract-attention.latent_compressed-1.0.0"></a>
+
 #### `attention.latent_compressed@1.0.0`
 
 *data/catalog/contracts/attention/latent_compressed/1.0.0.json*
@@ -639,9 +645,11 @@ Derivation rules, in order — the first whose condition holds applies:
 | state `kv` · component `latent` · axis [attention.head_dim](#axis-attention.head_dim) (payload) | preserved | none | always | The latent cache partitions along `head_dim`, with no communication. |
 
 <a id="namespace-conditioning" name="namespace-conditioning"></a>
+
 ### conditioning.*
 
 <a id="contract-conditioning.layer_select-1.0.0" name="contract-conditioning.layer_select-1.0.0"></a>
+
 #### `conditioning.layer_select@1.0.0`
 
 *data/catalog/contracts/conditioning/layer_select/1.0.0.json*
@@ -696,6 +704,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-conditioning.multiplicative-1.0.0" name="contract-conditioning.multiplicative-1.0.0"></a>
+
 #### `conditioning.multiplicative@1.0.0`
 
 *data/catalog/contracts/conditioning/multiplicative/1.0.0.json*
@@ -755,9 +764,11 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="namespace-decoder" name="namespace-decoder"></a>
+
 ### decoder.*
 
 <a id="contract-decoder.causal_yarn-1.0.0" name="contract-decoder.causal_yarn-1.0.0"></a>
+
 #### `decoder.causal_yarn@1.0.0` — template
 
 *data/catalog/contracts/decoder/causal_yarn/1.0.0.json*
@@ -809,9 +820,11 @@ Contracts the template cites, transitively — the capabilities a consumer needs
 Parameter slots, state ports, logical cost and semantic partitions are derived from the expanded template (§4.6, D3–D6); this document does not expand templates.
 
 <a id="namespace-embedding" name="namespace-embedding"></a>
+
 ### embedding.*
 
 <a id="contract-embedding.token_auxiliary-1.0.0" name="contract-embedding.token_auxiliary-1.0.0"></a>
+
 #### `embedding.token_auxiliary@1.0.0`
 
 *data/catalog/contracts/embedding/token_auxiliary/1.0.0.json*
@@ -876,6 +889,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
 
 <a id="contract-embedding.token_position-1.0.0" name="contract-embedding.token_position-1.0.0"></a>
+
 #### `embedding.token_position@1.0.0`
 
 *data/catalog/contracts/embedding/token_position/1.0.0.json*
@@ -939,6 +953,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
 
 <a id="contract-embedding.token_position_type-1.0.0" name="contract-embedding.token_position_type-1.0.0"></a>
+
 #### `embedding.token_position_type@1.0.0`
 
 *data/catalog/contracts/embedding/token_position_type/1.0.0.json*
@@ -1006,9 +1021,11 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
 
 <a id="namespace-ffn" name="namespace-ffn"></a>
+
 ### ffn.*
 
 <a id="contract-ffn.dense-1.0.0" name="contract-ffn.dense-1.0.0"></a>
+
 #### `ffn.dense@1.0.0`
 
 *data/catalog/contracts/ffn/dense/1.0.0.json*
@@ -1098,6 +1115,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism across the inner width; the down projection needs an all-reduce. |
 
 <a id="contract-ffn.gated-1.0.0" name="contract-ffn.gated-1.0.0"></a>
+
 #### `ffn.gated@1.0.0`
 
 *data/catalog/contracts/ffn/gated/1.0.0.json*
@@ -1187,9 +1205,11 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism across the inner width; the down projection needs an all-reduce. |
 
 <a id="namespace-mix" name="namespace-mix"></a>
+
 ### mix.*
 
 <a id="contract-mix.collapse-1.0.0" name="contract-mix.collapse-1.0.0"></a>
+
 #### `mix.collapse@1.0.0`
 
 *data/catalog/contracts/mix/collapse/1.0.0.json*
@@ -1253,6 +1273,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-mix.doubly_stochastic-1.0.0" name="contract-mix.doubly_stochastic-1.0.0"></a>
+
 #### `mix.doubly_stochastic@1.0.0`
 
 *data/catalog/contracts/mix/doubly_stochastic/1.0.0.json*
@@ -1319,9 +1340,11 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="namespace-norm" name="namespace-norm"></a>
+
 ### norm.*
 
 <a id="contract-norm.layer-1.0.0" name="contract-norm.layer-1.0.0"></a>
+
 #### `norm.layer@1.0.0`
 
 *data/catalog/contracts/norm/layer/1.0.0.json*
@@ -1382,6 +1405,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-norm.rms-1.0.0" name="contract-norm.rms-1.0.0"></a>
+
 #### `norm.rms@1.0.0`
 
 *data/catalog/contracts/norm/rms/1.0.0.json*
@@ -1441,9 +1465,11 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="namespace-projector" name="namespace-projector"></a>
+
 ### projector.*
 
 <a id="contract-projector.patch_merge_bottleneck-1.0.0" name="contract-projector.patch_merge_bottleneck-1.0.0"></a>
+
 #### `projector.patch_merge_bottleneck@1.0.0`
 
 *data/catalog/contracts/projector/patch_merge_bottleneck/1.0.0.json*
@@ -1512,6 +1538,7 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 | `input` | `output` | merge | `merge_count` | `merge_count` patches become one token. |
 
 <a id="contract-projector.patch_merge_mlp-1.0.0" name="contract-projector.patch_merge_mlp-1.0.0"></a>
+
 #### `projector.patch_merge_mlp@1.0.0`
 
 *data/catalog/contracts/projector/patch_merge_mlp/1.0.0.json*
@@ -1586,6 +1613,7 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 | `input` | `output` | merge | `merge_count` | `merge_count` patches become one token. |
 
 <a id="contract-projector.temporal_stack-1.0.0" name="contract-projector.temporal_stack-1.0.0"></a>
+
 #### `projector.temporal_stack@1.0.0`
 
 *data/catalog/contracts/projector/temporal_stack/1.0.0.json*
@@ -1656,9 +1684,11 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 | `input` | `output` | merge | `merge_count` | `merge_count` frames become one token. |
 
 <a id="namespace-residual" name="namespace-residual"></a>
+
 ### residual.*
 
 <a id="contract-residual.add-1.0.0" name="contract-residual.add-1.0.0"></a>
+
 #### `residual.add@1.0.0`
 
 *data/catalog/contracts/residual/add/1.0.0.json*
@@ -1712,6 +1742,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-residual.altup_correct-1.0.0" name="contract-residual.altup_correct-1.0.0"></a>
+
 #### `residual.altup_correct@1.0.0`
 
 *data/catalog/contracts/residual/altup_correct/1.0.0.json*
@@ -1776,6 +1807,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-residual.altup_predict-1.0.0" name="contract-residual.altup_predict-1.0.0"></a>
+
 #### `residual.altup_predict@1.0.0`
 
 *data/catalog/contracts/residual/altup_predict/1.0.0.json*
@@ -1840,6 +1872,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-residual.combine-1.0.0" name="contract-residual.combine-1.0.0"></a>
+
 #### `residual.combine@1.0.0`
 
 *data/catalog/contracts/residual/combine/1.0.0.json*
@@ -1896,6 +1929,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-residual.laurel-1.0.0" name="contract-residual.laurel-1.0.0"></a>
+
 #### `residual.laurel@1.0.0`
 
 *data/catalog/contracts/residual/laurel/1.0.0.json*
@@ -1958,6 +1992,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-residual.stream_collapse-1.0.0" name="contract-residual.stream_collapse-1.0.0"></a>
+
 #### `residual.stream_collapse@1.0.0`
 
 *data/catalog/contracts/residual/stream_collapse/1.0.0.json*
@@ -2019,6 +2054,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-residual.stream_expand-1.0.0" name="contract-residual.stream_expand-1.0.0"></a>
+
 #### `residual.stream_expand@1.0.0`
 
 *data/catalog/contracts/residual/stream_expand/1.0.0.json*
@@ -2080,6 +2116,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-residual.stream_inject-1.0.0" name="contract-residual.stream_inject-1.0.0"></a>
+
 #### `residual.stream_inject@1.0.0`
 
 *data/catalog/contracts/residual/stream_inject/1.0.0.json*
@@ -2136,9 +2173,11 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="namespace-sequence" name="namespace-sequence"></a>
+
 ### sequence.*
 
 <a id="contract-sequence.gated_delta-1.0.0" name="contract-sequence.gated_delta-1.0.0"></a>
+
 #### `sequence.gated_delta@1.0.0`
 
 *data/catalog/contracts/sequence/gated_delta/1.0.0.json*
@@ -2283,9 +2322,11 @@ Derivation rules, in order — the first whose condition holds applies:
 | instance key axis [instance.session](#axis-instance.session) | preserved | none | always | Instance-key axis: sessions are independent. |
 
 <a id="namespace-unqualified" name="namespace-unqualified"></a>
+
 ### unqualified
 
 <a id="contract-conv_frontend-1.0.0" name="contract-conv_frontend-1.0.0"></a>
+
 #### `conv_frontend@1.0.0`
 
 *data/catalog/contracts/conv_frontend/1.0.0.json*
@@ -2353,6 +2394,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-embed-1.0.0" name="contract-embed-1.0.0"></a>
+
 #### `embed@1.0.0`
 
 *data/catalog/contracts/embed/1.0.0.json*
@@ -2412,6 +2454,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the table; the looked-up rows are gathered. |
 
 <a id="contract-identity-1.0.0" name="contract-identity-1.0.0"></a>
+
 #### `identity@1.0.0`
 
 *data/catalog/contracts/identity/1.0.0.json*
@@ -2464,6 +2507,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-lm_head-1.0.0" name="contract-lm_head-1.0.0"></a>
+
 #### `lm_head@1.0.0`
 
 *data/catalog/contracts/lm_head/1.0.0.json*
@@ -2529,6 +2573,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard computes a slice of the logits; the slices are gathered. |
 
 <a id="contract-moe-1.0.0" name="contract-moe-1.0.0"></a>
+
 #### `moe@1.0.0`
 
 *data/catalog/contracts/moe/1.0.0.json*
@@ -2630,6 +2675,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism inside every expert; the down projection needs an all-reduce. |
 
 <a id="contract-mtp-1.0.0" name="contract-mtp-1.0.0"></a>
+
 #### `mtp@1.0.0`
 
 *data/catalog/contracts/mtp/1.0.0.json*
@@ -2688,6 +2734,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-patch_embed-1.0.0" name="contract-patch_embed-1.0.0"></a>
+
 #### `patch_embed@1.0.0`
 
 *data/catalog/contracts/patch_embed/1.0.0.json*
@@ -2754,6 +2801,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-pooler-1.0.0" name="contract-pooler-1.0.0"></a>
+
 #### `pooler@1.0.0`
 
 *data/catalog/contracts/pooler/1.0.0.json*
@@ -2824,6 +2872,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-splice-1.0.0" name="contract-splice-1.0.0"></a>
+
 #### `splice@1.0.0`
 
 *data/catalog/contracts/splice/1.0.0.json*
@@ -2879,6 +2928,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-vit_block-1.0.0" name="contract-vit_block-1.0.0"></a>
+
 #### `vit_block@1.0.0`
 
 *data/catalog/contracts/vit_block/1.0.0.json*
@@ -2948,6 +2998,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 | axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism across the FFN inner width. |
 
 <a id="axes" name="axes"></a>
+
 ## Axes
 
 An axis names a dimension. Shapes unify by axis identity (V4): the same extent on two different axes is two different things. `value` axes index tensors; `instance` axes key state instances (session, branch).
@@ -3011,6 +3062,7 @@ An `instance` axis keys state allocations rather than tensor elements: two branc
 Every primitive that reads or writes the residual stream declares its `input` and `output` shape on this axis. Shapes unify by axis identity (V4): two ports of extent `width` on `model.width` are compatible, the same extent on another axis is not.
 
 <a id="precision-roles" name="precision-roles"></a>
+
 ## Precision roles
 
 A precision role bounds the storage types a slot, port or state component may take. A model that selects a dtype outside the admissible set is refused (V3p); a model that selects none gets the default.
@@ -3083,21 +3135,25 @@ The KV cache is the largest growing allocation of a decoder and the first candid
 A recurrent state is overwritten at every position and accumulates rounding: `f32` by default, `bf16` admissible, nothing narrower.
 
 <a id="tags" name="tags"></a>
+
 ## Tags
 
 Editorial groupings declared by the base manifest; a unit that carries a tag says so in its own section.
 
 <a id="tag-multimodal" name="tag-multimodal"></a>
+
 ### `multimodal`
 
 **Crosses a modality boundary: audio or vision into the token stream.**
 
 <a id="tag-parallel-residual" name="tag-parallel-residual"></a>
+
 ### `parallel-residual`
 
 **The residual is several parallel streams (§3.5): AltUp, hyper-connections.**
 
 <a id="tag-sequence-operator" name="tag-sequence-operator"></a>
+
 ### `sequence-operator`
 
 **Communicates tokens along the sequence and therefore carries state (§4.1).**
@@ -3105,6 +3161,7 @@ Editorial groupings declared by the base manifest; a unit that carries a tag say
 Only a sequence operator carries state. Every other primitive is stateless: a runtime needs no allocation strategy for it beyond its parameters and activations.
 
 <a id="appendix-a" name="appendix-a"></a>
+
 ## Appendix A — Closed vocabulary in use
 
 Every value of every closed enumeration that at least one unit uses, and how many units use it. A runtime that implements these values implements the whole catalog as it stands.
@@ -3169,6 +3226,7 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | state sharing | `within_span` | 3 |
 
 <a id="appendix-b" name="appendix-b"></a>
+
 ## Appendix B — Documentation coverage
 
 Sites that carry a `summary` (units) or a `description` (elements). A missing entry is rendered as absent, never invented.
@@ -3192,6 +3250,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 
 
 <a id="appendix-c" name="appendix-c"></a>
+
 ## Appendix C — Findings
 
 Legal, and worth knowing. None of these blocks generation.

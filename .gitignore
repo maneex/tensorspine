@@ -1,3 +1,7 @@
 # Python
 __pycache__/
 *.pyc
+
+# Generated documentation (built by tools/site.sh / docs/style/catalog.sh)
+/_site/
+/docs/CATALOG-REFERENCE.html
