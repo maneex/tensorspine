@@ -44,7 +44,18 @@
       },
       "source": {
         "kind": "literal",
-        "value": 256
+        "value": 256,
+        "derivation": {
+          "op": "floor_divide",
+          "args": [
+            {
+              "quantity": "d"
+            },
+            {
+              "quantity": "heads"
+            }
+          ]
+        }
       }
     },
     "ffn": {

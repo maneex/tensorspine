@@ -91,15 +91,19 @@ Expressions are tagged unions, never ambiguous strings. A scalar expression is o
 
 - `{"literal": ...}`, `{"quantity": ...}` or `{"index": ...}`;
 - a unary, binary or n-ary operation with `op` and `args`;
-- a conditional with `if`, `then` and `else`;
-- a normative interface call with a pinned contract, result status and provenance.
+- a conditional with `if`, `then` and `else`.
 
 The operator set is closed. It includes addition, multiplication, subtraction, division, ceiling
 and floor division, modulo, minimum, maximum, negation and absolute value. Conditions use explicit
 boolean composition and comparisons.
 
-Every derivation carries an epistemic `status` (`exact`, `upper_bound`, `lower_bound` or `estimate`)
-and a non-empty `provenance` list.
+A `derived` quantity is an expression over other quantities: it resolves in any declaration order,
+acyclically (V10), and must conform to its declared type and domain (V3) — `divide` yields a real,
+so a cardinality is derived with `floor_divide` or `ceil_divide`. A `literal` quantity may carry a
+`derivation` too: the value read from configuration and the way it follows from the structure are
+then checked against each other (V11), so `head_dim: 96` next to `d: 4096, heads: 32` is refused.
+Epistemic status and provenance are not fields of a model quantity; they belong to contract costs
+and to the derived products.
 
 ### 2.2 — External constants
 
@@ -125,7 +129,8 @@ Every occurrence has a stable identifier and requires:
 An occurrence may also provide logical dtype selections and a model-level `when` condition, which
 controls whether the site exists after expansion. It never contains code, a kernel name, a
 parameter inventory, state descriptors or port connections. Model `when`, contract `present_when`,
-and contract-rule `when` have distinct contexts; see [`when` and `present_when`](GLOSSARY.md#when-and-present_when).
+and contract-rule `when` have distinct contexts; see [`when` and
+`present_when`](GLOSSARY.md#when-and-present_when).
 
 Contract arguments may be scalar expressions or recursively tagged records, and every one has a
 declared type in the contract — there is no opaque argument: a variant of a primitive that the
@@ -265,7 +270,8 @@ inspectable and applied before argument validation.
 
 A contract element uses `present_when` when its existence depends on resolved arguments. An ordered
 contract rule instead uses `when` to say when that rule applies. Neither field is the model-level
-`when` used during graph expansion; see [`when` and `present_when`](GLOSSARY.md#when-and-present_when).
+`when` used during graph expansion; see [`when` and
+`present_when`](GLOSSARY.md#when-and-present_when).
 
 ### 3.1 — State is split between contract and graph
 

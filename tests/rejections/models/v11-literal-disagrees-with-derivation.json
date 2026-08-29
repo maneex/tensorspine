@@ -1,6 +1,6 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "llama3-8b",
+  "model": "rejection-v11-literal-disagrees-with-derivation",
   "catalog": [
     {
       "base": "../catalog/"
@@ -54,7 +54,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 128,
+        "value": 96,
         "derivation": {
           "op": "floor_divide",
           "args": [

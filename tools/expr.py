@@ -103,10 +103,39 @@ def contract_condition(c, args):
 
 # --- model side: expressions over quantities and indices ------------------
 
+def quantity_references(e):
+    """Names of the quantities an expression reads."""
+    if not isinstance(e, dict):
+        return set()
+    out = set()
+    if 'quantity' in e:
+        out.add(e['quantity'])
+    for x in e.get('args', []):
+        out |= quantity_references(x)
+    for k in ('then', 'else'):
+        if k in e:
+            out |= quantity_references(e[k])
+    if 'if' in e:
+        out |= condition_references(e['if'])
+    return out
+
+
+def condition_references(c):
+    out = set()
+    if 'not' in c:
+        out |= condition_references(c['not'])
+    for x in c.get('all', []) + c.get('any', []):
+        out |= condition_references(x)
+    if 'compare' in c:
+        out |= quantity_references(c['compare']['left']) | quantity_references(c['compare']['right'])
+    return out
+
+
 def resolve_quantities(model, assignment=None):
-    """Statically known quantities: the literal ones, plus the external ones
-    the assignment supplies. An external quantity left unassigned is absent,
-    and every expression that reads it evaluates to UNRESOLVED."""
+    """Statically known quantities: the literal ones, the external ones the
+    assignment or a declared default supplies, and the derived ones, evaluated
+    to a fixpoint. What is left absent does not resolve: an unassigned
+    external, or a derivation that is cyclic or reads nothing."""
     assignment = assignment or {}
     q = {}
     pending = []
@@ -118,7 +147,11 @@ def resolve_quantities(model, assignment=None):
             q[name] = assignment[src['name']]
         elif src['kind'] == 'external' and 'default' in src:
             pending.append((name, src['default']))
-    # Declared defaults may read other quantities, in any order, acyclically (§4.6).
+        elif src['kind'] == 'derived':
+            pending.append((name, src['expression']))
+    # Derivations and declared defaults may read other quantities, in any
+    # order, acyclically (§2.2, §4.6): a fixpoint, and what never resolves is
+    # left absent for the validator to refuse (V10).
     while pending:
         progress = False
         for name, default in list(pending):

@@ -1,6 +1,6 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "llama3-8b",
+  "model": "rejection-v10-derivation-cycle",
   "catalog": [
     {
       "base": "../catalog/"
@@ -13,8 +13,18 @@
         "kind": "cardinality"
       },
       "source": {
-        "kind": "literal",
-        "value": 4096
+        "kind": "derived",
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "quantity": "head_dim"
+            },
+            {
+              "quantity": "heads"
+            }
+          ]
+        }
       }
     },
     "ffn": {
@@ -53,9 +63,8 @@
         "kind": "cardinality"
       },
       "source": {
-        "kind": "literal",
-        "value": 128,
-        "derivation": {
+        "kind": "derived",
+        "expression": {
           "op": "floor_divide",
           "args": [
             {

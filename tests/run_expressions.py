@@ -62,6 +62,17 @@ def main():
     ok &= check("composition no longer carries bindings after normalisation",
                 'bindings' not in n['compositions']['C'])
     ok &= check("normalisation is idempotent", model_mod.normalise(n) == n)
+    doc = {"quantities": {
+        "inner": {"regime": "model_constant", "type": {"kind": "cardinality"},
+                  "source": {"kind": "derived", "expression": {"op": "multiply", "args": [{"literal": 4}, {"quantity": "width"}]}}},
+        "width": {"regime": "model_constant", "type": {"kind": "cardinality"},
+                  "source": {"kind": "derived", "expression": {"op": "multiply", "args": [{"quantity": "heads"}, {"quantity": "head_dim"}]}}},
+        "heads": {"regime": "model_constant", "type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 32}},
+        "head_dim": {"regime": "model_constant", "type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 128}}}}
+    from expr import resolve_quantities
+    r = resolve_quantities(doc)
+    ok &= check("derived chain resolves in any declaration order (inner before width before its inputs)",
+                r.get('width') == 4096 and r.get('inner') == 16384)
     print("expressions: all good" if ok else "expressions: FAILED")
     return 0 if ok else 1
 

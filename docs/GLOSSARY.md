@@ -3,10 +3,10 @@
 This glossary is the non-normative lookup point for Tensorspine terminology. Each entry gives a
 reader-facing summary and links to the document that owns the precise definition. The
 [language specification](SPECIFICATION.md) is authoritative for validity and denotation; the
-[JSON Schema](../schemas/tensorspine.schema.json) is authoritative for the concrete model grammar. If
-a summary here conflicts with either authority, use the authority. The [README](../README.md) gives
-the project orientation, and the [model JSON guide](TENSORSPINE-MODEL_JSON.md) explains how to author
-the concrete format.
+[JSON Schema](../schemas/tensorspine.schema.json) is authoritative for the concrete model grammar.
+If a summary here conflicts with either authority, use the authority. The [README](../README.md)
+gives the project orientation, and the [model JSON guide](TENSORSPINE-MODEL_JSON.md) explains how to
+author the concrete format.
 
 Concept names are written in ordinary text. Literal JSON fields and values are written as `code`.
 
@@ -137,9 +137,9 @@ nodes without enumerating every expanded occurrence. See
 
 ### Generative
 
-An output property stating whether a public output participates in generation. Tensorspine also permits
-non-generative and per-token outputs. See
-[Specification §2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42).
+An output property stating whether a public output participates in generation. Tensorspine also
+permits non-generative and per-token outputs. See [Specification
+§2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42).
 
 ## I
 
@@ -188,8 +188,8 @@ State liveness sizes simultaneous memory; visits size computation. See
 
 ### Model document
 
-An `tensorspine/2.0` declaration of model identity (and, for a template, its version), catalog bases,
-quantities — literal, external with domain and optional default, or derived — constants,
+An `tensorspine/2.0` declaration of model identity (and, for a template, its version), catalog
+bases, quantities — literal, external with domain and optional default, or derived — constants,
 occurrences, compositions with their scoped bindings, bindings, and public interfaces. It declares
 graph-specific causes and relationships; contracts derive reusable consequences. See [Specification
 §2](SPECIFICATION.md#2--model-document) and [Model guide
@@ -290,7 +290,9 @@ similar names. See [Specification §3.4](SPECIFICATION.md#34--bindings) and
 
 The word is qualified by context:
 
-- a **quantity source** says whether a quantity is literal, external, or derived;
+- a **quantity source** says whether a quantity is literal (read from configuration, optionally
+  with the derivation it must agree with), external (supplied by an assignment), or derived (an
+  expression over other quantities, exact by construction);
 - an **indexing source** names the sequence, patch stream, or fragment stream indexed by a domain;
 - a **value source** is the producer endpoint of a value binding.
 

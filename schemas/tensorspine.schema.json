@@ -286,57 +286,6 @@
         }
       }
     },
-    "interface_call": {
-      "type": "object",
-      "required": [
-        "contract",
-        "arguments",
-        "result",
-        "status",
-        "provenance"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "contract": {
-          "$ref": "#/$defs/contract_reference"
-        },
-        "arguments": {
-          "type": "object",
-          "propertyNames": {
-            "$ref": "#/$defs/identifier"
-          },
-          "additionalProperties": {
-            "$ref": "#/$defs/argument_value"
-          }
-        },
-        "result": {
-          "$ref": "#/$defs/identifier"
-        },
-        "status": {
-          "$ref": "#/$defs/epistemic_status"
-        },
-        "provenance": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/fact_reference"
-          }
-        }
-      }
-    },
-    "call_expression": {
-      "type": "object",
-      "required": [
-        "call"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "call": {
-          "$ref": "#/$defs/interface_call"
-        }
-      }
-    },
     "scalar_expression": {
       "oneOf": [
         {
@@ -359,9 +308,6 @@
         },
         {
           "$ref": "#/$defs/conditional_expression"
-        },
-        {
-          "$ref": "#/$defs/call_expression"
         }
       ]
     },
@@ -739,123 +685,6 @@
         }
       ]
     },
-    "argument_fact_reference": {
-      "type": "object",
-      "required": [
-        "argument"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "argument": {
-          "type": "object",
-          "required": [
-            "occurrence",
-            "name"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "occurrence": {
-              "$ref": "#/$defs/occurrence_selector"
-            },
-            "name": {
-              "$ref": "#/$defs/identifier"
-            }
-          }
-        }
-      }
-    },
-    "fact_reference": {
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "quantity"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "quantity": {
-              "$ref": "#/$defs/identifier"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "index"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "index": {
-              "$ref": "#/$defs/identifier"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "constant"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "constant": {
-              "$ref": "#/$defs/identifier"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "contract"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "contract": {
-              "$ref": "#/$defs/contract_reference"
-            }
-          }
-        },
-        {
-          "$ref": "#/$defs/argument_fact_reference"
-        },
-        {
-          "type": "object",
-          "required": [
-            "interface"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "interface": {
-              "$ref": "#/$defs/contract_reference"
-            }
-          }
-        }
-      ]
-    },
-    "derivation": {
-      "type": "object",
-      "required": [
-        "expression",
-        "status",
-        "provenance"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "expression": {
-          "$ref": "#/$defs/scalar_expression"
-        },
-        "status": {
-          "$ref": "#/$defs/epistemic_status"
-        },
-        "provenance": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "$ref": "#/$defs/fact_reference"
-          }
-        }
-      }
-    },
     "literal_source": {
       "type": "object",
       "required": [
@@ -869,6 +698,10 @@
         },
         "value": {
           "$ref": "#/$defs/scalar_literal"
+        },
+        "derivation": {
+          "$ref": "#/$defs/scalar_expression",
+          "description": "How this value follows from other quantities. The literal is the value read from configuration; the derivation is checked against it (V11): a transcription that disagrees with the structure is refused."
         }
       }
     },
@@ -896,17 +729,18 @@
       "type": "object",
       "required": [
         "kind",
-        "derivation"
+        "expression"
       ],
       "additionalProperties": false,
       "properties": {
         "kind": {
           "const": "derived"
         },
-        "derivation": {
-          "$ref": "#/$defs/derivation"
+        "expression": {
+          "$ref": "#/$defs/scalar_expression"
         }
-      }
+      },
+      "description": "A quantity that follows from other quantities by the closed algebra (§2.2). Its value is exact and its provenance is the expression itself; it must resolve acyclically (V10) and conform to the declared type and domain (V3)."
     },
     "quantity_source": {
       "oneOf": [

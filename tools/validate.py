@@ -17,10 +17,10 @@ types and domains (records recursively, defaults applied first, inapplicable
 fields refused), V3p precision admissibility; V4 shape unification; V5 index
 domains; V6 acyclicity; V7 totality and uniqueness of bindings; V9 member
 compatibility — one applicable rule, one set of key axes, equal payload
-shapes; V10 resolvable ranges and guards; V13 contract graph. Template
-contracts are expanded at every call site (§4.6). Not covered yet: V11
-(derived quantities and their status) and declared views or permutations in
-shape unification.
+shapes; V10 resolvable ranges, guards and derivations; V11 a literal quantity
+against its declared derivation; V13 contract graph. Template contracts are
+expanded at every call site (§4.6). Not covered yet: declared views or
+permutations in shape unification.
 """
 import itertools
 import json
@@ -32,7 +32,7 @@ import model as model_mod
 import schema as schema_mod
 from expr import (UNRESOLVED, contract_condition, contract_value, index_grid,
                   missing_assignment, model_condition, model_value,
-                  resolve_quantities, static_argument)
+                  quantity_references, resolve_quantities, static_argument)
 
 MAX_CONTRACT_DEPTH = 8
 
@@ -264,6 +264,8 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         errors.append(f"[{code}] {message}")
 
     quantities = resolve_quantities(model, assignment)
+    for code, message in check_quantities(model, quantities):
+        fail(code, message)
 
     def value(e, env=None):
         return model_value(e, quantities, env)
@@ -749,6 +751,39 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         if k in stats and isinstance(stats[k], int) and not isinstance(stats[k], bool):
             stats[k] += v
     return {'errors': errors, 'stats': stats, 'ports': ports, 'instance_keys': instance_keys}
+
+
+def check_quantities(model, quantities):
+    """Every quantity resolves (V10), reads only declared quantities (V1),
+    conforms to its declared type and domain (V3), and — when a literal
+    declares how it follows from the others — agrees with that derivation
+    (V11). Returns (code, message) problems."""
+    problems = []
+    declared = set(model['quantities'])
+    for name, q in model['quantities'].items():
+        src = q['source']
+        expression = src.get('expression') if src['kind'] == 'derived' else src.get('derivation')
+        if expression is not None:
+            for ref in sorted(quantity_references(expression) - declared):
+                problems.append(('V1', f"quantity '{name}': derivation reads undeclared quantity '{ref}'"))
+        if name not in quantities:
+            if src['kind'] == 'derived':
+                problems.append(('V10', f"quantity '{name}': derivation does not resolve "
+                                        f"(a cycle, or a reference with no value)"))
+            continue
+        v = quantities[name]
+        before = len(problems)
+        _check_type(v, q['type'], name, lambda x: x, {}, problems, {})
+        if len(problems) == before and 'domain' in q:
+            _check_domain(v, q['domain'], name, problems)
+        if src['kind'] == 'literal' and 'derivation' in src:
+            d = model_value(src['derivation'], quantities)
+            if d is UNRESOLVED:
+                problems.append(('V10', f"quantity '{name}': its derivation does not resolve"))
+            elif d != v:
+                problems.append(('V11', f"quantity '{name}' = {v!r} disagrees with its derivation, "
+                                        f"which gives {d!r}"))
+    return [(code, m.replace("argument '", "quantity '", 1)) for code, m in problems]
 
 
 def check_assignment(model, assignment):

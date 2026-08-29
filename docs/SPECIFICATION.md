@@ -4,14 +4,14 @@
 > derive all other information from the primitives' contracts.
 
 *Tensorspine 2.0 — language specification, revision of 29 August 2026. The language version is the
-`tensorspine/2.0` tag every document and schema carries; catalog units carry their own versions (§8.2).
-This document is the sole normative authority for the language. It is self-contained: syntax,
-validity, and denotation do not depend on source code, tools, or other repository artifacts. Every
-requirement identifier it cites (O‑, I‑, N‑) is stated in Appendix A or §9.*
+`tensorspine/2.0` tag every document and schema carries; catalog units carry their own versions
+(§8.2). This document is the sole normative authority for the language. It is self-contained:
+syntax, validity, and denotation do not depend on source code, tools, or other repository artifacts.
+Every requirement identifier it cites (O‑, I‑, N‑) is stated in Appendix A or §9.*
 
 For motivation and repository orientation, read the [README](../README.md). For a field-by-field
-authoring guide, read [Tensorspine model JSON](TENSORSPINE-MODEL_JSON.md). The [glossary](GLOSSARY.md)
-summarizes terminology and points back to its canonical sections; the
+authoring guide, read [Tensorspine model JSON](TENSORSPINE-MODEL_JSON.md). The
+[glossary](GLOSSARY.md) summarizes terminology and points back to its canonical sections; the
 [architecture guide](ARCHITECTURE.md) explains the design rationale. None of those explanatory
 documents adds requirements to this specification.
 
@@ -81,8 +81,10 @@ independent properties:
 - **Dimensional type:** a cardinality (non-negative integer); a ratio or real hyperparameter bounded
   by contract; a physical quantity with a **unit** (bytes, elements, tokens, seconds, operations);
   or an enum or boolean, which participates in arithmetic only through an allowed conditional.
-- **Provenance:** a literal value; an **external** value supplied by an assignment (§4.6), with a
-  declared domain and optionally a declared default; or a **derivation** in the algebra of §2.2.
+- **Provenance:** a literal value, read from configuration, optionally with the **derivation** by
+  which it follows from other quantities (V11 checks the two agree); an **external** value supplied
+  by an assignment (§4.6), with a declared domain and optionally a declared default; or a
+  **derived** value, an expression of the algebra of §2.2 over other quantities.
 
 Regime and type are independent: a model constant need not be an integer.
 
@@ -103,15 +105,21 @@ absolute value, and a conditional `if/then/else` over a condition of the closed 
 
 **O0.2 —** A derivation outside this algebra uses a normative interface with specified inputs,
 semantics, and conformance tests. No function body is read or trusted; its result is at least a
-qualified bound.
+qualified bound. No such interface is defined in this revision, and the model grammar admits a call
+to one only once it is: adding it is a compatible extension (§8.1), while a call nothing can read
+would be a comment (§10.2).
 
-**O0.3 —** Every derived quantity declares its epistemic status—exact, upper bound, lower bound, or
-estimate—and the provenance of every fact on which it depends.
+**O0.3 —** A derived quantity of a model document is exact and its provenance is the expression
+itself: it reads only declared quantities, resolves acyclically, and conforms to the declared type
+and domain — the rounding of a division is chosen explicitly (floor or ceiling). Epistemic status
+and provenance are declared where a value can be a bound or an estimate: the logical cost a
+contract states (§4.1) and the derived products (§7).
 
-**O0.5 — Epistemic status is an algebra, not a label.** Status propagates according to the operation's
-monotonicity: dividing by an upper bound produces a lower bound. Rounding direction belongs to the
-status, never to the operator. Monotonicity is relative to a domain, and each node must prove that
-it stays within that domain. Propagation never turns an estimate into a bound.
+**O0.5 — Epistemic status is an algebra, not a label.** Where a product combines qualified values,
+status propagates according to the operation's monotonicity: dividing by an upper bound produces a
+lower bound. Rounding direction belongs to the status, never to the operator. Monotonicity is
+relative to a domain, and each node must prove that it stays within that domain. Propagation never
+turns an estimate into a bound.
 
 **O0.6 —** Every language introduced by this specification is closed and decidable or uses a
 normative interface. This applies to the size algebra, the contract-condition language in §4.3, and
@@ -439,15 +447,15 @@ implicit default.
 |---|---|
 | **V1** | Every quantity, occurrence, port, family, tensor, catalog base, and template reference resolves (I1). |
 | **V2** | Every required contract argument is present; every undeclared argument is rejected; declared defaults are applied before checking. |
-| **V3** | Types, enums, record fields, and units conform; an enum value outside its declared set is rejected. |
+| **V3** | Types, enums, record fields, units and domains conform, for arguments and for quantities, derived ones included; an enum value outside its declared set is rejected. |
 | **V4** | Shapes compose: each source-port output shape equals the destination-port input shape. |
 | **V5** | Indexing domains are compatible across every edge. |
 | **V6** | The value graph is acyclic within an invocation. |
 | **V7** | Bindings are total: every input port is fed and every logical tensor is bound. |
 | **V8** | Conditional argument combinations satisfy the contract. Meaningless combinations are excluded by invariant, never merely by a missing guard (I11). |
 | **V9** | A state identity connects only compatible ports: the same applicable rule, the same key axes, and equal payload shapes and indexing domains. |
-| **V10** | Every repetition resolves under §5.2. |
-| **V11** | A derived value and its derivation agree when both are present (I8). |
+| **V10** | Every repetition, guard and derivation resolves under §5.2 and §2.2. |
+| **V11** | A literal quantity that declares its derivation agrees with it (I8). |
 | **V12** | Every construction has one reading; references and literals are unambiguous (I5, I6). |
 
 ## §7 — Required derived products
@@ -529,7 +537,7 @@ language element carries it—but the criterion that justifies the mechanism.
 | **I5** | References and literals are unambiguous. |
 | **I6** | Every construction has one reading. |
 | **I7** | **No silent defaults:** every non-derivable answer produces a reasoned rejection. |
-| **I8** | A derived value and its derivation agree when both are present. |
+| **I8** | A literal value and its declared derivation agree. |
 | **I9** | The described model and loaded artifact are mutually compatible: every logical tensor is bound, and no physical tensor is accidentally bound twice. |
 | **I11** | A meaningless combination is excluded by invariant, never merely by a missing guard. |
 
@@ -579,8 +587,8 @@ never define them.
 The following are rejected at the stated level: unresolved reference (V1); missing required argument
 (V2); undeclared argument (V2); out-of-enum value (V3); incompatible shapes (V4); incompatible
 indexing domains (V5); value cycle (V6); unfed port or unbound tensor (V7); meaningless combination
-(V8); state identity between incompatible ports (V9); unresolvable repetition (V10); and
-disagreement between a derived value and its derivation (V11).
+(V8); state identity between incompatible ports (V9); unresolvable repetition, guard or derivation
+(V10); and a literal quantity disagreeing with its declared derivation (V11).
 
 **Mutation test:** for every normative construction, removing a field, breaking its reference, or
 changing its value must either change the expanded denotation or cause rejection. A field ignored by
@@ -606,10 +614,10 @@ carries the requirement; this appendix is the requirement. Gaps in the numbering
 | Id | Requirement |
 |---|---|
 | **O0.1** | Derived quantities are expressed in the closed scalar algebra of §2.2. |
-| **O0.2** | A derivation outside the algebra uses a normative interface with declared inputs, semantics and conformance tests; its result is at least a qualified bound. |
-| **O0.3** | Every derived quantity declares its epistemic status and the provenance of every fact it depends on. |
+| **O0.2** | A derivation outside the algebra uses a normative interface with declared inputs, semantics and conformance tests; its result is at least a qualified bound. None is defined in this revision. |
+| **O0.3** | A derived quantity of a model is exact, reads only declared quantities, resolves acyclically and conforms to its declared type and domain; epistemic status and provenance are declared on contract costs and derived products. |
 | **O0.4** | Quantities form one flat namespace: each is declared once and referenced by name everywhere. |
-| **O0.5** | Epistemic status propagates by the monotonicity of each operation; propagation never turns an estimate into a bound. |
+| **O0.5** | Where a product combines qualified values, status propagates by the monotonicity of each operation; propagation never turns an estimate into a bound. |
 | **O0.6** | Every language of this specification is closed and decidable, or uses a normative interface. |
 | **O1.1** | A contract is referenced through an immutable identity, `{name, version}`, whose meaning never changes (§8.2). |
 | **O1.2** | A model document carries a stable, authoritative identifier. |

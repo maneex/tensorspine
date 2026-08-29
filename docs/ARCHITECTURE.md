@@ -191,9 +191,12 @@ semantic identities. See [Specification §8.2](SPECIFICATION.md#82--identity-and
 
 ### 3.7. Qualify derived knowledge
 
-**Decision.** Every derived quantity carries an epistemic status—`exact`, `upper_bound`,
-`lower_bound`, or `estimate`—and provenance. Status propagates according to the operation and its
-domain; an estimate never silently becomes a bound.
+**Decision.** A quantity derived inside a model document is exact by construction — an expression
+over declared constants — and is checked against its declared type, domain and, for a literal read
+from configuration, its declared derivation. Where a value can be a bound or an estimate — a
+contract's logical cost, the derived products — it carries an epistemic status (`exact`,
+`upper_bound`, `lower_bound`, or `estimate`) and provenance, and status propagates according to the
+operation and its domain; an estimate never silently becomes a bound.
 
 **Why.** Placement and admission decisions depend not only on a number but on what is known about
 that number. Treating an estimate as an exact byte count can make an apparently valid plan fail at
@@ -329,8 +332,9 @@ When adding a field, contract feature, or derived product, apply these questions
 5. **Does the proposal add syntax or a new operator, condition, or closed property value?** Define
    its semantics, domains, rejection behavior, and consumer cost; do not hide it in an extension
    object.
-6. **Is a derived value exact, bounded, or estimated?** Record its status and provenance, then check
-   that the algebra preserves that qualification.
+6. **Is a derived value exact, bounded, or estimated?** In a model document it is exact, or it does
+   not belong there; in a cost or a product, record its status and provenance, then check that the
+   algebra preserves that qualification.
 7. **Can any consumer interpret the document in two ways?** Redesign the construction until one
    reading remains, or reject it.
 8. **Would omitting the field leave the denotation unchanged and cause no rejection?** Then it is

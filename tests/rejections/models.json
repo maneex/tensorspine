@@ -174,6 +174,30 @@
       "expect": "V1",
       "match": "no site named 'attention'",
       "note": "A scoped endpoint naming no site of its composition."
+    },
+    {
+      "document": "models/v11-literal-disagrees-with-derivation.json",
+      "expect": "V11",
+      "match": "quantity 'head_dim' = 96 disagrees with its derivation, which gives 128",
+      "note": "A configuration value that contradicts the structure it is derived from (I8)."
+    },
+    {
+      "document": "models/v10-derivation-cycle.json",
+      "expect": "V10",
+      "match": "quantity 'd': derivation does not resolve",
+      "note": "Two derivations that read each other never resolve: a cycle is refused, never guessed."
+    },
+    {
+      "document": "models/v1-derivation-undeclared-quantity.json",
+      "expect": "V1",
+      "match": "derivation reads undeclared quantity 'width'",
+      "note": "A derivation over a quantity the document does not declare."
+    },
+    {
+      "document": "models/v3-derived-cardinality-not-integer.json",
+      "expect": "V3",
+      "match": "quantity 'head_dim' = 1365.3333333333333 is not a cardinality",
+      "note": "A derived cardinality that is not an integer: the rounding must be chosen explicitly (floor or ceiling division)."
     }
   ]
 }

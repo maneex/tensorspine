@@ -24,6 +24,7 @@ Assumptions made (v1 of this tool):
 import html
 import json
 import model as model_mod
+from expr import resolve_quantities
 import math
 import pathlib
 import shutil
@@ -41,10 +42,15 @@ DOT_SANS = "Helvetica"
 # handle what shows up in `compositions.*.indices`.
 
 def _lit_value(quantities, name):
-    q = quantities.get(name)
-    if q and q.get('source', {}).get('kind') == 'literal':
-        return q['source']['value']
-    return None
+    """The static value of a quantity: literal, defaulted or derived (expr)."""
+    key = id(quantities)
+    if _RESOLVED.get('key') != key:
+        _RESOLVED['key'] = key
+        _RESOLVED['values'] = resolve_quantities({'quantities': quantities})
+    return _RESOLVED['values'].get(name)
+
+
+_RESOLVED = {}
 
 
 def eval_static(e, quantities):

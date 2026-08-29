@@ -1,6 +1,6 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "llama3-8b",
+  "model": "rejection-v3-derived-cardinality-not-integer",
   "catalog": [
     {
       "base": "../catalog/"
@@ -53,16 +53,15 @@
         "kind": "cardinality"
       },
       "source": {
-        "kind": "literal",
-        "value": 128,
-        "derivation": {
-          "op": "floor_divide",
+        "kind": "derived",
+        "expression": {
+          "op": "divide",
           "args": [
             {
               "quantity": "d"
             },
             {
-              "quantity": "heads"
+              "literal": 3
             }
           ]
         }
