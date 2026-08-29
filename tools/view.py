@@ -190,7 +190,8 @@ def build_graph(data):
     for name, spec in data['interfaces']['inputs'].items():
         k = f"in:{name}"
         nodes[k] = {'type': 'input', 'name': name}
-        add_edge(k, top_key(spec['to']['occurrence']))
+        for endpoint in spec['to']:
+            add_edge(k, top_key(endpoint['occurrence']))
     for name, spec in data['interfaces']['outputs'].items():
         k = f"out:{name}"
         nodes[k] = {'type': 'output', 'name': name}
@@ -867,7 +868,7 @@ function buildTree() {
 
   grp('interfaces');
   Object.entries(RAW.interfaces.inputs).forEach(([n, spec]) =>
-    row(`<span class="swatch sw-io"></span>${esc(n)} \u2192 ${esc(occSelLabel(spec.to.occurrence))}`, { kind: 'interface', dir: 'inputs', name: n }));
+    row(`<span class="swatch sw-io"></span>${esc(n)} \u2192 ${esc(spec.to.map(e => occSelLabel(e.occurrence)).join(', '))}`, { kind: 'interface', dir: 'inputs', name: n }));
   Object.entries(RAW.interfaces.outputs).forEach(([n, spec]) =>
     row(`<span class="swatch sw-io"></span>${esc(occSelLabel(spec.from.occurrence))} \u2192 ${esc(n)}`, { kind: 'interface', dir: 'outputs', name: n }));
 
@@ -913,13 +914,13 @@ function stateBody(sid, b, bare) {
   const membersHtml = bare ? `<div class="field"><span class="k">members</span><span class="v">${esc(b.members.map(m => `${occSelLabel(m.occurrence)}.${m.state}`).join(', '))}</span></div>` : '';
   const indices = Object.keys((b.identity && b.identity.indices) || {});
   const key = [...indices, 'session', 'branch'].join(' \u00d7 ');
-  const boundary = b.invocation_boundary ? `retains ${Array.isArray(b.invocation_boundary.retains) ? b.invocation_boundary.retains.join(', ') : b.invocation_boundary.retains} across ${b.invocation_boundary.domain.kind} (${b.invocation_boundary.domain.source})` : '\u2014';
+  const dtype = b.dtype ? (typeof b.dtype === 'string' ? b.dtype : '@' + b.dtype.quantity) : 'role default';
   return `${bare ? '' : `<h4 class="insp">state \u00b7 <code>${esc(sid)}</code></h4>`}
     ${membersHtml}
     <div class="state-box">
       <b>instance key</b> \u2014 ${esc(key)} (derived)<br>
       <b>members</b> \u2014 ${b.members.length}<br>
-      <b>invocation boundary</b> \u2014 ${esc(boundary)}
+      <b>dtype</b> \u2014 ${esc(dtype)} \u00b7 carrying across fragments is derived (\u00a75.3)
     </div>`;
 }
 
@@ -947,11 +948,11 @@ function bindingItemBody(which, id) {
 
 function interfaceBody(dir, spec) {
   if (dir === 'inputs') return `
-    <div class="field"><span class="k">to</span><span class="v">${esc(occSelLabel(spec.to.occurrence))}.${esc(spec.to.port)}</span></div>
-    <div class="field"><span class="k">domain</span><span class="v">${esc(spec.domain.kind)} (${esc(spec.domain.source)})</span></div>`;
+    <div class="field"><span class="k">to</span><span class="v">${esc(spec.to.map(e => `${occSelLabel(e.occurrence)}.${e.port}`).join(', '))}</span></div>
+    <div class="field"><span class="k">kind</span><span class="v">${esc(spec.kind)}${spec.stream ? ' \u00b7 joins ' + esc(spec.stream) : ''}${spec.fragmented ? ' \u00b7 fragmented' : ''}</span></div>`;
   return `
     <div class="field"><span class="k">from</span><span class="v">${esc(occSelLabel(spec.from.occurrence))}.${esc(spec.from.port)}</span></div>
-    <div class="field"><span class="k">domain</span><span class="v">${esc(spec.domain.kind)} (${esc(spec.domain.source)})</span></div>
+    <div class="field"><span class="k">domain</span><span class="v">derived from the port (\u00a75.3)</span></div>
     <div class="field"><span class="k">generative</span><span class="v">${spec.generative}</span></div>`;
 }
 
