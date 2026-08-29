@@ -194,7 +194,7 @@ def missing_assignment(model, assignment=None):
 
 def index_grid(indices, quantities):
     """The (name, values) pairs a set of index declarations unrolls to, in
-    lexicographic order of the index names (§11.4)."""
+    lexicographic order of the index names (§5.2)."""
     names = sorted(indices)
     ranges = []
     for k in names:

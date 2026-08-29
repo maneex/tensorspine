@@ -3,7 +3,7 @@
   "model": "rejection-v3-chunk-with-causal",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

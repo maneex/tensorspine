@@ -3,7 +3,7 @@
   "model": "rejection-v3-record-scalar",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

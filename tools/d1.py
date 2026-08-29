@@ -1,12 +1,12 @@
-"""`--d1`: emit D1 (§16.1), the EXPANDED graph of a model.
+"""`--d1`: emit D1 (§7), the EXPANDED graph of a model.
 
 The model document is not the graph — it is a generator. Read naively, without
 unrolling `for_each` or evaluating index expressions, it shows fewer nodes than
 reality and apparent cycles. D1 is the form every consumer reads: viewer,
 porting, infrastructure matching.
 
-Canonical identities follow §11.5 — `<composition>/<site>[<i>=<v>,...]`, with
-indices in lexicographic order of Unicode code points (§11.4). A template
+Canonical identities are `<composition>/<site>[<i>=<v>,...]` (§5.2), with
+indices in lexicographic order of Unicode code points. A template
 contract (§4.6) is expanded in place and its identities are prefixed by the
 instance path, so two invocations of one contract share neither state nor
 tensor.
@@ -42,7 +42,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         return static_argument(v, quantities, env)
 
     def identity(key):
-        """Canonical identity of an occurrence key (§11.5)."""
+        """Canonical identity of an occurrence key (§5.2)."""
         if key[0] == 'root':
             return key[1]
         _, composition, site, indices = key
@@ -54,11 +54,11 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     keys = {}
     for name, o in model['occurrences'].items():
         keys[('root', name)] = o
-    for comp_name, comp in sorted(model['compositions'].items()):
+    for comp_name, comp in model['compositions'].items():          # document order (§5.2)
         names, ranges = index_grid(comp['indices'], quantities)
         for combo in itertools.product(*ranges):
             env = dict(zip(names, combo))
-            for site_name, site in sorted(comp['occurrences'].items()):
+            for site_name, site in comp['occurrences'].items():
                 # `when` is evaluated against the quantities and the current
                 # indices; a site that does not fire is not an occurrence.
                 if 'when' in site:
@@ -180,7 +180,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
                 queue.append(m)
     if len(order) != len(nodes):
         raise ValueError(f"{model['model']}: cyclic graph, {len(nodes) - len(order)} node(s) "
-                         f"in a cycle — no D1 (V6 rejection, §15.8)")
+                         f"in a cycle — no D1 (V6 rejection)")
 
     declared = {q['source']['name'] for q in model['quantities'].values()
                 if q['source']['kind'] == 'external'}
@@ -204,13 +204,19 @@ def run(model_paths, catalog_bases, output=None, assignment=None,
     A template with no assignment has no single D1 — it has one per
     admissible assignment — so it is skipped rather than failed.
     """
-    cat = catalog_mod.load(*catalog_bases, models_base=models_base)
     failed = 0
     skipped = 0
     for path in model_paths:
         name = os.path.basename(path)
         with open(path, encoding='utf-8') as f:
-            unset = missing_assignment(json.load(f), assignment)
+            document = json.load(f)
+        try:
+            cat = catalog_mod.load_for(path, document, catalog_bases, models_base=models_base)
+        except catalog_mod.CatalogError as e:
+            failed += 1
+            print(f"  {name:34s} catalog refused: {e}")
+            continue
+        unset = missing_assignment(document, assignment)
         if unset:
             skipped += 1
             print(f"  {name:34s} skipped: needs --assign for {unset}")

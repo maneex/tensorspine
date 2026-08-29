@@ -3,7 +3,7 @@
   "model": "deepseek_v4_pro",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

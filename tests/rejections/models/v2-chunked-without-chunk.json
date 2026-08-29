@@ -3,7 +3,7 @@
   "model": "rejection-v2-chunked-without-chunk",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

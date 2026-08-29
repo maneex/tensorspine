@@ -3,7 +3,7 @@
   "model": "rejection-v2-template-missing-argument",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

@@ -180,8 +180,14 @@ armature/
 │   └── models/                   12 model documents
 ├── schemas/
 │   ├── armature.schema.json      model grammar (JSON Schema 2020-12)
+│   ├── armature-catalog-unit.schema.json
+│   │                             catalog-unit grammar: the closed vocabulary
 │   └── armature-documentation.schema.json
 │                                 documentation fields of catalog units
+├── tests/
+│   ├── run_rejections.py  run_templates.py  run_states.py  run_expressions.py  run_signatures.py
+│   ├── rejections/               one document or catalog base per §10.2 case
+│   └── signatures/               the graph every model must keep denoting
 ├── docs/
 │   ├── ARCHITECTURE.md           non-normative design rationale
 │   ├── ARMATURE-MODEL_JSON.md     practical, non-normative model-format guide
@@ -193,14 +199,16 @@ armature/
 ├── tools/
 │   ├── armature                  CLI: --validate, --lint, --d1, --view, --document
 │   ├── validate.py  lint.py  d1.py  view.py  document.py
-│   └── catalog.py  expr.py  schema.py
+│   └── catalog.py  model.py  expr.py  schema.py
 └── README.md
 ```
 
 ### Catalog
 
 `data/catalog/` contains one logical vocabulary unit per file. The path is its dot-separated
-qualified identity; a contract's filename is its version, allowing versions to coexist.
+qualified identity; a contract's filename is its version, so an identity is one immutable file.
+A model names the bases it resolves from in its `catalog` field, relative to itself
+(`../catalog/`); a base that does not exist is a rejection.
 
 | File                                   | Identity                | Kind             |
 |----------------------------------------|-------------------------|------------------|
@@ -242,7 +250,8 @@ slots and 26 states as the flat `shieldstral-3b`.
 After expanding compositions, evaluating model-level `when` conditions, and resolving contract-level
 `present_when` guards, `bindings` must be **total and unique**: every slot has exactly one binding,
 except for weight tying, state sharing between occurrences, and slots disabled by their contract
-condition. The [glossary distinguishes these condition fields](docs/GLOSSARY.md#conditions).
+condition. The [glossary distinguishes these condition
+fields](docs/GLOSSARY.md#when-and-present_when).
 
 ### Schema
 

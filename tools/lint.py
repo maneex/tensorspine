@@ -49,39 +49,6 @@ def _strings(o):
         yield o
 
 
-def declared_base_mismatch(model_paths, catalog_bases, relative_to=None):
-    """The `catalog` field of a model declares where its contracts live. No
-    tool resolves from it — resolution comes from the command line — so the
-    declaration can drift from reality without anything objecting.
-
-    One cause, one finding: when every model drifts the same way, saying it
-    twelve times hides the fact that it is a single thing to fix.
-    """
-    def show(p):
-        p = os.path.normpath(p).rstrip('/')
-        return os.path.relpath(p, relative_to) if relative_to and os.path.isabs(p) else p
-
-    used = {show(b) for b in catalog_bases}
-    drifting = {}
-    for path in model_paths:
-        with open(path, encoding='utf-8') as f:
-            model = json.load(f)
-        declared = model.get('catalog')
-        if not isinstance(declared, list):
-            continue
-        bases = frozenset(show(b['base']) for b in declared if 'base' in b)
-        if bases and not (bases & used):
-            drifting.setdefault(bases, []).append(os.path.basename(path))
-
-    findings = []
-    for bases, models in sorted(drifting.items(), key=lambda kv: sorted(kv[0])):
-        who = models[0] if len(models) == 1 else f"{len(models)} models"
-        findings.append(("models", f"{who} declare catalog base {sorted(bases)} but "
-                                   f"resolution used {sorted(used)}; nothing checks "
-                                   f"this field"))
-    return findings
-
-
 def uncalled_contracts(cat, model_paths):
     """Contracts the catalog carries that none of the linted models calls.
 
@@ -111,10 +78,13 @@ def unreferenced_vocabulary(cat):
 
 
 def run(model_paths, catalog_bases, relative_to=None, models_base=catalog_mod.DEFAULT_MODELS):
-    """Every rule, over the given models. Always returns 0 — advisory only."""
+    """Every rule, over the given models. Always returns 0 — advisory only.
+    The catalog is the command line's, else the bases the first model declares."""
+    if not catalog_bases:
+        with open(model_paths[0], encoding='utf-8') as f:
+            catalog_bases = catalog_mod.bases_of(model_paths[0], json.load(f))
     cat = catalog_mod.load(*catalog_bases, models_base=models_base)
     findings = []
-    findings += declared_base_mismatch(model_paths, catalog_bases, relative_to)
     findings += uncalled_contracts(cat, model_paths)
     findings += unreferenced_vocabulary(cat)
 

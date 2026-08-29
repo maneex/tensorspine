@@ -3,7 +3,7 @@
   "model": "rejection-structural-context-expression",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

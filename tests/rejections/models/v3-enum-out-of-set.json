@@ -3,7 +3,7 @@
   "model": "rejection-v3-enum-out-of-set",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

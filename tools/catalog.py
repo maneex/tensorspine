@@ -6,8 +6,8 @@ in order: the first one that carries an identity provides it, later ones do not
 override it.
 
 A unit's path reproduces its identity, dot by dot; a contract carries its
-version as the file name, so two versions of one identity coexist instead of
-replacing each other (§8.2).
+version as the file name, so an identity `{name, version}` is one file and
+never changes meaning (§8.2).
 
     contracts/attention/dense/1.0.0.json     contract attention.dense 1.0.0
     axes/model/width.json                    axis model.width
@@ -15,7 +15,10 @@ replacing each other (§8.2).
 
 `load` returns contracts, axes and precision, plus `by_id` keyed by
 (name, version). A disagreement between the path and the identity written
-inside the file is a refusal, not a preference.
+inside the file is a refusal, not a preference. `load_for` resolves the bases a
+model document declares in its `catalog` field, relative to the document, so
+that field is what a reading resolves from (§2) unless the command line says
+otherwise.
 
 Every unit is read against the catalog-unit JSON Schema, and the references
 one unit makes to another — an axis, a precision role, an argument named by a
@@ -28,6 +31,7 @@ a load error naming the file, never a document read with a guess (I7).
 class CatalogError(ValueError):
     """A catalog unit that cannot be read: off-schema, misplaced, or citing
     something the catalog does not hold. Carries the file path."""
+
 import glob
 import json
 import os
@@ -37,6 +41,37 @@ import schema as schema_mod
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_SCHEMAS = os.path.join(os.path.dirname(HERE), 'schemas')
 DEFAULT_MODELS = os.path.join(os.path.dirname(HERE), 'data', 'models')
+
+
+DEFAULT_CATALOG = os.path.join(os.path.dirname(HERE), 'data', 'catalog')
+_LOADED = {}
+
+
+def bases_of(model_path, model, override=None):
+    """The catalog bases a document resolves from: the command line when it
+    names some, else the document's own `catalog` entries, taken relative to
+    the document's directory."""
+    if override:
+        return [os.path.abspath(b) for b in override]
+    here = os.path.dirname(os.path.abspath(model_path))
+    return [os.path.normpath(os.path.join(here, entry['base'])) for entry in model['catalog']]
+
+
+def load_for(model_path, model, override=None, schema_dir=None, models_base=None):
+    """The catalog a document resolves from (see `bases_of`), loaded once per
+    distinct set of bases. A declared base that does not exist is a rejection
+    (V1), not a fallback to some other catalog."""
+    schema_dir = DEFAULT_SCHEMAS if schema_dir is None else schema_dir
+    models_base = DEFAULT_MODELS if models_base is None else models_base
+    bases = bases_of(model_path, model, override)
+    for base in bases:
+        if not os.path.exists(base):
+            raise CatalogError(f"{os.path.basename(model_path)}: catalog base '{base}' "
+                               f"does not exist (V1)")
+    key = (tuple(bases), schema_dir, models_base)
+    if key not in _LOADED:
+        _LOADED[key] = load(*bases, schema_dir=schema_dir, models_base=models_base)
+    return _LOADED[key]
 
 UNIT_SCHEMA = "armature-catalog-unit/2.0"
 SECTIONS = (('contracts', 'contract'), ('axes', 'axis'), ('precision', 'precision_role'))
@@ -116,7 +151,8 @@ def load(*bases, schema_dir=DEFAULT_SCHEMAS, models_base=DEFAULT_MODELS):
             for name, d in mono.get('precision', {}).items():
                 precision.setdefault(name, d)
 
-    # Index by name alone: the highest version, for readings that do not pin one.
+    # Index by name alone, for readings that address a contract by name (the
+    # linter's inventory, D1's template walk); an occurrence always pins.
     contracts = {}
     for (name, version), d in by_id.items():
         current = contracts.get(name)

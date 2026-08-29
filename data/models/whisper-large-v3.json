@@ -3,7 +3,7 @@
   "model": "whisper_large_v3",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

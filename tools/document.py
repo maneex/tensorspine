@@ -55,7 +55,7 @@ GRAMMAR = {
     'contract': {'version', 'arguments', 'ports', 'parameters', 'constants', 'state_ports',
                  'effects', 'logical_cost', 'partitions', 'constraints', 'note',
                  'domain_transforms'},
-    'template': {'version', 'model', 'note'},
+    'template': {'version', 'template', 'note'},
     'argument': {'type', 'required', 'structural', 'default', 'present_when', 'note'},
     'port': {'shape', 'domain', 'multiplicity', 'present_when', 'optional', 'note', 'role'},
     'parameter': {'role', 'shape', 'present_when', 'multiplicity', 'note', 'views', 'sharing'},
@@ -1074,7 +1074,7 @@ class Renderer:
         d = u['definition']
         m = d['template']
         out = ['##### Template', '']
-        out.append(f"- URI `{m['name']}`, model id `{m['id']}`"
+        out.append(f"- Template `{m['name']}`, model id `{m['id']}`"
                    + (f", template version `{m['version']}`" if m.get('version') else ''))
         if m.get('note'):
             out.append(f"- *Note: {m['note']}*")

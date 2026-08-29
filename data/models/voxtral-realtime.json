@@ -3,7 +3,7 @@
   "model": "voxtral_realtime",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

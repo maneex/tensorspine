@@ -3,7 +3,7 @@
   "model": "rejection-v3-real-string",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

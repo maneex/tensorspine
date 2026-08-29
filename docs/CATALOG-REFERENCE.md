@@ -386,7 +386,7 @@ Derivation rules, in order — the first whose condition holds applies:
 
 | From port | To port | Relation | Factor | Description |
 |---|---|---|---|---|
-| `source_values` | `output` | align | — | Cross-attention aligns the source domain onto the query domain.<br>*Note: cross-attention: K/V come from another indexing domain (§14.4). The output stays in the query domain; attention aligns the source onto it.* |
+| `source_values` | `output` | align | — | Cross-attention aligns the source domain onto the query domain.<br>*Note: cross-attention: K/V come from another indexing domain (§5.3). The output stays in the query domain; attention aligns the source onto it.* |
 
 <a id="contract-attention.latent_compressed-1.0.0" name="contract-attention.latent_compressed-1.0.0"></a>
 
@@ -787,8 +787,8 @@ External documentation:
 
 ##### Template
 
-- URI `decoder-causal-yarn`, model id `decoder_causal_yarn`, template version `1.0.0`
-- *Note: template: models/decoder-causal-yarn.json, resolved against the models base*
+- Template `decoder-causal-yarn`, model id `decoder_causal_yarn`, template version `1.0.0`
+- *Note: template: data/models/decoder-causal-yarn.json, resolved against the models base*
 - Resolved to `data/models/decoder-causal-yarn.json`
 
 Arguments — the external quantities of the template (§4.6), supplied by an assignment at the call site:
@@ -3255,6 +3255,4 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 
 ## Appendix C — Findings
 
-Legal, and worth knowing. None of these blocks generation.
-
-- data/catalog/contracts/decoder/causal_yarn/1.0.0.json: key 'template' is neither grammar this generator knows nor documentation; not rendered
+Nothing to report.

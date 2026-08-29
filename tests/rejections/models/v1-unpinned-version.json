@@ -3,7 +3,7 @@
   "model": "rejection-v1-unpinned-version",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

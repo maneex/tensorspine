@@ -3,7 +3,7 @@
   "model": "qwen3_8_27b",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

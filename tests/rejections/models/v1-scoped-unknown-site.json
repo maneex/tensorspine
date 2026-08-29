@@ -3,7 +3,7 @@
   "model": "rejection-v1-scoped-unknown-site",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

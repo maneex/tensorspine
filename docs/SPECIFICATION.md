@@ -3,9 +3,11 @@
 > Represent every in-scope model as a **finite graph of parameterized primitive occurrences**, then
 > derive all other information from the primitives' contracts.
 
-*Version 1.0 — 27 August 2026. This document is the sole normative authority for the language. It is
-self-contained: syntax, validity, and denotation do not depend on source code, tools, or other
-repository artifacts.*
+*Armature 2.0 — language specification, revision of 29 August 2026. The language version is the
+`armature/2.0` tag every document and schema carries; catalog units carry their own versions (§8.2).
+This document is the sole normative authority for the language. It is self-contained: syntax,
+validity, and denotation do not depend on source code, tools, or other repository artifacts. Every
+requirement identifier it cites (O‑, I‑, N‑) is stated in Appendix A or §9.*
 
 For motivation and repository orientation, read the [README](../README.md). For a field-by-field
 authoring guide, read [Armature model JSON](ARMATURE-MODEL_JSON.md). The [glossary](GLOSSARY.md)
@@ -19,8 +21,10 @@ This document specifies what a model document can express and what a primitive c
 so all consequences can be derived.
 
 **In scope:** inference; infrastructure fixed for the duration of an analysis; a graph that is
-**statically finite per invocation**; and architectures served by a **dated, fixed** vLLM version.
-Without a fixed version, “all vLLM models” is not a finite set.
+**statically finite per invocation**; and the architectures of the reference corpus, `data/models/`
+in the repository, which is the coverage set this revision answers for. Candidate architectures are
+drawn from what serving engines such as vLLM run at a given date; “all vLLM models” is not a finite
+set, the corpus is, and a model that cannot be written is a counter-example to be filed against it.
 
 **Out of scope:** training; fault tolerance and session recovery; hot reconfiguration; resource
 topology; runtime data structures; placement; and hardware assignment.
@@ -31,7 +35,8 @@ The coverage claim is relative and falsifiable:
 > one** representation.
 
 This does not claim coverage of every present and future model. An open primitive vocabulary admits
-new **nodes**; coverage of graph **topologies** depends on the graph class defined in §5.
+new **nodes**; coverage of graph **topologies** is bounded by the graph class of §5.3: a finite
+directed acyclic value graph per invocation, with recurrence only through state ports.
 
 ### 1.1 — Required properties
 
@@ -58,12 +63,13 @@ A model document contains exactly:
 
 | Element | Content |
 |---|---|
-| **Identity** | A stable, authoritative model identifier (O1.2). |
-| **Catalog identity** | The immutable reference to the contract set used by the model (O1.1, §8.2). |
+| **Identity** | A stable, authoritative model identifier (O1.2), and, for a template, the version of this representation (§4.6). |
+| **Catalog bases** | The ordered catalog bases whose units the occurrences pin, as locations relative to the document; a base that does not exist is a rejection (V1). Contract identity is per occurrence, `{name, version}`, immutable (O1.1, §8.2); there is no catalog-wide version. |
 | **Quantities** | The namespace of dimensions and scalars (§2.1). |
+| **External constants** | Non-learned numeric data with identity, shape, and type (§3). |
 | **Occurrences** | Graph nodes (§3). |
 | **Compositions** | Finite indexed families of occurrence sites whose expansion is normative (§5). |
-| **Bindings** | Value edges, tensor bindings, and state identities (§3.4). |
+| **Bindings** | Value edges, tensor bindings, constant bindings, and state identities (§3.4). |
 | **Public inputs and outputs** | Interfaces with indexing domains (§2.3). |
 
 ### 2.1 — Quantities *(O2.1, O2.2, O2.3, O0.4)*
@@ -73,9 +79,10 @@ independent properties:
 
 - **Regime:** a model constant known when written, or a variable with a declared domain.
 - **Dimensional type:** a cardinality (non-negative integer); a ratio or real hyperparameter bounded
-  by contract; a physical quantity with a **unit** (bytes, elements, tokens, seconds); or an enum or
-  boolean, which participates in arithmetic only through an allowed conditional.
-- **Provenance:** a literal value or a **derivation** in the algebra defined by §2.2.
+  by contract; a physical quantity with a **unit** (bytes, elements, tokens, seconds, operations);
+  or an enum or boolean, which participates in arithmetic only through an allowed conditional.
+- **Provenance:** a literal value; an **external** value supplied by an assignment (§4.6), with a
+  declared domain and optionally a declared default; or a **derivation** in the algebra of §2.2.
 
 Regime and type are independent: a model constant need not be an integer.
 
@@ -89,8 +96,10 @@ A derivation expressed only as a function in a general-purpose language moves co
 the derivation verifiable.
 
 **O0.1 —** Every derived quantity is expressed in a closed, normative, inspectable scalar algebra
-over declared quantities and literals. Its closed operator set includes at least
-`+ − × ÷ min max`, ceiling division, and conditionals over enums.
+over declared quantities and literals. The operator set is exactly: addition, subtraction,
+multiplication, division, floor division, ceiling division, modulo, minimum, maximum, negation,
+absolute value, and a conditional `if/then/else` over a condition of the closed condition language
+(presence tests, comparisons, and boolean composition). An operator outside this set is a rejection.
 
 **O0.2 —** A derivation outside this algebra uses a normative interface with specified inputs,
 semantics, and conformance tests. No function body is read or trusted; its result is at least a
@@ -144,8 +153,8 @@ enumeration.
 
 ### 3.2 — Contract reference *(O1.1, §8.2)*
 
-An occurrence references a contract through an immutable identity: a semantic version, content hash,
-or equivalent mechanism. Capability rejection (§8.1) answers “Can this consumer execute it?”
+An occurrence references a contract through an immutable identity, `{name, version}` with a semantic
+version. Capability rejection (§8.1) answers “Can this consumer execute it?”
 Contract identity answers “Which exact meaning did the author reference?” Neither replaces the
 other.
 
@@ -204,7 +213,9 @@ language.
 | **Effects and aliasing** | What the operation writes and what it may overlap. |
 | **Logical cost** | Operations and bytes logically read and written, never operations actually executed. |
 | **Semantic partitions** | Axes whose partition preserves meaning and the resulting logical communication (O7.1). |
-| **Rejection conditions** | Cases the contract cannot interpret (§8.1). |
+
+Anything a contract does not declare it cannot interpret, and is rejected (§8.1): the closed
+vocabulary is the rejection condition.
 
 Within a declared shape, the **axis** supplies a dimension's catalog identity, its **extent** is the
 expression that supplies the dimension's size, and its **nature** describes the dimension's use at
@@ -250,6 +261,7 @@ For each state port, the contract declares:
 | **Indexing domain** | §5.3 | The sequence relative to which state grows; the law alone is ambiguous. |
 | **Access geometry** | O5.3 | Logical position, block, sparse key, or aggregate, expressed as consumed properties rather than runtime data-structure names. |
 | **Sharing** | O5.3 | The granularity at which sessions may share. |
+| **Key axes** | O5.5 | The instance axes (session, branch) along which allocations of this port are distinct; with the identity's indices they form the instance key (§4.4). |
 | **Permitted operations** | O5.4 | Operations derived from evolution law × geometry, with preconditions, including conditions that make an operation unavailable (O5.9). |
 | **Modulators** | O5.8 | Scope, sampling step, rank, and depth, represented as §2.1 quantities. |
 
@@ -373,7 +385,9 @@ These rules are normative:
    collide with handwritten identifiers.
 3. **Resolved references:** every quantity, occurrence, port, family, and tensor reference resolves;
    unresolved references are rejected (I1).
-4. **Order:** a composition emits occurrences in its defined order, identically on every reading.
+4. **Order:** a composition emits occurrences in its defined order, identically on every reading:
+   compositions in document order, sites in document order within each, index grids in declaration
+   order of the ranges with values ascending.
 5. **Multiple trunks:** several trunks may coexist (O3.3), and a trunk may carry no state.
 6. **Guards:** a site or a binding may carry a `when` condition over the document's quantities and
    the indices in scope; it is evaluated at every index, and a site or rule whose guard is false is
@@ -423,7 +437,7 @@ implicit default.
 
 | Rule | Requirement |
 |---|---|
-| **V1** | Every quantity, occurrence, port, family, tensor, and key reference resolves (I1). |
+| **V1** | Every quantity, occurrence, port, family, tensor, catalog base, and template reference resolves (I1). |
 | **V2** | Every required contract argument is present; every undeclared argument is rejected; declared defaults are applied before checking. |
 | **V3** | Types, enums, record fields, and units conform; an enum value outside its declared set is rejected. |
 | **V4** | Shapes compose: each source-port output shape equals the destination-port input shape. |
@@ -431,7 +445,7 @@ implicit default.
 | **V6** | The value graph is acyclic within an invocation. |
 | **V7** | Bindings are total: every input port is fed and every logical tensor is bound. |
 | **V8** | Conditional argument combinations satisfy the contract. Meaningless combinations are excluded by invariant, never merely by a missing guard (I11). |
-| **V9** | A state identity connects only compatible ports with equal payloads and indexing domains. |
+| **V9** | A state identity connects only compatible ports: the same applicable rule, the same key axes, and equal payload shapes and indexing domains. |
 | **V10** | Every repetition resolves under §5.2. |
 | **V11** | A derived value and its derivation agree when both are present (I8). |
 | **V12** | Every construction has one reading; references and literals are unambiguous (I5, I6). |
@@ -583,3 +597,53 @@ every conforming implementation is a comment, even if the document remains valid
 | Cross-memory-domain composition of a quantity | Compilation for selected parallelism |
 | Load variables such as batch and concurrent sequences | Deployment intent |
 | Physical artifact encoding and mapping to fragments | Artifact descriptor |
+
+## Appendix A — Requirements
+
+The identifiers cited throughout this document, stated once. A citation names the construction that
+carries the requirement; this appendix is the requirement. Gaps in the numbering are reserved.
+
+| Id | Requirement |
+|---|---|
+| **O0.1** | Derived quantities are expressed in the closed scalar algebra of §2.2. |
+| **O0.2** | A derivation outside the algebra uses a normative interface with declared inputs, semantics and conformance tests; its result is at least a qualified bound. |
+| **O0.3** | Every derived quantity declares its epistemic status and the provenance of every fact it depends on. |
+| **O0.4** | Quantities form one flat namespace: each is declared once and referenced by name everywhere. |
+| **O0.5** | Epistemic status propagates by the monotonicity of each operation; propagation never turns an estimate into a bound. |
+| **O0.6** | Every language of this specification is closed and decidable, or uses a normative interface. |
+| **O1.1** | A contract is referenced through an immutable identity, `{name, version}`, whose meaning never changes (§8.2). |
+| **O1.2** | A model document carries a stable, authoritative identifier. |
+| **O2.1** | Every quantity and every occurrence has one stable identifier, unique after expansion. |
+| **O2.2** | Every quantity declares its regime: a model constant, or a variable with a declared domain. |
+| **O2.3** | Every quantity declares its dimensional type; physical quantities carry a unit. |
+| **O2.4** | When several authorities constrain a domain, each constraint is declared separately and the binding one remains identifiable. |
+| **O3.2** | The rate at which a state is visited, per indexing domain and phase, is derived from the graph; counts are deployment intent (§4.4). |
+| **O3.3** | Several trunks may coexist in one document; a trunk may carry no state. |
+| **O3.5** | Every occurrence belongs to one or more named families, addressable without enumeration. |
+| **O4.1** | Every value port has a shape, a type and a multiplicity. |
+| **O4.2** | Every flow is seeded explicitly by a public input; implicit seeds are forbidden. |
+| **O4.3** | Residual multiplicity other than one is explicit, and the combining operation is a contracted primitive. |
+| **O4.4** | Value flow is declared by explicit port-to-port edges, never inferred from ordering or from mutation of a named flow. |
+| **O4.5** | The logical payload of a cut is the set of values live across it, determined by the explicit edges; it is not measured traffic. |
+| **O5.1** | A state payload may hold several components of different shapes and types. |
+| **O5.2** | Each state port derives an evolution law: append, bounded window, or fixed size. |
+| **O5.3** | Each state port derives its access geometry and the granularity at which sessions may share it, as consumed properties, never as runtime data-structure names. |
+| **O5.4** | Each state port derives its permitted operations from evolution law and geometry, with their preconditions. |
+| **O5.5** | The instance key of an allocation is derived from the identity's indices and the contract's key axes; liveness is one class per distinct key, never the raw product of dimensions. |
+| **O5.7** | A model may declare any finite number of states of distinct natures; the language sets no upper bound. |
+| **O5.8** | Modulators of a state — span, stride, rank, depth — are expressions over the primitive's arguments. |
+| **O5.9** | A contract states the conditions under which a permitted operation becomes unavailable. |
+| **O5.10** | A flattened shape declares its decomposition into named axes; without one, placement derivation reports information loss rather than asserting non-partitionability. |
+| **O6.1** | Every contract derives its logical tensor inventory from its arguments: shapes, roles and sharing rules. |
+| **O6.2** | Parameter bindings identify the logical tensors each occurrence consumes and every sharing between occurrences; a tied tensor is counted and loaded once. |
+| **O6.6** | A primitive that activates only some of its tensors per token declares the activatable unit, the routing policy, the count activated per token, and an upper bound on the union activated per batch. |
+| **O7.1** | A contract declares the axes along which partition preserves meaning and the logical communication each partition implies. |
+| **O8.1** | Every public input and output names its occurrence and port and declares its indexing domain. |
+| **O8.2** | A document may expose several outputs at once, including non-generative ones. |
+| **O8.3** | An auxiliary output is an additional reference to an existing value, never a new operation. |
+| **O9.1** | A model names primitives and supplies arguments; it never describes a primitive's computation. |
+| **O9.2** | A contract declares the elements of §4.1. |
+| **O9.4** | An argument is a scalar, an enum, or a record of such values; inline numeric tensors are forbidden. |
+
+The I‑ and N‑ series are stated in §9.
+

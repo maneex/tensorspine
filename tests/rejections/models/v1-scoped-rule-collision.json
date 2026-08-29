@@ -3,7 +3,7 @@
   "model": "rejection-v1-scoped-rule-collision",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

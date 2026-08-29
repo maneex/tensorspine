@@ -57,7 +57,7 @@ deployment, or machine belong outside both.
 
 | Authority | Facts it owns |
 |---|---|
-| **Model document** | Model identity; source quantities; occurrences and compositions; explicit value flow; actual parameter, constant, and state identities; state keys, liveness, visits, and invocation boundaries; public interfaces |
+| **Model document** | Model identity; source quantities; occurrences and compositions; explicit value flow; actual parameter, constant, and state identities; invocation boundaries; public interfaces. Instance keys, liveness and visit rates are derived from these (§4.4) |
 | **Primitive contract** | Argument types and declared defaults; ports and shapes; logical parameter, constant, and state slots; state evolution and access geometry; effects; logical costs; semantic partition axes |
 | **Catalog** | Resolution of independently identified contracts, axes, and precision roles; no global catalog version |
 | **Implementation candidate** | Backend, kernel, algorithm, fusion, workspace, physical layout and traffic, supported physical partitions, and actual collectives |
@@ -172,16 +172,19 @@ functions are not part of the model language. See
 ### 3.6. Version meanings independently
 
 **Decision.** Each occurrence pins a primitive contract by `{name, version}`. Contract identities
-are immutable and versions coexist. The catalog has no global version. A template also has a
-template version, which identifies its representation rather than the contract's semantic meaning.
+are immutable: a published `{name, version}` never changes meaning, and a changed meaning is a new
+identity. The catalog has no global version. A template also has a template version, which
+identifies its representation rather than the contract's semantic meaning. During the specification
+stage every unit is at `1.0.0`; the mechanism, not the numbers, is the decision.
 
 **Why.** Primitives evolve independently. A global catalog version would couple unrelated changes
 and force consumers and models to coordinate upgrades that do not affect them. An unversioned
 “latest” contract would make yesterday's model mean something different tomorrow.
 
-**Consequences.** Resolvers must be deterministic, and consumers may need to support several
-versions of one contract. Compatible additions do not require a model-language version change, but
-changing an existing argument, slot, port, or state meaning requires a new contract identity.
+**Consequences.** Resolvers must be deterministic, and once contracts evolve, consumers may need to
+support several identities of one primitive. Compatible additions do not require a model-language
+version change, but changing an existing argument, slot, port, or state meaning requires a new
+contract identity.
 
 **Alternatives not chosen.** Mutable contract names and one global catalog release number are not
 semantic identities. See [Specification §8.2](SPECIFICATION.md#82--identity-and-versioning).
@@ -257,9 +260,9 @@ encoder output the model wires to that source. It can permit sharing; it cannot 
 non-adjacent layers share storage. These are topological facts.
 
 **Consequences.** State cannot be summarized safely by one cache-type enum or one head size. Authors
-must declare graph-level identity and lifetime information, but runtimes can then budget arbitrary
-mixtures of growing, windowed, recurrent, shared, and streaming state without architecture-specific
-cases.
+declare only identity, sharing and invocation boundaries; keys, liveness and visit rates are
+derived, and runtimes can then budget arbitrary mixtures of growing, windowed, recurrent, shared,
+and streaming state without architecture-specific cases.
 
 **Alternatives not chosen.** State blocks copied into every model, cache types inferred from
 primitive names, and case-specific fields for cross-attention or shared KV all duplicate or hide
@@ -304,8 +307,10 @@ These stages have different authorities. JSON Schema cannot prove that a port ex
 contract; semantic validation must. Lint cannot turn a legal style preference into a validity rule.
 A downstream compiler cannot repair an ambiguous model by guessing what the author intended.
 
-The specification defines the required result even when repository tooling implements only part of
-the pipeline. Implementation status belongs in the
+The specification defines the required result independently of the repository tooling, which today
+implements the pipeline through D1 — grammar, catalog closure, typed arguments, template expansion,
+guarded compositions — and derives D3/D4 counts during validation. Implementation status belongs in
+the
 [model guide](ARMATURE-MODEL_JSON.md#5--validation-expansion-and-derived-products), not in the
 language architecture.
 

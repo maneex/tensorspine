@@ -3,7 +3,7 @@
   "model": "rejection-v10-binding-when-unresolved",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

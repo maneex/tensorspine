@@ -3,7 +3,7 @@
   "model": "rejection-structural-unknown-field",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

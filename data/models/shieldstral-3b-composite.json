@@ -3,7 +3,7 @@
   "model": "shieldstral_1_0_3b_composite",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

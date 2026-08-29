@@ -11,13 +11,16 @@ Everything reported here is a refusal with its cause, never advice: §8.1 makes
 explicit refusal the normative obligation, and I7 forbids silent defaults. What
 is legal but questionable belongs to `--lint`, which never blocks.
 
-Coverage of the semantic stage: V1 resolution, V2 arguments, V3 argument
-types (records recursively, defaults applied first), V3p precision
-admissibility, V4 shape unification, V5 index domains, V6 acyclicity, V7
-totality and uniqueness of bindings, V9 member compatibility and one instance
-key per identity, V13 contract graph. This is not yet the complete validator of §15:
-shapes are unified by axis identity and extent only, with no declared views or
-permutations.
+Coverage of the semantic stage (§6): V1 resolution — catalog bases, contracts,
+templates, occurrences, ports, slots; V2 arguments and defaults; V3 argument
+types and domains (records recursively, defaults applied first, inapplicable
+fields refused), V3p precision admissibility; V4 shape unification; V5 index
+domains; V6 acyclicity; V7 totality and uniqueness of bindings; V9 member
+compatibility — one applicable rule, one set of key axes, equal payload
+shapes; V10 resolvable ranges and guards; V13 contract graph. Template
+contracts are expanded at every call site (§4.6). Not covered yet: V11
+(derived quantities and their status) and declared views or permutations in
+shape unification.
 """
 import itertools
 import json
@@ -495,7 +498,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         fail('V6', f"value cycle: {len(nodes) - len(order)} occurrence(s) in a cycle")
     stats['dag'] = (len(order) == len(nodes))
 
-    # --- V5: domain propagation and declared transforms (§14.4) -----------
+    # --- V5: domain propagation and declared transforms (§5.3) ------------
     domains = {}
     for name, decl in model['interfaces']['inputs'].items():
         key = select(decl['to']['occurrence'], {})
@@ -693,11 +696,13 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             # the identity's indices × the contract's key axes of its members,
             # which must therefore agree.
             key_axes = None
+            payload = None
             for member in binding['members']:
                 mkey = select(member['occurrence'], env)
                 if mkey not in resolved:
                     continue
-                port = resolved[mkey][1]['state_ports'].get(member['state'])
+                _mn, mdef, margs = resolved[mkey]
+                port = mdef['state_ports'].get(member['state'])
                 if port is None:
                     continue
                 if key_axes is None:
@@ -705,6 +710,13 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 elif tuple(port['key_axes']) != key_axes:
                     fail('V9', f"state {sid}: members keyed on {list(key_axes)} and "
                                f"{port['key_axes']} cannot share one allocation")
+                shapes = tuple(sorted((c, comp['role'], shape_identity(comp['shape'], margs))
+                                      for c, comp in port['payload'].items()))
+                if payload is None:
+                    payload = shapes
+                elif shapes != payload:
+                    fail('V9', f"state {sid}: members with different payloads cannot share "
+                               f"one allocation: {list(payload)} vs {list(shapes)}")
             if key_axes is not None:
                 instance_keys[sid + (f"{env}" if env else "")] = (
                     tuple(binding['identity'].get('indices', {})) + key_axes)
@@ -763,7 +775,6 @@ def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20,
     of graphs, and refusing it would report a defect where there is none. The
     skip is printed, never silent (I7).
     """
-    cat = catalog_mod.load(*catalog_bases, schema_dir=schema_dir, models_base=models_base)
     failed = 0
     skipped = 0
     for path in model_paths:
@@ -780,6 +791,13 @@ def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20,
             continue                       # meaning assumes grammar; stop here
         with open(path, encoding='utf-8') as f:
             document = json.load(f)
+        try:
+            cat = catalog_mod.load_for(path, document, catalog_bases, schema_dir, models_base)
+        except catalog_mod.CatalogError as e:
+            failed += 1
+            print(f"  {name}")
+            print(f"    catalog     refused: {e}")
+            continue
         unset = missing_assignment(document, assignment)
         if unset:
             skipped += 1

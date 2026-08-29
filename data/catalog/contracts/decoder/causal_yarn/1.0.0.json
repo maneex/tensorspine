@@ -19,7 +19,7 @@
       "name": "decoder-causal-yarn",
       "version": "1.0.0",
       "id": "decoder_causal_yarn",
-      "note": "template: models/decoder-causal-yarn.json, resolved against the models base"
+      "note": "template: data/models/decoder-causal-yarn.json, resolved against the models base"
     }
   }
 }

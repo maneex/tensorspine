@@ -3,7 +3,7 @@
   "model": "rejection-v1-unknown-contract",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

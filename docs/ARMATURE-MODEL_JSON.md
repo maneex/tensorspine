@@ -125,7 +125,7 @@ Every occurrence has a stable identifier and requires:
 An occurrence may also provide logical dtype selections and a model-level `when` condition, which
 controls whether the site exists after expansion. It never contains code, a kernel name, a
 parameter inventory, state descriptors or port connections. Model `when`, contract `present_when`,
-and contract-rule `when` have distinct contexts; see [Conditions](GLOSSARY.md#conditions).
+and contract-rule `when` have distinct contexts; see [`when` and `present_when`](GLOSSARY.md#when-and-present_when).
 
 Contract arguments may be scalar expressions or recursively tagged records, and every one has a
 declared type in the contract — there is no opaque argument: a variant of a primitive that the
@@ -265,7 +265,7 @@ inspectable and applied before argument validation.
 
 A contract element uses `present_when` when its existence depends on resolved arguments. An ordered
 contract rule instead uses `when` to say when that rule applies. Neither field is the model-level
-`when` used during graph expansion; see [Conditions](GLOSSARY.md#conditions).
+`when` used during graph expansion; see [`when` and `present_when`](GLOSSARY.md#when-and-present_when).
 
 ### 3.1 — State is split between contract and graph
 

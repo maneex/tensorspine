@@ -3,7 +3,7 @@
   "model": "colbert_v2",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

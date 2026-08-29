@@ -3,7 +3,7 @@
   "model": "llama3-8b",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

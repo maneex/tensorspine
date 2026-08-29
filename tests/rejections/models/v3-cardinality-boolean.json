@@ -3,7 +3,7 @@
   "model": "rejection-v3-cardinality-boolean",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

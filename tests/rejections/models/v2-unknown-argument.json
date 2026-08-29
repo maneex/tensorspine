@@ -3,7 +3,7 @@
   "model": "rejection-v2-unknown-argument",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

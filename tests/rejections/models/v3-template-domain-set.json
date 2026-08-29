@@ -3,7 +3,7 @@
   "model": "rejection-v3-template-domain-set",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

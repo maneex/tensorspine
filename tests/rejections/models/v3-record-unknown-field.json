@@ -3,7 +3,7 @@
   "model": "rejection-v3-record-unknown-field",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

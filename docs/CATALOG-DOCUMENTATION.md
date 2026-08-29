@@ -106,24 +106,16 @@ Both are kept and both are rendered — the description as prose, the note quote
 
 ### 2.4 — Integration into the catalog grammar
 
-The unit envelope schema, `schemas/armature-catalog-unit.schema.json`, is in the tree; the template
-grammar it references, `https://armature.dev/schema/2.0/catalog.json`, is not yet. The copy in
-`temp/backup/` validates every live unit unchanged, so reinstating it is a copy. Once it is there,
-the documentation model plugs into it by `$ref` — one property added per site, no new site. The
-`additionalProperties: false` of each definition then rejects any documentation key the model does
-not know, which is the closure O0.6 asks for.
-
-| Catalog schema `$def` | Properties to add | From `documentation.json#/$defs/…` |
-|---|---|---|
-| `contract_definition`, `composite_contract_definition`, `axis_definition`, `precision_rule` | `summary`, `description`, `external_docs`, `tags`, `deprecated` | `unit_documentation` (its `properties`) |
-| catalog-unit `base_definition` | `title`, `summary`, `description`, `contact`, `license`, `external_docs`, `tags` | `base_documentation` |
-| `argument_definition` (and therefore record fields) | `description`, `value_descriptions`, `deprecated` | `argument_documentation` |
-| `port_definition`, `parameter_definition`, `constant_slot_definition`, `state_port_definition`, `payload_component`, `state_operation`, `state_rule`, `partition_definition`, `cost_entry`, `domain_transform`, `alias_rule` | `description` | `element_documentation` |
-
-Until then, the generator is the check: it extracts the documentation keys of every site, validates
-them against the fragment above, and refuses on any error. A key that is neither grammar nor
-documentation is reported as an advisory finding, not refused — the catalog schema, not the
-generator, is the authority on grammar.
+The catalog grammar, `schemas/armature-catalog-unit.schema.json`, is in the tree and every unit of
+every base is read against it when a catalog is loaded (`catalog.load`), so a unit outside the
+vocabulary is a load error, never an advisory finding. The documentation fields are declared in that
+grammar at the site they document (`summary`, `description`, `note`, `external_docs`, `tags` on a
+unit; `description`, `value_descriptions` on an argument; `description` on ports, slots, payload
+components, operations, rules, partitions and transforms) with `additionalProperties: false`, which
+is the closure O0.6 asks for. `schemas/armature-documentation.schema.json` states the same fields
+for the generator, which validates the documentation it extracts against it; the two are kept
+aligned by hand, and a key that one knows and the other does not is reported in the reference's
+Appendix C.
 
 ### 2.5 — What is deliberately not in the model
 
@@ -184,9 +176,9 @@ python3 tools/armature --document catalog --catalog other/catalog -o out/  # wri
 - **No template expansion.** It does not expand templates (D1), nor derive parameter tensors,
   states, costs or partitions from them (D3–D6): those are products of the compiler, and the page
   says so where a template contract is rendered.
-- **No grammar check.** It does not check units against the catalog grammar — the envelope schema
-  is in the tree, the template grammar it references is not yet — but it will refuse a catalog whose
-  unit identities disagree with their paths, as `catalog.load` does.
+- **No grammar check of its own.** It reads the catalog through `catalog.load`, which already
+  refuses a unit off the grammar or with an identity disagreeing with its path; the generator adds
+  no check beyond the documentation fields.
 
 ### 3.3 — Where the output lives
 
@@ -211,11 +203,10 @@ port, payload component, state operation, state rule, partition, cost entry and 
   Mistral patch merger, the residual helpers) cite nothing rather than something approximate.
 - `docs/CATALOG-REFERENCE.md` — the rendered catalog.
 
-Rendering the whole catalog surfaced one thing the validator does not see: in
-`attention.dense@1.0.0`, the `qkv` and `out` slots are guarded by `q_rank absent` and
-`o_rank absent`, and `attention.dense` declares neither argument — the guards can never fire (they
-are copied from `attention.latent_compressed`). Harmless today, since an absent argument is
-"absent"; the finding is in the reference's Appendix C, and it is a candidate lint rule.
+Rendering the whole catalog once surfaced a defect the validator of the time did not see: two
+slots of `attention.dense` guarded by arguments the contract never declared. The catalog loader now
+resolves every argument path a condition cites, so that class of defect is a load error, and the
+guards are gone.
 
 `--validate` and `--lint` give the same results before and after: the documentation fields are
 inert, as §10.2 requires.
@@ -238,16 +229,8 @@ inert, as §10.2 requires.
 - **Lint.** Three advisory rules fall out of the generator and belong in `--lint` so they run with
   the rest of the hygiene checks: a unit without a summary, a cited tag no base declares, a
   condition citing an undeclared argument.
-- **Catalog grammar in the tree.** Reinstate `catalog.json` from `temp/backup/` beside the envelope
-  schema now in `schemas/`, with the properties of §2.4 added, and give `--validate` a stage that
-  checks every unit of every base against them. Until then a documentation key with a typo is an
-  advisory finding, not a refusal.
 - **`constraints` as objects** (`{condition, description?}`) so that rejection conditions can be
   documented. Grammar change; no live unit affected.
-- **Template version pin.** §4.6 says the template contract names its template's version; the live
-  `decoder.causal_yarn` declares `uri` and `id` only. The renderer prints the version when it is
-  there. Whether the pin belongs in the catalog grammar is a specification question, not a
-  documentation one.
 - **`--document model`.** The same renderer applied to a model document — quantities, occurrences
   with their resolved arguments, bindings, interfaces — would give the tutorial material the
   documentation plan asks for, from the corpus itself. The `--document WHAT` form leaves room for

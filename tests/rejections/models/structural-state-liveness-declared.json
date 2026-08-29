@@ -3,7 +3,7 @@
   "model": "rejection-structural-state-liveness-declared",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {

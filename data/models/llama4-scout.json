@@ -3,7 +3,7 @@
   "model": "llama4_scout",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../catalog/"
     }
   ],
   "quantities": {

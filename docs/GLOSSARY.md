@@ -103,7 +103,7 @@ The products that can be computed from a valid model and its referenced contract
 | **D1** | Expanded occurrences, value edges, and families |
 | **D2** | Values, shapes, and value liveness at graph cuts |
 | **D3** | Parameter tensors, including roles, shapes, and sharing |
-| **D4** | Complete state, including instances, keys, state liveness, and operations |
+| **D4** | Complete state: descriptors, instances, derived keys and liveness, and operations |
 | **D5** | Logical costs and cut traffic |
 | **D6** | Legal cuts and semantic partition axes |
 
@@ -166,10 +166,10 @@ indexing domain; outputs also state whether they are generative. See
 
 ### Invocation boundary
 
-The declaration of which state keys survive into the next invocation and the indexing domain across
-which they are carried. It makes fragmented or streaming execution explicit without introducing a
-value-graph cycle. See
-[Specification §5.3](SPECIFICATION.md#53--indexing-domains-and-invocation-boundaries).
+The declaration, on a state identity, of what survives into the next invocation and the indexing
+domain across which it is carried. It makes fragmented or streaming execution explicit without
+introducing a value-graph cycle. See [Specification
+§5.3](SPECIFICATION.md#53--indexing-domains-and-invocation-boundaries).
 
 ## L
 
@@ -188,10 +188,12 @@ State liveness sizes simultaneous memory; visits size computation. See
 
 ### Model document
 
-An `armature/2.0` declaration of model identity, catalog bases, quantities, constants, occurrences,
-compositions, bindings, and public interfaces. It declares graph-specific causes and relationships;
-contracts derive reusable consequences. See [Specification §2](SPECIFICATION.md#2--model-document)
-and [Model guide §2](ARMATURE-MODEL_JSON.md#2--the-armature-20-model-document).
+An `armature/2.0` declaration of model identity (and, for a template, its version), catalog bases,
+quantities — literal, external with domain and optional default, or derived — constants,
+occurrences, compositions with their scoped bindings, bindings, and public interfaces. It declares
+graph-specific causes and relationships; contracts derive reusable consequences. See [Specification
+§2](SPECIFICATION.md#2--model-document) and [Model guide
+§2](ARMATURE-MODEL_JSON.md#2--the-armature-20-model-document).
 
 ## N
 
@@ -246,7 +248,7 @@ it in a model graph. See [Specification §4](SPECIFICATION.md#4--primitive-seman
 
 ### `present_when`
 
-See [Conditions](#conditions).
+See [`when` and `present_when`](#when-and-present_when).
 
 ## Q
 

@@ -1250,7 +1250,7 @@
         "from_port": "source_values",
         "to_port": "output",
         "relation": "align",
-        "note": "cross-attention: K/V come from another indexing domain (§14.4). The output stays in the query domain; attention aligns the source onto it.",
+        "note": "cross-attention: K/V come from another indexing domain (§5.3). The output stays in the query domain; attention aligns the source onto it.",
         "description": "Cross-attention aligns the source domain onto the query domain."
       }
     ],

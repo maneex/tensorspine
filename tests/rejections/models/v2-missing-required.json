@@ -3,7 +3,7 @@
   "model": "rejection-v2-missing-required",
   "catalog": [
     {
-      "base": "catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {
