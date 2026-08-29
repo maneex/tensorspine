@@ -43,6 +43,9 @@ def common(p):
     p.add_argument('--capacity', type=int, default=1024)
     p.add_argument('--device', default='cpu')
     p.add_argument('--compute', default=None, help='f32 (CPU default) | bf16 (CUDA default)')
+    p.add_argument('--max-ram', type=float, default=None, metavar='GIB',
+                   help='run in blocks of layers at legal cuts so that the parameters held at once, the '
+                        'payload crossing into a block, the states and the largest temporary stay under this bound')
 
 
 def open_graph(args):
@@ -70,23 +73,41 @@ def compute_dtype(args):
     return torch.bfloat16 if str(args.device).startswith('cuda') else torch.float32
 
 
+def make_plan(g, kernels, args, dtype):
+    resident = loader.state_bytes(g, args.capacity, dtype) + loader.largest_temporary(g, dtype)
+    max_bytes = int(args.max_ram * 2**30) if args.max_ram else None
+    return Plan(g, kernels, max_bytes=max_bytes, elements=args.capacity, resident_bytes=resident)
+
+
+def report(g, plan, i, args, dtype):
+    print(f"  parameters {loader.gib(i['parameter_bytes'])} at the declared dtypes; states {loader.gib(i['state_bytes'])} "
+          f"at {dtype} for a capacity of {args.capacity}; largest per-operation temporary {loader.gib(i['temporary_bytes'])}")
+    print(f"  resident   {loader.gib(i['resident_bytes'])} — {i['mode']}; free on {args.device}: "
+          f"{loader.gib(i['free_bytes']) if i['free_bytes'] is not None else 'unknown'}; activations not budgeted")
+    if len(plan.blocks) > 1:
+        print(f"  blocks     " + ", ".join(f"{b.name} {loader.gib(b.bytes)}" for b in plan.blocks[:8])
+              + (" …" if len(plan.blocks) > 8 else ""))
+        print(f"  traffic    {loader.gib(i['traffic_bytes'])} of parameters loaded and released per invocation")
+
+
 def cmd_info(args):
     g = open_graph(args)
     dtype = compute_dtype(args)
-    i = loader.info(g, args.capacity, dtype, args.device)
-    print(f"{g.model}: {len(g.nodes)} nodes, {len(g.tensors)} tensors, {len(g.states)} states")
-    print(f"  parameters {loader.gib(i['parameter_bytes'])} at the declared dtypes")
-    print(f"  states     {loader.gib(i['state_bytes'])} at {dtype} for a capacity of {args.capacity} "
-          f"({i['append_bytes_per_position']} B per cached position declared)")
-    print(f"  total      {loader.gib(i['total_bytes'])}; free on {args.device}: "
-          f"{loader.gib(i['free_bytes']) if i['free_bytes'] is not None else 'unknown'}")
-    print("  activations are not budgeted")
     kernels = registry.load_kernels()
     r = registry.refusals(g, kernels)
-    print(f"  refusals: {len(r)}")
-    for line in r[:20]:
-        print("    " + line)
-    return 1 if r else 0
+    print(f"{g.model}: {len(g.nodes)} nodes, {len(g.tensors)} tensors, {len(g.states)} states")
+    if r:
+        print(f"  refusals: {len(r)}")
+        for line in r[:20]:
+            print("    " + line)
+        return 1
+    try:
+        plan = make_plan(g, kernels, args, dtype)
+    except ValueError as e:
+        print(f"  refused: {e}")
+        return 1
+    report(g, plan, loader.info(g, args.capacity, dtype, args.device, plan, args.capacity), args, dtype)
+    return 0
 
 
 def cmd_compare(args):
@@ -122,9 +143,14 @@ def build(args, g):
         for line in r[:20]:
             print("  " + line)
         return None
-    i = loader.info(g, args.capacity, dtype, args.device)
-    if i['free_bytes'] is not None and i['total_bytes'] > i['free_bytes']:
-        print(f"refused: {loader.gib(i['total_bytes'])} needed, {loader.gib(i['free_bytes'])} free on {args.device}")
+    try:
+        plan = make_plan(g, kernels, args, dtype)
+    except ValueError as e:
+        print(f"refused: {e}")
+        return None
+    i = loader.info(g, args.capacity, dtype, args.device, plan, args.capacity)
+    if i['free_bytes'] is not None and i['resident_bytes'] > i['free_bytes']:
+        print(f"refused: {loader.gib(i['resident_bytes'])} resident ({i['mode']}), {loader.gib(i['free_bytes'])} free on {args.device}")
         return None
     errors, advisories, stats = loader.verify(g, args.checkpoint)
     if errors:
@@ -133,8 +159,10 @@ def build(args, g):
             print("  " + line)
         return None
     print(f"  verified {stats['located']} located tensors against {stats['physical']} physical ({stats['unnamed']} unnamed)")
-    params = loader.load_parameters(g, args.checkpoint, args.device)
-    return TensorspineModel(g, Plan(g, kernels), params, dtype, args.device)
+    if len(plan.blocks) > 1:
+        print(f"  {i['mode']}; traffic {loader.gib(i['traffic_bytes'])} of parameters per invocation")
+        return TensorspineModel(g, plan, None, dtype, args.device, source=loader.Source(g, args.checkpoint, args.device).materialise)
+    return TensorspineModel(g, plan, loader.load_parameters(g, args.checkpoint, args.device), dtype, args.device)
 
 
 def cmd_chat(args):
@@ -169,16 +197,24 @@ def cmd_run(args):
         for line in r[:20]:
             print("  " + line)
         return 1
-    i = loader.info(g, args.capacity, dtype, args.device)
-    if i['free_bytes'] is not None and i['total_bytes'] > i['free_bytes']:
-        print(f"refused: {loader.gib(i['total_bytes'])} needed, {loader.gib(i['free_bytes'])} free on {args.device}")
-        return 1
     if not args.random and not args.checkpoint:
         print("refused: give --checkpoint DIR (the document locates its weights) or --random")
         return 1
+    try:
+        plan = make_plan(g, kernels, args, dtype)
+    except ValueError as e:
+        print(f"refused: {e}")
+        return 1
+    i = loader.info(g, args.capacity, dtype, args.device, plan, args.capacity)
+    if i['free_bytes'] is not None and i['resident_bytes'] > i['free_bytes']:
+        print(f"refused: {loader.gib(i['resident_bytes'])} resident ({i['mode']}), {loader.gib(i['free_bytes'])} free on {args.device}")
+        return 1
     t0 = time.time()
+    blocks = len(plan.blocks) > 1
     if args.random:
         params = loader.random_parameters(g, args.device, args.seed)
+        model = TensorspineModel(g, plan, None if blocks else params, dtype, args.device,
+                                 source=loader.RandomSource(params).materialise if blocks else None)
     else:
         errors, advisories, stats = loader.verify(g, args.checkpoint)
         if errors:
@@ -188,13 +224,16 @@ def cmd_run(args):
             return 1
         print(f"  verified {stats['located']} located tensors against {stats['physical']} physical "
               f"({stats['unnamed']} unnamed)")
-        params = loader.load_parameters(g, args.checkpoint, args.device)
-    plan = Plan(g, kernels)
-    model = TensorspineModel(g, plan, params, dtype, args.device)
+        if blocks:
+            model = TensorspineModel(g, plan, None, dtype, args.device, source=loader.Source(g, args.checkpoint, args.device).materialise)
+        else:
+            model = TensorspineModel(g, plan, loader.load_parameters(g, args.checkpoint, args.device), dtype, args.device)
     session = Session(model, args.capacity, args.device, dtype, decode_model=compiled(model, args))
-    print(f"{g.model}: {len(plan.steps)} steps, {len(params)} tensors, {len(session.states)} states, "
+    print(f"{g.model}: {len(plan.steps)} steps, {len(g.tensors)} tensors, {len(session.states)} states, "
           f"{'random parameters' if args.random else 'loaded from ' + args.checkpoint}, "
-          f"{loader.gib(i['parameter_bytes'])} ({time.time() - t0:.1f}s)")
+          f"{loader.gib(i['parameter_bytes'])}, {i['mode']} ({time.time() - t0:.1f}s)")
+    if blocks:
+        print(f"  traffic {loader.gib(i['traffic_bytes'])} of parameters per invocation")
     ids = [int(x) for x in args.ids.split(',')] if args.ids else [1]
     dump = {} if args.dump else None
     t0 = time.time()

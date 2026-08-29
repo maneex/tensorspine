@@ -59,10 +59,35 @@ def free_memory(device):
         return None
 
 
-def info(graph, capacity, compute_dtype, device):
+def largest_temporary(graph, compute_dtype):
+    """The per-operation upcast of the largest weight: the biggest anonymous allocation
+    of a run whose parameters stay at their declared dtype."""
+    width = torch.tensor([], dtype=compute_dtype).element_size()
+    return max((t['elements'] or 0) for t in graph.tensors.values()) * width
+
+
+def info(graph, capacity, compute_dtype, device, plan=None, elements=None):
+    """Declared bytes (D3, D4) and the bytes a run holds: on CPU the weights are
+    memory-mapped and the kernel pages them, so what is allocated is the states, the
+    largest per-operation temporary and — under blocks — the largest block; on CUDA
+    the weights live on the device."""
     p = graph.d3_totals['bytes']
     s = state_bytes(graph, capacity, compute_dtype)
-    return {'parameter_bytes': p, 'state_bytes': s, 'total_bytes': p + s,
+    temp = largest_temporary(graph, compute_dtype)
+    cuda = str(device).startswith('cuda')
+    elements = elements or capacity
+    if plan is not None and len(plan.blocks) > 1:
+        largest = max(b.bytes + b.payload_bytes_per_element * elements for b in plan.blocks)
+        resident = largest + s + temp
+        mode = f"{len(plan.blocks)} blocks, the largest {largest / 2**30:.2f} GiB with its payload"
+    elif cuda:
+        resident = p + s + temp
+        mode = "one block on the device"
+    else:
+        resident = s + temp
+        mode = "one block, weights memory-mapped and paged by the kernel"
+    return {'parameter_bytes': p, 'state_bytes': s, 'temporary_bytes': temp, 'resident_bytes': resident,
+            'mode': mode, 'traffic_bytes': plan.traffic_bytes() if plan is not None else 0,
             'append_bytes_per_position': graph.d4_totals.get('append_bytes_per_cached_position', 0),
             'free_bytes': free_memory(device)}
 
@@ -77,30 +102,37 @@ def verify(graph, checkpoint):
     return artifact.check(graph.doc['d3'], headers)
 
 
-def load_parameters(graph, checkpoint, device):
+class Source:
     """One tensor per D3 identity, assembled from its evaluated location: read, stack,
-    concatenate, slice, unit axes dropped; shard by shard, straight to the device (R05)."""
-    from safetensors import safe_open
-    headers = artifact.read_headers(checkpoint)
-    root = checkpoint if os.path.isdir(checkpoint) else os.path.dirname(checkpoint)
-    handles = {}
+    concatenate, slice, unit axes dropped; shard by shard, straight to the device (R05).
+    `fetch(identity)` returns a memory-mapped view where the checkpoint allows it;
+    `materialise(identity)` returns an owned copy — what a block holds under `--max-ram`."""
 
-    def get(name):
-        h = headers[name]
-        f = handles.get(h['file'])
+    def __init__(self, graph, checkpoint, device):
+        from safetensors import safe_open
+        self.graph, self.checkpoint, self.device = graph, checkpoint, device
+        self.headers = artifact.read_headers(checkpoint)
+        self.root = checkpoint if os.path.isdir(checkpoint) else os.path.dirname(checkpoint)
+        self.handles = {}
+        self._safe_open = safe_open
+
+    def get(self, name):
+        h = self.headers[name]
+        f = self.handles.get(h['file'])
         if f is None:
-            path = os.path.join(root, h['file']) if os.path.isdir(checkpoint) else checkpoint
-            f = handles[h['file']] = safe_open(path, framework='pt', device=str(device))
+            path = os.path.join(self.root, h['file']) if os.path.isdir(self.checkpoint) else self.checkpoint
+            f = self.handles[h['file']] = self._safe_open(path, framework='pt', device=str(self.device))
         return f.get_tensor(name)
 
-    def fetch(ev, logical):
+    def assemble(self, ev, logical):
+        get, headers = self.get, self.headers
         if 'tensor' in ev:
             t = get(ev['tensor'])
             return t.reshape(logical) if list(t.shape) != logical else t
         if 'stack' in ev:
             dim = ev['stack']['dim']
             inner = logical[:dim] + logical[dim + 1:]
-            return torch.stack([fetch(p, inner) for p in ev['stack']['parts']], dim=dim)
+            return torch.stack([self.assemble(p, inner) for p in ev['stack']['parts']], dim=dim)
         if 'concat' in ev:
             dim = ev['concat']['dim']
             parts = []
@@ -109,24 +141,41 @@ def load_parameters(graph, checkpoint, device):
                 extent = artifact.squeeze(headers[names[0]]['shape'])[[i for i, d in enumerate(logical) if d != 1].index(dim)]
                 own = list(logical)
                 own[dim] = extent
-                parts.append(fetch(p, own))
+                parts.append(self.assemble(p, own))
             return torch.cat(parts, dim=dim)
         if 'slice' in ev:
-            s = ev['slice']
-            t = get(s['tensor'])
-            squeezed = artifact.squeeze(list(t.shape))
-            t = t.reshape(squeezed)
-            pos = [i for i, d in enumerate(logical) if d != 1].index(s['dim'])
-            return t.narrow(pos, s['offset'], s['extent']).reshape(logical)
+            sl = ev['slice']
+            t = get(sl['tensor'])
+            t = t.reshape(artifact.squeeze(list(t.shape)))
+            pos = [i for i, d in enumerate(logical) if d != 1].index(sl['dim'])
+            return t.narrow(pos, sl['offset'], sl['extent']).reshape(logical)
         raise ValueError(f"unknown location form {list(ev)}")
 
-    out = {}
-    for ident, t in graph.tensors.items():
+    def fetch(self, ident):
+        t = self.graph.tensors[ident]
         ev = t.get('location')
         if ev is None:
             raise ValueError(f"{ident}: no location — the document does not locate its weights")
         logical = [a['extent'] for a in t['shape']]
-        out[ident] = fetch(ev, logical).to(getattr(torch, DTYPES[t['dtype']]))
-    for f in handles.values():
-        del f
-    return out
+        return self.assemble(ev, logical).to(getattr(torch, DTYPES[t['dtype']]))
+
+    def materialise(self, ident):
+        return self.fetch(ident).clone()
+
+
+class RandomSource:
+    """The random parameters, materialised per identity like a checkpoint's."""
+
+    def __init__(self, params):
+        self.params = params
+
+    def materialise(self, ident):
+        return self.params[ident].clone()
+
+
+def load_parameters(graph, checkpoint, device):
+    """Every identity at once, memory-mapped where the checkpoint allows it (one block)."""
+    src = Source(graph, checkpoint, device)
+    return {ident: src.fetch(ident) for ident in graph.tensors}
+
+

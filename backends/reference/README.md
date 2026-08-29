@@ -23,15 +23,17 @@ partial, gated query, Q/K RMS norms), `residual.add`, `ffn.gated`, `lm_head`,
 `sequence.gated_delta`. A session-based chat (`ref.py chat`), greedy or sampled, streaming, through
 the checkpoint's own chat template when it has one (Qwen 3.5 4B answers with its thinking block;
 when its template strips earlier thinking from the history, the prefix check rebuilds the session
-and says so) or a plain transcript for a base model; `--compile` for the decode step. Next: M3
-(CUDA), M4 (blocks under `--max-ram`).
+and says so) or a plain transcript for a base model; `--compile` for the decode step. `--max-ram GIB` runs a model in blocks of layers cut at D6's legal
+cuts, loading and releasing each block every invocation (M4): the same logits bit for bit, the
+traffic printed. Next: M3 (CUDA).
 
 ## Commands
 
 Every command takes a model document (derived in-process) or a derived document, and the options
 `--device cpu|cuda[:i]` (default `cpu`), `--compute f32|bf16` (default fp32 on CPU, bf16 on CUDA),
-`--capacity N` positions per session (default 1024), `--truncate decoder.layer=N` (a truncated
-document, for smoke tests) and `--set path=value` (any other document edit before deriving).
+`--capacity N` positions per session (default 1024), `--max-ram GIB` (blocks at legal cuts, below),
+`--truncate decoder.layer=N` (a truncated document, for smoke tests) and `--set path=value` (any
+other document edit before deriving).
 
 ```sh
 CK=~/work/perso/huggingface/Meta-Llama-3-8B
@@ -41,6 +43,8 @@ python3 $R info    data/models/llama3-8b.json --capacity 4096          # bytes f
 python3 $R verify  data/models/llama3-8b.json --checkpoint $CK         # V17 against the file headers, nothing read
 python3 $R run     data/models/llama3-8b.json --checkpoint $CK --ids 128000,791,6864,315,9822,374 --steps 7
 python3 $R run     data/models/llama3-8b.json --random --set quantities.d.source.value=64 …   # no checkpoint
+python3 $R info    data/models/llama3-8b.json --capacity 4096 --max-ram 6                    # the partition and its traffic
+python3 $R run     data/models/llama3-8b.json --checkpoint $CK --ids 128000,791,6864,315,9822,374 --max-ram 6
 python3 $R chat    data/models/llama3-8b.json --checkpoint $CK --capacity 512 --max-new-tokens 60
 python3 $R chat    data/models/qwen3.5-4b-text.json --checkpoint ~/work/perso/huggingface/Qwen3.5-4B \
                    --capacity 1024 --max-new-tokens 200
@@ -86,10 +90,24 @@ recurrence and per-operation fp32 upcast, not a defect; speed is a non-goal.
 and add ~20 MiB of resident memory; the kernel pages a weight in when an operation touches it and
 evicts it under pressure. The only anonymous allocations are the per-operation fp32 upcast of one
 weight (2 GiB for the 8B's `lm_head`, 2.5 GiB for the 4B's tied embedding), the states and the
-activations. A model larger than the page cache therefore runs, slowly, by implicit streaming;
-`--max-ram` (M4, planned) makes that explicit and deterministic — blocks at D6's legal cuts, loaded
-and released in order — and is what CUDA needs. `info` still counts the declared bytes against the
-free memory and is conservative on CPU for that reason.
+activations. A model larger than the page cache therefore runs, slowly, by implicit streaming.
+`info` reports the declared bytes (D3, D4) and the bytes a run holds: on CPU the states and the
+largest temporary; on CUDA the weights too; under blocks the largest block with its payload.
+
+### Blocks under `--max-ram`
+
+`--max-ram GIB` makes the streaming explicit and deterministic. The plan cuts D1's order into
+blocks at D6's `layer` cuts — membership is the ancestor closure of each cut's payload producers,
+so it holds for any document; legality (every crossing edge forward) is D6's — and merges
+consecutive layers greedily while a block's parameters, the payload crossing into it for
+`--capacity` elements, the states and the largest per-operation temporary stay under the bound.
+Every invocation then materialises one block at a time (an owned copy on the device; on CUDA the
+block is what lives on the card), runs it, and releases it; a tied identity used by two blocks is
+held and loaded by both. The outputs are the one-block outputs bit for bit — the test checks it on
+random weights and on both fixtures — and the cost is printed: the whole model's bytes of traffic
+per decode step. A bound below one layer plus the resident part is refused with the numbers. On
+llama3-8b, `--max-ram 6` gives six blocks of about 3 GiB and 14.96 GiB of traffic per token.
+
 
 
 What it reads: the derived document only (D1 graph and arguments, D2 shapes, D3 tensors, D4

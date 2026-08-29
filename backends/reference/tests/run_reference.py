@@ -88,6 +88,23 @@ def main(compile_step=False, full=False):
     expected = {f"value/{p['value']}" for c in g.cuts for p in c['payload']}
     ok &= check("dump keys = the D2 payload of every cut", set(dump) == expected, f"{sorted(set(dump) ^ expected)[:4]}")
     ok &= check("finite outputs", bool(torch.isfinite(out['logits']).all()))
+    # blocks under a bound: the same outputs, bit for bit, from a partitioned run (M4)
+    resident = loader.state_bytes(g, 32, torch.float32) + loader.largest_temporary(g, torch.float32)
+    total = g.d3_totals['bytes']
+    blocked = Plan(g, kernels, max_bytes=resident + total // 2, elements=32, resident_bytes=resident)
+    bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.RandomSource(params).materialise)
+    bsession = Session(bmodel, capacity=32, device='cpu', dtype=torch.float32)
+    bout = bsession.prefill([1, 2, 3, 4, 5, 6, 7, 8])
+    bnxt = greedy(bout, g)
+    bout2 = bsession.decode(bnxt)
+    ok &= check(f"blocks: {len(blocked.blocks)} blocks at legal cuts give the one-block logits bit for bit",
+                len(blocked.blocks) > 1 and bnxt == nxt and torch.equal(bout2['logits'], out['logits'])
+                and bmodel.loaded_blocks == 2 * len(blocked.blocks))
+    try:
+        Plan(g, kernels, max_bytes=resident + 1, elements=32, resident_bytes=resident)
+        ok &= check("blocks: a bound below one layer is refused", False)
+    except ValueError as e:
+        ok &= check("blocks: a bound below one layer is refused", 'exceeds --max-ram' in str(e))
     # masked == sliced
     torch.manual_seed(0)
     q = torch.randn(3, 4, 16); K = torch.randn(32, 2, 16); V = torch.randn(32, 2, 16)
@@ -161,6 +178,19 @@ def fixture_case(check, fixture, document, checkpoint):
         tokens.append(nxt)
     rows, failures, _ = compare(ours, theirs, atol=1e-3, rtol=1e-2)
     worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
+    # the same fixture in blocks: identical logits and tokens, and the traffic is the model (M4)
+    resident = loader.state_bytes(g, 64, torch.float32) + loader.largest_temporary(g, torch.float32)
+    finest = max(b.bytes + b.payload_bytes_per_element * 64 for b in Plan(g, kernels).minimal)
+    blocked = Plan(g, kernels, max_bytes=resident + finest, elements=64, resident_bytes=resident)
+    bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.Source(g, checkpoint, 'cpu').materialise)
+    bsession = Session(bmodel, capacity=64, device='cpu', dtype=torch.float32)
+    bl = bsession.prefill(ids)[g.generative[0]]
+    bt = [greedy({g.generative[0]: bl}, g)]
+    for _ in range(len(header['tokens']) - 1):
+        bt.append(greedy(bsession.decode(bt[-1]), g))
+    ok &= check(f"{label}: {len(blocked.blocks)} blocks under --max-ram give the same logits and tokens, "
+                f"{blocked.traffic_bytes() / 2**30:.2f} GiB of traffic per invocation",
+                len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
     ok &= check(f"{label}: {len(rows)} values, states and logits within tolerance of transformers (max |d| {worst:.1e})",
                 failures == 0, [r for r in rows if 'EXCEEDS' in r[3] or r[1] is None][:2])
     ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
