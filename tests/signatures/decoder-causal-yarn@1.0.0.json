@@ -1,14 +1,13 @@
 {
- "nodes": 157,
- "edges": 208,
+ "nodes": 156,
+ "edges": 206,
  "per_contract": {
   "attention.dense": 26,
   "ffn.gated": 26,
-  "identity": 1,
   "norm.rms": 52,
   "residual.add": 52
  },
- "wl": "524a4d7414731ecc",
+ "wl": "cb59d9157f66c39f",
  "parameter_slots": 156,
  "tensors": 156,
  "shared": 0,

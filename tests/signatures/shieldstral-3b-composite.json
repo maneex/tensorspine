@@ -1,11 +1,10 @@
 {
- "nodes": 308,
- "edges": 407,
+ "nodes": 307,
+ "edges": 406,
  "per_contract": {
   "attention.dense": 50,
   "embed": 1,
   "ffn.gated": 50,
-  "identity": 1,
   "lm_head": 1,
   "norm.rms": 102,
   "patch_embed": 1,
@@ -13,7 +12,7 @@
   "residual.add": 100,
   "splice": 1
  },
- "wl": "8ff225706bfb324a",
+ "wl": "decf2f7ed95462f8",
  "parameter_slots": 309,
  "tensors": 308,
  "shared": 1,
