@@ -75,7 +75,10 @@ def build_parser():
                               'partitions — as one JSON per model, validated against the derived '
                               'schema. --d1 emits the graph alone in the same form.')
     command.add_argument('--view', action='store_true',
-                         help='render a self-contained HTML page. Needs Graphviz on PATH.')
+                         help='render a self-contained HTML page: the model document and, '
+                              'beside it, the derived document --derive would write for it, '
+                              'built into a temporary file first. A model whose products '
+                              'cannot be derived still gets a page. Needs Graphviz on PATH.')
     command.add_argument('--document', metavar='WHAT', choices=['catalog'],
                          help='render WHAT as one Markdown document. `catalog`: every '
                               'contract, axis and precision role of the bases, with the '
@@ -181,7 +184,8 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.view:
         import view
         print(f"view  {len(documents)} document(s)")
-        failed = view.run(documents, args.output, site_nav=args.site_nav)
+        failed = view.run(documents, args.output, site_nav=args.site_nav,
+                          bases=bases, assignment=assignment, schema_dir=args.schemas)
         return 1 if failed else 0
 
     if args.document:
