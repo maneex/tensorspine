@@ -1,0 +1,22 @@
+{
+ "nodes": 387,
+ "edges": 514,
+ "per_contract": {
+  "attention.dense": 16,
+  "embed": 1,
+  "ffn.gated": 64,
+  "lm_head": 1,
+  "norm.rms": 129,
+  "residual.add": 128,
+  "sequence.gated_delta": 48
+ },
+ "wl": "f4d0cdedfd175ac3",
+ "parameter_slots": 851,
+ "tensors": 851,
+ "shared": 0,
+ "state_slots": 112,
+ "state_identities": 112,
+ "instance_keys": {
+  "layer\u00d7instance.session\u00d7instance.branch": 112
+ }
+}
