@@ -12,6 +12,11 @@ Everything else — the side tree, the click-to-inspect detail panel, the raw
 JSON view — stays client-side in JavaScript, reading the embedded model JSON
 directly; none of that involves layout, so there is nothing graphviz buys it.
 
+The page is a page of the documentation site and looks like one: the sidebar,
+the palette, the type and the hairline rules of docs/style/catalog.css, both
+in the stylesheet (TEMPLATE) and in the diagrams (the colours below). They are
+restated here rather than linked because the page must stand on its own.
+
 Assumptions made (v1 of this tool):
   - inside a composition, only edges linking the SAME index combination are
     drawn; an edge linking two different index values (e.g. a carry between
@@ -31,8 +36,23 @@ import shutil
 import subprocess
 import sys
 
+# ---------- shared look ----------
+# The diagrams belong to the documentation site, so they take their colours and
+# their type from docs/style/catalog.css: warm neutrals, one rust accent, and
+# hairline rules. Graphviz lays the labels out with the metric-compatible
+# fallback faces below; the page's own CSS then swaps them for IBM Plex Mono /
+# IBM Plex Sans, the faces the rest of the site uses (see TEMPLATE).
 DOT_MONO = "Courier New"
 DOT_SANS = "Helvetica"
+
+BG_RAISED = "#ffffff"     # --bg-raised, node body
+BG_TINT = "#efe9dc"       # --bg-tint, composition body
+INK = "#22211e"           # --ink, node name
+MUTED = "#6f6a60"         # --muted, secondary line
+FAINT = "#8a847a"         # --faint, edges
+CHIP = "#d5cfc2"          # --chip, node border
+ACCENT = "#9a4a1c"        # --accent, compositions
+NOTE = "#7a5a2e"          # --note-label, index range and carry
 
 
 # ---------- minimal scalar-expression evaluator (tensorspine/2.0 §2.2) ----------
@@ -207,13 +227,13 @@ def top_node_dot(node_id, node, data, quantities):
             spec = data['interfaces']['outputs'][node['name']]
             label = f"out \u00b7 {node['name']}" + (' \u00b7 generative' if spec.get('generative') else '')
         return (f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, shape=ellipse, style="dashed", '
-                f'color="#3a4152", fillcolor="#0d0f14", fontname="{DOT_MONO}", fontsize=11, '
-                f'fontcolor="#8890a0", label={dot_qid(label)}];')
+                f'color="{CHIP}", fontname="{DOT_MONO}", fontsize=11, '
+                f'fontcolor="{MUTED}", label={dot_qid(label)}];')
     if kind == 'occurrence':
         o = data['occurrences'][node['name']]
-        rows = [(node['name'], 14, '#eef0f5', True, True),
-                (f"{o['contract']['name']} \u00b7 {o['contract']['version']}", 10, '#6a7185', False, False)]
-        return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="#262b36", fillcolor="#161a22", label={html_label(rows)}];'
+        rows = [(node['name'], 14, INK, True, True),
+                (f"{o['contract']['name']} \u00b7 {o['contract']['version']}", 10, MUTED, False, False)]
+        return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="{CHIP}", fillcolor="{BG_RAISED}", label={html_label(rows)}];'
     # composition, collapsed representation: one box, expanded structure is a
     # separate diagram rendered into its own comp-section (see comp_section_html)
     comp = data['compositions'][node['name']]
@@ -224,10 +244,10 @@ def top_node_dot(node_id, node, data, quantities):
         for ix in idx_names)
     badge = range_label + (f' \u00b7 \u00d7{n}' if n is not None else '')
     sites = list(comp['occurrences'].keys())
-    rows = [(node['name'], 14, '#d9c8fb', True, True),
-            (badge, 9.5, '#b18cf0', False, False),
-            (f"{len(sites)} occurrence(s) per instance", 8.5, '#6a7185', False, False)]
-    return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="#3a2f57", fillcolor="#14121c", label={html_label(rows)}];'
+    rows = [(node['name'], 14, ACCENT, True, True),
+            (badge, 9.5, NOTE, False, False),
+            (f"{len(sites)} occurrence(s) per instance", 8.5, MUTED, False, False)]
+    return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="{CHIP}", fillcolor="{BG_TINT}", label={html_label(rows)}];'
 
 
 def top_level_dot(data, nodes, edges, quantities):
@@ -236,8 +256,8 @@ def top_level_dot(data, nodes, edges, quantities):
         '  bgcolor="transparent";',
         '  rankdir="TB";',
         '  nodesep=0.55; ranksep=0.6;',
-        f'  node [shape=box, style="rounded,filled", fontname="{DOT_SANS}", penwidth=1];',
-        '  edge [color="#3a4152", penwidth=1.4, arrowsize=0.7, arrowhead=vee];',
+        f'  node [shape=box, style="rounded,filled", fontname="{DOT_SANS}", penwidth=1, margin="0.17,0.1"];',
+        f'  edge [color="{FAINT}", penwidth=1.2, arrowsize=0.7, arrowhead=vee];',
     ]
     for node_id, node in nodes.items():
         lines.append(top_node_dot(node_id, node, data, quantities))
@@ -256,16 +276,17 @@ def comp_internal_dot(comp_name, comp_def, internal_edges):
         '  bgcolor="transparent";',
         '  rankdir="TB";',
         '  nodesep=0.4; ranksep=0.45;',
-        f'  node [shape=box, style="rounded,filled", fontname="{DOT_SANS}", penwidth=1, color="#24283a", fillcolor="#0f1119"];',
-        '  edge [color="#3a4152", penwidth=1.3, arrowsize=0.6, arrowhead=vee];',
+        f'  node [shape=box, style="rounded,filled", fontname="{DOT_SANS}", penwidth=1, margin="0.15,0.09", '
+        f'color="{CHIP}", fillcolor="{BG_RAISED}"];',
+        f'  edge [color="{FAINT}", penwidth=1.2, arrowsize=0.6, arrowhead=vee];',
     ]
     for site in sites:
         node_id = f"{comp_name}::{site}"
         so = comp_def['occurrences'][site]
-        rows = [(site, 12, '#eef0f5', True, True),
-                (f"{so['contract']['name']} \u00b7 {so['contract']['version']}", 9, '#6a7185', False, False)]
+        rows = [(site, 12, INK, True, True),
+                (f"{so['contract']['name']} \u00b7 {so['contract']['version']}", 9, MUTED, False, False)]
         if site in carry_targets:
-            rows.append(('\u21ba carry from previous instance', 8, '#f0b45f', False, False))
+            rows.append(('\u21ba carry from previous instance', 8, NOTE, False, False))
         lines.append(f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, label={html_label(rows)}];')
     for a, b in seq_edges:
         lines.append(f'  {dot_qid(comp_name + "::" + a)} -> {dot_qid(comp_name + "::" + b)};')
@@ -327,119 +348,295 @@ TEMPLATE = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+  /* The model view is one page of the documentation site, so it carries the
+     same design as the rest of it: the palette, the type and the hairline
+     rules of docs/style/catalog.css, restated here because this page has to
+     stay self-contained. Only the webfonts are fetched; every stack falls
+     back to a system face when they are not there. */
+  :root {
+    --bg: #f7f5f0;
+    --bg-raised: #ffffff;
+    --bg-tint: #efe9dc;
+    --ink: #22211e;
+    --ink-2: #3d3a34;
+    --ink-3: #55504a;
+    --muted: #6f6a60;
+    --faint: #8a847a;
+    --rule: #e1ddd3;
+    --rule-strong: #22211e;
+    --chip: #d5cfc2;
+    --accent: #9a4a1c;
+    --accent-dark: #6e3311;
+    --note-label: #7a5a2e;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    --nav-w: 264px;
+    --insp-w: 340px;
+  }
+
+  /* ---------- base ---------- */
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
-    background: #0d0f14; color: #d7dbe4;
-    font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    font-size: 14px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
-  .mono { font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
-  a { color: #6fd3e6; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-dark); text-decoration: underline; }
+  ::selection { background: #e9d2bf; }
 
-  .page { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  /* ---------- page frame ---------- */
+  /* Sidebar, then the tool: the same 264px column, the same hairline against
+     the content, as every other page of the site. */
+  .page { display: flex; flex-direction: row; height: 100vh; overflow: hidden; }
+  .nav {
+    width: var(--nav-w);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 32px 20px 0 32px;
+    border-right: 1px solid var(--rule);
+  }
+  .content { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; }
 
-  .tabbar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid #1f232c; background: #10131a; flex-shrink: 0; }
-  .tab { font-size: 12.5px; padding: 6px 12px; border-radius: 5px; color: #8890a0; cursor: pointer; user-select: none; }
-  .tab.on { background: #1c2028; color: #e6e9f0; }
-  .breadcrumb { margin-left: 4px; font-size: 12.5px; color: #8890a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .breadcrumb b { color: #e6e9f0; font-family: ui-monospace, monospace; }
-  .tabbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-  .catalog-tag { font-size: 10.5px; color: #6a7185; white-space: nowrap; }
-  .search { border: 1px solid #262b36; border-radius: 5px; padding: 6px 12px; font-size: 11.5px; color: #d7dbe4; width: 220px; background: #14171f; outline: none; }
-  .search::placeholder { color: #565d70; }
+  /* ---------- sidebar ---------- */
+  .brand { display: flex; flex-direction: column; gap: 4px; }
+  .brand .name { font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+  .brand .kind { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    height: 36px; padding: 0 12px;
+    background: var(--bg-raised); border: 1px solid var(--rule); border-radius: 6px;
+    color: var(--faint); font-size: 13.5px;
+  }
+  .search input {
+    flex-grow: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+    font: inherit; color: var(--ink);
+  }
+  .search input::placeholder { color: var(--faint); }
+  .search svg { flex-shrink: 0; }
 
-  .body-row { display: flex; flex: 1; min-height: 0; }
-
-  .tree { width: 270px; flex-shrink: 0; padding: 14px 8px; border-right: 1px solid #1c2028; overflow: auto; font-size: 12.5px; }
-  .tree .grp { padding: 5px 10px; color: #565d70; text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em; margin-top: 12px; }
+  /* The tree stands where a document's table of contents stands, and reads
+     the same way: an uppercase label per group, quiet entries beneath it. */
+  .tree { flex-grow: 1; min-height: 0; overflow-y: auto; margin: 0 -10px; padding: 0 10px 28px; font-size: 13.5px; }
+  .tree .grp {
+    padding: 5px 10px 6px; margin-top: 22px;
+    font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  }
   .tree .grp:first-child { margin-top: 0; }
-  .tree .row { display: flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 4px; color: #b7bccb; cursor: pointer; }
-  .tree .row:hover { background: #14171f; }
+  .tree .row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 10px; border-radius: 4px;
+    color: var(--ink-3); cursor: pointer;
+  }
+  .tree .row:hover { background: var(--bg-tint); color: var(--ink); }
   .tree .row.child { padding-left: 26px; }
-  .tree .row.selected { background: #1c2733; color: #eafaff; }
+  .tree .row.selected { background: var(--bg-tint); color: var(--ink); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }
   .tree .row.search-hide { display: none !important; }
-  .tree .chev { color: #4a5063; font-size: 9px; width: 9px; flex-shrink: 0; cursor: pointer; }
+  .tree .chev { flex-shrink: 0; width: 9px; font-size: 9px; color: var(--faint); cursor: pointer; }
   .swatch { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
-  .sw-occ { background: #7f93f0; }
-  .sw-comp { background: #b18cf0; }
-  .sw-state { background: #f0b45f; }
-  .sw-io { background: #7fd99a; }
-  .count { margin-left: auto; color: #4a5063; font-size: 10.5px; }
+  .sw-occ { background: var(--ink-3); }
+  .sw-comp { background: var(--accent); }
+  .sw-state { background: var(--note-label); }
+  .sw-io { background: var(--faint); }
+  .count { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--faint); }
 
+  /* ---------- content header ---------- */
+  .topbar {
+    display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+    height: 56px; padding: 0 28px 0 32px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .doc-title { min-width: 0; font-size: 13.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .doc-title b { font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--ink); }
+  .doc-title .schema { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-left: 10px; }
+  .topbar-right { margin-left: auto; display: flex; align-self: stretch; align-items: center; gap: 22px; }
+  .catalog-tag { font-family: var(--mono); font-size: 11px; color: var(--faint); white-space: nowrap; }
+  .tabs { display: flex; align-self: stretch; gap: 18px; }
+  .tab {
+    display: flex; align-items: center; margin-bottom: -1px;
+    border-bottom: 2px solid transparent;
+    font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; user-select: none;
+  }
+  .tab:hover { color: var(--ink-3); }
+  .tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+
+  .body-row { display: flex; flex-grow: 1; min-height: 0; }
+
+  /* ---------- canvas ---------- */
   /* The canvas holds diagrams RENDERED BY GRAPHVIZ (dot -Tsvg) at generation
      time: nothing here computes layout in the browser. A composition is one
      box in the top diagram; its own internal structure is a second,
      separately laid-out diagram in a collapsible section below. */
-  .canvas { flex: 1; min-width: 0; padding: 26px 30px; overflow: auto; background-image: radial-gradient(#171b24 1px, transparent 1px); background-size: 22px 22px; }
+  .canvas {
+    flex-grow: 1; min-width: 0; overflow: auto;
+    padding: 34px 36px 64px;
+    background-image: radial-gradient(var(--rule) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
   .top-graph { display: flex; justify-content: center; }
+  /* Graphviz writes the layout face into every label. Swap it for the site's
+     own faces — the layout used their metric-compatible fallbacks — and take
+     the bold of a node's name down to the medium weight the pages load. */
+  #canvas svg text[font-family^="Courier"] { font-family: var(--mono); }
+  #canvas svg text[font-family^="Helvetica"] { font-family: var(--sans); }
+  #canvas svg text[font-weight="bold"] { font-weight: 500; }
   #canvas g.node { cursor: pointer; }
-  #canvas g.node:hover path { stroke: #5a6478; }
-  #canvas g.node.selected path { stroke: #6fd3e6; stroke-width: 2px; }
+  #canvas g.node:hover > path, #canvas g.node:hover > ellipse, #canvas g.node:hover > polygon { stroke: var(--ink-3); }
+  #canvas g.node.selected > path, #canvas g.node.selected > ellipse, #canvas g.node.selected > polygon {
+    stroke: var(--accent); stroke-width: 1.8px;
+  }
 
-  .comp-sections { display: flex; flex-direction: column; gap: 14px; max-width: 960px; margin: 30px auto 0; }
-  .comp-section { border: 1px solid #262b36; border-radius: 9px; background: #10131a; overflow: hidden; }
-  .comp-section-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 16px; cursor: pointer; }
-  .comp-section-head:hover { background: #14171f; }
-  .comp-section-head .chev { color: #6a7185; font-size: 11px; }
-  .comp-section-head .name { font-family: ui-monospace, monospace; font-weight: 600; color: #d9c8fb; font-size: 13.5px; }
-  .comp-section-head .comp-badge { font-size: 10px; background: #2a2140; color: #d9c8fb; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-  .comp-section-head .comp-sub { font-size: 11px; color: #6a7185; flex-basis: 100%; }
-  .comp-section-body { padding: 16px; display: flex; justify-content: center; border-top: 1px solid #1c2028; }
+  .comp-sections { display: flex; flex-direction: column; gap: 16px; max-width: 960px; margin: 40px auto 0; }
+  .comp-section { border: 1px solid var(--rule); border-radius: 6px; background: var(--bg-raised); overflow: hidden; }
+  .comp-section-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 18px; cursor: pointer; }
+  .comp-section-head:hover { background: var(--bg); }
+  .comp-section-head .chev { font-size: 10px; color: var(--faint); }
+  .comp-section-head .name { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--accent); }
+  .comp-section-head .comp-badge {
+    font-size: 11.5px; padding: 2px 9px; border: 1px solid var(--chip); border-radius: 999px;
+    color: var(--ink-3); white-space: nowrap;
+  }
+  .comp-section-head .comp-sub { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+  .comp-section-body { display: flex; justify-content: center; padding: 22px; border-top: 1px solid var(--rule); background: var(--bg); }
 
-  .inspector { width: 340px; flex-shrink: 0; border-left: 1px solid #1c2028; padding: 18px 18px; overflow: auto; }
-  .insp-empty { color: #565d70; font-size: 12.5px; padding: 30px 4px; text-align: center; }
-  .insp-title h3 { margin: 0; font-family: ui-monospace, monospace; font-size: 17px; color: #eef0f5; word-break: break-word; }
-  .insp-kind { font-size: 10.5px; color: #b18cf0; text-transform: uppercase; letter-spacing: 0.06em; margin: 4px 0 12px; }
-  .contract-chip { display: inline-block; font-size: 11px; padding: 3px 9px; background: #1c2028; color: #eef0f5; border-radius: 4px; font-family: ui-monospace, monospace; margin-bottom: 8px; }
-  .fam-chip { font-size: 10.5px; border: 1px solid #33394a; border-radius: 999px; padding: 2px 9px; color: #a9aebc; margin: 0 6px 6px 0; display: inline-block; }
-  h4.insp { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: #6a7185; margin: 16px 0 8px; }
-  .field { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #1a1e27; }
-  .field .k { color: #8890a0; }
-  .field .v { font-family: ui-monospace, monospace; color: #d7dbe4; text-align: right; word-break: break-word; }
+  /* ---------- inspector ---------- */
+  /* Field rows read like the reference catalog's tables: an uppercase heading
+     over a strong rule, then hairline-separated rows. */
+  .inspector { width: var(--insp-w); flex-shrink: 0; overflow-y: auto; border-left: 1px solid var(--rule); padding: 30px 26px 48px; }
+  .insp-empty { color: var(--faint); font-size: 13px; }
+  .insp-title h3 { margin: 0; font-family: var(--mono); font-size: 19px; font-weight: 400; line-height: 1.25; color: var(--ink); word-break: break-word; }
+  .insp-kind { margin: 6px 0 18px; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  h4.insp {
+    margin: 24px 0 2px; padding-bottom: 8px;
+    font-family: var(--sans); font-size: 11.5px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  h4.insp code { font-family: var(--mono); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--ink-3); }
+  .field { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+  .field .k { min-width: 0; color: var(--muted); overflow-wrap: break-word; }
+  .field .v { min-width: 0; font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); text-align: right; overflow-wrap: anywhere; }
+  .contract-chip {
+    display: inline-block; margin-bottom: 10px; padding: 3px 9px;
+    background: var(--bg-tint); border-radius: 4px;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-2);
+  }
+  .fam-chip {
+    display: inline-block; margin: 0 6px 6px 0; padding: 2px 9px;
+    border: 1px solid var(--chip); border-radius: 999px;
+    font-size: 11.5px; color: var(--ink-3);
+  }
   .members { display: flex; flex-direction: column; gap: 6px; }
-  .member-row { display: flex; justify-content: space-between; background: #14171f; border: 1px solid #1e222c; border-radius: 5px; padding: 7px 10px; font-size: 11.5px; cursor: pointer; }
-  .member-row:hover { border-color: #3a4152; }
-  .member-row .n { font-family: ui-monospace, monospace; color: #d9c8fb; }
-  .member-row .c { color: #6a7185; }
-  .state-box { border: 1px solid #4a3a20; background: #1c1710; border-radius: 6px; padding: 10px 12px; font-size: 11.5px; line-height: 1.6; color: #d9bf94; }
-  .state-box b { color: #f0b45f; }
-  .json-peek { margin-top: 4px; background: #0b0d12; border: 1px solid #1c2028; border-radius: 6px; padding: 10px 12px; font-family: ui-monospace, monospace; font-size: 10.5px; line-height: 1.6; color: #8890a0; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
-  .json-peek .jkey { color: #7fd99a; }
-  .json-peek .jstr { color: #f0b45f; }
-  .json-peek .jnum { color: #6fd3e6; }
-  .json-peek .jbool, .json-peek .jnull { color: #d9c8fb; }
+  .member-row {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 8px 11px; background: var(--bg-raised); border: 1px solid var(--rule); border-radius: 4px;
+    font-size: 12.5px; cursor: pointer;
+  }
+  .member-row:hover { border-color: var(--ink-3); }
+  .member-row .n { font-family: var(--mono); color: var(--accent); }
+  .member-row .c { font-size: 12px; color: var(--muted); }
+  /* Same shape as a maintainer's note in the documents. */
+  .state-box { margin-top: 10px; background: var(--bg-tint); border-radius: 4px; padding: 12px 14px; font-size: 13px; line-height: 1.65; color: var(--ink-2); }
+  .state-box b { font-weight: 500; color: var(--note-label); }
 
-  .statusbar { border-top: 1px solid #1c2028; padding: 8px 22px; display: flex; gap: 24px; font-size: 11px; color: #6a7185; background: #10131a; flex-shrink: 0; flex-wrap: wrap; }
-  .statusbar b { color: #b7bccb; }
+  /* ---------- JSON ---------- */
+  .json-peek {
+    margin-top: 10px; padding: 12px 14px;
+    background: var(--bg-raised); border: 1px solid var(--rule); border-radius: 4px;
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.6; color: var(--ink-2);
+    white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow: auto;
+  }
+  .jkey { color: var(--ink); font-weight: 500; }
+  .jstr { color: var(--accent); }
+  .jnum { color: var(--note-label); }
+  .jbool, .jnull { color: var(--muted); }
 
-  .rawpane { display: none; flex: 1; min-height: 0; overflow: auto; background: #0b0d12; padding: 20px 26px; }
-  .rawpane pre { margin: 0; font-family: ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: #8890a0; }
+  .rawpane { display: none; flex-grow: 1; min-height: 0; overflow: auto; padding: 32px 36px 64px; }
+  .rawpane pre {
+    margin: 0 auto; max-width: 1100px; padding: 16px 20px; overflow-x: auto;
+    background: var(--bg-raised); border: 1px solid var(--rule); border-radius: 4px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--ink-2);
+  }
+
+  /* ---------- status bar ---------- */
+  /* The counts are the facts strip of a contract page: a serif figure under a
+     small uppercase label. */
+  .statusbar {
+    flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 28px;
+    padding: 9px 28px 10px 32px; border-top: 1px solid var(--rule);
+  }
+  .statusbar span { font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+  .statusbar b {
+    margin-right: 5px; font-family: var(--serif); font-size: 16px; font-weight: 500;
+    letter-spacing: 0; text-transform: none; color: var(--ink);
+  }
+  .statusbar span.selection { margin-left: auto; font-size: 12px; letter-spacing: 0; text-transform: none; }
+  .statusbar span.selection code { font-family: var(--mono); color: var(--ink-2); }
+
+  @media (max-width: 1200px) {
+    :root { --nav-w: 228px; --insp-w: 300px; }
+    .nav { padding-left: 24px; }
+    .topbar, .statusbar { padding-left: 24px; }
+    .canvas, .rawpane { padding: 26px 24px 48px; }
+  }
+  @media print {
+    .nav, .topbar, .inspector, .statusbar { display: none; }
+    .page, .content, .body-row { display: block; height: auto; overflow: visible; }
+    .canvas { overflow: visible; padding: 0; background-image: none; }
+    body { background: #fff; }
+  }
 </style>
 </head>
 <body>
 <div class="page">
 
-  <div class="tabbar">
-    <div class="tab on mono" data-tab="graph">Graph</div>
-    <div class="tab mono" data-tab="raw">Raw JSON</div>
-    <div class="breadcrumb mono"><b id="model-name"></b>&nbsp;<span id="model-schema"></span></div>
-    <div class="tabbar-right">
-      <span class="catalog-tag mono" id="catalog-tag"></span>
-      <input class="search mono" id="search" placeholder="find\u2026">
+  <aside class="nav">
+    <div class="brand">
+      <div class="name">Tensorspine</div>
+      <div class="kind">Model view</div>
     </div>
+    <label class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <input type="search" id="search" placeholder="Filter" autocomplete="off">
+    </label>
+    <nav class="tree" id="tree" aria-label="Model"></nav>
+  </aside>
+
+  <div class="content">
+
+    <header class="topbar">
+      <div class="doc-title"><b id="model-name"></b><span class="schema" id="model-schema"></span></div>
+      <div class="topbar-right">
+        <span class="catalog-tag" id="catalog-tag"></span>
+        <div class="tabs">
+          <div class="tab on" data-tab="graph">Graph</div>
+          <div class="tab" data-tab="raw">Raw JSON</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="body-row">
+      <div class="canvas" id="canvas">__CANVAS_HTML__</div>
+      <aside class="inspector" id="inspector"><div class="insp-empty">Select a node to inspect it.</div></aside>
+    </div>
+
+    <div class="rawpane" id="rawpane"><pre id="rawcode"></pre></div>
+
+    <div class="statusbar" id="statusbar"></div>
+
   </div>
-
-  <div class="body-row">
-    <div class="tree" id="tree"></div>
-    <div class="canvas" id="canvas">__CANVAS_HTML__</div>
-    <div class="inspector" id="inspector"><div class="insp-empty">Select a node to inspect it.</div></div>
-  </div>
-
-  <div class="statusbar mono" id="statusbar"></div>
-
-  <div class="rawpane" id="rawpane"><pre id="rawcode"></pre></div>
 
 </div>
 
@@ -689,7 +886,7 @@ function stateBody(sid, b, bare) {
   const indices = Object.keys((b.identity && b.identity.indices) || {});
   const key = [...indices, 'session', 'branch'].join(' \u00d7 ');
   const boundary = b.invocation_boundary ? `retains ${Array.isArray(b.invocation_boundary.retains) ? b.invocation_boundary.retains.join(', ') : b.invocation_boundary.retains} across ${b.invocation_boundary.domain.kind} (${b.invocation_boundary.domain.source})` : '\u2014';
-  return `${bare ? '' : `<h4 class="insp">state \u00b7 ${esc(sid)}</h4>`}
+  return `${bare ? '' : `<h4 class="insp">state \u00b7 <code>${esc(sid)}</code></h4>`}
     ${membersHtml}
     <div class="state-box">
       <b>instance key</b> \u2014 ${esc(key)} (derived)<br>
@@ -821,6 +1018,7 @@ function select(obj) {
   }
   renderInspector(obj);
   document.getElementById('statusbar').innerHTML = buildStatus();
+  switchTab('graph');
   if (obj.kind === 'composition') openComposition(obj.name);
 }
 
@@ -833,7 +1031,7 @@ function buildStatus() {
     `<span><b>${Object.keys(RAW.bindings.states).length}</b> state descriptor(s)</span>`,
     `<span><b>${Object.keys(RAW.interfaces.inputs).length + Object.keys(RAW.interfaces.outputs).length}</b> public port(s)</span>`,
   ];
-  if (currentSelection) parts.push(`<span>selection: ${esc(selLabel(currentSelection))}</span>`);
+  if (currentSelection) parts.push(`<span class="selection">selection <code>${esc(selLabel(currentSelection))}</code></span>`);
   return parts.join('');
 }
 
@@ -883,7 +1081,6 @@ function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   const graphOn = name === 'graph';
   document.querySelector('.body-row').style.display = graphOn ? 'flex' : 'none';
-  document.getElementById('statusbar').style.display = graphOn ? 'flex' : 'none';
   document.getElementById('rawpane').style.display = graphOn ? 'none' : 'block';
 }
 
@@ -937,7 +1134,7 @@ def run(model_paths, output=None):
         else:
             out = src.with_suffix('.html')
         try:
-            page = build_html(data, f"{model_name} \u2014 tensorspine inspector")
+            page = build_html(data, f"{model_name} \u2013 Tensorspine")
         except RuntimeError as e:
             print(f"  {src.name:34s} failed: {e}", file=sys.stderr)
             failed += 1
