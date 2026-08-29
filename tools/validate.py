@@ -266,6 +266,116 @@ def _present(element, args):
     return contract_condition(element['present_when'], args) if 'present_when' in element else True
 
 
+# --- V17: locations (§3.4) ----------------------------------------------------
+
+def _physical_name(items, env, value, coordinates):
+    """A physical name evaluated in an index environment: literal strings, `{index}`
+    in decimal, `{coordinate}` inside a stack. Returns (name, problem)."""
+    out = []
+    for it in items:
+        if isinstance(it, str):
+            out.append(it)
+        elif 'index' in it:
+            v = value({"index": it['index']}, env)
+            if v is UNRESOLVED or isinstance(v, bool) or not isinstance(v, int):
+                return None, f"index '{it['index']}' does not resolve in the physical name"
+            out.append(str(v))
+        else:
+            if it['coordinate'] not in coordinates:
+                return None, f"`coordinate` '{it['coordinate']}' outside a stack over that axis"
+            out.append(str(coordinates[it['coordinate']]))
+    return ''.join(out), None
+
+
+def evaluate_location(loc, env, shape, args, value, coordinates=None, in_concat=False):
+    """The evaluated form of a location (D3): names substituted, axes resolved to
+    their position, a stack expanded over its axis, a slice with its offset and the
+    slot's extent. Returns (evaluated, problems)."""
+    coordinates = coordinates or {}
+    axes = [a['name'] for a in shape['axes']]
+    extents = [contract_value(a['extent'], args) for a in shape['axes']]
+    problems = []
+
+    def dim_of(axis, what):
+        if axis not in axes:
+            problems.append(f"{what}: '{axis}' is not an axis of the slot (axes: {', '.join(axes)})")
+            return None
+        return axes.index(axis)
+
+    if 'tensor' in loc:
+        name, p = _physical_name(loc['tensor'], env, value, coordinates)
+        if p:
+            problems.append(p)
+        return ({"tensor": name} if name else None), problems
+    if 'stack' in loc:
+        axis = loc['stack']['axis']
+        dim = dim_of(axis, 'stack')
+        if dim is None:
+            return None, problems
+        parts = []
+        for i in range(int(extents[dim])):
+            ev, p = evaluate_location(loc['stack']['part'], env, shape, args, value,
+                                      {**coordinates, axis: i}, in_concat)
+            problems.extend(p)
+            if ev is None:
+                return None, problems
+            parts.append(ev)
+        return {"stack": {"axis": axis, "dim": dim, "parts": parts}}, problems
+    if 'concat' in loc:
+        axis = loc['concat']['axis']
+        dim = dim_of(axis, 'concat')
+        if dim is None:
+            return None, problems
+        parts = []
+        for part in loc['concat']['parts']:
+            ev, p = evaluate_location(part, env, shape, args, value, coordinates, True)
+            problems.extend(p)
+            if ev is None:
+                return None, problems
+            parts.append(ev)
+        return {"concat": {"axis": axis, "dim": dim, "parts": parts}}, problems
+    if 'slice' in loc:
+        if in_concat:
+            problems.append("slice inside a concat: its extent along the axis would be unknown")
+            return None, problems
+        axis = loc['slice']['axis']
+        dim = dim_of(axis, 'slice')
+        if dim is None:
+            return None, problems
+        name, p = _physical_name(loc['slice']['tensor'], env, value, coordinates)
+        if p:
+            problems.append(p)
+            return None, problems
+        offset = value(loc['slice']['offset'], env)
+        if offset is UNRESOLVED or isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            problems.append("slice: the offset does not resolve to a non-negative integer")
+            return None, problems
+        return {"slice": {"tensor": name, "axis": axis, "dim": dim, "offset": offset,
+                          "extent": int(extents[dim])}}, problems
+    problems.append("unknown location form")
+    return None, problems
+
+
+def location_names(ev):
+    """The whole physical names a location uses, and its slices as (name, offset, extent)."""
+    whole, slices = [], []
+    if 'tensor' in ev:
+        whole.append(ev['tensor'])
+    elif 'stack' in ev:
+        for part in ev['stack']['parts']:
+            w, s = location_names(part)
+            whole.extend(w)
+            slices.extend(s)
+    elif 'concat' in ev:
+        for part in ev['concat']['parts']:
+            w, s = location_names(part)
+            whole.extend(w)
+            slices.extend(s)
+    elif 'slice' in ev:
+        slices.append((ev['slice']['tensor'], ev['slice']['offset'], ev['slice']['extent']))
+    return whole, slices
+
+
 def _dtype_values(model, d):
     """Possible values of a dtype expression: a literal, or the values of an
     enum quantity. A string marker when the set cannot be bounded."""
@@ -648,6 +758,9 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     checked = 0
     tensor_instances = []               # one per identity instance, for D3
     state_instances = []                # one per identity instance, for D4
+    located = any('location' in b for b in model['bindings']['parameters'].values())
+    physical_whole = {}                 # physical name -> identity instance (V17)
+    physical_slices = defaultdict(list)  # physical name -> [(offset, extent, identity)]
 
     def instance_name(symbol, env):
         indices = symbol.get('indices', {})
@@ -669,6 +782,26 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             tensor_instances.append({'identity': instance_name(binding['tensor'], env), 'rule': tid,
                                      'members': [(key, pname) for key, pname in members if key in resolved],
                                      'dtype': binding.get('dtype')})
+            instance = tensor_instances[-1]['identity']
+            if 'location' in binding:
+                first = next(((k, p) for k, p in members if k in resolved), None)
+                param0 = resolved[first[0]][1]['parameters'].get(first[1]) if first else None
+                if param0 is not None:
+                    args0 = resolved[first[0]][2]
+                    evaluated, problems = evaluate_location(binding['location'], env, param0['shape'], args0, value)
+                    for msg in problems:
+                        fail('V17', f"{instance}: {msg}")
+                    if evaluated is not None:
+                        tensor_instances[-1]['location'] = evaluated
+                        whole, sliced = location_names(evaluated)
+                        for name in whole:
+                            if name in physical_whole:
+                                fail('V17', f"{instance}: physical tensor '{name}' already bound by {physical_whole[name]}")
+                            physical_whole[name] = instance
+                        for name, offset, extent in sliced:
+                            physical_slices[name].append((offset, extent, instance))
+            elif located:
+                fail('V17', f"{instance}: no location, while the document locates its weights")
             for key, pname in members:
                 if key not in resolved:
                     fail('V1', f"parameter {tid}: occurrence does not exist {where(key)}")
@@ -713,6 +846,19 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     stats['parameter_slots'] = len(slots)
     stats['tensors'] = tensor_identities
     stats['shared'] = ties
+    for name, intervals in physical_slices.items():
+        if name in physical_whole:
+            fail('V17', f"physical tensor '{name}' is bound whole by {physical_whole[name]} and sliced by "
+                        f"{intervals[0][2]}")
+        ordered = sorted(intervals)
+        for (o1, e1, i1), (o2, e2, i2) in zip(ordered, ordered[1:]):
+            if o2 < o1 + e1:
+                fail('V17', f"physical tensor '{name}': slices of {i1} [{o1}, {o1 + e1}) and {i2} "
+                            f"[{o2}, {o2 + e2}) overlap")
+    if located and sub_results:
+        fail('V17', "the document locates its weights but instantiates a template: a template "
+                    "instance's tensors have no location (a stated limit of this version)")
+    stats['located'] = sum(1 for t in tensor_instances if 'location' in t)
 
     # --- D5, first derivation: elements, operations per element (§4.1) ----
     # Two operations per weight element per element of the output domain,

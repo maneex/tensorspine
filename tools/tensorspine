@@ -107,6 +107,10 @@ def build_parser():
                              'Without it a page carries the name alone, so that one rendered '
                              'outside the site has no link leading nowhere (tools/site.sh '
                              'passes docs/style/nav.html, resolved for the output directory).')
+    parser.add_argument('--checkpoint', metavar='DIR',
+                        help='with --validate: check every located tensor of the document against '
+                             'the safetensors headers of this checkpoint (V17) — existence, shape, '
+                             'dtype. No weight is read; unnamed physical tensors are listed as advice.')
     parser.add_argument('--assign', metavar='JSON',
                         help='values for the external quantities of a template, '
                              'as a JSON object. A template denotes one graph per admissible '
@@ -160,6 +164,10 @@ def dispatch(args, documents, bases, assignment, parser):
         print(f"  {len(documents) - failed - skipped}/{len(documents)} pass"
               + (f", {skipped} need an assignment" if skipped else "")
               + (f", {failed} fail" if failed else ""))
+        if args.checkpoint and not failed:
+            import artifact
+            print(f"checkpoint  {args.checkpoint}")
+            failed += artifact.run(documents, bases, args.checkpoint, assignment)
         return 1 if failed else 0
 
     if args.lint:

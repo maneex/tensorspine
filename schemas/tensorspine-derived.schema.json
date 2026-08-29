@@ -607,6 +607,9 @@
                   "units",
                   "activated_fraction"
                 ]
+              },
+              "location": {
+                "$ref": "#/$defs/location"
               }
             },
             "required": [
@@ -1190,6 +1193,125 @@
         "information_loss"
       ],
       "description": "Legal cuts and semantic partition axes (§7); a flattened axis without factors is information loss, never non-partitionability (O5.10)."
+    },
+    "location": {
+      "description": "An evaluated location (§3.4): physical names with indices and coordinates substituted; `dim` is the position of the named axis in the tensor's shape.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "tensor"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "tensor": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "stack": {
+              "type": "object",
+              "required": [
+                "axis",
+                "dim",
+                "parts"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "axis": {
+                  "type": "string"
+                },
+                "dim": {
+                  "type": "integer"
+                },
+                "parts": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/location"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "concat"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "concat": {
+              "type": "object",
+              "required": [
+                "axis",
+                "dim",
+                "parts"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "axis": {
+                  "type": "string"
+                },
+                "dim": {
+                  "type": "integer"
+                },
+                "parts": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "$ref": "#/$defs/location"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "slice"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "slice": {
+              "type": "object",
+              "required": [
+                "tensor",
+                "axis",
+                "dim",
+                "offset",
+                "extent"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "tensor": {
+                  "type": "string"
+                },
+                "axis": {
+                  "type": "string"
+                },
+                "dim": {
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "extent": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

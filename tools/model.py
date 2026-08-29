@@ -80,6 +80,8 @@ def _hoist(comp_name, comp, kind, rule_name, rule):
         top['dtype'] = rule['dtype']
     if kind == 'parameters':
         top['tensor'] = rule.get('tensor', {"name": qualified, "indices": _current(comp)})
+        if 'location' in rule:                # where the identity's tensor is stored (§3.4)
+            top['location'] = rule['location']
     elif kind == 'states':
         top['identity'] = rule.get('identity', {"name": qualified, "indices": _current(comp)})
     else:

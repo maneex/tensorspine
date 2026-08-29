@@ -1218,6 +1218,9 @@
           "items": {
             "$ref": "#/$defs/parameter_endpoint"
           }
+        },
+        "location": {
+          "$ref": "#/$defs/location"
         }
       }
     },
@@ -1517,6 +1520,9 @@
               }
             ]
           }
+        },
+        "location": {
+          "$ref": "#/$defs/location"
         }
       },
       "description": "Without `tensor`, the identity is `<composition>.<rule>` indexed by the composition's indices."
@@ -1658,6 +1664,143 @@
         }
       },
       "description": "Bindings written against the sites of this composition. Sugar with a normative expansion (§5.2): each rule is the top-level rule `<composition>.<rule>` whose `for_each` is the composition's indices and whose site endpoints select the generated occurrence at the current indices."
+    },
+    "physical_name": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The name of a physical tensor in the artifact, as tagged data: literal strings, `{\"index\": i}` (a composition index of the rule, printed in decimal) and `{\"coordinate\": a}` (the coordinate of a `stack`).",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "required": [
+              "index"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "index": {
+                "$ref": "#/$defs/identifier"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "coordinate"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "coordinate": {
+                "$ref": "#/$defs/identifier"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "location": {
+      "description": "Where the identity's tensor is stored (§3.4, V17): one physical tensor; one location per coordinate of a named axis of the slot's shape, its names carrying `{\"coordinate\": axis}` (`stack`); locations laid consecutively along an axis (`concat`); a region of one physical tensor along an axis at an `offset`, of the logical extent (`slice`). Axes are the slot's shape axis names.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "tensor"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "tensor": {
+              "$ref": "#/$defs/physical_name"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "stack": {
+              "type": "object",
+              "required": [
+                "axis",
+                "part"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "axis": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "part": {
+                  "$ref": "#/$defs/location"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "concat"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "concat": {
+              "type": "object",
+              "required": [
+                "axis",
+                "parts"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "axis": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "parts": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "$ref": "#/$defs/location"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "slice"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "slice": {
+              "type": "object",
+              "required": [
+                "tensor",
+                "axis",
+                "offset"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "tensor": {
+                  "$ref": "#/$defs/physical_name"
+                },
+                "axis": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "offset": {
+                  "$ref": "#/$defs/scalar_expression"
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

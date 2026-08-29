@@ -127,6 +127,8 @@ def d3(graph, cat, prefix=''):
                  "tied": len(inst['members']) > 1}
         if unit:
             entry['sparsity'] = unit
+        if inst.get('location') is not None:
+            entry['location'] = inst['location']
         tensors.append(entry)
     for key, sub in graph['sub_results'].items():
         tensors.extend(d3(sub['graph'], cat, prefix + ident(key) + '/')['tensors'])
