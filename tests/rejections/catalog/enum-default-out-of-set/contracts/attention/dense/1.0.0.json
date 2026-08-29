@@ -47,7 +47,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of `input` and `output`: the residual stream dimension."
       },
       "heads": {
@@ -55,7 +55,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of query heads."
       },
       "head_dim": {
@@ -63,7 +63,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Dimension of one head; queries, keys and values share it."
       },
       "kv_heads": {
@@ -71,7 +71,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "argument": "heads"
         },
@@ -88,7 +88,7 @@
           ]
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Which positions a query may attend to.",
         "value_descriptions": {
           "causal": "Each position attends to itself and to earlier positions; the cache grows with the sequence.",
@@ -109,13 +109,13 @@
                 "unit": "tokens"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Window span, in tokens."
             }
           }
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "description": "Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span."
       },
       "source": {
@@ -123,7 +123,7 @@
           "kind": "port_reference"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "note": "port K and V come from; absent = self-attention",
         "description": "Cross-attention: the port whose indexing domain supplies keys and values. Their values arrive on `source_values`; absent, keys and values come from `input`."
       },
@@ -132,7 +132,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "description": "The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`."
       },
       "rope": {
@@ -144,7 +144,7 @@
                 "kind": "real"
               },
               "required": true,
-              "affects_template": false,
+              "structural": false,
               "description": "Base of the rotary frequencies."
             },
             "layout": {
@@ -157,7 +157,7 @@
                 ]
               },
               "required": false,
-              "affects_template": false,
+              "structural": false,
               "default": {
                 "literal": "split"
               },
@@ -173,7 +173,7 @@
                 "kind": "real"
               },
               "required": false,
-              "affects_template": false,
+              "structural": false,
               "description": "Fraction of `head_dim` that is rotated; the rest is left as is. Absent, the whole head is rotated."
             },
             "mrope": {
@@ -185,7 +185,7 @@
                       "kind": "cardinality"
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Channels of the temporal section."
                   },
                   "h": {
@@ -193,7 +193,7 @@
                       "kind": "cardinality"
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Channels of the height section."
                   },
                   "w": {
@@ -201,13 +201,13 @@
                       "kind": "cardinality"
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Channels of the width section."
                   }
                 }
               },
               "required": false,
-              "affects_template": false,
+              "structural": false,
               "description": "Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index."
             },
             "scaling": {
@@ -224,7 +224,7 @@
                       ]
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Context-extension method applied to the rotary frequencies.",
                     "value_descriptions": {
                       "yarn": "YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.",
@@ -237,7 +237,7 @@
                       "kind": "real"
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Ratio between the served context and `orig_ctx`."
                   },
                   "orig_ctx": {
@@ -245,7 +245,7 @@
                       "kind": "cardinality"
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Context length the frequencies were trained at."
                   },
                   "beta_fast": {
@@ -253,7 +253,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -272,7 +272,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -291,7 +291,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -310,7 +310,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -327,13 +327,13 @@
                 }
               },
               "required": false,
-              "affects_template": false,
+              "structural": false,
               "description": "Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained."
             }
           }
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "description": "Rotary position encoding: base, layout, rotated fraction, multimodal sections and context-extension scaling. Changes the computation, not a tensor or a state."
       },
       "qk_norm": {
@@ -345,7 +345,7 @@
           ]
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "description": "Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`.",
         "value_descriptions": {
           "rms": "RMS normalization.",
@@ -361,7 +361,7 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": false,
+              "structural": false,
               "description": "Positions per temperature step: the scale grows once per `floor` positions."
             },
             "scale": {
@@ -369,13 +369,13 @@
                 "kind": "real"
               },
               "required": true,
-              "affects_template": false,
+              "structural": false,
               "description": "Growth of the logit scale per step."
             }
           }
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "description": "Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`."
       },
       "q_bias": {
@@ -383,7 +383,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -395,7 +395,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -407,7 +407,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -418,7 +418,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -429,7 +429,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -441,7 +441,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },

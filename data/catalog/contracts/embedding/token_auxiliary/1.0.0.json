@@ -12,7 +12,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the main embedding."
       },
       "vocabulary": {
@@ -20,7 +20,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of token identifiers."
       },
       "layers": {
@@ -28,7 +28,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of layers receiving an auxiliary vector."
       },
       "per_layer_width": {
@@ -36,7 +36,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Width of one auxiliary vector."
       },
       "per_layer_vocabulary": {
@@ -44,7 +44,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Size of the per-layer table's vocabulary."
       }
     },

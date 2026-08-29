@@ -19,7 +19,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width normalized over."
       },
       "eps": {
@@ -27,7 +27,7 @@
           "kind": "real"
         },
         "required": true,
-        "affects_template": false,
+        "structural": false,
         "description": "Added to the variance before the root; changes no tensor."
       }
     },

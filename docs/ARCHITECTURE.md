@@ -8,9 +8,9 @@
 This document explains why Armature is divided into model documents, catalog contracts, validation,
 and derived products. It is written for contributors deciding where a new fact or capability
 belongs. The [language specification](SPECIFICATION.md) remains the sole authority for syntax,
-validity, and denotation; the [model JSON guide](ARMATURE-MODEL_JSON.md) explains the concrete format,
-and the [glossary](GLOSSARY.md) defines the project vocabulary. If this document conflicts with the
-specification, the specification wins.
+validity, and denotation; the [model JSON guide](ARMATURE-MODEL_JSON.md) explains the concrete
+format, and the [glossary](GLOSSARY.md) defines the project vocabulary. If this document conflicts
+with the specification, the specification wins.
 
 This is the architecture of the language and its information boundaries. It is not a prescribed
 architecture for a serving runtime.
@@ -51,9 +51,9 @@ The central architectural rule is:
 > **The model declares causes. Primitive contracts derive consequences.**
 
 The practical field test is: *Could two models using the same primitive with the same arguments
-legitimately give this fact different values?* If yes, it is a graph or model fact. If no, it belongs
-to the primitive contract. Facts that depend on a selected implementation, artifact, deployment, or
-machine belong outside both.
+legitimately give this fact different values?* If yes, it is a graph or model fact. If no, it
+belongs to the primitive contract. Facts that depend on a selected implementation, artifact,
+deployment, or machine belong outside both.
 
 | Authority | Facts it owns |
 |---|---|
@@ -142,8 +142,8 @@ implement, validate every construction, and bound the cost of an extension befor
 model.
 
 **Consequences.** Adding a primitive can still require a new consumer capability; “open catalog”
-does not mean “every consumer accepts every future contract.” A delegated-body contract can avoid a
-new primitive capability only when its transitive body uses contracts the consumer already
+does not mean “every consumer accepts every future contract.” A template contract can avoid a
+new primitive capability only when its transitive template uses contracts the consumer already
 supports.
 
 **Alternatives not chosen.** Arbitrary extension objects, unknown fields, and executable callbacks
@@ -172,8 +172,8 @@ functions are not part of the model language. See
 ### 3.6. Version meanings independently
 
 **Decision.** Each occurrence pins a primitive contract by `{name, version}`. Contract identities
-are immutable and versions coexist. The catalog has no global version. A delegated body also has a
-body version, which identifies its representation rather than the contract's semantic meaning.
+are immutable and versions coexist. The catalog has no global version. A template also has a
+template version, which identifies its representation rather than the contract's semantic meaning.
 
 **Why.** Primitives evolve independently. A global catalog version would couple unrelated changes
 and force consumers and models to coordinate upgrades that do not affect them. An unversioned
@@ -242,10 +242,10 @@ is.
 
 **Alternatives not chosen.** General loops, recursive graph construction, runtime-dependent node
 creation, and implicit recurrence would prevent a consumer from knowing the graph before execution.
-Reusable parameterized submodels use acyclic delegated-body contracts instead of nested composition
+Reusable parameterized submodels use acyclic template contracts instead of nested composition
 syntax. See [Specification §5](SPECIFICATION.md#5--denotation).
 
-### 3.10. Split state templates from state topology
+### 3.10. Split state descriptors from state topology
 
 **Decision.** A contract derives what one state port means: presence, payload, evolution, indexing,
 access geometry, sharing capability, and permitted operations. The expanded graph declares how many
@@ -273,8 +273,8 @@ semantic cuts. They expose what is legal and what it logically costs. They do no
 device, collective, placement, or schedule.
 
 **Why.** Physical choices depend on facts that can change without changing the model: available
-hardware, topology, workload, installed kernels, memory pressure, and policy. Embedding those choices
-in the model would make model identity depend on a deployment.
+hardware, topology, workload, installed kernels, memory pressure, and policy. Embedding those
+choices in the model would make model identity depend on a deployment.
 
 **Consequences.** The same Armature model can be compiled differently for one accelerator, a
 cluster, or a heterogeneous system. Armature provides feasibility inputs and reference logical
@@ -295,7 +295,7 @@ Validation is deliberately staged:
    contract version.
 3. **Semantic validation** checks facts the schema cannot: arguments, conditional presence, shapes,
    indexing domains, total bindings, compatible identities, and acyclicity.
-4. **Expansion** evaluates finite index ranges and conditions, expands delegated bodies, and emits
+4. **Expansion** evaluates finite index ranges and conditions, expands templates, and emits
    D1 with deterministic identities.
 5. **Derivation** computes the remaining logical products from the valid expanded graph and resolved
    contracts.
@@ -317,7 +317,7 @@ When adding a field, contract feature, or derived product, apply these questions
    in the model graph. Otherwise derive it in the contract.
 2. **Does the fact depend on a kernel, physical artifact, machine, workload, or policy?** Keep it out
    of both model and contract; place it in the appropriate downstream authority.
-3. **Can existing primitives express the operation as a finite body?** Prefer a delegated-body
+3. **Can existing primitives express the operation as a finite template?** Prefer a template
    contract when it preserves the intended semantic identity and introduces no hidden capability.
 4. **Does an existing contract meaning change?** Publish a new contract identity. Do not mutate the
    old version.
@@ -343,7 +343,7 @@ The architecture leaves several downstream or future designs open:
 - how implementation candidates advertise capabilities and physical costs;
 - how artifact descriptors map physical fragments to D3 logical tensors;
 - how a compiler combines semantic partitions with a selected topology and workload;
-- whether a future port-based mechanism should permit sharing across a delegated-body boundary;
+- whether a future port-based mechanism should permit sharing across a template boundary;
 - which additional normative interfaces are justified when a derivation cannot fit the closed
   scalar algebra.
 

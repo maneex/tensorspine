@@ -130,16 +130,16 @@ and contract-rule `when` have distinct contexts; see [Conditions](GLOSSARY.md#co
 Contract arguments may be scalar expressions or recursively tagged records, and every one has a
 declared type in the contract — there is no opaque argument: a variant of a primitive that the
 contract does not name is added under a new contract version (§7), never passed through unread.
-Inline numeric tensors are deliberately excluded: structural metadata belongs in arguments, while learned and non-learned
-numeric tensors have explicit identities and bindings.
+Inline numeric tensors are deliberately excluded: structural metadata belongs in arguments, while
+learned and non-learned numeric tensors have explicit identities and bindings.
 
 ### 2.4 — Compositions and deterministic expansion
 
-A composition is a named finite family of occurrence templates. It declares:
+A composition is a named finite family of occurrence sites. It declares:
 
 - one or more index ranges, each with `start`, `stop` and `step` expressions;
 - at least one family name;
-- one or more occurrence templates.
+- one or more occurrence sites.
 
 Ranges must resolve to finite integer sequences. Bindings refer to generated nodes through a
 selector containing the composition name, local occurrence name and index assignment. The canonical
@@ -147,7 +147,7 @@ D1 identifier is `<composition>/<occurrence>[<index>=<value>,…]`.
 
 Compositions are syntactic sugar. Every validity rule applies after expansion, and expansion must
 produce the same unique identifiers, nodes and edges on every run. Reusable parameterized submodels
-are represented separately through delegated-body contracts, not nested composition syntax.
+are represented separately through template contracts, not nested composition syntax.
 
 ### 2.5 — Bindings
 
@@ -204,7 +204,7 @@ A complete primitive contract provides the consequences needed to interpret an o
 
 | Contract element | Content |
 |---|---|
-| **Arguments** | Types, required fields, explicit defaults, invariants and template-affecting arguments. |
+| **Arguments** | Types, required fields, explicit defaults, invariants and structural arguments. |
 | **Value ports** | Typed inputs and outputs, shapes, roles and indexing domains. |
 | **Parameters and constants** | Conditional logical slots, shapes, precision roles and sharing rules. |
 | **State ports** | Conditional presence, payload components, key axes and ordered derivation rules. |
@@ -260,7 +260,7 @@ expanded logical graph.
 
 | Excluded fact | Where it belongs |
 |---|---|
-| State payload templates, evolution laws, access geometry and permitted operations | Primitive contract |
+| State payload descriptors, evolution laws, access geometry and permitted operations | Primitive contract |
 | Port and logical-slot shapes that follow from primitive arguments | Primitive contract |
 | Logical operation count and logical memory traffic | Primitive contract |
 | Kernel, backend, fusion, workspace, physical layout and executed FLOPs | Implementation candidate |
@@ -290,10 +290,10 @@ after contract defaults are applied; an inapplicable field is refused, not ignor
 domains, total bindings and value-graph acyclicity. The catalog itself is read against
 `schemas/armature-catalog-unit.schema.json` when loaded, so its vocabulary is closed by grammar,
 not by convention; `tests/run_rejections.py` holds one document or catalog base per required
-rejection case. A validation failure is a reasoned refusal. `--lint` reports advisory findings and deliberately exits
-successfully.
+rejection case. A validation failure is a reasoned refusal. `--lint` reports advisory findings and
+deliberately exits successfully.
 
-The parameterized template needs an assignment when validated on its own:
+The template needs an assignment when validated on its own:
 
 ```sh
 python3 tools/armature --validate data/models/decoder-causal-yarn.json \
@@ -311,7 +311,7 @@ The language defines six derived products:
 | **D1** | Expanded occurrences, value edges and families | Emitted by `--d1` |
 | **D2** | Values, shapes and value liveness at graph cuts | Specified, not yet emitted |
 | **D3** | Parameter tensors, roles, shapes and sharing | Specified; validation resolves slots and identities |
-| **D4** | Complete state templates, instances, keys, state liveness and operations | Specified; validation resolves slots and identities |
+| **D4** | Complete state descriptors, instances, keys, state liveness and operations | Specified; validation resolves slots and identities |
 | **D5** | Logical costs and cut traffic | Specified, not yet emitted |
 | **D6** | Legal cuts and semantic partition axes | Specified, not yet emitted |
 
@@ -353,7 +353,7 @@ Extensions affect existing documents and consumers differently:
 | **New primitive** | No breakage | New capability when a model uses it |
 | **New optional argument or argument with a declared default** | No breakage | New capability when used |
 | **New value of a closed derived property** | No breakage | New explicitly rejectable strategy |
-| **Delegated-body contract** | No breakage | No new capability if every contract in its expanded body is already supported |
+| **Template contract** | No breakage | No new capability if every contract in its expanded template is already supported |
 
 “No breakage” does not mean “free”. A consumer still has to implement any new vocabulary that a
 model actually uses. Delegation is the only case that can genuinely reuse existing capabilities
@@ -388,7 +388,7 @@ blocks obscured:
    bindings instead.
 3. **A growth law needs a frame of reference.** `append` alone does not reveal which sequence drives
    growth, so state budgeting requires the contract's indexing source.
-4. **Template-affecting arguments belong at the occurrence.** Window span, recurrent depth, stride
+4. **Structural arguments belong at the occurrence.** Window span, recurrent depth, stride
    and similar causes cannot live only in hand-written consequences if state and parameter slots are
    to be derived.
 5. **Topology and state semantics are separate authorities.** Contracts describe what one state

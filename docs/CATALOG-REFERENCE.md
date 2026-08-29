@@ -25,13 +25,13 @@ Bases consulted, in order: `data/catalog`. 36 contracts, 37 axes, 54 precision r
   - [conditioning.*](#namespace-conditioning): [conditioning.layer_select@1.0.0](#contract-conditioning.layer_select-1.0.0), [conditioning.multiplicative@1.0.0](#contract-conditioning.multiplicative-1.0.0)
   - [decoder.*](#namespace-decoder): [decoder.causal_yarn@1.0.0](#contract-decoder.causal_yarn-1.0.0)
   - [embedding.*](#namespace-embedding): [embedding.token_auxiliary@1.0.0](#contract-embedding.token_auxiliary-1.0.0), [embedding.token_position@1.0.0](#contract-embedding.token_position-1.0.0), [embedding.token_position_type@1.0.0](#contract-embedding.token_position_type-1.0.0)
-  - [ffn.*](#namespace-ffn): [ffn.dense@1.1.0](#contract-ffn.dense-1.1.0), [ffn.gated@1.1.0](#contract-ffn.gated-1.1.0)
-  - [mix.*](#namespace-mix): [mix.collapse@1.0.0](#contract-mix.collapse-1.0.0), [mix.doubly_stochastic@2.0.0](#contract-mix.doubly_stochastic-2.0.0)
+  - [ffn.*](#namespace-ffn): [ffn.dense@1.0.0](#contract-ffn.dense-1.0.0), [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0)
+  - [mix.*](#namespace-mix): [mix.collapse@1.0.0](#contract-mix.collapse-1.0.0), [mix.doubly_stochastic@1.0.0](#contract-mix.doubly_stochastic-1.0.0)
   - [norm.*](#namespace-norm): [norm.layer@1.0.0](#contract-norm.layer-1.0.0), [norm.rms@1.0.0](#contract-norm.rms-1.0.0)
   - [projector.*](#namespace-projector): [projector.patch_merge_bottleneck@1.0.0](#contract-projector.patch_merge_bottleneck-1.0.0), [projector.patch_merge_mlp@1.0.0](#contract-projector.patch_merge_mlp-1.0.0), [projector.temporal_stack@1.0.0](#contract-projector.temporal_stack-1.0.0)
   - [residual.*](#namespace-residual): [residual.add@1.0.0](#contract-residual.add-1.0.0), [residual.altup_correct@1.0.0](#contract-residual.altup_correct-1.0.0), [residual.altup_predict@1.0.0](#contract-residual.altup_predict-1.0.0), [residual.combine@1.0.0](#contract-residual.combine-1.0.0), [residual.laurel@1.0.0](#contract-residual.laurel-1.0.0), [residual.stream_collapse@1.0.0](#contract-residual.stream_collapse-1.0.0), [residual.stream_expand@1.0.0](#contract-residual.stream_expand-1.0.0), [residual.stream_inject@1.0.0](#contract-residual.stream_inject-1.0.0)
-  - [sequence.*](#namespace-sequence): [sequence.gated_delta@2.0.0](#contract-sequence.gated_delta-2.0.0)
-  - [unqualified](#namespace-unqualified): [conv_frontend@2.0.0](#contract-conv_frontend-2.0.0), [embed@1.0.0](#contract-embed-1.0.0), [identity@1.0.0](#contract-identity-1.0.0), [lm_head@1.0.0](#contract-lm_head-1.0.0), [moe@1.1.0](#contract-moe-1.1.0), [mtp@1.0.0](#contract-mtp-1.0.0), [patch_embed@2.0.0](#contract-patch_embed-2.0.0), [pooler@1.0.0](#contract-pooler-1.0.0), [splice@2.0.0](#contract-splice-2.0.0), [vit_block@1.0.0](#contract-vit_block-1.0.0)
+  - [sequence.*](#namespace-sequence): [sequence.gated_delta@1.0.0](#contract-sequence.gated_delta-1.0.0)
+  - [unqualified](#namespace-unqualified): [conv_frontend@1.0.0](#contract-conv_frontend-1.0.0), [embed@1.0.0](#contract-embed-1.0.0), [identity@1.0.0](#contract-identity-1.0.0), [lm_head@1.0.0](#contract-lm_head-1.0.0), [moe@1.0.0](#contract-moe-1.0.0), [mtp@1.0.0](#contract-mtp-1.0.0), [patch_embed@1.0.0](#contract-patch_embed-1.0.0), [pooler@1.0.0](#contract-pooler-1.0.0), [splice@1.0.0](#contract-splice-1.0.0), [vit_block@1.0.0](#contract-vit_block-1.0.0)
 - [Axes](#axes)
 - [Precision roles](#precision-roles)
 - [Tags](#tags)
@@ -47,7 +47,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 - **Expressions** are contract arguments by name; `a.b` is a field of a record argument. Operators: `+ - * /`, `mod`, `ceil(a / b)`, `floor(a / b)`, `min`, `max`, `abs`. `context(x)` is an analysis-time quantity the consumer supplies. Strings are quoted.
 - **Conditions** read as prose: `x present` / `x absent` test an optional argument; comparisons use `= != < <= > >=`; `always` and `never` are the constant conditions.
 - **Shapes** list axes in declaration order as `[local name: extent]`; `= a × b` spells out the declared factors of a flattened axis (O5.10); `scalar` is rank 0. The *Axes* column gives each axis's catalog identity and nature; shapes unify by axis identity and extent (V4), never by position alone.
-- **Template** marks an argument with `affects_template`: it decides which slots, ports or states exist or what shape they have. A non-template argument changes only the computation.
+- **Structural** marks an argument with `structural`: it decides which slots, ports or states exist or what shape they have. A non-structural argument changes only the computation.
 - **State rules** are ordered; the first rule whose condition holds decides the law, access geometry, sharing and indexing of the state (§4.3).
 
 <a id="overview" name="overview"></a>
@@ -61,23 +61,23 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [attention.latent_compressed@1.0.0](#contract-attention.latent_compressed-1.0.0) | Latent attention: low-rank query and output projections, one compressed latent KV, optional sparse index. | 11 args · 1→1 ports · 16 params · state `kv`, `sliding`, `compressor`, `index`, `index_compressor` |
 | [conditioning.layer_select@1.0.0](#contract-conditioning.layer_select-1.0.0) | Selects, from the per-layer auxiliary vectors, the slice that belongs to one layer. | 3 args · 1→1 ports · 0 params |
 | [conditioning.multiplicative@1.0.0](#contract-conditioning.multiplicative-1.0.0) | Per-layer conditioning: gates the input, multiplies by the condition, projects back and normalizes. | 3 args · 2→1 ports · 3 params |
-| [conv_frontend@2.0.0](#contract-conv_frontend-2.0.0) | Audio front end: two temporal convolutions over mel frames, the second strided, plus optional learned positions. | 6 args · 1→1 ports · 5 params |
-| [decoder.causal_yarn@1.0.0](#contract-decoder.causal_yarn-1.0.0) | Pre-norm causal decoder stack with grouped-query attention, RoPE with YaRN scaling and a gated FFN, as a body. | delegated body |
+| [conv_frontend@1.0.0](#contract-conv_frontend-1.0.0) | Audio front end: two temporal convolutions over mel frames, the second strided, plus optional learned positions. | 6 args · 1→1 ports · 5 params |
+| [decoder.causal_yarn@1.0.0](#contract-decoder.causal_yarn-1.0.0) | Pre-norm causal decoder stack with grouped-query attention, RoPE with YaRN scaling and a gated FFN, as a template. | template |
 | [embed@1.0.0](#contract-embed-1.0.0) | Token embedding: looks up one `width` vector per token identifier. | 2 args · 1→1 ports · 1 params |
 | [embedding.token_auxiliary@1.0.0](#contract-embedding.token_auxiliary-1.0.0) | Token embedding that also emits a per-layer auxiliary vector for every layer of the stack. | 5 args · 1→2 ports · 4 params |
 | [embedding.token_position@1.0.0](#contract-embedding.token_position-1.0.0) | Token embedding plus a learned position table. | 3 args · 1→1 ports · 2 params |
 | [embedding.token_position_type@1.0.0](#contract-embedding.token_position_type-1.0.0) | BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm. | 4 args · 1→1 ports · 5 params |
-| [ffn.dense@1.1.0](#contract-ffn.dense-1.1.0) | Dense feed-forward network: an up projection, a non-linearity, then a down projection. | 8 args · 1→1 ports · 6 params |
-| [ffn.gated@1.1.0](#contract-ffn.gated-1.1.0) | Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection. | 8 args · 1→1 ports · 6 params |
+| [ffn.dense@1.0.0](#contract-ffn.dense-1.0.0) | Dense feed-forward network: an up projection, a non-linearity, then a down projection. | 8 args · 1→1 ports · 6 params |
+| [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0) | Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection. | 8 args · 1→1 ports · 6 params |
 | [identity@1.0.0](#contract-identity-1.0.0) | Fan-out point: passes its input to its output unchanged. | 1 args · 1→1 ports · 0 params |
 | [lm_head@1.0.0](#contract-lm_head-1.0.0) | Output head: projects the hidden state to one logit per vocabulary entry. | 2 args · 1→1 ports · 1 params |
 | [mix.collapse@1.0.0](#contract-mix.collapse-1.0.0) | Hyper-connections head: reduces the `multiplicity` residual streams to one before the final norm. | 2 args · 1→1 ports · 3 params |
-| [mix.doubly_stochastic@2.0.0](#contract-mix.doubly_stochastic-2.0.0) | Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition. | 4 args · 2→1 ports · 3 params |
-| [moe@1.1.0](#contract-moe-1.1.0) | Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts. | 14 args · 1→1 ports · 8 params |
+| [mix.doubly_stochastic@1.0.0](#contract-mix.doubly_stochastic-1.0.0) | Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition. | 4 args · 2→1 ports · 3 params |
+| [moe@1.0.0](#contract-moe-1.0.0) | Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts. | 14 args · 1→1 ports · 8 params |
 | [mtp@1.0.0](#contract-mtp-1.0.0) | Multi-token prediction: one projection per prediction depth, applied to the hidden state. | 2 args · 1→1 ports · 1 params |
 | [norm.layer@1.0.0](#contract-norm.layer-1.0.0) | Layer normalization with a learned scale and bias. | 2 args · 1→1 ports · 2 params |
 | [norm.rms@1.0.0](#contract-norm.rms-1.0.0) | Root-mean-square normalization with a learned scale. | 2 args · 1→1 ports · 1 params |
-| [patch_embed@2.0.0](#contract-patch_embed-2.0.0) | Patch embedding: projects each image or video patch to `width`. | 6 args · 1→1 ports · 3 params |
+| [patch_embed@1.0.0](#contract-patch_embed-1.0.0) | Patch embedding: projects each image or video patch to `width`. | 6 args · 1→1 ports · 3 params |
 | [pooler@1.0.0](#contract-pooler-1.0.0) | Pooling head: projects hidden states to `project_to` features, optionally normalized and reduced. | 4 args · 1→1 ports · 1 params |
 | [projector.patch_merge_bottleneck@1.0.0](#contract-projector.patch_merge_bottleneck-1.0.0) | Vision-language projector: normalizes, merges patches by a mixing matrix, then a two-projection bottleneck. | 4 args · 1→1 ports · 4 params |
 | [projector.patch_merge_mlp@1.0.0](#contract-projector.patch_merge_mlp-1.0.0) | Vision-language projector: merges `merge_count` patches, normalizes, then a two-layer MLP with biases. | 4 args · 1→1 ports · 6 params |
@@ -90,8 +90,8 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [residual.stream_collapse@1.0.0](#contract-residual.stream_collapse-1.0.0) | Collapses `streams` residual streams back to one: projects the auxiliary streams and reduces. | 2 args · 1→1 ports · 1 params |
 | [residual.stream_expand@1.0.0](#contract-residual.stream_expand-1.0.0) | Expands the active stream into `streams` residual streams, one projection per auxiliary stream. | 2 args · 1→1 ports · 1 params |
 | [residual.stream_inject@1.0.0](#contract-residual.stream_inject-1.0.0) | Reinjects a modified active stream into the set of residual streams. | 2 args · 2→1 ports · 0 params |
-| [sequence.gated_delta@2.0.0](#contract-sequence.gated_delta-2.0.0) | Gated DeltaNet layer: a per-head matrix state updated by the delta rule, behind a short causal convolution. | 6 args · 1→1 ports · 9 params · state `recurrent`, `conv` |
-| [splice@2.0.0](#contract-splice-2.0.0) | Inserts an already-projected stream into the token sequence. | 1 args · 2→1 ports · 0 params |
+| [sequence.gated_delta@1.0.0](#contract-sequence.gated_delta-1.0.0) | Gated DeltaNet layer: a per-head matrix state updated by the delta rule, behind a short causal convolution. | 6 args · 1→1 ports · 9 params · state `recurrent`, `conv` |
+| [splice@1.0.0](#contract-splice-1.0.0) | Inserts an already-projected stream into the token sequence. | 1 args · 2→1 ports · 0 params |
 | [vit_block@1.0.0](#contract-vit_block-1.0.0) | Vision-transformer block projections: fused QKV, attention output, FFN up and down. | 4 args · 1→1 ports · 4 params |
 
 ### Axes
@@ -220,7 +220,7 @@ Three arguments change what the primitive *is* rather than how it computes:
 - `window` bounds the span a query may attend to, and turns the cache into a ring of that span;
 - `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.
 
-`rope`, `qk_norm` and `temperature` are opaque: they change the computation, never a tensor or a state, which is why they carry no template effect. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.
+`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.
 
 > **Note (maintainers).** Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants.
 
@@ -230,15 +230,15 @@ External documentation:
 - [Fast Transformer Decoding: One Write-Head is All You Need (Shazeer, 2019)](https://arxiv.org/abs/1911.02150) *(paper)* — Multi-query attention: `kv_heads = 1`.
 - [GQA: Training Generalized Multi-Query Transformer Models (Ainslie et al., 2023)](https://arxiv.org/abs/2305.13245) *(paper)* — Grouped-query attention: `1 < kv_heads < heads`.
 - [Mistral 7B (Jiang et al., 2023)](https://arxiv.org/abs/2310.06825) *(paper)* — Sliding-window attention with a rolling cache: the `window` argument.
-- [RoFormer: Enhanced Transformer with Rotary Position Embedding (Su et al., 2021)](https://arxiv.org/abs/2104.09864) *(paper)* — Rotary position encoding, the usual content of the opaque `rope` argument.
+- [RoFormer: Enhanced Transformer with Rotary Position Embedding (Su et al., 2021)](https://arxiv.org/abs/2104.09864) *(paper)* — Rotary position encoding, what the `rope` argument declares.
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 17 (4 required, 14 template) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | — |
+| 17 (4 required, 14 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`: the residual stream dimension. |
 | `heads` | cardinality | yes |  | yes | Number of query heads. |
@@ -249,9 +249,26 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;`window.span` | physical (tokens) | yes |  | yes | Window span, in tokens. |
 | `source` | port_reference | no |  | yes | Cross-attention: the port whose indexing domain supplies keys and values. Their values arrive on `source_values`; absent, keys and values come from `input`.<br>*Note: port K and V come from; absent = self-attention* |
 | `streaming` | boolean | no |  | yes | The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`. |
-| `rope` | opaque | no |  | no | Rotary position encoding configuration: base, scaling, layout. Opaque: it changes the computation, not a tensor or a state. |
-| `qk_norm` | opaque | no |  | no | Normalization applied to queries and keys before the dot product (`rms` in the corpus). Opaque; the learned scale is declared separately by `qk_norm_weight`. |
-| `temperature` | opaque | no |  | no | Attention temperature scaling configuration. Opaque. |
+| `rope` | record of 5 field(s) | no |  | no | Rotary position encoding: base, layout, rotated fraction, multimodal sections and context-extension scaling. Changes the computation, not a tensor or a state. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.theta` | real | yes |  | no | Base of the rotary frequencies. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.layout` | enum: `"split"`, `"interleaved"`, `"2d"` | no | `"split"` | no | How the rotated pairs are laid out along `head_dim`. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.partial` | real | no |  | no | Fraction of `head_dim` that is rotated; the rest is left as is. Absent, the whole head is rotated. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope` | record of 3 field(s) | no |  | no | Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.t` | cardinality | yes |  | no | Channels of the temporal section. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.h` | cardinality | yes |  | no | Channels of the height section. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.w` | cardinality | yes |  | no | Channels of the width section. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling` | record of 7 field(s) | no |  | no | Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.kind` | enum: `"yarn"`, `"llama3"`, `"linear"` | yes |  | no | Context-extension method applied to the rotary frequencies. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.factor` | real | yes |  | no | Ratio between the served context and `orig_ctx`. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.orig_ctx` | cardinality | yes |  | no | Context length the frequencies were trained at. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor. |
+| `qk_norm` | enum: `"rms"`, `"layer"` | no |  | no | Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`. |
+| `temperature` | record of 2 field(s) | no |  | no | Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`temperature.floor` | cardinality | yes |  | no | Positions per temperature step: the scale grows once per `floor` positions. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`temperature.scale` | real | yes |  | no | Growth of the logit scale per step. |
 | `q_bias` | boolean | no | `false` | yes | Learned bias on the query projection.<br>*Note: learned Q bias; a synthetic runtime zero stays false* |
 | `k_bias` | boolean | no | `false` | yes | Learned bias on the key projection.<br>*Note: learned K bias; a synthetic runtime zero stays false* |
 | `v_bias` | boolean | no | `false` | yes | Learned bias on the value projection. |
@@ -264,6 +281,23 @@ Values of `mask`:
 - `"causal"` — Each position attends to itself and to earlier positions; the cache grows with the sequence.
 - `"chunked"` — Causal within fixed chunks whose span is the analysis quantity `analysis.chunk_span`; the cache is a ring over that span.
 - `"none"` — Every position attends to every other. Stateless unless `streaming` or `source` says otherwise.
+
+Values of `rope.layout`:
+
+- `"split"` — Pair `i` with `i + head_dim/2` (the Llama layout).
+- `"interleaved"` — Pair `2i` with `2i+1` (the GPT-NeoX layout).
+- `"2d"` — Two-dimensional rotation over patch rows and columns (vision).
+
+Values of `rope.scaling.kind`:
+
+- `"yarn"` — YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.
+- `"llama3"` — Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.
+- `"linear"` — Position interpolation: every position is divided by `factor`.
+
+Values of `qk_norm`:
+
+- `"rms"` — RMS normalization.
+- `"layer"` — Layer normalization.
 
 ##### Ports
 
@@ -284,8 +318,8 @@ Outputs:
 
 | Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
 |---|---|---|---|---|---|---|
-| `qkv` | [attention.qkv_projection](#role-attention.qkv_projection) | `[qkv_flat: (heads + 2*kv_heads)*head_dim] × [feature: width]` | [attention.qkv_flat](#axis-attention.qkv_flat) (projection) × [model.width](#axis-model.width) (feature) | exclusive | q_rank absent | Fused query, key and value projection: `heads + 2*kv_heads` blocks of `head_dim` rows.<br>*Note: usual fused shape; under GQA this is not an exact product, hence no factors* |
-| `out` | [attention.output_projection](#role-attention.output_projection) | `[feature: width] × [heads_flat: heads*head_dim]` | [model.width](#axis-model.width) (feature) × [attention.heads](#axis-attention.heads) (projection) | exclusive | o_rank absent | Output projection from the concatenated query heads back to `width`. |
+| `qkv` | [attention.qkv_projection](#role-attention.qkv_projection) | `[qkv_flat: (heads + 2*kv_heads)*head_dim] × [feature: width]` | [attention.qkv_flat](#axis-attention.qkv_flat) (projection) × [model.width](#axis-model.width) (feature) | exclusive | always | Fused query, key and value projection: `heads + 2*kv_heads` blocks of `head_dim` rows.<br>*Note: usual fused shape; under GQA this is not an exact product, hence no factors* |
+| `out` | [attention.output_projection](#role-attention.output_projection) | `[feature: width] × [heads_flat: heads*head_dim]` | [model.width](#axis-model.width) (feature) × [attention.heads](#axis-attention.heads) (projection) | exclusive | always | Output projection from the concatenated query heads back to `width`. |
 | `q_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[query: heads*head_dim]` | [attention.heads](#axis-attention.heads) (projection) | exclusive | q_bias = true | Bias of the query projection. |
 | `k_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[key: kv_heads*head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) | exclusive | k_bias = true | Bias of the key projection. |
 | `v_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[value: kv_heads*head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) | exclusive | v_bias = true | Bias of the value projection. |
@@ -360,7 +394,7 @@ Keys and values are not stored per head: `kv` projects each position to one `hea
 
 `compress` folds `compress.ratio` consecutive positions into one cached latent: the `kv` cache grows by one entry every `compress.ratio` positions (its stride), and the open group is kept in the `compressor` state — a ring of `compress.overlap * compress.ratio` positions — with its own position table (`compressor_ape`), key/value-and-gate projection (`compressor_kv_gate`) and normalization. `window` adds a `sliding` cache of the last `window.span` uncompressed latents. `index`, when present, adds a sparse selector: `index.heads` small heads of `index.head_dim` score every cached key (`index_q`, `index_weights`; keys kept in the `index` state and compressed the same way) and keep the `index.topk` best positions for the full attention.
 
-`rope` is opaque: it changes the computation, not a tensor or a state. The main state ports are declared in every configuration: this primitive is stateful whatever `mask` says.
+`rope` changes the computation, not a tensor or a state; it is a closed record, so an unnamed variant is refused. The main state ports are declared in every configuration: this primitive is stateful whatever `mask` says.
 
 > **Note (maintainers).** Latent attention with low-rank projections, temporal compression and an optional sparse index.
 
@@ -370,11 +404,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 11 (9 required, 10 template) | 1 | 1 | 16 | 0 | `kv`, `sliding`, `compressor`, `index`, `index_compressor` (append, window) | 4 | — |
+| 11 (9 required, 10 structural) | 1 | 1 | 16 | 0 | `kv`, `sliding`, `compressor`, `index`, `index_compressor` (append, window) | 4 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `heads` | cardinality | yes |  | yes | Number of query heads; every head reads the same latent. |
@@ -393,13 +427,30 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;`index.heads` | cardinality | yes |  | yes | Number of index heads. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`index.topk` | cardinality | yes |  | yes | Positions the index keeps per query. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`index.overlap` | cardinality | yes |  | yes | Overlap of the index compressor, as `compress.overlap` is for the main cache. |
-| `rope` | opaque | yes |  | no | Rotary position encoding configuration. Opaque: it changes the computation, not a tensor or a state. |
+| `rope` | record of 4 field(s) | yes |  | no | Rotary position encoding of the decoupled key: base, compressor base, rotated channels and context-extension scaling. Changes the computation, not a tensor or a state. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.theta` | real | yes |  | no | Base of the rotary frequencies of the decoupled key. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.compress_theta` | real | no |  | no | Base of the rotary frequencies applied inside the compressor; absent, `theta`. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.partial_dims` | cardinality | no |  | no | Channels of `head_dim` that carry the decoupled rotary key; absent, the whole head is rotated. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling` | record of 7 field(s) | no |  | no | Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.kind` | enum: `"yarn"`, `"llama3"`, `"linear"` | yes |  | no | Context-extension method applied to the rotary frequencies. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.factor` | real | yes |  | no | Ratio between the served context and `orig_ctx`. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.orig_ctx` | cardinality | yes |  | no | Context length the frequencies were trained at. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor. |
 
 Values of `mask`:
 
 - `"causal"` — Each position attends to itself and to earlier positions.
 - `"chunked"` — Causal within fixed chunks.
 - `"none"` — Every position attends to every other.
+
+Values of `rope.scaling.kind`:
+
+- `"yarn"` — YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.
+- `"llama3"` — Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.
+- `"linear"` — Position interpolation: every position is divided by `factor`.
 
 ##### Ports
 
@@ -597,21 +648,21 @@ Derivation rules, in order — the first whose condition holds applies:
 
 **Selects, from the per-layer auxiliary vectors, the slice that belongs to one layer.**
 
-The input carries one `width` vector per layer (`layers × width`); the opaque `layer` names which one this occurrence forwards. No parameter, no computation beyond the selection.
+The input carries one `width` vector per layer (`layers × width`); `layer` names which one this occurrence forwards. No parameter, no computation beyond the selection.
 
 > **Note (maintainers).** Explicit selection of the conditioning slice associated with a layer.
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 3 (3 required, 2 template) | 1 | 1 | 0 | 0 | none | 0 | — |
+| 3 (3 required, 2 structural) | 1 | 1 | 0 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `layers` | cardinality | yes |  | yes | Number of layers in the input. |
 | `width` | cardinality | yes |  | yes | Width of one slice. |
-| `layer` | opaque | yes |  | no | Which layer's slice to select. Opaque. |
+| `layer` | cardinality | yes |  | no | Which layer's slice to forward: an index into the `layers` slices of the input. |
 
 ##### Ports
 
@@ -657,11 +708,11 @@ The input is projected by `gate` to `condition_width` and multiplied element-wis
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 3 (3 required, 2 template) | 2 | 1 | 3 | 0 | none | 0 | — |
+| 3 (3 required, 2 structural) | 2 | 1 | 3 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `condition_width` | cardinality | yes |  | yes | Width of the conditioning vector. |
@@ -707,27 +758,27 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 ### decoder.*
 
 <a id="contract-decoder.causal_yarn-1.0.0" name="contract-decoder.causal_yarn-1.0.0"></a>
-#### `decoder.causal_yarn@1.0.0` — delegated
+#### `decoder.causal_yarn@1.0.0` — template
 
 *data/catalog/contracts/decoder/causal_yarn/1.0.0.json*
 
-**Pre-norm causal decoder stack with grouped-query attention, RoPE with YaRN scaling and a gated FFN, as a body.**
+**Pre-norm causal decoder stack with grouped-query attention, RoPE with YaRN scaling and a gated FFN, as a template.**
 
-A delegated contract: its meaning is the family of graphs its body `decoder-causal-yarn.json` denotes, one per assignment of `width`, `layers`, `heads`, `kv_heads`, `head_dim`, `inner`, `eps` and `precision`. Invoking it costs a consumer nothing beyond the primitives the body cites (§8.1); parameters, state and costs are derived from the expanded body (§4.6).
+A template contract: its meaning is the family of graphs its template `decoder-causal-yarn.json` denotes, one per assignment of `width`, `layers`, `heads`, `kv_heads`, `head_dim`, `inner`, `eps` and `precision`. Invoking it costs a consumer nothing beyond the primitives the body cites (§8.1); parameters, state and costs are derived from the expanded template (§4.6).
 
 > **Note (maintainers).** Pre-norm causal decoder with grouped attention, RoPE/YARN and a gated FFN.
 
 External documentation:
 
-- [YaRN: Efficient Context Window Extension of Large Language Models (Peng et al., 2023)](https://arxiv.org/abs/2309.00071) *(paper)* — The rotary scaling the body's attention uses.
+- [YaRN: Efficient Context Window Extension of Large Language Models (Peng et al., 2023)](https://arxiv.org/abs/2309.00071) *(paper)* — The rotary scaling the template's attention uses.
 
-##### Body
+##### Template
 
-- URI `models-v2.decoder-causal-yarn`, model id `decoder_causal_yarn`
-- *Note: parametric body: models-v2/decoder-causal-yarn.json*
+- URI `decoder-causal-yarn`, model id `decoder_causal_yarn`
+- *Note: template: models/decoder-causal-yarn.json*
 - Resolved to `data/models/decoder-causal-yarn.json`
 
-Arguments — the external quantities of the body (§4.6), supplied by an assignment at the call site:
+Arguments — the external quantities of the template (§4.6), supplied by an assignment at the call site:
 
 | Argument | Type | Domain | Default |
 |---|---|---|---|
@@ -740,22 +791,22 @@ Arguments — the external quantities of the body (§4.6), supplied by an assign
 | `eps` | real | `(0, 1)` |  |
 | `precision` | enum: `"bf16"`, `"f16"`, `"f32"` | {"bf16", "f16", "f32"} |  |
 
-Ports — the public interfaces of the body:
+Ports — the public interfaces of the template:
 
 | Side | Port | Domain | Generative |
 |---|---|---|---|
 | input | `hidden` | token (self) | — |
 | output | `hidden_out` | token (self) | no |
 
-Contracts the body cites, transitively — the capabilities a consumer needs (§8.1), never the composite itself:
+Contracts the template cites, transitively — the capabilities a consumer needs (§8.1), never the composite itself:
 
 - [attention.dense@1.0.0](#contract-attention.dense-1.0.0)
-- [ffn.gated@1.1.0](#contract-ffn.gated-1.1.0)
+- [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0)
 - [identity@1.0.0](#contract-identity-1.0.0)
 - [norm.rms@1.0.0](#contract-norm.rms-1.0.0)
 - [residual.add@1.0.0](#contract-residual.add-1.0.0)
 
-Parameter slots, state ports, logical cost and semantic partitions are derived from the expanded body (§4.6, D3–D6); this document does not expand bodies.
+Parameter slots, state ports, logical cost and semantic partitions are derived from the expanded template (§4.6, D3–D6); this document does not expand templates.
 
 <a id="namespace-embedding" name="namespace-embedding"></a>
 ### embedding.*
@@ -773,11 +824,11 @@ Besides the usual `output`, the primitive computes `auxiliary`: for each of `lay
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 5 (5 required, 5 template) | 1 | 2 | 4 | 0 | none | 1 | — |
+| 5 (5 required, 5 structural) | 1 | 2 | 4 | 0 | none | 1 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the main embedding. |
 | `vocabulary` | cardinality | yes |  | yes | Number of token identifiers. |
@@ -841,11 +892,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 3 (3 required, 3 template) | 1 | 1 | 2 | 0 | none | 1 | — |
+| 3 (3 required, 3 structural) | 1 | 1 | 2 | 0 | none | 1 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the embedding. |
 | `vocabulary` | cardinality | yes |  | yes | Number of token identifiers. |
@@ -904,11 +955,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 template) | 1 | 1 | 5 | 0 | none | 1 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 5 | 0 | none | 1 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the embedding. |
 | `vocabulary` | cardinality | yes |  | yes | Number of token identifiers. |
@@ -957,10 +1008,10 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 <a id="namespace-ffn" name="namespace-ffn"></a>
 ### ffn.*
 
-<a id="contract-ffn.dense-1.1.0" name="contract-ffn.dense-1.1.0"></a>
-#### `ffn.dense@1.1.0`
+<a id="contract-ffn.dense-1.0.0" name="contract-ffn.dense-1.0.0"></a>
+#### `ffn.dense@1.0.0`
 
-*data/catalog/contracts/ffn/dense/1.1.0.json*
+*data/catalog/contracts/ffn/dense/1.0.0.json*
 
 **Dense feed-forward network: an up projection, a non-linearity, then a down projection.**
 
@@ -974,20 +1025,20 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 8 (3 required, 5 template) | 1 | 1 | 6 | 0 | none | 1 | `operations` |
+| 8 (3 required, 5 structural) | 1 | 1 | 6 | 0 | none | 1 | `operations` |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `inner` | cardinality | yes |  | yes | Inner width. |
-| `activation` | enum: `"silu"`, `"gelu"`, `"gelu_tanh"`, `"relu2"` | yes |  | no | Non-linearity applied after the up projection.<br>*Note: selects the non-linearity; changes no template* |
+| `activation` | enum: `"silu"`, `"gelu"`, `"gelu_tanh"`, `"relu2"` | yes |  | no | Non-linearity applied after the up projection.<br>*Note: selects the non-linearity; not structural* |
 | `in_bias` | boolean | no | `false` | yes | Learned bias on the up projection. |
 | `out_bias` | boolean | no | `false` | yes | Learned bias on the down projection. |
 | `condition_dim` | cardinality | no |  | yes | Rank of the conditioning projector; present, `condition_in` and `condition_out` exist.<br>*Note: rank of the temporal conditioning projector* |
-| `condition` | opaque | no |  | no | How the conditioning signal is applied. Opaque. |
-| `activation_sparsity` | opaque | no |  | no | Fraction of activations zeroed after selection. Opaque.<br>*Note: structural fraction of activations zeroed after selection* |
+| `condition` | enum: `"time"` | no |  | no | How the conditioning signal is applied. |
+| `activation_sparsity` | real | no |  | no | Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none.<br>*Note: structural fraction of activations zeroed after selection* |
 
 Values of `activation`:
 
@@ -995,6 +1046,10 @@ Values of `activation`:
 - `"gelu"` — Exact GELU.
 - `"gelu_tanh"` — Tanh-approximated GELU.
 - `"relu2"` — Squared ReLU.
+
+Values of `condition`:
+
+- `"time"` — A temporal condition modulates the inner activation through the `condition_in`/`condition_out` projector.
 
 ##### Ports
 
@@ -1042,14 +1097,14 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 |---|---|---|---|---|
 | axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism across the inner width; the down projection needs an all-reduce. |
 
-<a id="contract-ffn.gated-1.1.0" name="contract-ffn.gated-1.1.0"></a>
-#### `ffn.gated@1.1.0`
+<a id="contract-ffn.gated-1.0.0" name="contract-ffn.gated-1.0.0"></a>
+#### `ffn.gated@1.0.0`
 
-*data/catalog/contracts/ffn/gated/1.1.0.json*
+*data/catalog/contracts/ffn/gated/1.0.0.json*
 
 **Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection.**
 
-`in` fuses the gate and up projections into `2*inner` rows; the activation is applied to the gate half and multiplied by the up half, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is described by the opaque `condition`; `activation_sparsity` zeroes a structural fraction of the activations.
+`in` fuses the gate and up projections into `2*inner` rows; the activation is applied to the gate half and multiplied by the up half, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is selected by `condition`; `activation_sparsity` zeroes a structural fraction of the activations.
 
 > **Note (maintainers).** Gated FFN: gate and up projections, multiplicative activation, then down projection.
 
@@ -1059,20 +1114,20 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 8 (3 required, 5 template) | 1 | 1 | 6 | 0 | none | 1 | `operations` |
+| 8 (3 required, 5 structural) | 1 | 1 | 6 | 0 | none | 1 | `operations` |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `inner` | cardinality | yes |  | yes | Inner width: the size of the gate and up outputs. |
-| `activation` | enum: `"silu"`, `"gelu"`, `"gelu_tanh"`, `"relu2"` | yes |  | no | Non-linearity applied to the gate half.<br>*Note: selects the non-linearity; changes no template* |
+| `activation` | enum: `"silu"`, `"gelu"`, `"gelu_tanh"`, `"relu2"` | yes |  | no | Non-linearity applied to the gate half.<br>*Note: selects the non-linearity; not structural* |
 | `in_bias` | boolean | no | `false` | yes | Learned bias on the fused gate/up projection. |
 | `out_bias` | boolean | no | `false` | yes | Learned bias on the down projection. |
 | `condition_dim` | cardinality | no |  | yes | Rank of the conditioning projector; present, `condition_in` and `condition_out` exist.<br>*Note: rank of the temporal conditioning projector* |
-| `condition` | opaque | no |  | no | How the conditioning signal is applied. Opaque. |
-| `activation_sparsity` | opaque | no |  | no | Fraction of activations zeroed after selection. Opaque.<br>*Note: structural fraction of activations zeroed after selection* |
+| `condition` | enum: `"time"` | no |  | no | How the conditioning signal is applied. |
+| `activation_sparsity` | real | no |  | no | Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none.<br>*Note: structural fraction of activations zeroed after selection* |
 
 Values of `activation`:
 
@@ -1080,6 +1135,10 @@ Values of `activation`:
 - `"gelu"` — Exact GELU (GEGLU).
 - `"gelu_tanh"` — Tanh-approximated GELU.
 - `"relu2"` — Squared ReLU.
+
+Values of `condition`:
+
+- `"time"` — A temporal condition modulates the inner activation through the `condition_in`/`condition_out` projector.
 
 ##### Ports
 
@@ -1149,11 +1208,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 1 | 1 | 3 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 3 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of one stream. |
 | `multiplicity` | cardinality | yes |  | yes | Number of parallel residual streams. |
@@ -1193,10 +1252,10 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
-<a id="contract-mix.doubly_stochastic-2.0.0" name="contract-mix.doubly_stochastic-2.0.0"></a>
-#### `mix.doubly_stochastic@2.0.0`
+<a id="contract-mix.doubly_stochastic-1.0.0" name="contract-mix.doubly_stochastic-1.0.0"></a>
+#### `mix.doubly_stochastic@1.0.0`
 
-*data/catalog/contracts/mix/doubly_stochastic/2.0.0.json*
+*data/catalog/contracts/mix/doubly_stochastic/1.0.0.json*
 
 **Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition.**
 
@@ -1212,11 +1271,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 2 template) | 2 | 1 | 3 | 0 | none | 0 | — |
+| 4 (4 required, 2 structural) | 2 | 1 | 3 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of one stream. |
 | `multiplicity` | cardinality | yes |  | yes | Number of parallel residual streams. |
@@ -1279,11 +1338,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 1 template) | 1 | 1 | 2 | 0 | none | 0 | — |
+| 2 (2 required, 1 structural) | 1 | 1 | 2 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width normalized over. |
 | `eps` | real | yes |  | no | Added to the variance before the root; changes no tensor. |
@@ -1331,7 +1390,7 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 
 Divides the input by its root mean square over `width` (plus `eps`) and multiplies by `weight`. No bias and no centering: that is what makes it non-interchangeable with `norm.layer`.
 
-> **Note (maintainers).** RMSNorm. eps affects no template: affects_template=false.
+> **Note (maintainers).** RMSNorm. eps is not structural: it changes no slot, port or state.
 
 External documentation:
 
@@ -1339,11 +1398,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 1 template) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 2 (2 required, 1 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width normalized over. |
 | `eps` | real | yes |  | no | Added to the mean square before the root; changes no tensor. |
@@ -1399,11 +1458,11 @@ Patches are normalized (`norm`), `merge_count` of them combined by the learned `
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 template) | 1 | 1 | 4 | 0 | none | 0 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 4 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the language model. |
 | `source_width` | cardinality | yes |  | yes | Feature width of the vision tower. |
@@ -1471,11 +1530,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 template) | 1 | 1 | 6 | 0 | none | 0 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 6 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the language model. |
 | `source_width` | cardinality | yes |  | yes | Feature width of the vision tower. |
@@ -1545,11 +1604,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 template) | 1 | 1 | 2 | 0 | none | 0 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 2 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the language model. |
 | `source_width` | cardinality | yes |  | yes | Feature width of the audio encoder. |
@@ -1612,11 +1671,11 @@ An occurrence with two input ports, not an annotation on a step: the value graph
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 1 (1 required, 1 template) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 1 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of both operands. |
 
@@ -1671,11 +1730,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 2 | 2 | 2 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 2 | 2 | 2 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of one stream. |
 | `streams` | cardinality | yes |  | yes | Number of parallel residual streams. |
@@ -1735,11 +1794,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 1 | 2 | 3 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 2 | 3 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of one stream. |
 | `streams` | cardinality | yes |  | yes | Number of parallel residual streams. |
@@ -1787,22 +1846,22 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 
 **Weighted combination of two branches: `left*left_scale + right*right_scale`, times `output_scale`.**
 
-The scales are opaque scalars: they change the computation, not a tensor. Used where a model averages two branches or scales a residual.
+The scales change the computation, not a tensor. Used where a model averages two branches or scales a residual.
 
 > **Note (maintainers).** Combination of two branches with explicit scalar factors.
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (1 required, 1 template) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 4 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of both operands. |
-| `left_scale` | opaque | no |  | no | Factor applied to `left`. Opaque. |
-| `right_scale` | opaque | no |  | no | Factor applied to `right`. Opaque. |
-| `output_scale` | opaque | no |  | no | Factor applied to the sum. Opaque. |
+| `left_scale` | real | no | `1` | no | Factor applied to `left`. |
+| `right_scale` | real | no | `1` | no | Factor applied to `right`. |
+| `output_scale` | real | no | `1` | no | Factor applied to the sum. |
 
 ##### Ports
 
@@ -1853,11 +1912,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 3 (3 required, 2 template) | 1 | 1 | 3 | 0 | none | 0 | — |
+| 3 (3 required, 2 structural) | 1 | 1 | 3 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `rank` | cardinality | yes |  | yes | Rank of the low-rank pair. |
@@ -1917,11 +1976,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of one stream. |
 | `streams` | cardinality | yes |  | yes | Number of parallel residual streams. |
@@ -1978,11 +2037,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of one stream. |
 | `streams` | cardinality | yes |  | yes | Number of parallel residual streams. |
@@ -2035,11 +2094,11 @@ Replaces the active stream among `streams` with the given `active` vector; the o
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of one stream. |
 | `streams` | cardinality | yes |  | yes | Number of parallel residual streams. |
@@ -2079,10 +2138,10 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 <a id="namespace-sequence" name="namespace-sequence"></a>
 ### sequence.*
 
-<a id="contract-sequence.gated_delta-2.0.0" name="contract-sequence.gated_delta-2.0.0"></a>
-#### `sequence.gated_delta@2.0.0`
+<a id="contract-sequence.gated_delta-1.0.0" name="contract-sequence.gated_delta-1.0.0"></a>
+#### `sequence.gated_delta@1.0.0`
 
-*data/catalog/contracts/sequence/gated_delta/2.0.0.json*
+*data/catalog/contracts/sequence/gated_delta/1.0.0.json*
 
 **Gated DeltaNet layer: a per-head matrix state updated by the delta rule, behind a short causal convolution.**
 
@@ -2100,11 +2159,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 6 (4 required, 6 template) | 1 | 1 | 9 | 0 | `recurrent`, `conv` (fixed, window) | 2 | `operations` |
+| 6 (4 required, 6 structural) | 1 | 1 | 9 | 0 | `recurrent`, `conv` (fixed, window) | 2 | `operations` |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `key_heads` | cardinality | yes |  | yes | Number of query/key heads. |
@@ -2226,10 +2285,10 @@ Derivation rules, in order — the first whose condition holds applies:
 <a id="namespace-unqualified" name="namespace-unqualified"></a>
 ### unqualified
 
-<a id="contract-conv_frontend-2.0.0" name="contract-conv_frontend-2.0.0"></a>
-#### `conv_frontend@2.0.0`
+<a id="contract-conv_frontend-1.0.0" name="contract-conv_frontend-1.0.0"></a>
+#### `conv_frontend@1.0.0`
 
-*data/catalog/contracts/conv_frontend/2.0.0.json*
+*data/catalog/contracts/conv_frontend/1.0.0.json*
 
 **Audio front end: two temporal convolutions over mel frames, the second strided, plus optional learned positions.**
 
@@ -2243,11 +2302,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 6 (3 required, 6 template) | 1 | 1 | 5 | 0 | none | 0 | — |
+| 6 (3 required, 6 structural) | 1 | 1 | 5 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the encoder. |
 | `mels` | cardinality | yes |  | yes | Mel bins per frame. |
@@ -2308,11 +2367,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 1 | 1 | 1 | 0 | none | 1 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the embedding. |
 | `vocabulary` | cardinality | yes |  | yes | Number of token identifiers. |
@@ -2365,11 +2424,11 @@ A public input is a single endpoint and a value edge has one destination; when a
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 1 (1 required, 1 template) | 1 | 1 | 0 | 0 | none | 0 | — |
+| 1 (1 required, 1 structural) | 1 | 1 | 0 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width passed through. |
 
@@ -2419,11 +2478,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 1 | 1 | 1 | 0 | none | 1 | `operations` |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 1 | `operations` |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the hidden state. |
 | `vocabulary` | cardinality | yes |  | yes | Number of vocabulary entries. |
@@ -2469,16 +2528,16 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 |---|---|---|---|---|
 | axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard computes a slice of the logits; the slices are gathered. |
 
-<a id="contract-moe-1.1.0" name="contract-moe-1.1.0"></a>
-#### `moe@1.1.0`
+<a id="contract-moe-1.0.0" name="contract-moe-1.0.0"></a>
+#### `moe@1.0.0`
 
-*data/catalog/contracts/moe/1.1.0.json*
+*data/catalog/contracts/moe/1.0.0.json*
 
 **Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts.**
 
 Each token is scored by `router` against `experts` experts and sent to the `top_k` best; an expert is a gated FFN (`in` fuses gate and up, `out` projects down). `shared` experts of inner width `shared_inner` are applied to every token, optionally weighted by a learned `shared_gate`. `score_bias` adds a learned per-expert bias to the routing scores before selection (load balancing without an auxiliary loss); `hash_vocabulary` replaces learned routing by a fixed token-to-experts table.
 
-`norm_topk`, `routing`, `scale`, `scoring` and `swiglu_limit` are opaque: they change how scores are computed and combined, not which tensors exist. The set of experts a batch activates is not the per-token count: `top_k` bounds a token, `experts` bounds a batch (§4.5).
+`norm_topk`, `routing`, `scale`, `scoring` and `swiglu_limit` change how scores are computed and combined, not which tensors exist; each is a closed enum, boolean or real. The set of experts a batch activates is not the per-token count: `top_k` bounds a token, `experts` bounds a batch (§4.5).
 
 External documentation:
 
@@ -2489,26 +2548,37 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 14 (4 required, 9 template) | 1 | 1 | 8 | 0 | none | 2 | `operations` |
+| 14 (4 required, 9 structural) | 1 | 1 | 8 | 0 | none | 2 | `operations` |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `experts` | cardinality | yes |  | yes | Number of routed experts. |
 | `top_k` | cardinality | yes |  | yes | Experts activated per token. |
 | `inner` | cardinality | yes |  | yes | Inner width of one routed expert. |
 | `shared` | cardinality | no | `0` | yes | Number of shared experts applied to every token; zero for none. |
-| `norm_topk` | opaque | no |  | no | Whether the selected scores are renormalized. Opaque. |
-| `routing` | opaque | no |  | no | Routing policy details. Opaque. |
-| `scale` | opaque | no |  | no | Scaling applied to the routed outputs. Opaque. |
-| `scoring` | opaque | no |  | no | Scoring function of the router. Opaque. |
+| `norm_topk` | boolean | no | `false` | no | The `top_k` selected scores are renormalized to sum to one. |
+| `routing` | enum: `"learned"`, `"hash"` | no | `"learned"` | no | How a token is assigned to experts. |
+| `scale` | real | no |  | no | Factor applied to the routed experts' combined output; absent, 1. |
+| `scoring` | enum: `"softmax"`, `"sigmoid"`, `"sqrtsoftplus"` | no | `"softmax"` | no | Function turning router logits into scores. |
 | `shared_inner` | cardinality | no | `inner` | yes | Inner width of one shared expert. |
-| `swiglu_limit` | opaque | no |  | no | Clamp applied inside the gated activation. Opaque. |
+| `swiglu_limit` | real | no |  | no | Clamp applied to the gate and up activations inside each expert; absent, none. |
 | `shared_gate` | boolean | no | `false` | yes | The shared experts' output is weighted by a learned gate projection. |
 | `score_bias` | boolean | no | `false` | yes | A learned per-expert bias is added to the routing scores before selection. |
 | `hash_vocabulary` | cardinality | no |  | yes | Size of a fixed token-to-experts table; present, routing is a table lookup rather than `router`.<br>*Note: vocabulary of the token to experts table* |
+
+Values of `routing`:
+
+- `"learned"` — The `router` projection scores every expert.
+- `"hash"` — A fixed token-to-experts table; requires `hash_vocabulary`.
+
+Values of `scoring`:
+
+- `"softmax"` — Softmax over the experts.
+- `"sigmoid"` — Independent sigmoid per expert.
+- `"sqrtsoftplus"` — Square root of the softplus of each logit.
 
 ##### Ports
 
@@ -2575,11 +2645,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 template) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the hidden state. |
 | `layers` | cardinality | yes |  | yes | Number of prediction depths, hence of projections. |
@@ -2617,10 +2687,10 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
-<a id="contract-patch_embed-2.0.0" name="contract-patch_embed-2.0.0"></a>
-#### `patch_embed@2.0.0`
+<a id="contract-patch_embed-1.0.0" name="contract-patch_embed-1.0.0"></a>
+#### `patch_embed@1.0.0`
 
-*data/catalog/contracts/patch_embed/2.0.0.json*
+*data/catalog/contracts/patch_embed/1.0.0.json*
 
 **Patch embedding: projects each image or video patch to `width`.**
 
@@ -2635,11 +2705,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 6 (3 required, 6 template) | 1 | 1 | 3 | 0 | none | 0 | — |
+| 6 (3 required, 6 structural) | 1 | 1 | 3 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the vision tower. |
 | `patch` | cardinality | yes |  | yes | Spatial patch side, in pixels. |
@@ -2698,11 +2768,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (3 required, 4 template) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 4 (3 required, 4 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the hidden state. |
 | `project_to` | cardinality | yes |  | yes | Feature width of the embedding. |
@@ -2753,10 +2823,10 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
-<a id="contract-splice-2.0.0" name="contract-splice-2.0.0"></a>
-#### `splice@2.0.0`
+<a id="contract-splice-1.0.0" name="contract-splice-1.0.0"></a>
+#### `splice@1.0.0`
 
-*data/catalog/contracts/splice/2.0.0.json*
+*data/catalog/contracts/splice/1.0.0.json*
 
 **Inserts an already-projected stream into the token sequence.**
 
@@ -2768,11 +2838,11 @@ Both inputs are in the token domain at `width`: `text` is the embedded token seq
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 1 (1 required, 1 template) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 1 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the token stream. |
 
@@ -2827,11 +2897,11 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 template) | 1 | 1 | 4 | 0 | none | 2 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 4 | 0 | none | 2 | — |
 
 ##### Arguments
 
-| Argument | Type | Required | Default | Template | Description |
+| Argument | Type | Required | Default | Structural | Description |
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width of the vision tower. |
 | `heads` | cardinality | yes |  | yes | Attention heads. |
@@ -3043,11 +3113,10 @@ Every value of every closed enumeration that at least one unit uses, and how man
 |---|---|---|
 | argument type | `boolean` | 6 |
 | argument type | `cardinality` | 35 |
-| argument type | `enum` | 6 |
-| argument type | `opaque` | 7 |
+| argument type | `enum` | 7 |
 | argument type | `physical` | 2 |
 | argument type | `port_reference` | 4 |
-| argument type | `real` | 5 |
+| argument type | `real` | 11 |
 | argument type | `record` | 3 |
 | axis nature | `feature` | 35 |
 | axis nature | `projection` | 8 |
@@ -3108,7 +3177,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 36 | 36 | 100% |
-| argument | 161 | 161 | 100% |
+| argument | 189 | 189 | 100% |
 | port | 81 | 81 | 100% |
 | parameter | 115 | 115 | 100% |
 | state | 8 | 8 | 100% |
@@ -3127,5 +3196,12 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 
 Legal, and worth knowing. None of these blocks generation.
 
-- data/catalog/contracts/attention/dense/1.0.0.json parameters qkv: cites argument 'q_rank', which this contract does not declare — the condition can never hold
-- data/catalog/contracts/attention/dense/1.0.0.json parameters out: cites argument 'o_rank', which this contract does not declare — the condition can never hold
+- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.beta_fast: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.beta_slow: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.low: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.high: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.beta_fast: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.beta_slow: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.low: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.high: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
+- data/catalog/contracts/decoder/causal_yarn/1.0.0.json: key 'template' is neither grammar this generator knows nor documentation; not rendered

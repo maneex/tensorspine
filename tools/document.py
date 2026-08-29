@@ -16,8 +16,8 @@ adds nothing the catalog does not say. Two sources feed the page:
 
 A unit's page says what the unit declares, and nothing about who uses it:
 there is no "cited by" index. Model documents are read for one purpose only,
-finding the body of a delegated contract, which lives beside the models that
-invoke it (catalog.body_path); the PATHs of the command line say where to
+finding the template of a template contract, which lives beside the models that
+invoke it (catalog.template_path); the PATHs of the command line say where to
 look.
 
 The generator never invents prose. A unit without a summary is rendered
@@ -56,8 +56,8 @@ GRAMMAR = {
     'contract': {'version', 'arguments', 'ports', 'parameters', 'constants', 'state_ports',
                  'effects', 'logical_cost', 'partitions', 'constraints', 'note',
                  'domain_transforms'},
-    'delegated': {'version', 'model', 'note'},
-    'argument': {'type', 'required', 'affects_template', 'default', 'note'},
+    'template': {'version', 'model', 'note'},
+    'argument': {'type', 'required', 'structural', 'default', 'note'},
     'port': {'shape', 'domain', 'multiplicity', 'present_when', 'optional', 'note', 'role'},
     'parameter': {'role', 'shape', 'present_when', 'multiplicity', 'note', 'views', 'sharing'},
     'constant': {'shape', 'present_when', 'note', 'role'},
@@ -78,7 +78,7 @@ GRAMMAR = {
 # Which fragment of the documentation schema governs the documentation of a
 # site, and therefore which keys are documentation there.
 FRAGMENT = {
-    'contract': 'unit_documentation', 'delegated': 'unit_documentation',
+    'contract': 'unit_documentation', 'template': 'unit_documentation',
     'axis': 'unit_documentation', 'precision_role': 'unit_documentation',
     'base': 'base_documentation', 'argument': 'argument_documentation',
 }
@@ -138,7 +138,7 @@ class Docs:
 
     def of(self, site_kind, node, where, label=None, primary='description'):
         """The documentation of a site: checked, counted, returned."""
-        counted_as = 'contract' if site_kind == 'delegated' else site_kind
+        counted_as = 'contract' if site_kind == 'template' else site_kind
         doc_keys = self.keys(site_kind)
         docs = {k: node[k] for k in doc_keys if k in node}
         for error in sorted(self._validator(FRAGMENT[site_kind]).iter_errors(docs),
@@ -409,12 +409,12 @@ def load_units(bases):
     return manifests, units
 
 
-def find_body(definition, model_paths):
-    """The body of a delegated contract: `<last URI segment>.json`, looked for
-    in the directories of the given model documents (catalog.body_path
+def find_template(definition, model_paths):
+    """The template of a template contract: `<last URI segment>.json`, looked for
+    in the directories of the given model documents (catalog.template_path
     resolves it beside the invoking model, which a catalog page does not
     have). Returns (path, model) or None."""
-    segment = definition['model']['uri'].split('.')[-1]
+    segment = definition['template']['name'].split('.')[-1]
     dirs = []
     for p in model_paths:
         d = os.path.dirname(os.path.abspath(p))
@@ -647,8 +647,8 @@ class Renderer:
             "spells out the declared factors of a flattened axis (O5.10); `scalar` is rank 0. "
             "The *Axes* column gives each axis's catalog identity and nature; shapes unify by "
             "axis identity and extent (V4), never by position alone.",
-            "- **Template** marks an argument with `affects_template`: it decides which slots, "
-            "ports or states exist or what shape they have. A non-template argument changes "
+            "- **Structural** marks an argument with `structural`: it decides which slots, "
+            "ports or states exist or what shape they have. A non-structural argument changes "
             "only the computation.",
             "- **State rules** are ordered; the first rule whose condition holds decides the "
             "law, access geometry, sharing and indexing of the state (§4.3).",
@@ -670,8 +670,8 @@ class Renderer:
         for u in self.contracts:
             d = u['definition']
             name, version = u['name'], d['version']
-            if 'model' in d:
-                shape = 'delegated body'
+            if 'template' in d:
+                shape = 'template'
             else:
                 states = ', '.join(f"`{s}`" for s in d.get('state_ports', {}))
                 shape = (f"{len(d['arguments'])} args · "
@@ -714,10 +714,10 @@ class Renderer:
         name, version = u['name'], d['version']
         where = self.rel(u['path'])
         label = f"{name}@{version}"
-        delegated = 'model' in d
-        site = 'delegated' if delegated else 'contract'
+        is_template = 'template' in d
+        site = 'template' if is_template else 'contract'
         docs = self.docs.of(site, d, where, label, primary='summary')
-        out = heading(4, f"`{label}`" + (' — delegated' if delegated else ''),
+        out = heading(4, f"`{label}`" + (' — template' if is_template else ''),
                       anchor('contract', name, version))
         out.append(f"*{where}*")
         out.append('')
@@ -731,8 +731,8 @@ class Renderer:
         ext = external_docs_lines(docs, self.rewrite_url)
         if ext:
             out += ['External documentation:', ''] + ext
-        if delegated:
-            out += self.delegated_body(u, where)
+        if is_template:
+            out += self.template_section(u, where)
         else:
             out += self.at_a_glance(d)
             out += self.arguments(d, where, label)
@@ -750,7 +750,7 @@ class Renderer:
 
     def at_a_glance(self, d):
         declared = d['arguments']
-        template = sum(1 for a in declared.values() if a.get('affects_template'))
+        structural = sum(1 for a in declared.values() if a.get('structural'))
         required = sum(1 for a in declared.values() if a.get('required'))
         states = d.get('state_ports', {})
         laws = set()
@@ -758,7 +758,7 @@ class Renderer:
             for r in s['rules']:
                 laws.add(r['law'])
         cost = ', '.join(f"`{k}`" for k in d.get('logical_cost', {})) or '—'
-        rows = [[f"{len(declared)} ({required} required, {template} template)",
+        rows = [[f"{len(declared)} ({required} required, {structural} structural)",
                  str(len(d['ports']['inputs'])), str(len(d['ports']['outputs'])),
                  str(len(d.get('parameters', {}))), str(len(d.get('constants', {}))),
                  (', '.join(f"`{s}`" for s in states) + (f" ({', '.join(sorted(laws))})" if laws else '')) or 'none',
@@ -790,7 +790,7 @@ class Renderer:
                 desc = f"**Deprecated.** {dep['reason']}{sup}" + (f"<br>{desc}" if desc else '')
             indent = '&nbsp;&nbsp;&nbsp;&nbsp;' * depth
             rows.append([f"{indent}`{full}`", tdesc, 'yes' if a.get('required') else 'no',
-                         default, 'yes' if a.get('affects_template') else 'no', desc])
+                         default, 'yes' if a.get('structural') else 'no', desc])
             if kind == 'enum' and 'value_descriptions' in adocs:
                 for v in adocs['value_descriptions']:
                     if not any(str(x) == v for x in t['values']):
@@ -812,7 +812,7 @@ class Renderer:
         if not d['arguments']:
             return out + ['This contract takes no argument.', '']
         rows, enums = self.argument_rows(d['arguments'], where, label)
-        out += table(['Argument', 'Type', 'Required', 'Default', 'Template', 'Description'], rows)
+        out += table(['Argument', 'Type', 'Required', 'Default', 'Structural', 'Description'], rows)
         for full, values, descriptions in enums:
             out.append(f"Values of `{full}`:")
             out.append('')
@@ -1077,26 +1077,26 @@ class Renderer:
                                  f"cites argument '{ref}', which this contract does not "
                                  f"declare — the condition can never hold")
 
-    def delegated_body(self, u, where):
+    def template_section(self, u, where):
         d = u['definition']
-        m = d['model']
-        out = ['##### Body', '']
-        out.append(f"- URI `{m['uri']}`, model id `{m['id']}`"
-                   + (f", body version `{m['version']}`" if m.get('version') else ''))
+        m = d['template']
+        out = ['##### Template', '']
+        out.append(f"- URI `{m['name']}`, model id `{m['id']}`"
+                   + (f", template version `{m['version']}`" if m.get('version') else ''))
         if m.get('note'):
             out.append(f"- *Note: {m['note']}*")
-        found = find_body(d, self.model_paths)
+        found = find_template(d, self.model_paths)
         if found is None:
-            out.append(f"- Body not found beside the model documents given "
-                       f"(`{m['uri'].split('.')[-1]}.json`).")
-            self.report.find(where, "body not found beside the model documents given")
+            out.append(f"- Template not found beside the model documents given "
+                       f"(`{m['name'].split('.')[-1]}.json`).")
+            self.report.find(where, "template not found beside the model documents given")
             return out + ['']
         path, model = found
         declared_id = model.get('model', '?')
         out.append(f"- Resolved to `{self.rel(path)}`"
                    + (f" (declares model id `{declared_id}`)" if declared_id != m['id'] else ''))
         if declared_id != m['id']:
-            self.report.find(where, f"body declares model id '{declared_id}', contract says '{m['id']}'")
+            self.report.find(where, f"template declares model id '{declared_id}', contract says '{m['id']}'")
         out.append('')
         rows = []
         for qname, q in model.get('quantities', {}).items():
@@ -1107,7 +1107,7 @@ class Renderer:
             tdesc = t['kind'] + (': ' + ', '.join(f"`{json.dumps(v)}`" for v in t['values']) if t['kind'] == 'enum' else '')
             rows.append([code(src['name']), tdesc, self.quantity_domain(q.get('domain')),
                          code(expr(q['default'])) if 'default' in q else ''])
-        out += ['Arguments — the external quantities of the body (§4.6), supplied by an '
+        out += ['Arguments — the external quantities of the template (§4.6), supplied by an '
                 'assignment at the call site:', '']
         out += table(['Argument', 'Type', 'Domain', 'Default'], rows) if rows else ['none', '']
         rows = []
@@ -1116,16 +1116,16 @@ class Renderer:
                 dom = p.get('domain', {})
                 rows.append([side[:-1], code(pname), f"{dom.get('kind', '?')} ({dom.get('source', '?')})",
                              'yes' if p.get('generative') else ('no' if side == 'outputs' else '—')])
-        out += ['Ports — the public interfaces of the body:', '']
+        out += ['Ports — the public interfaces of the template:', '']
         out += table(['Side', 'Port', 'Domain', 'Generative'], rows)
         closure = self.closure(model)
-        out += ['Contracts the body cites, transitively — the capabilities a consumer needs '
+        out += ['Contracts the template cites, transitively — the capabilities a consumer needs '
                 '(§8.1), never the composite itself:', '']
         for name, version in sorted(closure):
             out.append(f"- {self.link_contract(name, version)}")
         out += ['', 'Parameter slots, state ports, logical cost and semantic partitions are '
-                'derived from the expanded body (§4.6, D3–D6); this document does not '
-                'expand bodies.', '']
+                'derived from the expanded template (§4.6, D3–D6); this document does not '
+                'expand templates.', '']
         return out
 
     def closure(self, model, seen=None):
@@ -1141,8 +1141,8 @@ class Renderer:
                 continue
             seen.add(ref)
             d = self.cat['contracts'].get(ref[0])
-            if d is not None and 'model' in d:
-                found = find_body(d, self.model_paths)
+            if d is not None and 'template' in d:
+                found = find_template(d, self.model_paths)
                 if found is not None:
                     self.closure(found[1], seen)
         return seen
@@ -1269,7 +1269,7 @@ class Renderer:
 def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None):
     """Render the catalog of the given bases to Markdown. Returns the exit status:
     0 written, 1 refused (malformed documentation, unreadable catalog), with the
-    causes on stderr. `model_paths` only say where delegated bodies are looked
+    causes on stderr. `model_paths` only say where templates are looked
     for."""
     status = sys.stderr if output is None else sys.stdout
     try:

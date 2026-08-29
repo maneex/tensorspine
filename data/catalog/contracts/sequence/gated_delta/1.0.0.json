@@ -23,7 +23,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of `input` and `output`."
       },
       "key_heads": {
@@ -31,7 +31,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of query/key heads."
       },
       "value_heads": {
@@ -39,7 +39,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of value heads, and of recurrent state matrices."
       },
       "head_dim": {
@@ -47,7 +47,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Dimension of one head; the state matrix of a value head is `head_dim × head_dim`."
       },
       "out_gate": {
@@ -61,7 +61,7 @@
           ]
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": "none"
         },
@@ -82,7 +82,7 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Channels of the convolution: the projected query, key and value width."
             },
             "kernel": {
@@ -90,7 +90,7 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Kernel support, in positions."
             },
             "history": {
@@ -98,13 +98,13 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Positions of history the `conv` state keeps between invocations."
             }
           }
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "description": "Causal depthwise convolution applied to the projected inputs before the recurrence."
       }
     },

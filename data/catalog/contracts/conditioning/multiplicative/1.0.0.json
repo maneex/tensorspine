@@ -12,7 +12,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of `input` and `output`."
       },
       "condition_width": {
@@ -20,7 +20,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Width of the conditioning vector."
       },
       "eps": {
@@ -28,7 +28,7 @@
           "kind": "real"
         },
         "required": true,
-        "affects_template": false,
+        "structural": false,
         "description": "Epsilon of the normalization; changes no tensor."
       }
     },

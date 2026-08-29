@@ -183,7 +183,7 @@ def contract_references(d, cat):
     """Problems of one contract definition against the catalog it lives in:
     every axis, precision role, port and argument path it cites must exist,
     every default and enum description must name a declared value."""
-    if 'model' in d:
+    if 'template' in d:
         return []
     out = []
     paths = set(_declared_paths(d['arguments']))
@@ -312,18 +312,18 @@ def contract(cat, ref):
     return found if found is not None else cat['contracts'].get(ref['name'])
 
 
-def delegated_bodies(cat):
-    """Names of the contracts whose body is a model document (§4.6)."""
-    return {name for name, d in cat['contracts'].items() if 'model' in d}
+def template_contracts(cat):
+    """Names of the contracts whose template is a model document (§4.6)."""
+    return {name for name, d in cat['contracts'].items() if 'template' in d}
 
 
-def body_path(model_path, contract_definition):
-    """Where the body of a delegated contract is looked for.
+def template_path(model_path, contract_definition):
+    """Where the template of a template contract is looked for.
 
     Only the last dotted segment of the URI is used, as a file name, in the
     directory of the model that invokes it. The leading segments are ignored,
-    so the body must sit beside its caller.
+    so the template must sit beside its caller.
     """
     base_dir = os.path.dirname(os.path.abspath(model_path))
-    uri = contract_definition['model']['uri']
+    uri = contract_definition['template']['name']
     return os.path.join(base_dir, uri.split('.')[-1] + '.json')

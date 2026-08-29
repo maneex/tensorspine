@@ -23,7 +23,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the encoder."
       },
       "mels": {
@@ -31,7 +31,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Mel bins per frame."
       },
       "stride": {
@@ -39,7 +39,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Stride of the second convolution: input frames per output position."
       },
       "kernel": {
@@ -47,7 +47,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": 3
         },
@@ -58,7 +58,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": true
         },
@@ -69,7 +69,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "note": "number of learned positions; absent for RoPE",
         "description": "Number of learned positions; absent when positions are rotary."
       }

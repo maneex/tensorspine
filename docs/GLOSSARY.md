@@ -23,7 +23,7 @@ tensors are not arguments. See [Specification §3.3](SPECIFICATION.md#33--argume
 
 A set of values supplied for a parameterized model document's external quantities. An admissible
 assignment turns the document's graph family into one concrete graph. See
-[Specification §4.6](SPECIFICATION.md#46--delegated-body-contracts).
+[Specification §4.6](SPECIFICATION.md#46--template-contracts).
 
 ### Axis
 
@@ -52,10 +52,11 @@ roles, and versioned contracts; it has no single global version. See
 
 ### Composition
 
-A named, finite, indexed family of occurrence templates. Expansion turns those templates into
+A named, finite, indexed family of occurrence sites. Expansion turns those sites into
 ordinary occurrences with deterministic identifiers. It is authoring shorthand, not a runtime node
-or a nested model. See [Specification §5.1](SPECIFICATION.md#51--the-expanded-graph-is-authoritative)
-and [Model guide §2.4](ARMATURE-MODEL_JSON.md#24--compositions-and-deterministic-expansion).
+or a nested model. See [Specification
+§5.1](SPECIFICATION.md#51--the-expanded-graph-is-authoritative) and [Model guide
+§2.4](ARMATURE-MODEL_JSON.md#24--compositions-and-deterministic-expansion).
 
 ### Communication
 
@@ -79,12 +80,6 @@ costs, and legal partitions. It describes meaning, not a kernel or backend imple
 [Model guide §3](ARMATURE-MODEL_JSON.md#3--catalog-contracts).
 
 ## D
-
-### Delegated-body contract
-
-A contract whose computation is represented by a parameterized Armature model body. The contract
-keeps its own semantic identity while the body supplies a pinned representation that can be
-expanded. See [Specification §4.6](SPECIFICATION.md#46--delegated-body-contracts).
 
 ### Denotation
 
@@ -119,13 +114,15 @@ See [Specification §7](SPECIFICATION.md#7--required-derived-products).
 
 A tagged, inspectable construction for a scalar value or condition. Model expressions read model
 quantities and composition indices; contract expressions read resolved primitive arguments. The two
-contexts are deliberately separate. See [Model guide §2.1](ARMATURE-MODEL_JSON.md#21--quantities-and-expressions)
-and [Specification §2.2](SPECIFICATION.md#22--derivation-algebra-o01-o02-o03-o05-o06).
+contexts are deliberately separate. See [Model guide
+§2.1](ARMATURE-MODEL_JSON.md#21--quantities-and-expressions) and [Specification
+§2.2](SPECIFICATION.md#22--derivation-algebra-o01-o02-o03-o05-o06).
 
 ### Extent
 
 The expression giving the size of one named shape axis. An extent is a value; the axis supplies the
-dimension's semantic identity. See [Specification §4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part).
+dimension's semantic identity. See [Specification
+§4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part).
 
 ## F
 
@@ -226,9 +223,9 @@ See [Specification §2.2](SPECIFICATION.md#22--derivation-algebra-o01-o02-o03-o0
 
 ### Parameter tensor
 
-A learned logical tensor whose slot, shape, and precision role are derived by a contract. A parameter
-binding gives it model-level identity and expresses weight tying when one identity has multiple
-members. See [Specification §3.4](SPECIFICATION.md#34--bindings).
+A learned logical tensor whose slot, shape, and precision role are derived by a contract. A
+parameter binding gives it model-level identity and expresses weight tying when one identity has
+multiple members. See [Specification §3.4](SPECIFICATION.md#34--bindings).
 
 ### Partition
 
@@ -297,7 +294,8 @@ The word is qualified by context:
 - an **indexing source** names the sequence, patch stream, or fragment stream indexed by a domain;
 - a **value source** is the producer endpoint of a value binding.
 
-These are not interchangeable fields. See [Model guide §2](ARMATURE-MODEL_JSON.md#2--the-armature-20-model-document).
+These are not interchangeable fields. See [Model guide
+§2](ARMATURE-MODEL_JSON.md#2--the-armature-20-model-document).
 
 ### Semantics
 
@@ -319,7 +317,28 @@ A model binding that declares which state-port members name the same logical sto
 fact, separate from the state descriptor derived by a contract. See
 [Specification §3.4](SPECIFICATION.md#34--bindings).
 
+### Structural argument
+
+A contract argument flagged `structural: true`: it decides which parameter slots, ports or state
+ports exist, or their shapes (`heads`, `window`, `kv_heads`). A non-structural argument (`rope`,
+`activation`) changes only the computation. See
+[Model guide §3](ARMATURE-MODEL_JSON.md#3--catalog-contracts).
+
 ## T
+
+### Template
+
+A model document with external quantities: it denotes a family of graphs, one per admissible
+assignment, and is instantiated by a template contract. Templates live alongside the models
+(`data/models/decoder-causal-yarn.json`). See
+[Specification §4.6](SPECIFICATION.md#46--template-contracts).
+
+### Template contract
+
+A contract whose computation is provided by a template rather than by a consumer capability. The
+contract keeps its own semantic identity and pins the template's version; its parameters, states,
+costs and partitions are derived from the expanded template. An occurrence of a template contract
+is an *instance*. See [Specification §4.6](SPECIFICATION.md#46--template-contracts).
 
 ### Type
 
@@ -331,9 +350,9 @@ information. See [Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o
 
 ### Visits
 
-Exact or upper-bounded counts of how often a state is visited for an execution unit and phase. Visits
-size computation; state liveness sizes simultaneously active memory. See
-[Specification §4.4](SPECIFICATION.md#44--information-supplied-by-the-graph).
+Exact or upper-bounded counts of how often a state is visited for an execution unit and phase.
+Visits size computation; state liveness sizes simultaneously active memory. See [Specification
+§4.4](SPECIFICATION.md#44--information-supplied-by-the-graph).
 
 ## W
 

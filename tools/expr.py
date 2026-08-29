@@ -20,7 +20,7 @@ UNRESOLVED = object()
 
 class Unassigned(ValueError):
     """Raised when a bound cannot be evaluated because an external quantity has
-    no value. Not a defect of the document: a parametric body denotes one graph
+    no value. Not a defect of the document: a template denotes one graph
     per admissible assignment (§4.6), so reading it alone requires one."""
 
 _COMPARISONS = {

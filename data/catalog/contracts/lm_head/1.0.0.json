@@ -20,7 +20,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the hidden state."
       },
       "vocabulary": {
@@ -28,7 +28,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of vocabulary entries."
       }
     },

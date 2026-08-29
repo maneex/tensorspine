@@ -15,7 +15,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the language model."
       },
       "source_width": {
@@ -23,7 +23,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the vision tower."
       },
       "merge_count": {
@@ -31,7 +31,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Patches merged into one token."
       },
       "source": {
@@ -39,7 +39,7 @@
           "kind": "port_reference"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "The port whose patch domain the merge consumes."
       }
     },

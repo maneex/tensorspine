@@ -20,7 +20,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the embedding."
       },
       "vocabulary": {
@@ -28,7 +28,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of token identifiers."
       },
       "positions": {
@@ -36,7 +36,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of positions the table covers: the maximum sequence length."
       }
     },

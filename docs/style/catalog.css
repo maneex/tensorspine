@@ -240,7 +240,7 @@ td:first-child code { font-size: inherit; }
 td code { white-space: nowrap; }
 table p { font-size: inherit; }
 
-/* yes/no chips (Required / Template columns). */
+/* yes/no chips (Required / Structural columns). */
 .chip { display: inline-block; font-family: var(--sans); font-size: 11.5px; line-height: 1.4; padding: 1px 7px; border-radius: 3px; }
 .chip-yes { background: var(--ink); color: var(--bg); }
 .chip-no { border: 1px solid var(--chip); color: var(--ink-3); }

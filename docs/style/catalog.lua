@@ -76,7 +76,7 @@ local function is_facts(tbl)
   return cell and pandoc.utils.stringify(cell.contents) == 'Arguments'
 end
 
-local CHIP_COLUMNS = { Required = true, Template = true }
+local CHIP_COLUMNS = { Required = true, Structural = true }
 
 function Table(tbl)
   if is_facts(tbl) then tbl.classes:insert('facts') end
@@ -85,7 +85,7 @@ function Table(tbl)
   for i, spec in ipairs(tbl.colspecs) do
     tbl.colspecs[i] = { spec[1], pandoc.ColWidthDefault }
   end
-  -- yes/no cells under Required / Template become chips.
+  -- yes/no cells under Required / Structural become chips.
   local chip_cols = {}
   local head = tbl.head and tbl.head.rows[1]
   if head then

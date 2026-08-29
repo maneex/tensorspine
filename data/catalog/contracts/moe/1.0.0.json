@@ -38,7 +38,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of `input` and `output`."
       },
       "experts": {
@@ -46,7 +46,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of routed experts."
       },
       "top_k": {
@@ -54,7 +54,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Experts activated per token."
       },
       "inner": {
@@ -62,7 +62,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Inner width of one routed expert."
       },
       "shared": {
@@ -70,7 +70,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": 0
         },
@@ -81,7 +81,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "default": {
           "literal": false
         },
@@ -96,7 +96,7 @@
           ]
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "default": {
           "literal": "learned"
         },
@@ -111,7 +111,7 @@
           "kind": "real"
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "description": "Factor applied to the routed experts' combined output; absent, 1."
       },
       "scoring": {
@@ -124,7 +124,7 @@
           ]
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "default": {
           "literal": "softmax"
         },
@@ -140,7 +140,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "argument": "inner"
         },
@@ -151,7 +151,7 @@
           "kind": "real"
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "description": "Clamp applied to the gate and up activations inside each expert; absent, none."
       },
       "shared_gate": {
@@ -159,7 +159,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -170,7 +170,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -181,7 +181,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "note": "vocabulary of the token to experts table",
         "description": "Size of a fixed token-to-experts table; present, routing is a table lookup rather than `router`."
       }

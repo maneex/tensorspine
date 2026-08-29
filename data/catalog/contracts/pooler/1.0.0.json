@@ -20,7 +20,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the hidden state."
       },
       "project_to": {
@@ -28,7 +28,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the embedding."
       },
       "normalize": {
@@ -40,7 +40,7 @@
           ]
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Normalization of each output vector.",
         "value_descriptions": {
           "l2": "Unit L2 norm.",
@@ -57,7 +57,7 @@
           ]
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": "none"
         },

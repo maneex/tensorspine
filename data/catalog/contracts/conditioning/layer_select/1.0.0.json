@@ -12,7 +12,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of layers in the input."
       },
       "width": {
@@ -20,7 +20,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Width of one slice."
       },
       "layer": {
@@ -28,7 +28,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": false,
+        "structural": false,
         "description": "Which layer's slice to forward: an index into the `layers` slices of the input."
       }
     },

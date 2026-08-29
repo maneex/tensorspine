@@ -19,7 +19,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width normalized over."
       },
       "eps": {
@@ -27,7 +27,7 @@
           "kind": "real"
         },
         "required": true,
-        "affects_template": false,
+        "structural": false,
         "description": "Added to the mean square before the root; changes no tensor."
       }
     },
@@ -113,6 +113,6 @@
       ]
     },
     "partitions": [],
-    "note": "RMSNorm. eps affects no template: affects_template=false."
+    "note": "RMSNorm. eps is not structural: it changes no slot, port or state."
   }
 }

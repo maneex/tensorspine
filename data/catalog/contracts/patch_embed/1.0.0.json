@@ -29,7 +29,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the vision tower."
       },
       "patch": {
@@ -37,7 +37,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Spatial patch side, in pixels."
       },
       "channels": {
@@ -45,7 +45,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Image channels."
       },
       "temporal_patch": {
@@ -53,7 +53,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": 1
         },
@@ -64,7 +64,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of learned patch positions; absent when positions are rotary or computed."
       },
       "bias": {
@@ -72,7 +72,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },

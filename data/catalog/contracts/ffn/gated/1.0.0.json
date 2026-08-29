@@ -20,7 +20,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of `input` and `output`."
       },
       "inner": {
@@ -28,7 +28,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Inner width: the size of the gate and up outputs."
       },
       "activation": {
@@ -42,8 +42,8 @@
           ]
         },
         "required": true,
-        "affects_template": false,
-        "note": "selects the non-linearity; changes no template",
+        "structural": false,
+        "note": "selects the non-linearity; not structural",
         "description": "Non-linearity applied to the gate half.",
         "value_descriptions": {
           "silu": "SiLU (SwiGLU).",
@@ -57,7 +57,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -68,7 +68,7 @@
           "kind": "boolean"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "default": {
           "literal": false
         },
@@ -79,7 +79,7 @@
           "kind": "cardinality"
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "note": "rank of the temporal conditioning projector",
         "description": "Rank of the conditioning projector; present, `condition_in` and `condition_out` exist."
       },
@@ -91,7 +91,7 @@
           ]
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "description": "How the conditioning signal is applied.",
         "value_descriptions": {
           "time": "A temporal condition modulates the inner activation through the `condition_in`/`condition_out` projector."
@@ -102,7 +102,7 @@
           "kind": "real"
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "description": "Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none.",
         "note": "structural fraction of activations zeroed after selection"
       }

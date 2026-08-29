@@ -44,8 +44,8 @@ require engine-specific computation. Re-declaring the model's layers, dimensions
 does not.
 
 The structure is currently welded to the reference implementation. During transcription —
-`modeling_x.py` → `vllm/model_executor/models/x.py` → `x.zig` — computation survives, but intent does
-not: which dimension is a head count, which tensor is growing state, or which axis can be
+`modeling_x.py` → `vllm/model_executor/models/x.py` → `x.zig` — computation survives, but intent
+does not: which dimension is a head count, which tensor is growing state, or which axis can be
 partitioned. Contribution guides document this transcription process, so every engine keeps
 re-deriving the same information.
 
@@ -237,8 +237,8 @@ condition. The [glossary distinguishes these condition fields](docs/GLOSSARY.md#
 
 ### Schema
 
-`schemas/armature.schema.json` permits exactly nine top-level sections: `schema`, `model`, `catalog`,
-`quantities`, `constants`, `occurrences`, `compositions`, `bindings` and `interfaces`.
+`schemas/armature.schema.json` permits exactly nine top-level sections: `schema`, `model`,
+`catalog`, `quantities`, `constants`, `occurrences`, `compositions`, `bindings` and `interfaces`.
 
 Expressions are tagged unions (`{"literal": …}`, `{"quantity": …}`, `{"index": …}` or
 `{"op": …, "args": […]}`), never ambiguous strings. Every quantity has a `regime` and `source`,
@@ -255,9 +255,9 @@ resolved; a unit outside the vocabulary is a load error naming the file.
 
 ### Tools
 
-The project uses Python 3 and `jsonschema` ≥ 4.x, with no build step. `--view` also requires Graphviz
-`dot` on `PATH`. `tools/armature` is the entry point; paths default to the repository layout, and
-commands without a model path process all of `data/models/`.
+The project uses Python 3 and `jsonschema` ≥ 4.x, with no build step. `--view` also requires
+Graphviz `dot` on `PATH`. `tools/armature` is the entry point; paths default to the repository
+layout, and commands without a model path process all of `data/models/`.
 
 ```sh
 python3 tools/armature --validate                       # whole corpus
@@ -278,10 +278,10 @@ python3 tools/armature --validate data/models/decoder-causal-yarn.json \
   recursively, contract defaults applied first), shapes, domains, bindings and acyclicity; it
   stops at the first error and exits 1.
 - `--lint` reports optional authoring advice and always exits 0.
-- `--d1` unrolls loops, evaluates indices and expands delegated contracts. Canonical IDs use
+- `--d1` unrolls loops, evaluates indices and expands template contracts. Canonical IDs use
   `<composition>/<site>[<i>=<v>,…]`.
 - `--view` produces a self-contained HTML inspector.
 - `--document catalog` renders every unit of the catalog bases — definitions and documentation
   fields — into one Markdown file. The model documents given (default: `data/models/`) only say
-  where the bodies of delegated contracts are looked for. Malformed documentation is a refusal
+  where the templates of template contracts are looked for. Malformed documentation is a refusal
   (exit 1); a unit without documentation is rendered from its definition alone.

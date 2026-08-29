@@ -69,7 +69,7 @@ contract's `summary` is a sibling of its `version`; an argument's `description` 
 | Unit kind | Unit-level fields | Element-level fields |
 |---|---|---|
 | Contract (primitive) | `summary`, `description`, `external_docs`, `tags`, `deprecated` | `description` on every argument, record field, port, parameter slot, constant slot, state port, payload component, state operation, state rule, partition, cost entry, domain transform, alias rule; `value_descriptions` and `deprecated` on arguments |
-| Contract (delegated body) | same | none: its elements are derived from the body |
+| Contract (template) | same | none: its elements are derived from the template |
 | Axis | `summary`, `description`, `external_docs`, `tags`, `deprecated` | — |
 | Precision role | `summary`, `description`, `external_docs`, `tags`, `deprecated` | — |
 | Base manifest | `title`, `summary`, `description`, `contact`, `license`, `external_docs`, `tags` (declarations) | — |
@@ -106,7 +106,7 @@ Both are kept and both are rendered — the description as prose, the note quote
 
 ### 2.4 — Integration into the catalog grammar
 
-The unit envelope schema, `schemas/armature-catalog-unit.schema.json`, is in the tree; the body
+The unit envelope schema, `schemas/armature-catalog-unit.schema.json`, is in the tree; the template
 grammar it references, `https://armature.dev/schema/2.0/catalog.json`, is not yet. The copy in
 `temp/backup/` validates every live unit unchanged, so reinstating it is a copy. Once it is there,
 the documentation model plugs into it by `$ref` — one property added per site, no new site. The
@@ -152,8 +152,9 @@ python3 tools/armature --document catalog --catalog other/catalog -o out/  # wri
 - **Inputs.** The catalog bases (`--catalog`, default `data/catalog/`) and the documentation schema
   (`--schemas`, default `schemas/`). The model documents given as `PATH`s — every document of
   `data/models/` by default, as for the other commands — serve one purpose: their directories are
-  where the body of a delegated contract is looked for (`<last URI segment>.json`), since
-  `catalog.body_path` resolves a body beside the model that invokes it and a catalog page has no
+  where the template of a template contract is looked for (`<last URI segment>.json`), since
+`catalog.template_path` resolves a template beside the model that invokes it and a catalog page has
+no
   invoking model.
 - **Output.** `-o FILE`, `-o DIR` (writes `DIR/catalog.md`), or stdout when `-o` is omitted; the
   status line then goes to stderr so the page can be piped. The output is **deterministic**: the
@@ -169,9 +170,9 @@ python3 tools/armature --document catalog --catalog other/catalog -o out/  # wri
 | Section | Source | Content |
 |---|---|---|
 | Head | base manifest | Title, summary, description, contact, license, external docs; bases consulted; counts. |
-| Contents, How to read | — | Navigation; the notation: expressions in infix, conditions in words, shapes as `[name: extent]`, template arguments, ordered rules. |
+| Contents, How to read | — | Navigation; the notation: expressions in infix, conditions in words, shapes as `[name: extent]`, structural arguments, ordered rules. |
 | Overview | all units | One index table per kind: contract with summary and shape (`17 args · 2→1 ports · 9 params · state kv`), axes, precision roles. |
-| Contracts | contract units, grouped by namespace | Per contract: summary, tags, description, note, external docs, an at-a-glance row, then **Arguments** (with nested record fields and enum value descriptions), **Ports**, **Parameters** (with sharing, presence, multiplicity, declared views), **Constant slots**, **State ports** (presence, key axes, payload, permitted operations, ordered derivation rules), **Effects**, **Logical cost**, **Semantic partitions**, **Domain transforms**, **Constraints**. A delegated contract shows its body: resolved path, the body's external quantities as arguments with their domains, its public interfaces, and the transitive closure of contracts it cites — the consumer's capability cost (§8.1). |
+| Contracts | contract units, grouped by namespace | Per contract: summary, tags, description, note, external docs, an at-a-glance row, then **Arguments** (with nested record fields and enum value descriptions), **Ports**, **Parameters** (with sharing, presence, multiplicity, declared views), **Constant slots**, **State ports** (presence, key axes, payload, permitted operations, ordered derivation rules), **Effects**, **Logical cost**, **Semantic partitions**, **Domain transforms**, **Constraints**. A template contract shows its template: resolved path, the template's external quantities as arguments with their domains, its public interfaces, and the transitive closure of contracts it cites — the consumer's capability cost (§8.1). |
 | Axes, Precision roles | axis and role units | Tables with summary, then details for units with a description. |
 | Tags | base manifest | Declared tags. A unit that carries a tag says so in its own section. |
 | Appendix A | derived | Closed vocabulary in use: every value of every closed enumeration at least one unit uses (laws, access geometries, sharing, communications, natures, domains, dtypes…), with how many units use it. A runtime that implements these values implements the catalog as it stands. |
@@ -183,11 +184,11 @@ python3 tools/armature --document catalog --catalog other/catalog -o out/  # wri
 - **No reverse references.** A unit's page says what the unit declares and nothing about who uses
   it: no "cited by" on contracts, axes or precision roles, no index of models by contract, no index
   of slots by role. Those are facts about the corpus, not about the catalog.
-- **No body expansion.** It does not expand delegated bodies (D1), nor derive parameter tensors,
+- **No template expansion.** It does not expand templates (D1), nor derive parameter tensors,
   states, costs or partitions from them (D3–D6): those are products of the compiler, and the page
-  says so where a delegated contract is rendered.
+  says so where a template contract is rendered.
 - **No grammar check.** It does not check units against the catalog grammar — the envelope schema
-  is in the tree, the body grammar it references is not yet — but it will refuse a catalog whose
+  is in the tree, the template grammar it references is not yet — but it will refuse a catalog whose
   unit identities disagree with their paths, as `catalog.load` does.
 
 ### 3.3 — Where the output lives
@@ -204,7 +205,7 @@ than carry them: a list maintained by hand drifts.
 - `tools/document.py`, `tools/armature --document` — the generator.
 - **The catalog, documented in full.** Every one of the 36 contracts, 37 axes and 54 precision roles
   carries a `summary` and a `description`; every argument, record field, port, parameter slot, state
-  port, payload component, state operation, state rule, partition, cost entry and domain transform of
+port, payload component, state operation, state rule, partition, cost entry and domain transform of
   every primitive contract carries a `description`; every enum argument has `value_descriptions`.
   The base manifest carries a title, summary, description, a `specification` external doc and
   three declared tags — `sequence-operator`, `multimodal`, `parallel-residual` — which the
@@ -246,7 +247,7 @@ inert, as §10.2 requires.
   advisory finding, not a refusal.
 - **`constraints` as objects** (`{condition, description?}`) so that rejection conditions can be
   documented. Grammar change; no live unit affected.
-- **Body version pin.** §4.6 says the delegated contract names its body's version; the live
+- **Template version pin.** §4.6 says the template contract names its template's version; the live
   `decoder.causal_yarn` declares `uri` and `id` only. The renderer prints the version when it is
   there. Whether the pin belongs in the catalog grammar is a specification question, not a
   documentation one.

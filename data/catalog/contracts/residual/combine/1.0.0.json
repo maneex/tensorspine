@@ -12,7 +12,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of both operands."
       },
       "left_scale": {
@@ -20,7 +20,7 @@
           "kind": "real"
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "default": {
           "literal": 1
         },
@@ -31,7 +31,7 @@
           "kind": "real"
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "default": {
           "literal": 1
         },
@@ -42,7 +42,7 @@
           "kind": "real"
         },
         "required": false,
-        "affects_template": false,
+        "structural": false,
         "default": {
           "literal": 1
         },

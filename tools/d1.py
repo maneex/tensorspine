@@ -6,7 +6,7 @@ reality and apparent cycles. D1 is the form every consumer reads: viewer,
 porting, infrastructure matching.
 
 Canonical identities follow §11.5 — `<composition>/<site>[<i>=<v>,...]`, with
-indices in lexicographic order of Unicode code points (§11.4). A delegated
+indices in lexicographic order of Unicode code points (§11.4). A template
 contract (§4.6) is expanded in place and its identities are prefixed by the
 instance path, so two invocations of one contract share neither state nor
 tensor.
@@ -27,7 +27,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     """The D1 document of one model.
 
     `assignment` supplies the external quantities by their external name; a
-    delegated contract receives its own from the arguments of the occurrence
+    template contract receives its own from the arguments of the occurrence
     that invokes it.
     """
     with open(model_path, encoding='utf-8') as f:
@@ -46,8 +46,8 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         if key[0] == 'root':
             return key[1]
         _, composition, site, indices = key
-        body = ",".join(f"{k}={v}" for k, v in indices)      # already sorted
-        return f"{composition}/{site}[{body}]"
+        template = ",".join(f"{k}={v}" for k, v in indices)      # already sorted
+        return f"{composition}/{site}[{template}]"
 
     # --- unroll the occurrences -------------------------------------------
     nodes = {}
@@ -71,7 +71,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     for key in list(keys):
         contract_name = keys[key]['contract']['name']
         definition = cat['contracts'][contract_name]
-        if 'model' not in definition:
+        if 'template' not in definition:
             continue                                          # primitive contract
         if contract_name in _stack:
             raise ValueError(f"contract cycle: {' -> '.join(_stack + (contract_name,))}")
@@ -84,7 +84,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
             v = static(arg_value)
             if v is not UNRESOLVED:
                 sub_assignment[arg_name] = v
-        sub = emit(catalog_mod.body_path(model_path, definition), cat, sub_assignment,
+        sub = emit(catalog_mod.template_path(model_path, definition), cat, sub_assignment,
                    instance + "/", _depth + 1, _stack + (contract_name,))
         nodes.update(sub['nodes'])
         edges.extend(sub['edges'])
@@ -186,7 +186,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
 def run(model_paths, catalog_bases, output=None, assignment=None):
     """Emit D1 for each model. Returns (failed, skipped).
 
-    A parametric body with no assignment has no single D1 — it has one per
+    A template with no assignment has no single D1 — it has one per
     admissible assignment — so it is skipped rather than failed.
     """
     cat = catalog_mod.load(*catalog_bases)

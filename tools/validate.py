@@ -161,26 +161,26 @@ def semantic(model_path, cat, assignment=None):
         return static_argument(v, quantities, env)
 
     # --- V13: the contract graph is acyclic and of bounded depth ----------
-    def body_of(definition):
-        return catalog_mod.body_path(model_path, definition)
+    def template_of(definition):
+        return catalog_mod.template_path(model_path, definition)
 
     def contract_dependencies(path):
         try:
             with open(path, encoding='utf-8') as f:
-                body = json.load(f)
+                template = json.load(f)
         except OSError:
             return None
         names = set()
-        for o in body['occurrences'].values():
+        for o in template['occurrences'].values():
             names.add(o['contract']['name'])
-        for c in body['compositions'].values():
+        for c in template['compositions'].values():
             for o in c['occurrences'].values():
                 names.add(o['contract']['name'])
         return names
 
     def walk(name, stack, depth):
         definition = cat['contracts'].get(name)
-        if definition is None or 'model' not in definition:
+        if definition is None or 'template' not in definition:
             return
         if name in stack:
             fail('V13', f"contract cycle: {' -> '.join(list(stack) + [name])}")
@@ -188,9 +188,9 @@ def semantic(model_path, cat, assignment=None):
         if depth > MAX_CONTRACT_DEPTH:
             fail('V13', f"contract nesting deeper than {MAX_CONTRACT_DEPTH} at '{name}'")
             return
-        deps = contract_dependencies(body_of(definition))
+        deps = contract_dependencies(template_of(definition))
         if deps is None:
-            fail('V13', f"body not found for delegated contract '{name}'")
+            fail('V13', f"template not found for template contract '{name}'")
             return
         for d in sorted(deps):
             walk(d, stack + (name,), depth + 1)
@@ -204,7 +204,7 @@ def semantic(model_path, cat, assignment=None):
             seen_contracts.add(name)
             walk(name, (), 1)
     stats['composite_contracts'] = sum(
-        1 for c in seen_contracts if 'model' in (cat['contracts'].get(c) or {}))
+        1 for c in seen_contracts if 'template' in (cat['contracts'].get(c) or {}))
 
     # --- expansion: the document is a generator, not the graph ------------
     sites = {}
@@ -230,26 +230,26 @@ def semantic(model_path, cat, assignment=None):
         if definition is None:
             fail('V1', f"contract absent from catalog: {name}")
             continue
-        if 'model' in definition:
-            # A delegated contract is synthesised from its body's interface.
+        if 'template' in definition:
+            # A template contract is synthesised from its template's interface.
             # §4.6 requires tensors, state ports, cost and partitions to be
-            # DERIVED from the expanded body; this stage does not descend, so
+            # DERIVED from the expanded template; this stage does not descend, so
             # it reports none of them. Known shortfall, not a decision.
-            with open(body_of(definition), encoding='utf-8') as f:
-                body = json.load(f)
+            with open(template_of(definition), encoding='utf-8') as f:
+                template = json.load(f)
             definition = {
                 "version": definition['version'],
                 "arguments": {q['source']['name']: {"type": q['type'], "required": True,
-                                                    "affects_template": True}
-                              for q in body['quantities'].values()
+                                                    "structural": True}
+                              for q in template['quantities'].values()
                               if q['source']['kind'] == 'external'},
                 "ports": {
                     "inputs": {k: {"role": "activation.hidden",
                                    "domain": {"kind": v['domain']['kind'], "from": {"self": True}}}
-                               for k, v in body['interfaces']['inputs'].items()},
+                               for k, v in template['interfaces']['inputs'].items()},
                     "outputs": {k: {"role": "activation.hidden",
                                     "domain": {"kind": v['domain']['kind'], "from": {"self": True}}}
-                                for k, v in body['interfaces']['outputs'].items()}},
+                                for k, v in template['interfaces']['outputs'].items()}},
                 "parameters": {}, "constants": {}, "state_ports": {}, "partitions": []}
         if definition['version'] != o['contract']['version']:
             fail('V1', f"{name}: version {o['contract']['version']} "
@@ -576,7 +576,7 @@ def semantic(model_path, cat, assignment=None):
 def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20):
     """Both stages over several documents. Returns (failed, skipped).
 
-    A parametric body with no assignment is skipped, not failed: it is a family
+    A template with no assignment is skipped, not failed: it is a family
     of graphs, and refusing it would report a defect where there is none. The
     skip is printed, never silent (I7).
     """

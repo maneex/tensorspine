@@ -15,7 +15,7 @@ import catalog as catalog_mod
 
 
 def _called_contracts(model_path, cat, seen=None):
-    """Contract names a model calls, following delegated bodies."""
+    """Contract names a model calls, following templates."""
     seen = seen if seen is not None else set()
     try:
         with open(model_path, encoding='utf-8') as f:
@@ -33,8 +33,8 @@ def _called_contracts(model_path, cat, seen=None):
             continue
         seen.add(name)
         definition = cat['contracts'].get(name)
-        if definition is not None and 'model' in definition:
-            _called_contracts(catalog_mod.body_path(model_path, definition), cat, seen)
+        if definition is not None and 'template' in definition:
+            _called_contracts(catalog_mod.template_path(model_path, definition), cat, seen)
     return seen
 
 
@@ -110,26 +110,26 @@ def unreferenced_vocabulary(cat):
     return findings
 
 
-def body_uri_prefix(cat, model_paths):
-    """A delegated contract names its body by a dotted URI, but resolution
+def template_name_prefix(cat, model_paths):
+    """A template contract names its template by a name, but resolution
     keeps only the last segment and looks beside the calling model. When the
-    leading segments do not match where the body actually is, the URI reads
+    leading segments do not match where the template actually is, the URI reads
     like a path and is not one."""
     findings = []
     for path in model_paths:
         for name in sorted(_called_contracts(path, cat)):
             definition = cat['contracts'].get(name)
-            if definition is None or 'model' not in definition:
+            if definition is None or 'template' not in definition:
                 continue
-            uri = definition['model']['uri']
+            uri = definition['template']['name']
             prefix = '.'.join(uri.split('.')[:-1])
             if not prefix:
                 continue
             actual = os.path.basename(os.path.dirname(
-                os.path.abspath(catalog_mod.body_path(path, definition))))
+                os.path.abspath(catalog_mod.template_path(path, definition))))
             if prefix != actual:
                 findings.append(
-                    ("catalog", f"contract '{name}' points at '{uri}' but its body is "
+                    ("catalog", f"contract '{name}' points at '{uri}' but its template is "
                                 f"resolved in '{actual}/'; the prefix is ignored"))
     return findings
 
@@ -141,7 +141,7 @@ def run(model_paths, catalog_bases, relative_to=None):
     findings += declared_base_mismatch(model_paths, catalog_bases, relative_to)
     findings += uncalled_contracts(cat, model_paths)
     findings += unreferenced_vocabulary(cat)
-    findings += body_uri_prefix(cat, model_paths)
+    findings += template_name_prefix(cat, model_paths)
 
     seen = set()
     for scope, message in findings:

@@ -48,8 +48,9 @@ same graph; Armature explicitly does not require a canonical representation.
 
 > **The model declares causes. Primitive contracts derive consequences.**
 
-Apply this field test: *Could two models using the same primitive with the same arguments legitimately
-give this field different values?* If not, the field does not belong in the model document.
+Apply this field test: *Could two models using the same primitive with the same arguments
+legitimately give this field different values?* If not, the field does not belong in the model
+document.
 
 ## §2 — Model document
 
@@ -61,7 +62,7 @@ A model document contains exactly:
 | **Catalog identity** | The immutable reference to the contract set used by the model (O1.1, §8.2). |
 | **Quantities** | The namespace of dimensions and scalars (§2.1). |
 | **Occurrences** | Graph nodes (§3). |
-| **Compositions** | Finite indexed families of occurrence templates whose expansion is normative (§5). |
+| **Compositions** | Finite indexed families of occurrence sites whose expansion is normative (§5). |
 | **Bindings** | Value edges, tensor bindings, and state identities (§3.4). |
 | **Public inputs and outputs** | Interfaces with indexing domains (§2.3). |
 
@@ -100,8 +101,8 @@ estimate—and the provenance of every fact on which it depends.
 
 **O0.5 — Epistemic status is an algebra, not a label.** Status propagates according to the operation's
 monotonicity: dividing by an upper bound produces a lower bound. Rounding direction belongs to the
-status, never to the operator. Monotonicity is relative to a domain, and each node must prove that it
-stays within that domain. Propagation never turns an estimate into a bound.
+status, never to the operator. Monotonicity is relative to a domain, and each node must prove that
+it stays within that domain. Propagation never turns an estimate into a bound.
 
 **O0.6 —** Every language introduced by this specification is closed and decidable or uses a
 normative interface. This applies to the size algebra, the contract-condition language in §4.3, and
@@ -138,7 +139,8 @@ An occurrence is a graph node. The language keeps these five categories distinct
 ### 3.1 — Identity *(O2.1, O3.5)*
 
 Every occurrence has a stable identifier, unique after expansion (§5.2), and belongs to one or more
-named, addressable families. Families allow sets of occurrences to be referenced without enumeration.
+named, addressable families. Families allow sets of occurrences to be referenced without
+enumeration.
 
 ### 3.2 — Contract reference *(O1.1, §8.2)*
 
@@ -229,7 +231,7 @@ An implementation may provide computation, but the contract still fixes semantic
 types, shapes, arguments, effects, and rejection conditions. Otherwise wiring cannot be checked,
 candidates compared, or costs derived safely.
 
-The computation provider may itself be a parameterized model document: the delegated-body contract
+The computation provider may itself be a parameterized model document: the template contract
 defined by §4.6. Delegation relaxes none of these obligations.
 
 ### 4.3 — State derivation
@@ -264,7 +266,7 @@ loss**, never present non-partitionability as a known fact.
 
 > `instantiated states = contract(primitive, arguments) × graph occurrences × state identities`
 
-A contract supplies the template; the graph supplies instance count and relationships.
+A contract supplies the descriptor; the graph supplies instance count and relationships.
 
 **State liveness** is the number of distinct state-allocation equivalence classes that may be active
 at once. It sizes simultaneous state memory. This is distinct from **value liveness**, which records
@@ -280,40 +282,40 @@ the graph values live across a cut and determines that cut's logical payload.
 ### 4.5 — Structured sparsity *(O6.6)*
 
 When a primitive activates only some tensors per token, its contract declares the **activatable
-unit**, **routing policy**, **count activated per token**, and an **upper bound on the union of units
-activated per batch**.
+unit**, **routing policy**, **count activated per token**, and an **upper bound on the union of
+units activated per batch**.
 
 Per-token count is insufficient because a batch's union may include every unit. This yields three
 separate qualified quantities: exact resident cost, upper-bounded worst-case transfer, and estimated
 expected transfer.
 
-### 4.6 — Delegated-body contracts
+### 4.6 — Template contracts
 
-A contract may be implemented by a **body**—a parameterized model document—instead of a consumer
-capability. The catalog designates the body; it does not describe it:
+A contract may be implemented by a **template**—a parameterized model document—instead of a consumer
+capability. The catalog designates the template; it does not describe it:
 
 ```json
 "decoder.causal_yarn": { "version": "1.0.0",
-  "model": { "uri": "models-v2.decoder-causal-yarn", "version": "1.0.0",
-             "id": "decoder_causal_yarn" } }
+  "template": { "name": "decoder-causal-yarn", "version": "1.0.0",
+                "id": "decoder_causal_yarn" } }
 ```
 
-The body is not the contract identity. Two bodies implementing the same semantic identity are
-interchangeable; a body URI identifies a realization, not a meaning. The realization is nevertheless
-pinned: the contract names the body version, and the body carries that version. Otherwise an in-place
-body change could silently change the contract's denotation.
+The template is not the contract identity. Two templates implementing the same semantic identity are
+interchangeable; a template name identifies a realization, not a meaning. The realization is
+nevertheless pinned: the contract names the template version, and the template carries that version.
+Otherwise an in-place template change could silently change the contract's denotation.
 
 The two versions distinguish different facts:
 
-> **Body versions distinguish representations; contract versions distinguish meanings.**
+> **Template versions distinguish representations; contract versions distinguish meanings.**
 
-Because unique representation is not required (§1.1), two bodies may denote the same graph family.
-A body version may change without changing contract identity while that family remains invariant.
-Changing the family creates a new contract identity: for a delegated contract, the body defines the
-meaning.
+Because unique representation is not required (§1.1), two templates may denote the same graph
+family. A template version may change without changing contract identity while that family remains
+invariant. Changing the family creates a new contract identity: for a template contract, the
+template defines the meaning.
 
-A parameterized document denotes a family, not one graph. Its external-source quantities are contract
-arguments supplied by an **assignment**, except those with declared defaults:
+A parameterized document denotes a family, not one graph. Its external-source quantities are
+contract arguments supplied by an **assignment**, except those with declared defaults:
 
 > For every admissible assignment, a parameterized document denotes exactly one graph.
 
@@ -321,25 +323,25 @@ Admissibility must be decidable at the call site. The contract therefore exposes
 and domains of external quantities, and assignments are checked like other arguments (I7). Omitting
 those domains would make denotation silently partial.
 
-An external quantity may declare a default in the body, which the contract exposes as a primitive
-default (§4.1). The default is a §2.2 expression over literals and **other arguments**; its dependency
-graph is acyclic. The argument becomes optional without violating I7: a declared default is not a
-silent default. Adding an external quantity with a declared default is therefore backward-compatible
-and requires no change to existing call sites.
+An external quantity may declare a default in the template, which the contract exposes as a
+primitive default (§4.1). The default is a §2.2 expression over literals and **other arguments**;
+its dependency graph is acyclic. The argument becomes optional without violating I7: a declared
+default is not a silent default. Adding an external quantity with a declared default is therefore
+backward-compatible and requires no change to existing call sites.
 
 Delegation removes the need for a new consumer capability (§8.1), but none of §4.1's contract
 contents. Logical tensors, state ports, logical costs, and semantic partitions are derived from the
-expanded body. Declaring them empty would be false: the body may contain a sequence operator and most
-of the invoking model's parameters, with counts dependent on the assignment.
+expanded template. Declaring them empty would be false: the template may contain a sequence operator
+and most of the invoking model's parameters, with counts dependent on the assignment.
 
 > **Delegation moves derivation; it never removes the obligation to derive.**
 
-The contract citation graph is acyclic. A delegated body may cite another delegated contract, but a
+The contract citation graph is acyclic. A template may cite another template contract, but a
 cycle is a reasoned rejection (§8.1), not recursion.
 
-Body occurrences become occurrences in the calling graph, with identifiers prefixed by the invoking
-occurrence. Two invocations share neither state nor tensors. Sharing across the boundary is not
-expressible; any future form must use ports, never common tensor identities.
+Template occurrences become occurrences in the calling graph, with identifiers prefixed by the
+invoking occurrence. Two invocations share neither state nor tensors. Sharing across the boundary is
+not expressible; any future form must use ports, never common tensor identities.
 
 ## §5 — Denotation
 
@@ -348,7 +350,7 @@ expressible; any future form must use ports, never common tensor identities.
 A document denotes one finite occurrence graph. Families, stacks, trunks, repetitions, and patterns
 are syntactic sugar with the expansion defined here. All validity rules apply to the expanded graph.
 
-A **composition** is a named, finite, indexed family of occurrence templates. Expansion evaluates
+A **composition** is a named, finite, indexed family of occurrence sites. Expansion evaluates
 its index ranges and conditions, then emits ordinary occurrences with deterministic identifiers; a
 composition is not a runtime node or an independently nested graph.
 
@@ -421,7 +423,7 @@ code or human knowledge of a named mechanism:
 | **D1** | **Expanded graph:** occurrences, edges, and families. |
 | **D2** | **Values:** the value and shape inventory, including value liveness at every cut. |
 | **D3** | **Parameter tensors:** shapes, roles, sharing, and total count. |
-| **D4** | **Complete state:** templates, instances, keys, state liveness, and permitted operations. |
+| **D4** | **Complete state:** descriptors, instances, keys, state liveness, and permitted operations. |
 | **D5** | **Logical costs:** parameters, activations, state per token, computation, and cut traffic. |
 | **D6** | **Legal cuts and semantic partition axes.** |
 
@@ -439,16 +441,16 @@ Extensions have different effects:
 | **New primitive** | No breakage. | A new capability when a model uses it. |
 | **New argument** that is optional or has a declared default | No breakage. | A new capability. |
 | **New value** of a closed derived property | No breakage. | A new, explicitly rejectable capability. |
-| **Delegated-body contract** (§4.6) | No breakage. | No new capability if the transitive closure of its body is supported; otherwise the cost is exactly the missing primitives, never the composite. |
+| **Template contract** (§4.6) | No breakage. | No new capability if the transitive closure of its template is supported; otherwise the cost is exactly the missing primitives, never the composite. |
 
 These columns describe different concerns. Backward-compatible additions are not free: consumers
 must implement them when a model uses them. Syntactic position—open argument or closed
 property—does not measure implementation cost.
 
-Only delegated bodies can have zero consumption cost, which is how the catalog remains open. The
-first three extensions add vocabulary that must be implemented. A delegated body composes existing
-vocabulary. Its cost is computed from the transitive closure of cited contracts; a body that cites an
-unsupported primitive merely hides that cost.
+Only templates can have zero consumption cost, which is how the catalog remains open. The
+first three extensions add vocabulary that must be implemented. A template composes existing
+vocabulary. Its cost is computed from the transitive closure of cited contracts; a template that
+cites an unsupported primitive merely hides that cost.
 
 Every primitive, argument, field, reference, or combination that a contract cannot interpret is
 **rejected with a reason**. No implicit interpretation or default is allowed. The representation of
@@ -466,8 +468,8 @@ Capability rejection and contract identity are orthogonal:
 |---|---|
 | A primitive, argument, or value is **added**. | Explicit rejection; no new model-language version. |
 | The meaning of an existing argument **changes**. | A **new contract identity**; an old consumer would otherwise silently apply the old meaning. |
-| A body is rewritten but its denoted graph family is unchanged. | Update the pinned **body version**; retain contract identity (§4.6). |
-| A body's denoted family changes. | A **new contract identity**; for a delegated contract, the body defines the meaning. |
+| A template is rewritten but its denoted graph family is unchanged. | Update the pinned **template version**; retain contract identity (§4.6). |
+| A template's denoted family changes. | A **new contract identity**; for a template contract, the template defines the meaning. |
 
 A compatible addition need not change the model-language version, but every prior contract identity
 must remain immutable. Otherwise occurrences cannot reference reproducible meanings.
@@ -494,8 +496,8 @@ language element carries it—but the criterion that justifies the mechanism.
 | **I9** | The described model and loaded artifact are mutually compatible: every logical tensor is bound, and no physical tensor is accidentally bound twice. |
 | **I11** | A meaningless combination is excluded by invariant, never merely by a missing guard. |
 
-I5 and I6 are expressiveness invariants, not concrete syntax rules. Known conformance cases include a
-dimension named like an enum value and a two-key object indistinguishable from a two-entry map.
+I5 and I6 are expressiveness invariants, not concrete syntax rules. Known conformance cases include
+a dimension named like an enum value and a two-key object indistinguishable from a two-entry map.
 
 I10—detecting a decision based on stale measurements—belongs to deployment control and is outside
 this specification.
@@ -540,8 +542,8 @@ never define them.
 The following are rejected at the stated level: unresolved reference (V1); missing required argument
 (V2); undeclared argument (V2); out-of-enum value (V3); incompatible shapes (V4); incompatible
 indexing domains (V5); value cycle (V6); unfed port or unbound tensor (V7); meaningless combination
-(V8); state identity between incompatible ports (V9); unresolvable repetition (V10); and disagreement
-between a derived value and its derivation (V11).
+(V8); state identity between incompatible ports (V9); unresolvable repetition (V10); and
+disagreement between a derived value and its derivation (V11).
 
 **Mutation test:** for every normative construction, removing a field, breaking its reference, or
 changing its value must either change the expanded denotation or cause rejection. A field ignored by

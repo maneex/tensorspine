@@ -512,8 +512,9 @@
         "required": {
           "type": "boolean"
         },
-        "affects_template": {
-          "type": "boolean"
+        "structural": {
+          "type": "boolean",
+          "description": "The argument decides which slots, ports or states exist, or their shapes; a non-structural argument changes only the computation."
         },
         "default": {
           "$ref": "#/$defs/expression"
@@ -541,7 +542,7 @@
       "required": [
         "type",
         "required",
-        "affects_template"
+        "structural"
       ]
     },
     "argument_declaration": {
@@ -554,8 +555,9 @@
         "required": {
           "type": "boolean"
         },
-        "affects_template": {
-          "type": "boolean"
+        "structural": {
+          "type": "boolean",
+          "description": "The argument decides which slots, ports or states exist, or their shapes; a non-structural argument changes only the computation."
         },
         "default": {
           "$ref": "#/$defs/expression"
@@ -583,7 +585,7 @@
       "required": [
         "type",
         "required",
-        "affects_template"
+        "structural"
       ]
     },
     "axis_nature": {
@@ -1468,77 +1470,20 @@
         "partitions"
       ]
     },
-    "delegated_contract": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "version": {
-          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
-        },
-        "model": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "uri": {
-              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
-            },
-            "version": {
-              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
-            },
-            "id": {
-              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
-            },
-            "note": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "uri",
-            "id"
-          ]
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
-          }
-        },
-        "external_docs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/external_doc"
-          }
-        },
-        "summary": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "note": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "version",
-        "model"
-      ],
-      "description": "A contract whose body is a parameterized model document (\u00a74.6)."
-    },
     "contract_definition": {
       "type": "object",
       "if": {
         "required": [
-          "model"
+          "template"
         ]
       },
       "then": {
-        "$ref": "#/$defs/delegated_contract"
+        "$ref": "#/$defs/template_contract"
       },
       "else": {
         "$ref": "#/$defs/primitive_contract"
       },
-      "description": "A primitive contract, or \u2014 when it names a `model` \u2014 a delegated-body contract (\u00a74.6)."
+      "description": "A primitive contract, or \u2014 when it names a `template` \u2014 a template contract (\u00a74.6)."
     },
     "axis_definition": {
       "type": "object",
@@ -1639,6 +1584,64 @@
         "catalog",
         "title"
       ]
+    },
+    "template_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          }
+        },
+        "external_docs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/external_doc"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier",
+              "description": "File name of the template, without extension, resolved against the models base."
+            },
+            "version": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
+            },
+            "id": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "id"
+          ]
+        }
+      },
+      "required": [
+        "version",
+        "template"
+      ],
+      "description": "A template contract: its meaning is the family of graphs a template \u2014 a parameterized model document \u2014 denotes, one per assignment (\u00a74.6)."
     }
   }
 }

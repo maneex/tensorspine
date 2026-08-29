@@ -22,7 +22,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of the vision tower."
       },
       "heads": {
@@ -30,7 +30,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Attention heads."
       },
       "head_dim": {
@@ -38,7 +38,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Dimension of one head."
       },
       "inner": {
@@ -46,7 +46,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Inner width of the FFN."
       }
     },

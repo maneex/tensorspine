@@ -23,7 +23,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of `input` and `output`."
       },
       "heads": {
@@ -31,7 +31,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of query heads; every head reads the same latent."
       },
       "head_dim": {
@@ -39,7 +39,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Dimension of one head and of the cached latent."
       },
       "q_rank": {
@@ -47,7 +47,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Rank of the query bottleneck: `q_a` projects to it, `q_b` expands it to the heads."
       },
       "o_groups": {
@@ -55,7 +55,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of groups of the low-rank output projection; each group covers `heads*head_dim / o_groups` channels."
       },
       "o_rank": {
@@ -63,7 +63,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Rank of one output group."
       },
       "mask": {
@@ -76,7 +76,7 @@
           ]
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Which positions a query may attend to.",
         "value_descriptions": {
           "causal": "Each position attends to itself and to earlier positions.",
@@ -94,13 +94,13 @@
                 "unit": "tokens"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Window span, in tokens."
             }
           }
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "description": "Sliding window of uncompressed latents: the `sliding` cache holds the last `window.span` positions."
       },
       "compress": {
@@ -112,7 +112,7 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Positions folded into one cached latent; also the stride at which the caches grow."
             },
             "overlap": {
@@ -120,13 +120,13 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Positions of context the compressor keeps around a group boundary."
             }
           }
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Temporal compression of the latent cache."
       },
       "index": {
@@ -138,7 +138,7 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Dimension of one index head and of a cached index key."
             },
             "heads": {
@@ -146,7 +146,7 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Number of index heads."
             },
             "topk": {
@@ -154,7 +154,7 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Positions the index keeps per query."
             },
             "overlap": {
@@ -162,13 +162,13 @@
                 "kind": "cardinality"
               },
               "required": true,
-              "affects_template": true,
+              "structural": true,
               "description": "Overlap of the index compressor, as `compress.overlap` is for the main cache."
             }
           }
         },
         "required": false,
-        "affects_template": true,
+        "structural": true,
         "description": "Sparse index: a small attention that selects the positions the full attention reads."
       },
       "rope": {
@@ -180,7 +180,7 @@
                 "kind": "real"
               },
               "required": true,
-              "affects_template": false,
+              "structural": false,
               "description": "Base of the rotary frequencies of the decoupled key."
             },
             "compress_theta": {
@@ -188,7 +188,7 @@
                 "kind": "real"
               },
               "required": false,
-              "affects_template": false,
+              "structural": false,
               "description": "Base of the rotary frequencies applied inside the compressor; absent, `theta`."
             },
             "partial_dims": {
@@ -196,7 +196,7 @@
                 "kind": "cardinality"
               },
               "required": false,
-              "affects_template": false,
+              "structural": false,
               "description": "Channels of `head_dim` that carry the decoupled rotary key; absent, the whole head is rotated."
             },
             "scaling": {
@@ -213,7 +213,7 @@
                       ]
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Context-extension method applied to the rotary frequencies.",
                     "value_descriptions": {
                       "yarn": "YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.",
@@ -226,7 +226,7 @@
                       "kind": "real"
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Ratio between the served context and `orig_ctx`."
                   },
                   "orig_ctx": {
@@ -234,7 +234,7 @@
                       "kind": "cardinality"
                     },
                     "required": true,
-                    "affects_template": false,
+                    "structural": false,
                     "description": "Context length the frequencies were trained at."
                   },
                   "beta_fast": {
@@ -242,7 +242,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -261,7 +261,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -280,7 +280,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -299,7 +299,7 @@
                       "kind": "real"
                     },
                     "required": false,
-                    "affects_template": false,
+                    "structural": false,
                     "present_when": {
                       "compare": {
                         "operator": "equal",
@@ -316,13 +316,13 @@
                 }
               },
               "required": false,
-              "affects_template": false,
+              "structural": false,
               "description": "Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained."
             }
           }
         },
         "required": true,
-        "affects_template": false,
+        "structural": false,
         "description": "Rotary position encoding of the decoupled key: base, compressor base, rotated channels and context-extension scaling. Changes the computation, not a tensor or a state."
       }
     },

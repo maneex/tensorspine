@@ -23,7 +23,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Feature width of one stream."
       },
       "multiplicity": {
@@ -31,7 +31,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": true,
+        "structural": true,
         "description": "Number of parallel residual streams."
       },
       "iterations": {
@@ -39,7 +39,7 @@
           "kind": "cardinality"
         },
         "required": true,
-        "affects_template": false,
+        "structural": false,
         "description": "Sinkhorn iterations projecting the mix onto doubly stochastic matrices."
       },
       "eps": {
@@ -47,7 +47,7 @@
           "kind": "real"
         },
         "required": true,
-        "affects_template": false,
+        "structural": false,
         "description": "Numerical epsilon of the projection."
       }
     },

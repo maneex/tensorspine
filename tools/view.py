@@ -826,7 +826,7 @@ function buildStatus() {
   const parts = [
     `<span><b>${dc.total}</b>${dc.exact ? '' : '+'} occurrences developed</span>`,
     `<span><b>${Object.keys(RAW.compositions).length}</b> composition(s)</span>`,
-    `<span><b>${Object.keys(RAW.bindings.states).length}</b> state template(s)</span>`,
+    `<span><b>${Object.keys(RAW.bindings.states).length}</b> state descriptor(s)</span>`,
     `<span><b>${Object.keys(RAW.interfaces.inputs).length + Object.keys(RAW.interfaces.outputs).length}</b> public port(s)</span>`,
   ];
   if (currentSelection) parts.push(`<span>selection: ${esc(selLabel(currentSelection))}</span>`);
