@@ -12,9 +12,9 @@
   "residual.add": 100,
   "splice": 1
  },
- "wl": "decf2f7ed95462f8",
- "parameter_slots": 309,
- "tensors": 308,
+ "wl": "0c7825b8e1b56a46",
+ "parameter_slots": 459,
+ "tensors": 458,
  "shared": 1,
  "state_slots": 26,
  "state_identities": 26,

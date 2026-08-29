@@ -9,9 +9,9 @@
   "pooler": 1,
   "residual.add": 24
  },
- "wl": "57e2d1ee74841e28",
- "parameter_slots": 174,
- "tensors": 174,
+ "wl": "ce99bdb9e3bd23e1",
+ "parameter_slots": 198,
+ "tensors": 198,
  "shared": 0,
  "state_slots": 0,
  "state_identities": 0,

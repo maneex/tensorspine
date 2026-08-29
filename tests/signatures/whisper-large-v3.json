@@ -10,9 +10,9 @@
   "norm.layer": 162,
   "residual.add": 160
  },
- "wl": "6934bc44dca49a19",
- "parameter_slots": 1068,
- "tensors": 1067,
+ "wl": "95d23dabdad2d2ea",
+ "parameter_slots": 1260,
+ "tensors": 1259,
  "shared": 1,
  "state_slots": 64,
  "state_identities": 64,

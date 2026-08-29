@@ -7,9 +7,9 @@
   "norm.rms": 52,
   "residual.add": 52
  },
- "wl": "cb59d9157f66c39f",
- "parameter_slots": 156,
- "tensors": 156,
+ "wl": "dea1b511374ca4ac",
+ "parameter_slots": 234,
+ "tensors": 234,
  "shared": 0,
  "state_slots": 26,
  "state_identities": 26,

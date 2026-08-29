@@ -70,7 +70,7 @@ def defaults():
         errors, stats = validate.semantic(path, cat)
         ok = check("declared default: `eps` omitted at the call site, template default applied",
                    not errors, errors[:1] and errors[0])
-        ok &= check("declared default: slots still complete", stats.get('parameter_slots') == 309,
+        ok &= check("declared default: slots still complete", stats.get('parameter_slots') == 459,
                     str(stats.get('parameter_slots')))
         return ok
     finally:

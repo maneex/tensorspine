@@ -99,8 +99,8 @@ def main():
     shared = [s for s in g['d4']['states'] if s['identity'].startswith('shared.')]
     ok &= check("gemma3n: the shared identities carry no layer in their instance key",
                 len(shared) == 2 and all(s['instance_key'] == ['instance.session', 'instance.branch'] for s in shared))
-    ok &= check("llama3-8b: O5.10 information loss reported on the flattened attention axes",
-                {(l['slot'], l['axis']) for l in l3['d6']['information_loss']} == {('qkv', 'attention.qkv_flat'), ('out', 'attention.heads')})
+    ok &= check("llama3-8b: no O5.10 information loss once every flattened axis declares its factors",
+                l3['d6']['information_loss'] == [])
     print("derived: all good" if ok else "derived: FAILED")
     return 0 if ok else 1
 

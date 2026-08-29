@@ -15,9 +15,9 @@
   "sequence.gated_delta": 45,
   "splice": 1
  },
- "wl": "acc2d1a45f76c25f",
- "parameter_slots": 1350,
- "tensors": 1350,
+ "wl": "9dc64eb51b5c1a20",
+ "parameter_slots": 1479,
+ "tensors": 1479,
  "shared": 0,
  "state_slots": 105,
  "state_identities": 105,
