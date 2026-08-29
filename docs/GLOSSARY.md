@@ -231,6 +231,14 @@ The word is qualified by what is live:
 State liveness sizes simultaneous memory; visits size computation. See
 [Specification §4.4](SPECIFICATION.md#44--information-supplied-by-the-graph).
 
+### Location
+
+Where a parameter identity's tensor is stored in the artifact the document wraps: one physical
+tensor, a `stack` of locations along an axis, a `concat` of locations along an axis, or a `slice`
+of one physical tensor. Declared on the binding, evaluated into D3, checked against a checkpoint's
+headers by V17. See [Specification §3.4](SPECIFICATION.md#34--bindings) and
+[Model guide](TENSORSPINE-MODEL_JSON.md#locating-the-weights).
+
 ### Model document
 
 A `tensorspine/2.0` declaration of model identity (and, for a template, its version), catalog
@@ -290,6 +298,13 @@ See [Cut](#cut).
 For a generative document, the invocations that consume supplied elements (prefill) and those that
 consume one generated element (decode). Visit rates are derived per phase; element counts are
 deployment intent. See [Specification §7](SPECIFICATION.md#7--required-derived-products).
+
+### Physical tensor
+
+A tensor as a checkpoint stores it, under its own name, shape and dtype. A location maps every
+logical tensor of D3 onto physical tensors; the language guarantees each logical tensor once (V7)
+and each physical tensor bound once (V17, I9). The encoding of the files themselves is outside the
+language ([Specification §10.3](SPECIFICATION.md#103--explicitly-separate-concerns)).
 
 ### Port
 

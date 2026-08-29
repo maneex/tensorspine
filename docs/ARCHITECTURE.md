@@ -34,7 +34,7 @@ catalog contracts --------------------+
                      D4 state        D5 logical costs
                               D6 legal cuts
                                       |
-       implementation candidates + artifact descriptor + deployment intent
+       implementation candidates + artifact format + deployment intent
                                       |
                                       v
                          compiler or serving runtime
@@ -61,7 +61,7 @@ deployment, or machine belong outside both.
 | **Primitive contract** | Argument types and declared defaults; ports, shapes and domain transforms; logical parameter, constant, and state slots; state evolution, access geometry and carrying condition; effects; cost corrections and sparsity units; semantic partition axes |
 | **Catalog** | Resolution of independently identified contracts, axes, and precision roles; no global catalog version |
 | **Implementation candidate** | Backend, kernel, algorithm, fusion, workspace, physical layout and traffic, supported physical partitions, and actual collectives |
-| **Artifact descriptor** | Physical tensor encoding and the mapping between artifact fragments and logical tensors |
+| **Location** (in the model document) | The physical tensor each logical tensor is stored as (Specification §3.4, V17); the artifact's encoding — file format, sharding, quantisation containers — stays outside |
 | **Compilation or deployment control** | Hardware topology, placement, resolved sharding, load variables, admission, and scheduling policy |
 
 This division prevents two authorities from making the same claim. A model can declare that two
@@ -355,7 +355,7 @@ The architecture leaves several downstream or future designs open:
 
 - the concrete encodings and APIs for D2–D6;
 - how implementation candidates advertise capabilities and physical costs;
-- how artifact descriptors map physical fragments to D3 logical tensors;
+- a per-instance location prefix, so that a template instance's tensors can be located (today the flat form is);
 - how a compiler combines semantic partitions with a selected topology and workload;
 - which additional normative interfaces are justified when a derivation cannot fit the closed
   scalar algebra.

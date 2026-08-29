@@ -193,7 +193,7 @@ tensorspine/
 │                                 derived documents: D1 graph, D2–D6 products
 ├── tests/
 │   ├── run_rejections.py  run_templates.py  run_states.py  run_expressions.py  run_signatures.py
-│   ├── run_costs.py  run_derived.py
+│   ├── run_costs.py  run_derived.py  run_artifact.py
 │   ├── run_tspl.py               TSPL losslessness and conformance suite
 │   ├── tspl/                     schema-wide TSPL fixture
 │   ├── rejections/               one document or catalog base per §10.2 case
@@ -211,7 +211,7 @@ tensorspine/
 │   ├── tensorspine                  CLI: --validate, --lint, --d1, --view, --document
 │   ├── tspl                         CLI: fmt, check, emit, import
 │   ├── tspl.py  tspl_cli.py         lossless core, parser/printer, command implementation
-│   ├── validate.py  lint.py  d1.py  derive.py  view.py  document.py
+│   ├── validate.py  lint.py  d1.py  derive.py  view.py  document.py  artifact.py
 │   └── catalog.py  model.py  expr.py  schema.py
 └── README.md
 ```
@@ -256,6 +256,9 @@ Those fields are inert for validation and derivation (§10.2); their shape is fi
 audio (`whisper-large-v3`, `voxtral-realtime`), retrieval (`colbert-v2`), shared KV
 (`gemma3n-kvshare`), a composite (`shieldstral-3b-composite`), and the
 `decoder-causal-yarn/1.0.0.json` template — one immutable file per version, like a contract.
+`llama3-8b` also locates every one of its 291 tensors in the Hugging Face checkpoint it wraps
+(`location`, Specification §3.4): a runtime loads it from the document and the files, and
+`--validate --checkpoint DIR` checks the two against each other from the file headers alone.
 
 The template has `external` quantities that must be assigned during validation; the other eleven
 documents validate as written. A template is a model document like any other and lives where the
@@ -318,6 +321,8 @@ python3 tests/run_expressions.py                        # conditionals, guards, 
 python3 tests/run_signatures.py                         # every model still denotes its recorded graph
 python3 tests/run_costs.py                              # D5: operations per element from the inventory
 python3 tests/run_derived.py                            # every derived document on its schema, and its facts
+python3 tests/run_artifact.py                           # V17 against checkpoint headers: the location forms
+python3 tools/tensorspine --validate --checkpoint ~/models/Meta-Llama-3-8B data/models/llama3-8b.json
 python3 tests/run_tspl.py                               # TSPL mapping, grammar, formatter and CLI
 python3 tools/tensorspine --document catalog -o docs/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
@@ -334,6 +339,9 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
   quantities included — and its slots and states are counted with the caller's.
 - `--catalog DIR` names a catalog base, repeatable; templates are resolved from the location each
   base declares.
+- `--checkpoint DIR`, with `--validate`, checks every located tensor of the document against the
+  safetensors headers of a checkpoint — existence, shape, dtype — without reading a weight (V17);
+  physical tensors no location names are listed as advice.
 - `--lint` reports optional authoring advice and always exits 0.
 - `--d1` unrolls loops, evaluates indices and expands template contracts. Canonical IDs use
   `<composition>/<site>[<i>=<v>,…]`, and the listing is canonical: sorted, whatever the order of the

@@ -113,6 +113,7 @@ One entry per parameter identity instance, a tied tensor once.
 | `shape` | Axis identity and evaluated extent, with factors when the contract declared them. |
 | `multiplicity`, `elements`, `bytes` | `elements` includes the multiplicity; `bytes` is elements × the dtype's width. |
 | `tied` | Whether the identity has several members. |
+| `location` | When the document locates its weights: the evaluated location — physical names with indices and coordinates substituted, a `stack` expanded into its parts, a `slice` with its `offset` and `extent`, `dim` the position of the named axis in the shape. What a loader reads; what `--checkpoint` checks against the file headers (V17). |
 | `sparsity` | When the slot belongs to a sparsity unit (§4.5): the unit's index and axis, `activated_per_element`, `units` (the axis extent) and `activated_fraction`. A lookup table is `1 / vocabulary`. |
 | `totals` | `tensors`, `elements`, `bytes`, `tied`. |
 

@@ -207,6 +207,16 @@ of a named flow. Explicit edges determine the values live at any cut and therefo
 any sharing between occurrences. With tied embeddings, one physical tensor satisfies two logical
 parameters and is counted once.
 
+**Locations.** A parameter binding may say where its identity's tensor is stored in the artifact
+the document wraps — a `location`: one physical tensor (`tensor`); one location per coordinate of a
+named axis of the slot's shape, its names carrying that coordinate (`stack`); locations laid
+consecutively along an axis (`concat`); a region of one physical tensor along an axis, at an
+offset, of the logical extent (`slice`). A physical name is tagged data — literal strings, a
+composition index printed in decimal, the coordinate of an enclosing stack — never a format
+string; the axes it names are the slot's shape axis names. A document locates all of its parameter
+identities or none (V17); a tied identity has one location; the tensors of a template instance
+cannot be located from outside — a stated limit of this version, the flat form being locatable.
+
 **Parameter identities** are compatible only between slots whose contracts declare them
 `shareable`, whose roles are listed in each other's sharing rules, and whose shapes are equal under
 V4 (V15).
@@ -539,6 +549,7 @@ implicit default.
 | **V14** | A dtype selected for a parameter identity is admissible for the role of every member; one selected for a state identity, for the role of every payload component of every member; absent, each role's default applies. |
 | **V15** | Parameter identity compatibility (§3.4). |
 | **V16** | An occurrence whose state is carried across fragments (its contract's `carried_across` condition holds) sits on a fragmented stream. |
+| **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat; a document that locates its weights does not instantiate a template. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
 
 ## §7 — Required derived products
 
@@ -563,7 +574,7 @@ code or human knowledge of a named mechanism:
 |---|---|
 | **D1** | **Expanded graph:** occurrences, edges, and families. |
 | **D2** | **Values:** the value and shape inventory, and the payload of every legal cut — the values live at it, sized per invocation. |
-| **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor. |
+| **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor; when the document locates its weights, the evaluated location of every tensor. |
 | **D4** | **Complete state:** descriptors, instances, keys, state liveness, visits per phase, and permitted operations. |
 | **D5** | **Logical costs:** parameters, activations, state per element, computation — derived from the inventory and the declared corrections (§4.1) — and the payload crossing each legal cut per invocation. |
 | **D6** | **Legal cuts and semantic partition axes:** the legal cuts of the expanded graph, and for every occurrence the partitions its contract declares with their communication; a flattened axis without factors is reported as information loss (O5.10). |
@@ -642,14 +653,14 @@ language element carries it—but the criterion that justifies the mechanism.
 | **I6** | Every construction has one reading. |
 | **I7** | **No silent defaults:** every non-derivable answer produces a reasoned rejection. |
 | **I8** | A literal value and its declared derivation agree. |
+| **I9** | The described model and loaded artifact are mutually compatible: every logical tensor is located, and no physical tensor is bound twice (V17). |
 | **I11** | A meaningless combination is excluded by invariant, never merely by a missing guard. |
 
 I5 and I6 are expressiveness invariants, not concrete syntax rules. Known conformance cases include
 a dimension named like an enum value and a two-key object indistinguishable from a two-entry map.
 
-I9—the mapping of physical fragments onto logical tensors—belongs to the artifact descriptor
-(§10.3); I10—detecting a decision based on stale measurements—belongs to deployment control. Both
-are outside this specification.
+I10—detecting a decision based on stale measurements—belongs to deployment control and is outside
+this specification.
 
 ### 9.2 — Non-requirements
 
@@ -719,7 +730,7 @@ every conforming implementation is a comment, even if the document remains valid
 | Dependency graph between consumer questions | Deployment control |
 | Cross-memory-domain composition of a quantity | Compilation for selected parallelism |
 | Load variables such as batch and concurrent sequences | Deployment intent |
-| Physical artifact encoding; mapping physical fragments onto D3 identities one-to-one — the language guarantees each logical tensor once (V7) | Artifact descriptor |
+| Physical artifact encoding: file format, sharding, quantisation containers. The mapping of physical tensors onto D3 identities is the document's own (`location`, §3.4, V17) | Artifact format |
 
 ## Appendix A — Requirements
 

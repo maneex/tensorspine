@@ -177,7 +177,8 @@ parameters or states:
                         "to":   {"site": "attn_n", "port": "input"},
                         "when": { "compare": { "operator": "greater_or_equal", "left": {"index": "layer"}, "right": {"literal": 1} } } }
     },
-    "parameters": { "attn.q":   { "members": [ {"site": "attn", "parameter": "q"} ] } },
+    "parameters": { "attn.q":   { "members": [ {"site": "attn", "parameter": "q"} ],
+                                  "location": { "tensor": [ "model.layers.", {"index": "layer"}, ".self_attn.q_proj.weight" ] } } },
     "states":     { "attn.kv":  { "members": [ {"site": "attn", "state": "kv"} ] } }
   }
 }
@@ -198,6 +199,44 @@ occurrence is `<composition>/<occurrence>[<index>=<value>,…]`, indices in name
 of a template is prefixed by its instance (`text/decoder/attn[layer=3]`). Identifiers are
 representation: two expansions denote the same graph when they correspond up to occurrence renaming
 (§5.2).
+
+### Locating the weights
+
+A document may name, per parameter identity, the tensor it is stored as in the checkpoint it wraps —
+so that a runtime loads the model from the document and the files, with no per-model code, and so
+that `--validate --checkpoint DIR` checks the two against each other (I9, V17) from the file headers
+alone. `llama3-8b` locates all of its 291 tensors in the Hugging Face layout:
+
+```json
+"bindings": {
+  "parameters": {
+    "embed.weight":   { "tensor": {"name": "embed.weight"}, "members": [ … ],
+                        "location": { "tensor": ["model.embed_tokens.weight"] } }
+  }
+},
+"compositions": { "decoder": { "bindings": { "parameters": {
+    "attn.q":   { "members": [ {"site": "attn", "parameter": "q"} ],
+                  "location": { "tensor": ["model.layers.", {"index": "layer"}, ".self_attn.q_proj.weight"] } },
+    "ffn.gate": { "members": [ {"site": "ffn", "parameter": "gate"} ],
+                  "location": { "tensor": ["model.layers.", {"index": "layer"}, ".mlp.gate_proj.weight"] } }
+} } } }
+```
+
+A physical name is a list — literal strings and `{"index": …}` items printed in decimal — never a
+format string. Four forms cover the checkpoints in the corpus:
+
+| Form | Meaning | Where it is needed |
+|---|---|---|
+| `{"tensor": name}` | one physical tensor | Llama, Qwen 3.5 text |
+| `{"stack": {"axis": a, "part": location}}` | one location per coordinate of the slot's axis `a`, the names carrying `{"coordinate": a}` | Qwen 3.5 397B's MTP experts, stored one tensor per expert |
+| `{"concat": {"axis": a, "parts": [ … ]}}` | locations laid consecutively along `a`, each of its own extent | a checkpoint that splits what the contract stores fused |
+| `{"slice": {"tensor": name, "axis": a, "offset": expression}}` | the region of one physical tensor at `offset` along `a`, of the slot's extent | Qwen 3.5's vision tower stores `attn.qkv` fused |
+
+Axes are the slot's shape axis names, as the catalog reference lists them. Locations are total or
+absent; a physical tensor is bound once (a tied identity has one location); a template instance's
+tensors cannot be located from outside in this version. The evaluated locations — every name
+written out, stacks expanded — are in D3, which is what a loader reads.
+
 
 A `when` that cannot be decided — over an index that does not exist, or a quantity with no value —
 is a rejection (V10), never false. Compositions are syntactic sugar: every validity rule applies
