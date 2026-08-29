@@ -1086,9 +1086,6 @@
                 "parameter": "dt_bias"
               }
             ],
-            "dtype": {
-              "quantity": "precision"
-            },
             "location": {
               "tensor": [
                 "model.language_model.layers.",
@@ -1106,7 +1103,6 @@
                 "parameter": "A_log"
               }
             ],
-            "dtype": "f32",
             "location": {
               "tensor": [
                 "model.language_model.layers.",
@@ -1124,7 +1120,6 @@
                 "parameter": "norm"
               }
             ],
-            "dtype": "f32",
             "location": {
               "tensor": [
                 "model.language_model.layers.",
