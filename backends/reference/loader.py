@@ -61,9 +61,17 @@ def free_memory(device):
 
 def largest_temporary(graph, compute_dtype):
     """The per-operation upcast of the largest weight: the biggest anonymous allocation
-    of a run whose parameters stay at their declared dtype."""
+    of a run whose parameters stay at their declared dtype. An embedding table is never
+    upcast whole — it is gathered, or projected in chunks bounded by UPCAST_CHUNK_BYTES."""
+    from kernels._common import UPCAST_CHUNK_BYTES
     width = torch.tensor([], dtype=compute_dtype).element_size()
-    return max((t['elements'] or 0) for t in graph.tensors.values()) * width
+    biggest = 0
+    for t in graph.tensors.values():
+        n = (t['elements'] or 0) * width
+        if t['role'] == 'embedding.table':
+            n = min(n, UPCAST_CHUNK_BYTES)
+        biggest = max(biggest, n)
+    return biggest
 
 
 def info(graph, capacity, compute_dtype, device, plan=None, elements=None):

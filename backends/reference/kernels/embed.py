@@ -1,5 +1,5 @@
 """embed@1.0.0 — one `width` vector per token identifier."""
-from kernels._common import refuse_unknown, w
+from kernels._common import refuse_unknown
 
 CONTRACT = ("embed", "1.0.0")
 KNOWN = {'width', 'vocabulary'}
@@ -14,4 +14,4 @@ def supports(arguments):
 
 def run(ctx, arguments, inputs, params, states):
     ids = inputs['tokens']
-    return {'output': w(ctx, params['weight'])[ids]}
+    return {'output': params['weight'][ids].to(ctx.dtype)}      # gather first: no upcast of the whole table
