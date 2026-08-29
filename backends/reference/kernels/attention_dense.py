@@ -11,7 +11,7 @@
 | rope: theta, layout split       | implemented (rotate-half)                       |
 | rope: layout interleaved / 2d   | refused                                         |
 | rope: partial                   | implemented (the first `partial · head_dim` channels) |
-| rope: mrope                     | implemented for one position stream (t = h = w: plain RoPE) |
+| rope: mrope (sections contiguous or interleaved) | implemented for one position stream (t = h = w: the two layouts are one computation; an image would tell them apart) |
 | rope: scaling                   | refused                                         |
 | qk_norm rms (+ weight, zero-centred) | implemented, before RoPE                   |
 | qk_norm layer                   | refused                                         |
@@ -23,8 +23,9 @@ Conventions the contract leaves open, as read here: keys of the current elements
 appended to the state before the queries attend (a query sees itself); the scale is
 head_dim^-1/2; rope `split` pairs channel i with i + rotary/2 (rotate-half) over the rotated
 channels only, whose base frequencies are computed on the rotated width; `qk_norm` is an RMS
-norm over head_dim applied before RoPE, its scale zero-centred when the argument says so; mrope
-sections are interleaved (Qwen 3.5), which for a single position stream is plain RoPE.
+norm over head_dim applied before RoPE, its scale zero-centred when the argument says so. These
+readings are now stated by the contract (finding 1, 30 Aug 2026); `mrope.sections` is declared
+by the document and, for a single position stream, both layouts are plain RoPE.
 """
 import math
 import torch
