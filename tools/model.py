@@ -25,9 +25,20 @@ class ModelError(ValueError):
     a top-level one, or an endpoint selecting no site."""
 
 
+def _pairs(pairs):
+    seen = set()
+    for k, _v in pairs:
+        if k in seen:
+            raise ModelError(f"duplicate member name '{k}' (V12)")
+        seen.add(k)
+    return dict(pairs)
+
+
 def load(path):
+    """The document, normalised; a duplicate member name is a refusal (V12),
+    never the last value silently kept."""
     with open(path, encoding='utf-8') as f:
-        return normalise(json.load(f))
+        return normalise(json.load(f, object_pairs_hook=_pairs))
 
 
 def _current(comp):
@@ -65,14 +76,12 @@ def _hoist(comp_name, comp, kind, rule_name, rule):
     slot = {'parameters': 'parameter', 'states': 'state', 'constants': 'constant'}[kind]
     top['members'] = [{"occurrence": _selector(comp_name, comp, m, rule_name), slot: m[slot]}
                       for m in rule['members']]
+    if 'dtype' in rule:                      # parameter and state identities select a dtype
+        top['dtype'] = rule['dtype']
     if kind == 'parameters':
         top['tensor'] = rule.get('tensor', {"name": qualified, "indices": _current(comp)})
-        if 'dtype' in rule:
-            top['dtype'] = rule['dtype']
     elif kind == 'states':
         top['identity'] = rule.get('identity', {"name": qualified, "indices": _current(comp)})
-        if 'invocation_boundary' in rule:
-            top['invocation_boundary'] = rule['invocation_boundary']
     else:
         top['constant'] = rule['constant']
     return top
