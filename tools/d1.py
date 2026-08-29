@@ -5,11 +5,12 @@ unrolling `for_each` or evaluating index expressions, it shows fewer nodes than
 reality and apparent cycles. D1 is the form every consumer reads: viewer,
 porting, infrastructure matching.
 
-Canonical identities are `<composition>/<site>[<i>=<v>,...]` (§5.2), with
-indices in lexicographic order of Unicode code points. A template
-contract (§4.6) is expanded in place and its identities are prefixed by the
-instance path, so two invocations of one contract share neither state nor
-tensor.
+Identifiers follow §5.2 rule 2: a root occurrence by its name, a generated one
+as `<composition>/<site>[<i>=<v>,...]` with indices in name order, an
+occurrence of a template prefixed by its instance. The graph is a set (§5.2
+rule 4): the listing here is the canonical one — nodes by identifier, edges by
+(source, destination) — whatever the order of the document's members. A
+binding is emitted only where the occurrences it names are (rule 3).
 """
 import itertools
 import json
@@ -27,9 +28,8 @@ MAX_DEPTH = 8
 def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     """The D1 document of one model.
 
-    `assignment` supplies the external quantities by their external name; a
-    template contract receives its own from the arguments of the occurrence
-    that invokes it.
+    `assignment` supplies the external quantities by name; a template contract
+    receives its own from the arguments of the occurrence that invokes it.
     """
     model = model_mod.load(model_path)
     assignment = assignment or {}
@@ -42,36 +42,44 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         return static_argument(v, quantities, env)
 
     def identity(key):
-        """Canonical identity of an occurrence key (§5.2)."""
+        """Canonical identity of an occurrence key (§5.2 rule 2)."""
         if key[0] == 'root':
             return key[1]
         _, composition, site, indices = key
-        template = ",".join(f"{k}={v}" for k, v in indices)      # already sorted
+        template = ",".join(f"{k}={v}" for k, v in indices)      # already sorted by name
         return f"{composition}/{site}[{template}]"
 
-    # --- unroll the occurrences -------------------------------------------
-    nodes = {}
+    # --- unroll the occurrences; a guarded-out site is remembered as absent -
     keys = {}
+    absent = set()
     for name, o in model['occurrences'].items():
+        if 'when' in o:
+            truth = model_condition(o['when'], quantities, {})
+            if truth is UNRESOLVED:
+                raise ValueError(f"{name}: `when` does not resolve")
+            if not truth:
+                absent.add(('root', name))
+                continue
         keys[('root', name)] = o
-    for comp_name, comp in model['compositions'].items():          # document order (§5.2)
+    for comp_name, comp in model['compositions'].items():
         names, ranges = index_grid(comp['indices'], quantities)
         for combo in itertools.product(*ranges):
             env = dict(zip(names, combo))
             for site_name, site in comp['occurrences'].items():
-                # `when` is evaluated against the quantities and the current
-                # indices; a site that does not fire is not an occurrence.
+                key = ('gen', comp_name, site_name, tuple(sorted(env.items())))
                 if 'when' in site:
                     truth = model_condition(site['when'], quantities, env)
                     if truth is UNRESOLVED:
                         raise ValueError(f"{comp_name}.{site_name}{env}: `when` does not resolve")
                     if not truth:
+                        absent.add(key)
                         continue
-                keys[('gen', comp_name, site_name, tuple(sorted(env.items())))] = site
+                keys[key] = site
 
     edges = []
     instances = {}
-    portmap = {}          # (occurrence key, port) -> (real node, real port)
+    inputs_of = {}        # (instance key, port) -> [(node, port)]: fan-out into a template
+    outputs_of = {}       # (instance key, port) -> (node, port)
     for key in list(keys):
         contract_name = keys[key]['contract']['name']
         definition = cat['contracts'][contract_name]
@@ -90,16 +98,20 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
                 sub_assignment[arg_name] = v
         sub = emit(catalog_mod.template_path(cat, definition), cat, sub_assignment,
                    instance + "/", _depth + 1, _stack + (contract_name,))
-        nodes.update(sub['nodes'])
+        nodes_sub = sub['nodes']
         edges.extend(sub['edges'])
         instances[instance] = {"contract": occurrence['contract'],
                                "arguments": dict(sub_assignment)}
         instances.update(sub.get('instances') or {})
         for port_name, port in sub['interfaces']['inputs'].items():
-            portmap[(key, port_name)] = (port['node'], port['port'])
+            inputs_of[(key, port_name)] = [(e['node'], e['port']) for e in port['to']]
         for port_name, port in sub['interfaces']['outputs'].items():
-            portmap[(key, port_name)] = (port['node'], port['port'])
+            outputs_of[(key, port_name)] = (port['node'], port['port'])
+        keys_sub = nodes_sub
+        for n, v in keys_sub.items():
+            instances.setdefault('__nodes__', {})[n] = v
 
+    nodes = instances.pop('__nodes__', {}) if instances else {}
     for key, occurrence in keys.items():
         contract_name = occurrence['contract']['name']
         definition = cat['contracts'][contract_name]
@@ -138,32 +150,51 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         return ('gen', sel['composition'], sel['occurrence'],
                 tuple(sorted((k, value(v, env)) for k, v in sel['indices'].items())))
 
-    def endpoint(sel, port, env):
+    def sources(sel, port, env):
         key = select(sel, env)
-        if (key, port) in portmap:
-            return portmap[(key, port)]
-        return _prefix + identity(key), port
+        if (key, port) in outputs_of:
+            return key, [outputs_of[(key, port)]]
+        return key, [(_prefix + identity(key), port)]
+
+    def destinations(sel, port, env):
+        key = select(sel, env)
+        if (key, port) in inputs_of:
+            return key, list(inputs_of[(key, port)])
+        return key, [(_prefix + identity(key), port)]
 
     for bid, binding in model['bindings']['values'].items():
         for env in loop_envs(binding, bid):
-            src_node, src_port = endpoint(binding['from']['occurrence'],
-                                          binding['from']['port'], env)
-            dst_node, dst_port = endpoint(binding['to']['occurrence'],
-                                          binding['to']['port'], env)
-            edges.append({"rule": _prefix + bid,
-                          "from": {"node": src_node, "port": src_port},
-                          "to": {"node": dst_node, "port": dst_port}})
+            src_key, srcs = sources(binding['from']['occurrence'], binding['from']['port'], env)
+            dst_key, dsts = destinations(binding['to']['occurrence'], binding['to']['port'], env)
+            if src_key in absent or dst_key in absent:
+                continue                                      # §5.2 rule 3
+            for src_node, src_port in srcs:
+                for dst_node, dst_port in dsts:
+                    edges.append({"rule": _prefix + bid,
+                                  "from": {"node": src_node, "port": src_port},
+                                  "to": {"node": dst_node, "port": dst_port}})
 
     interfaces = {"inputs": {}, "outputs": {}}
     for name, decl in model['interfaces']['inputs'].items():
-        node, port = endpoint(decl['to']['occurrence'], decl['to']['port'], {})
-        interfaces['inputs'][name] = {"node": node, "port": port, "domain": decl['domain']}
+        to = []
+        for endpoint in decl['to']:
+            _key, dsts = destinations(endpoint['occurrence'], endpoint['port'], {})
+            to.extend({"node": n, "port": p} for n, p in dsts)
+        entry = {"to": to, "kind": decl['kind']}
+        if 'stream' in decl:
+            entry['stream'] = decl['stream']
+        if decl.get('fragmented'):
+            entry['fragmented'] = True
+        interfaces['inputs'][name] = entry
     for name, decl in model['interfaces']['outputs'].items():
-        node, port = endpoint(decl['from']['occurrence'], decl['from']['port'], {})
-        interfaces['outputs'][name] = {"node": node, "port": port, "domain": decl['domain'],
+        _key, srcs = sources(decl['from']['occurrence'], decl['from']['port'], {})
+        node, port = srcs[0]
+        interfaces['outputs'][name] = {"node": node, "port": port,
                                        "generative": decl['generative']}
 
-    # --- topological order of one invocation --------------------------------
+    # --- canonical listing (§5.2 rule 4) and one topological order ---------
+    nodes = dict(sorted(nodes.items()))
+    edges.sort(key=lambda e: (e['from']['node'], e['from']['port'], e['to']['node'], e['to']['port']))
     adjacency = defaultdict(list)
     indegree = {n: 0 for n in nodes}
     for e in edges:
@@ -182,7 +213,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         raise ValueError(f"{model['model']}: cyclic graph, {len(nodes) - len(order)} node(s) "
                          f"in a cycle — no D1 (V6 rejection)")
 
-    declared = {q['source']['name'] for q in model['quantities'].values()
+    declared = {name for name, q in model['quantities'].items()
                 if q['source']['kind'] == 'external'}
     out = {"schema": "tensorspine-d1/2.0",
            "model": model['model'],
@@ -197,8 +228,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     return out
 
 
-def run(model_paths, catalog_bases, output=None, assignment=None,
-        models_base=catalog_mod.DEFAULT_MODELS):
+def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None):
     """Emit D1 for each model. Returns (failed, skipped).
 
     A template with no assignment has no single D1 — it has one per
@@ -223,7 +253,7 @@ def run(model_paths, catalog_bases, output=None, assignment=None,
             continue
         try:
             document = emit(path, cat, assignment)
-        except (ValueError, KeyError, OSError) as e:
+        except (ValueError, KeyError, OSError, model_mod.ModelError) as e:
             failed += 1
             print(f"  {name:34s} failed: {e}")
             continue
