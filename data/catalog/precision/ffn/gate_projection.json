@@ -1,9 +1,9 @@
 {
   "schema": "tensorspine-catalog-unit/2.0",
   "kind": "precision_role",
-  "name": "ffn.up_projection",
+  "name": "ffn.gate_projection",
   "definition": {
-    "summary": "Up projection of a feed-forward network or shared expert; the fused gate and up projection of a routed expert.",
+    "summary": "Gate projection of a feed-forward network or shared expert.",
     "admissible": [
       "bf16",
       "f16",

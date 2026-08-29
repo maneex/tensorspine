@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection.",
-    "description": "`in` fuses the gate and up projections into `2*inner` rows; the activation is applied to the gate half and multiplied by the up half, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is selected by `condition`; `activation_sparsity` zeroes a structural fraction of the activations.",
+    "description": "`gate` and `up` project the input to `inner` rows each, stored separately as the reference implementation stores them; the activation is applied to the gate projection and multiplied by the up projection, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is selected by `condition`; `activation_sparsity` zeroes a structural fraction of the activations.",
     "external_docs": [
       {
         "url": "https://arxiv.org/abs/2002.05202",
@@ -61,7 +61,7 @@
         "default": {
           "literal": false
         },
-        "description": "Learned bias on the fused gate/up projection."
+        "description": "Learned bias on the gate and up gate/up projection."
       },
       "out_bias": {
         "type": {
@@ -158,46 +158,20 @@
       }
     },
     "parameters": {
-      "in": {
-        "role": "ffn.up_projection",
+      "gate": {
+        "role": "ffn.gate_projection",
         "sharing": {
           "kind": "exclusive"
         },
         "shape": {
           "axes": [
             {
-              "name": "gate_flat",
-              "axis": "ffn.gate_flat",
-              "nature": "projection",
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
               "extent": {
-                "op": "multiply",
-                "args": [
-                  {
-                    "literal": 2
-                  },
-                  {
-                    "argument": "inner"
-                  }
-                ]
-              },
-              "factors": [
-                {
-                  "name": "projection",
-                  "axis": "ffn.projection",
-                  "nature": "projection",
-                  "extent": {
-                    "literal": 2
-                  }
-                },
-                {
-                  "name": "inner",
-                  "axis": "ffn.inner",
-                  "nature": "feature",
-                  "extent": {
-                    "argument": "inner"
-                  }
-                }
-              ]
+                "argument": "inner"
+              }
             },
             {
               "name": "feature",
@@ -209,7 +183,34 @@
             }
           ]
         },
-        "description": "Fused gate and up projection."
+        "description": "Gate projection, `inner` rows."
+      },
+      "up": {
+        "role": "ffn.up_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Up projection, `inner` rows."
       },
       "out": {
         "role": "ffn.down_projection",
@@ -238,7 +239,7 @@
         },
         "description": "Down projection."
       },
-      "in_bias": {
+      "gate_bias": {
         "role": "ffn.projection_bias",
         "sharing": {
           "kind": "exclusive"
@@ -250,15 +251,7 @@
               "axis": "ffn.inner",
               "nature": "feature",
               "extent": {
-                "op": "multiply",
-                "args": [
-                  {
-                    "literal": 2
-                  },
-                  {
-                    "argument": "inner"
-                  }
-                ]
+                "argument": "inner"
               }
             }
           ]
@@ -274,7 +267,37 @@
             }
           }
         },
-        "description": "Bias of the fused projection, over both halves."
+        "description": "Bias of the gate projection."
+      },
+      "up_bias": {
+        "role": "ffn.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "in_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the up projection."
       },
       "out_bias": {
         "role": "ffn.projection_bias",
