@@ -310,7 +310,9 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn.json \
 - `--lint` reports optional authoring advice and always exits 0.
 - `--d1` unrolls loops, evaluates indices and expands template contracts. Canonical IDs use
   `<composition>/<site>[<i>=<v>,…]`.
-- `--view` produces a self-contained HTML inspector.
+- `--view` produces a self-contained HTML inspector. `--site-nav FILE` puts the navigation of
+  the documentation site at the top of it, as `tools/site.sh` does when it builds the site;
+  without it the page carries the name alone and no link that leads nowhere.
 - `--document catalog` renders every unit of the catalog bases — definitions and documentation
   fields — into one Markdown file. Malformed documentation is a refusal (exit 1); a unit without
   documentation is rendered from its definition alone.

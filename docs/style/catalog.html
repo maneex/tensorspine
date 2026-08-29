@@ -16,12 +16,11 @@ $header-includes$
 $endfor$
 </head>
 <body>
+$for(include-before)$
+$include-before$
+$endfor$
 <div class="page">
 <aside class="nav">
-  <div class="brand">
-    <div class="name">Tensorspine</div>
-    <div class="kind">Reference catalog</div>
-  </div>
   <label class="search">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
     <input type="search" id="nav-filter" placeholder="Filter units" autocomplete="off">

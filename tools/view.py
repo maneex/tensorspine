@@ -377,6 +377,7 @@ TEMPLATE = r"""<!doctype html>
     --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
     --nav-w: 264px;
     --insp-w: 340px;
+    --bar-h: 52px;
   }
 
   /* ---------- base ---------- */
@@ -394,10 +395,36 @@ TEMPLATE = r"""<!doctype html>
   a:hover { color: var(--accent-dark); text-decoration: underline; }
   ::selection { background: #e9d2bf; }
 
+  /* ---------- site navigation ---------- */
+  /* The site's own bar, docs/style/nav.html, put here by tools/site.sh; a page
+     rendered on its own keeps the wordmark and drops the links, which would
+     lead nowhere. */
+  .sitebar {
+    display: flex; align-items: center; gap: 30px; flex-shrink: 0;
+    height: var(--bar-h); padding: 0 32px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .sitebar .wordmark {
+    flex-shrink: 0;
+    font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .sitebar .wordmark:hover { color: var(--accent); text-decoration: none; }
+  .sitebar .sitekind { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .sitebar .sitelinks { display: flex; align-self: stretch; gap: 20px; overflow-x: auto; scrollbar-width: none; }
+  .sitebar .sitelinks::-webkit-scrollbar { display: none; }
+  .sitebar .sitelinks a {
+    display: flex; align-items: center; white-space: nowrap;
+    margin-bottom: -1px; border-bottom: 2px solid transparent;
+    font-size: 13.5px; color: var(--ink-3);
+  }
+  .sitebar .sitelinks a:hover { color: var(--ink); text-decoration: none; }
+  .sitebar .sitelinks a.current { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+
   /* ---------- page frame ---------- */
   /* Sidebar, then the tool: the same 264px column, the same hairline against
      the content, as every other page of the site. */
-  .page { display: flex; flex-direction: row; height: 100vh; overflow: hidden; }
+  .page { display: flex; flex-direction: row; height: calc(100vh - var(--bar-h)); overflow: hidden; }
   .nav {
     width: var(--nav-w);
     flex-shrink: 0;
@@ -410,9 +437,6 @@ TEMPLATE = r"""<!doctype html>
   .content { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; }
 
   /* ---------- sidebar ---------- */
-  .brand { display: flex; flex-direction: column; gap: 4px; }
-  .brand .name { font-family: var(--serif); font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
-  .brand .kind { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
   .search {
     display: flex; align-items: center; gap: 8px;
     height: 36px; padding: 0 12px;
@@ -587,12 +611,19 @@ TEMPLATE = r"""<!doctype html>
 
   @media (max-width: 1200px) {
     :root { --nav-w: 228px; --insp-w: 300px; }
+    .sitebar { gap: 20px; padding: 0 24px; }
     .nav { padding-left: 24px; }
     .topbar, .statusbar { padding-left: 24px; }
     .canvas, .rawpane { padding: 26px 24px 48px; }
+    /* Past this width the sections start to run off the bar; fade the edge
+       they scroll past rather than let them end mid-word. */
+    .sitebar .sitelinks {
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    }
   }
   @media print {
-    .nav, .topbar, .inspector, .statusbar { display: none; }
+    .sitebar, .nav, .topbar, .inspector, .statusbar { display: none; }
     .page, .content, .body-row { display: block; height: auto; overflow: visible; }
     .canvas { overflow: visible; padding: 0; background-image: none; }
     body { background: #fff; }
@@ -600,13 +631,10 @@ TEMPLATE = r"""<!doctype html>
 </style>
 </head>
 <body>
+__NAVBAR__
 <div class="page">
 
   <aside class="nav">
-    <div class="brand">
-      <div class="name">Tensorspine</div>
-      <div class="kind">Model view</div>
-    </div>
     <label class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
       <input type="search" id="search" placeholder="Filter" autocomplete="off">
@@ -1104,21 +1132,33 @@ document.addEventListener('DOMContentLoaded', init);
 """
 
 
-def build_html(data, title):
+# The bar of a page that stands on its own: the site's, without the links.
+STANDALONE_NAV = ('<nav class="sitebar">\n'
+                  '  <span class="wordmark">Tensorspine</span>\n'
+                  '  <span class="sitekind">Model view</span>\n'
+                  '</nav>')
+
+
+def build_html(data, title, nav_html=None):
     canvas = canvas_html(data)
     payload = json.dumps(data, ensure_ascii=False)
     payload = payload.replace('</', '<\\/').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
     title_html = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     return (TEMPLATE
             .replace('__TITLE__', title_html)
+            .replace('__NAVBAR__', nav_html or STANDALONE_NAV)
             .replace('__CANVAS_HTML__', canvas)
             .replace('__MODEL_JSON__', payload))
 
 
-def run(model_paths, output=None):
+def run(model_paths, output=None, site_nav=None):
     """Render each model to a self-contained page. Returns the number that
-    failed. With no output, the page lands beside its model."""
+    failed. With no output, the page lands beside its model. `site_nav` is a
+    file holding the navigation of the documentation site, with its links
+    already resolved for the directory the pages are written to; without it the
+    pages carry the wordmark alone."""
     failed = 0
+    nav_html = pathlib.Path(site_nav).read_text(encoding='utf-8').strip() if site_nav else None
     for path in model_paths:
         src = pathlib.Path(path)
         data = model_mod.normalise(json.loads(src.read_text(encoding='utf-8')))
@@ -1134,7 +1174,7 @@ def run(model_paths, output=None):
         else:
             out = src.with_suffix('.html')
         try:
-            page = build_html(data, f"{model_name} \u2013 Tensorspine")
+            page = build_html(data, f"{model_name} \u2013 Tensorspine", nav_html)
         except RuntimeError as e:
             print(f"  {src.name:34s} failed: {e}", file=sys.stderr)
             failed += 1

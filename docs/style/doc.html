@@ -15,22 +15,11 @@ $header-includes$
 $endfor$
 </head>
 <body>
+$for(include-before)$
+$include-before$
+$endfor$
 <div class="page">
 <aside class="nav">
-  <div class="brand">
-    <a class="name" href="$root$index.html">Tensorspine</a>
-    <div class="kind">$if(kind)$$kind$$else$Documentation$endif$</div>
-  </div>
-  <nav class="site" aria-label="Site">
-    <a href="$root$index.html"$if(current-index)$ class="current"$endif$>Overview</a>
-    <a href="$root$spec/tensorspine-model_json.html"$if(current-tensorspine-model_json)$ class="current"$endif$>Model JSON guide</a>
-    <a href="$root$spec/specification.html"$if(current-specification)$ class="current"$endif$>Language specification</a>
-    <a href="$root$spec/glossary.html"$if(current-glossary)$ class="current"$endif$>Glossary</a>
-    <a href="$root$spec/architecture.html"$if(current-architecture)$ class="current"$endif$>Architecture</a>
-    <a href="$root$spec/catalog-documentation.html"$if(current-catalog-documentation)$ class="current"$endif$>Catalog documentation model</a>
-    <a href="$root$catalog/index.html">Catalog reference</a>
-    <a href="$root$models/index.html"$if(current-models)$ class="current"$endif$>Model views</a>
-  </nav>
 $if(toc)$
 <div class="label">On this page</div>
 <nav id="TOC" aria-label="Contents">

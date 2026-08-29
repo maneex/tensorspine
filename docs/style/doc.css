@@ -1,16 +1,6 @@
 /* Tensorspine site — additions to catalog.css for the hand-written documents
    (README, specification, guides). Build: tools/site.sh. */
 
-.brand a.name { color: var(--ink); }
-.brand a.name:hover { text-decoration: none; color: var(--accent); }
-.nav .label { margin-top: 28px; padding-left: 0; }
-
-/* Site navigation, above the document's own table of contents. */
-.site { display: flex; flex-direction: column; gap: 2px; margin-top: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--rule); }
-.site a { display: block; padding: 3px 0; font-size: 13.5px; color: var(--ink-3); }
-.site a:hover { color: var(--ink); text-decoration: none; }
-.site a.current { color: var(--ink); font-weight: 600; }
-
 /* Document TOC: h2 entries as sections, h3 nested beneath them. */
 #TOC > ul > li > ul > li { margin-top: 10px; }
 #TOC > ul > li > ul > li > a { font-size: 13.5px; letter-spacing: 0; text-transform: none; color: var(--ink-3); padding-bottom: 3px; }
@@ -44,3 +34,8 @@ blockquote strong:first-child { display: inline; font-size: inherit; letter-spac
 ul.models { list-style: none; padding: 0; gap: 0; }
 ul.models li { padding: 10px 0; border-bottom: 1px solid var(--rule); }
 ul.models a { font-family: var(--mono); }
+
+/* A document whose table of contents holds nothing but its own title — the
+   entry catalog.css hides — gets no sidebar at all, rather than a heading over
+   an empty list. The model index is one. */
+.nav:not(:has(#TOC ul ul)) { display: none; }

@@ -97,6 +97,12 @@ def build_parser():
     parser.add_argument('--schemas', metavar='DIR', default=DEFAULT_SCHEMAS,
                         help=f'directory holding the JSON Schemas; they are indexed by '
                              f'their own $id (default: {os.path.relpath(DEFAULT_SCHEMAS, ROOT)}/)')
+    parser.add_argument('--site-nav', metavar='FILE',
+                        help='for --view: an HTML fragment holding the navigation of the '
+                             'documentation site, put at the top of every page rendered. '
+                             'Without it a page carries the name alone, so that one rendered '
+                             'outside the site has no link leading nowhere (tools/site.sh '
+                             'passes docs/style/nav.html, resolved for the output directory).')
     parser.add_argument('--assign', metavar='JSON',
                         help='values for the external quantities of a template, '
                              'as a JSON object. A template denotes one graph per admissible '
@@ -168,7 +174,7 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.view:
         import view
         print(f"view  {len(documents)} document(s)")
-        failed = view.run(documents, args.output)
+        failed = view.run(documents, args.output, site_nav=args.site_nav)
         return 1 if failed else 0
 
     if args.document:
