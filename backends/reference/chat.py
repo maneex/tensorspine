@@ -39,7 +39,11 @@ def render(tokenizer, transcript, closed=False):
     assistant's and no generation prompt follows — the form the next turn must extend."""
     if getattr(tokenizer, 'chat_template', None):
         ids = tokenizer.apply_chat_template(transcript, add_generation_prompt=not closed, tokenize=True)
-        return list(ids), 'template'
+        if isinstance(ids, dict) or hasattr(ids, 'keys'):       # transformers 5 returns a BatchEncoding
+            ids = ids['input_ids']
+        if ids and isinstance(ids[0], list):
+            ids = ids[0]
+        return [int(i) for i in ids], 'template'
     text = ''.join(f"{t['role'].capitalize()}: {t['content']}\n" for t in transcript)
     if not closed:
         text += "Assistant:"

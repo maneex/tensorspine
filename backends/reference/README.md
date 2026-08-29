@@ -15,12 +15,16 @@ per-model code, and agree with `transformers`:
 - `qwen3.5-4b-text` (seven contracts; `append`, `window`/`ring` and `fixed` states; the 3:1
   gated-delta / gated-attention hybrid from D1; tied embeddings): on the 4-layer fixture, layer
   outputs within 1e-6, the KV, convolution-history and recurrent states within 5e-6, logits and
-  greedy tokens identical.
+  greedy tokens identical; on the full 32-layer model the eight greedy tokens after *"The capital
+  of France is"* are `transformers`' — *" Paris.\nA. True\nB"* — at ~4–10 s per token here.
 
 Kernels: `embed`, `norm.rms` (zero-centred scales), `attention.dense` (causal, GQA, RoPE full or
 partial, gated query, Q/K RMS norms), `residual.add`, `ffn.gated`, `lm_head`,
-`sequence.gated_delta`. A session-based chat (`ref.py chat`), greedy or sampled, streaming;
-`--compile` for the decode step. Next: M3 (CUDA), M4 (blocks under `--max-ram`).
+`sequence.gated_delta`. A session-based chat (`ref.py chat`), greedy or sampled, streaming, through
+the checkpoint's own chat template when it has one (Qwen 3.5 4B answers with its thinking block;
+when its template strips earlier thinking from the history, the prefix check rebuilds the session
+and says so) or a plain transcript for a base model; `--compile` for the decode step. Next: M3
+(CUDA), M4 (blocks under `--max-ram`).
 
 ```sh
 CK=~/work/perso/huggingface/Meta-Llama-3-8B

@@ -13,9 +13,9 @@ M0 — random weights, no checkpoint:
 M1, M2 — for each committed fixture whose checkpoint is on disk (else `skip`): the truncated
 document loaded by location, every layer output, every state after prefill (KV; and for Qwen 3.5
 the convolution history and the recurrent matrix) and the logits within tolerance of the
-`transformers` dump, and the same greedy tokens. With `--full`, the whole Llama 3 8B: the eight
-greedy tokens `transformers` produced in bf16 on 29 Aug 2026 (about two minutes on CPU, ~16 GB of
-page cache).
+`transformers` dump, and the same greedy tokens. With `--full`, the whole models: the eight greedy
+tokens `transformers` produced in bf16 on 29 Aug 2026 (minutes on CPU; ~16 GB of page cache for
+Llama 3 8B, ~8 GB for Qwen 3.5 4B).
 
     python3 backends/reference/tests/run_reference.py [--compile] [--full]
 """
@@ -45,9 +45,12 @@ FIXTURES = [   # (fixture, model document, checkpoint directory)
     ('llama3-8b.3layers.hf.safetensors', 'llama3-8b', 'Meta-Llama-3-8B'),
     ('qwen3.5-4b-text.4layers.hf.safetensors', 'qwen3.5-4b-text', 'Qwen3.5-4B'),
 ]
-CHECKPOINT = os.path.join(CHECKPOINTS, 'Meta-Llama-3-8B')
-FULL_IDS = [128000, 791, 6864, 315, 9822, 374]                  # "<|begin_of_text|>The capital of France is"
-FULL_TOKENS = [12366, 13, 1102, 374, 7559, 304, 279, 10411]      # " Paris. It is located in the north" — transformers 5.14, bf16
+FULL = [   # (model document, checkpoint directory, prompt ids, the greedy tokens transformers 5.14 produced in bf16, 29 Aug 2026)
+    ('llama3-8b', 'Meta-Llama-3-8B', [128000, 791, 6864, 315, 9822, 374],        # "<|begin_of_text|>The capital of France is"
+     [12366, 13, 1102, 374, 7559, 304, 279, 10411]),                              # " Paris. It is located in the north"
+    ('qwen3.5-4b-text', 'Qwen3.5-4B', [760, 6511, 314, 9338, 369],                # "The capital of France is"
+     [11751, 13, 198, 32, 13, 2912, 198, 33]),                                    # " Paris.\nA. True\nB"
+]
 
 TINY = {'quantities.d.source.value': 64, 'quantities.ffn.source.value': 128, 'quantities.heads.source.value': 4,
         'quantities.kv_heads.source.value': 2, 'quantities.head_dim.source.value': 16,
@@ -165,21 +168,26 @@ def fixture_case(check, fixture, document, checkpoint):
 
 
 def m1_full(check):
-    if not os.path.isdir(CHECKPOINT):
-        print("  skip M1 full (checkpoint not on disk)")
-        return True
-    g = graph_mod.load(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'))
-    kernels = registry.load_kernels()
-    params = loader.load_parameters(g, CHECKPOINT, 'cpu')
-    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
-    session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
-    t0 = time.time()
-    nxt = greedy(session.prefill(FULL_IDS), g)
-    tokens = [nxt]
-    for _ in range(len(FULL_TOKENS) - 1):
-        nxt = greedy(session.decode(nxt), g)
-        tokens.append(nxt)
-    return check(f"M1 full: 32 layers, greedy tokens {tokens} equal transformers' ({time.time() - t0:.0f}s)", tokens == FULL_TOKENS)
+    ok = True
+    for document, checkpoint, ids, expected in FULL:
+        ck = os.path.join(CHECKPOINTS, checkpoint)
+        if not os.path.isdir(ck):
+            print(f"  skip {document} full (checkpoint not on disk)")
+            continue
+        g = graph_mod.load(os.path.join(ROOT, 'data', 'models', f'{document}.json'))
+        kernels = registry.load_kernels()
+        params = loader.load_parameters(g, ck, 'cpu')
+        model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+        session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+        t0 = time.time()
+        nxt = greedy(session.prefill(ids), g)
+        tokens = [nxt]
+        for _ in range(len(expected) - 1):
+            nxt = greedy(session.decode(nxt), g)
+            tokens.append(nxt)
+        ok &= check(f"{document} full: greedy tokens {tokens} equal transformers' ({time.time() - t0:.0f}s)", tokens == expected)
+        del params, model, session
+    return ok
 
 
 if __name__ == '__main__':
