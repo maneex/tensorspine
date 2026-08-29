@@ -281,7 +281,7 @@ External documentation:
 | `k_bias` | boolean | no | `false` | yes | Learned bias on the key projection.<br>*Note: learned K bias; a synthetic runtime zero stays false* |
 | `v_bias` | boolean | no | `false` | yes | Learned bias on the value projection. |
 | `out_bias` | boolean | no | `false` | yes | Learned bias on the output projection. |
-| `output_gate` | boolean | no | `false` | yes | Per-head sigmoid gate on the attention output, computed from `input` by the gate rows of the gated query projection `q_gated`.<br>*Note: per-head gate projection, distinct from Q* |
+| `output_gate` | boolean | no | `false` | yes | Per-head sigmoid gate on the attention output, computed from `input` by the gate rows of the gated query projection `q_gated`.<br>*Note: per-head sigmoid gate; its rows live in the gated query projection q_gated* |
 | `qk_norm_weight` | boolean | no | `false` | yes | The Q/K normalization has a learned per-channel scale: declares the `q_norm` and `k_norm` slots.<br>*Note: Q/K RMSNorm has a learned scale* |
 | `qk_norm_zero_centered` | boolean | no | `false` | no | The learned Q/K normalization scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor; without `qk_norm_weight` it has no effect. |
 

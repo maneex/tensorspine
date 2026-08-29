@@ -477,7 +477,7 @@
         "default": {
           "literal": false
         },
-        "note": "per-head gate projection, distinct from Q",
+        "note": "per-head sigmoid gate; its rows live in the gated query projection q_gated",
         "description": "Per-head sigmoid gate on the attention output, computed from `input` by the gate rows of the gated query projection `q_gated`."
       },
       "qk_norm_weight": {
