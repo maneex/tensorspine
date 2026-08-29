@@ -276,6 +276,42 @@
       "expect": "schema",
       "match": "is not of type 'array'",
       "note": "A public input lists its destinations and declares a kind; the domain object is gone."
+    },
+    {
+      "document": "models/v17-location-partial.json",
+      "expect": "V17",
+      "match": "no location",
+      "note": "One tensor left unlocated in a document that locates the others: locations are total or absent (V17)."
+    },
+    {
+      "document": "models/v17-location-duplicate.json",
+      "expect": "V17",
+      "match": "already bound",
+      "note": "Two untied identities naming one physical tensor: a physical tensor is bound once (I9, V17)."
+    },
+    {
+      "document": "models/v17-slice-overlap.json",
+      "expect": "V17",
+      "match": "overlap",
+      "note": "Two slices of one physical tensor overlapping (V17)."
+    },
+    {
+      "document": "models/v17-stack-not-an-axis.json",
+      "expect": "V17",
+      "match": "not an axis",
+      "note": "A stack over a name that is not an axis of the slot's shape (V17)."
+    },
+    {
+      "document": "models/v17-slice-inside-concat.json",
+      "expect": "V17",
+      "match": "inside a concat",
+      "note": "A slice as a part of a concat: its extent along the axis would be unknown (V17)."
+    },
+    {
+      "document": "models/v17-template-located.json",
+      "expect": "V17",
+      "match": "template",
+      "note": "A document that locates its weights and instantiates a template: a template instance's tensors have no location, a stated limit (V17)."
     }
   ]
 }

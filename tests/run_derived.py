@@ -101,6 +101,12 @@ def main():
                 len(shared) == 2 and all(s['instance_key'] == ['instance.session', 'instance.branch'] for s in shared))
     ok &= check("llama3-8b: no O5.10 information loss once every flattened axis declares its factors",
                 l3['d6']['information_loss'] == [])
+    located = {t['identity']: t.get('location') for t in l3['d3']['tensors']}
+    ok &= check("llama3-8b: decoder.attn.q[layer=3] is stored as model.layers.3.self_attn.q_proj.weight",
+                located.get('decoder.attn.q[layer=3]') == {'tensor': 'model.layers.3.self_attn.q_proj.weight'})
+    names = [v['tensor'] for v in located.values() if v]
+    ok &= check("llama3-8b: 291 tensors located under 291 distinct physical names",
+                len(names) == 291 and len(set(names)) == 291)
     print("derived: all good" if ok else "derived: FAILED")
     return 0 if ok else 1
 
