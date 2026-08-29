@@ -6,8 +6,9 @@ import state as state_mod
 
 
 class Session:
-    def __init__(self, model, capacity, device, dtype):
+    def __init__(self, model, capacity, device, dtype, decode_model=None):
         self.model = model
+        self.decode_model = decode_model          # e.g. the compiled step, used for one-element invocations
         self.graph = model.graph
         self.capacity = capacity
         self.device = device
@@ -25,7 +26,9 @@ class Session:
             stream = self.graph.input_stream[name]
             start = self.consumed.get(stream, 0)
             positions[stream] = torch.arange(start, start + t.shape[0], device=self.device)
-        outputs = self.model(inputs, positions, self.states, dump)
+        one = all(t.shape[0] == 1 for t in inputs.values())
+        runner = self.decode_model if (self.decode_model is not None and one and dump is None) else self.model
+        outputs = runner(inputs, positions, self.states, dump)
         for name, t in inputs.items():
             stream = self.graph.input_stream[name]
             self.consumed[stream] = self.consumed.get(stream, 0) + t.shape[0]

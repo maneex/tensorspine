@@ -97,6 +97,51 @@ def cmd_compare(args):
     return 1 if failures else 0
 
 
+def compiled(model, args):
+    if not getattr(args, 'compile', False):
+        return None
+    model.static = True                        # masked attention over the whole capacity
+    t0 = time.time()
+    c = torch.compile(model, dynamic=False)
+    print(f"  decode step compiled lazily (torch.compile; first decode pays for it)")
+    return c
+
+
+def build(args, g):
+    dtype = compute_dtype(args)
+    kernels = registry.load_kernels()
+    r = registry.refusals(g, kernels)
+    if r:
+        print(f"refused: {len(r)} reason(s)")
+        for line in r[:20]:
+            print("  " + line)
+        return None
+    i = loader.info(g, args.capacity, dtype, args.device)
+    if i['free_bytes'] is not None and i['total_bytes'] > i['free_bytes']:
+        print(f"refused: {loader.gib(i['total_bytes'])} needed, {loader.gib(i['free_bytes'])} free on {args.device}")
+        return None
+    errors, advisories, stats = loader.verify(g, args.checkpoint)
+    if errors:
+        print(f"refused: {len(errors)} V17 error(s) against {args.checkpoint}")
+        for line in errors[:10]:
+            print("  " + line)
+        return None
+    print(f"  verified {stats['located']} located tensors against {stats['physical']} physical ({stats['unnamed']} unnamed)")
+    params = loader.load_parameters(g, args.checkpoint, args.device)
+    return TensorspineModel(g, Plan(g, kernels), params, dtype, args.device)
+
+
+def cmd_chat(args):
+    from chat import chat
+    g = open_graph(args)
+    model = build(args, g)
+    if model is None:
+        return 1
+    dtype = compute_dtype(args)
+    return chat(model, g, args.checkpoint, args.capacity, args.device, dtype, args.max_new_tokens,
+                args.temperature, args.top_p, args.seed, decode_model=compiled(model, args))
+
+
 def cmd_verify(args):
     g = open_graph(args)
     errors, advisories, stats = loader.verify(g, args.checkpoint)
@@ -140,7 +185,7 @@ def cmd_run(args):
         params = loader.load_parameters(g, args.checkpoint, args.device)
     plan = Plan(g, kernels)
     model = TensorspineModel(g, plan, params, dtype, args.device)
-    session = Session(model, args.capacity, args.device, dtype)
+    session = Session(model, args.capacity, args.device, dtype, decode_model=compiled(model, args))
     print(f"{g.model}: {len(plan.steps)} steps, {len(params)} tensors, {len(session.states)} states, "
           f"{'random parameters' if args.random else 'loaded from ' + args.checkpoint}, "
           f"{loader.gib(i['parameter_bytes'])} ({time.time() - t0:.1f}s)")
@@ -192,7 +237,16 @@ def main(argv=None):
     p.add_argument('--ids', help='comma-separated token ids of the prompt')
     p.add_argument('--steps', type=int, default=4)
     p.add_argument('--dump', help='write the values at every layer cut and the states to this safetensors file')
+    p.add_argument('--compile', action='store_true', help='torch.compile the decode step (prefill stays eager)')
     p.set_defaults(fn=cmd_run)
+    p = sub.add_parser('chat'); common(p)
+    p.add_argument('--checkpoint', metavar='DIR', required=True)
+    p.add_argument('--max-new-tokens', type=int, default=256)
+    p.add_argument('--temperature', type=float, default=0.0)
+    p.add_argument('--top-p', type=float, default=1.0)
+    p.add_argument('--seed', type=int, default=0)
+    p.add_argument('--compile', action='store_true')
+    p.set_defaults(fn=cmd_chat)
     args = ap.parse_args(argv)
     return args.fn(args)
 
