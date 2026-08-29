@@ -207,8 +207,8 @@
               },
               "description": "How the rotated pairs are laid out along `head_dim`.",
               "value_descriptions": {
-                "split": "Pair `i` with `i + head_dim/2` (the Llama layout).",
-                "interleaved": "Pair `2i` with `2i+1` (the GPT-NeoX layout).",
+                "split": "Pair channel `i` with `i + rotary/2` over the rotated channels — rotate-half — the Llama and GPT-NeoX layout.",
+                "interleaved": "Pair channel `2i` with `2i+1` — the GPT-J layout.",
                 "2d": "Two-dimensional rotation over patch rows and columns (vision)."
               }
             },
@@ -218,7 +218,7 @@
               },
               "required": false,
               "structural": false,
-              "description": "Fraction of `head_dim` that is rotated; the rest is left as is. Absent, the whole head is rotated."
+              "description": "Fraction of `head_dim` that is rotated; the rest is left as is. The rotated channels are the first `partial * head_dim` of each head, and their base frequencies are computed on that width, not on `head_dim`. Absent, the whole head is rotated."
             },
             "mrope": {
               "type": {
@@ -247,12 +247,28 @@
                     "required": true,
                     "structural": false,
                     "description": "Channels of the width section."
+                  },
+                  "sections": {
+                    "type": {
+                      "kind": "enum",
+                      "values": [
+                        "contiguous",
+                        "interleaved"
+                      ]
+                    },
+                    "required": true,
+                    "structural": false,
+                    "description": "How the three sections sit on the rotated frequency axis: `contiguous` — all temporal frequencies, then height, then width (Qwen2-VL, Qwen2.5-VL); `interleaved` — temporal, height and width frequencies alternating (Qwen3-VL, Qwen 3.5, Qwen 3.8). Two published layouts, so no default: a document says which. For a single position stream they compute the same thing; an image tells them apart.",
+                    "value_descriptions": {
+                      "contiguous": "Sections laid end to end: `t` temporal frequencies, then `h`, then `w`.",
+                      "interleaved": "Sections interleaved frequency by frequency: temporal, height, width, temporal, …"
+                    }
                   }
                 }
               },
               "required": false,
               "structural": false,
-              "description": "Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index."
+              "description": "Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index; `sections` says how the three are laid out on the frequency axis."
             },
             "scaling": {
               "type": {
@@ -390,7 +406,7 @@
         },
         "required": false,
         "structural": false,
-        "description": "Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`.",
+        "description": "Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`. Applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding.",
         "value_descriptions": {
           "rms": "RMS normalization.",
           "layer": "Layer normalization."
