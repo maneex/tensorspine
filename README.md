@@ -168,7 +168,8 @@ sites are written inside it and inherit the presence of the sites they name; the
 
 Six products are specified: **D1** expanded graph, **D2** values and value liveness at cuts, **D3**
 parameter tensors, **D4** complete states, **D5** logical costs, and **D6** semantic cuts and
-partitions. D1 is implemented; D2–D6 provide the state and placement answers listed above.
+partitions. All six are emitted — D1 by `--d1`, D2–D6 by `--derive` — and answer the state and
+placement questions above from the declaration alone.
 
 ## 3. Repository
 
@@ -205,7 +206,7 @@ tensorspine/
 │   ├── tensorspine                  CLI: --validate, --lint, --d1, --view, --document
 │   ├── tspl                         CLI: fmt, check, emit, import
 │   ├── tspl.py  tspl_cli.py         lossless core, parser/printer, command implementation
-│   ├── validate.py  lint.py  d1.py  view.py  document.py
+│   ├── validate.py  lint.py  d1.py  derive.py  view.py  document.py
 │   └── catalog.py  model.py  expr.py  schema.py
 └── README.md
 ```
@@ -298,6 +299,7 @@ python3 tools/tensorspine --validate                       # whole corpus
 python3 tools/tensorspine --validate data/models/llama3-8b.json
 python3 tools/tensorspine --lint                           # advisory hygiene checks
 python3 tools/tensorspine --d1   data/models/llama3-8b.json -o /path/out.d1.json
+python3 tools/tensorspine --derive data/models/llama3-8b.json -o /path/   # D2–D6, one JSON
 python3 tools/tensorspine --view data/models/llama3-8b.json -o /path/out.html
 tools/tspl import data/models/llama3-8b.json -o /path/llama3-8b.tspl
 tools/tspl fmt /path/llama3-8b.tspl
@@ -329,6 +331,12 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
 - `--d1` unrolls loops, evaluates indices and expands template contracts. Canonical IDs use
   `<composition>/<site>[<i>=<v>,…]`, and the listing is canonical: sorted, whatever the order of the
   document's members.
+- `--derive` emits D2–D6 as one JSON per model: every value with its shape, dtype and stream and
+  the payload of every structural cut (D2); every parameter tensor with its dtype, bytes,
+  sensitivity and sparsity unit (D3); every state identity with its law, geometry, stream, instance
+  key, carrying, bytes per cached position and visits (D4); resident bytes, operations per element
+  and per cached position with the status the algebra gives them, corrections, sparsity bounds and
+  cut payloads (D5); legal cuts, the partitions that apply and the O5.10 information loss (D6).
 - `--view` produces a self-contained HTML inspector. `--site-nav FILE` puts the navigation of
   the documentation site at the top of it, as `tools/site.sh` does when it builds the site;
   without it the page carries the name alone and no link that leads nowhere.

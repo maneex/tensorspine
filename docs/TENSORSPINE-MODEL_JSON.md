@@ -371,6 +371,7 @@ From the repository root, the current entry point is:
 python3 tools/tensorspine --validate
 python3 tools/tensorspine --lint
 python3 tools/tensorspine --d1 data/models/llama3-8b.json -o /tmp/llama3-8b.d1.json
+python3 tools/tensorspine --derive data/models/llama3-8b.json -o /tmp/
 ```
 
 `--validate` checks the model schema and then performs semantic validation: catalog resolution,
@@ -399,11 +400,11 @@ The language defines six derived products:
 | Product | Content | Current repository support |
 |---|---|---|
 | **D1** | Expanded occurrences, value edges and families | Emitted by `--d1` |
-| **D2** | Values, shapes and the payload of every legal cut | Specified, not yet emitted |
-| **D3** | Parameter tensors, roles, selected dtypes, sensitivity, shapes and sharing | Specified; validation resolves slots, identities and dtypes |
-| **D4** | Complete state descriptors, instances, derived keys, state liveness, visits per phase, carrying and operations | Specified; validation resolves slots, identities and carrying |
-| **D5** | Logical costs and cut payloads | Validation derives parameter elements, operations per element and per cached position (`--validate` stats); cut payloads not yet |
-| **D6** | Legal cuts and semantic partition axes | Specified, not yet emitted |
+| **D2** | Values, shapes and the payload of every legal cut | Emitted by `--derive`: every value, the count of every stream through the transforms, the payload of every structural cut |
+| **D3** | Parameter tensors, roles, selected dtypes, sensitivity, shapes and sharing | Emitted by `--derive`: one entry per identity instance with dtype, bytes, sensitivity and sparsity unit |
+| **D4** | Complete state descriptors, instances, derived keys, state liveness, visits per phase, carrying and operations | Emitted by `--derive`: one entry per identity instance with law, geometry, stream, instance key, carrying, bytes per position, visits |
+| **D5** | Logical costs and cut payloads | Emitted by `--derive`: resident bytes, operations per element and per cached position with their status, corrections, sparsity bounds, cut payloads |
+| **D6** | Legal cuts and semantic partition axes | Emitted by `--derive`: legal cuts, applying partitions, O5.10 information loss |
 
 A valid document must reject unresolved references, missing required arguments, undeclared
 arguments, invalid enum values, incompatible shapes or domains, combinational value cycles, unfed or
