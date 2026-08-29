@@ -177,7 +177,7 @@ between fragments. See
 ### Generative
 
 An output property stating whether a public output participates in generation: each generated
-element is delivered to the token stream of the next invocation, so a generative output has kind
+element is delivered to the output's stream in the next invocation, so a generative output has kind
 `token`. Tensorspine also permits non-generative and per-token outputs. See [Specification
 §2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42).
 
@@ -212,7 +212,7 @@ the port. See
 
 One evaluation of the expanded graph on one delivery of its inputs: all elements of a non-fragmented
 input, one fragment of a fragmented one; when an output is generative, each generated element is
-delivered to the token stream of the next invocation. The value graph is acyclic within an
+delivered to the output's stream in the next invocation. The value graph is acyclic within an
 invocation; recurrence passes through state ports. See
 [Specification §7](SPECIFICATION.md#7--required-derived-products).
 

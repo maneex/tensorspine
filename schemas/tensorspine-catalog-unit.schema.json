@@ -768,7 +768,24 @@
       },
       "required": [
         "kind"
-      ]
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "shareable"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "roles"
+            ]
+          }
+        }
+      ],
+      "description": "Whether a slot may be tied to another (§3.4, V15): `exclusive`, or `shareable` with the roles of the slots it may share with."
     },
     "parameter": {
       "type": "object",

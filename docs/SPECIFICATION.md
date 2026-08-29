@@ -209,7 +209,7 @@ parameters and is counted once.
 
 **Parameter identities** are compatible only between slots whose contracts declare them
 `shareable`, whose roles are listed in each other's sharing rules, and whose shapes are equal under
-V4 (V15). A tied tensor is counted once (O6.2).
+V4 (V15).
 
 **State identities** declare when occurrences use the **same storage**. Sharing is a topological fact
 that no primitive contract can know: the contract derives a state descriptor, while the graph
@@ -544,7 +544,7 @@ implicit default.
 
 An **invocation** is one evaluation of the expanded graph on one delivery of its inputs: all
 elements of a non-fragmented input, one fragment of a fragmented one; when an output is generative,
-each generated element is delivered to the token stream of the next invocation. A generative
+each generated element is delivered to the output's stream in the next invocation. A generative
 document has two **phases**: the invocations consuming supplied elements (prefill) and those
 consuming one generated element (decode). A **cut** is a partition of the emitted occurrences into
 two blocks; it is **legal** when every crossing edge is directed from the first block to the second.

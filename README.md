@@ -288,7 +288,10 @@ resolved; a unit outside the vocabulary is a load error naming the file.
 
 ### Tools
 
-The project uses Python 3 and `jsonschema` ≥ 4.x, with no build step. `--view` also requires
+The project uses Python 3 and `jsonschema` ≥ 4.x, with no build step. *Transitional note:* the
+tools and tests implement the previous revision of the grammar and are being brought to this one;
+until then they refuse the converged corpus, and `docs/CATALOG-REFERENCE.md` is the previous
+rendering. `--view` also requires
 Graphviz `dot` on `PATH`. `tools/tensorspine` handles JSON interchange documents; `tools/tspl`
 handles human-authored TSPL sources. TensorSpine paths default to the repository layout, and commands
 without a model path process every top-level document of `data/models/`.
