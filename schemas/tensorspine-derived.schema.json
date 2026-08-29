@@ -1,0 +1,1195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tensorspine.dev/schema/2.0/derived.json",
+  "title": "Tensorspine derived document 2.0",
+  "description": "What a valid model document and its contracts make computable (§7), as one document: the expanded graph D1, required, and the products D2–D6, each optional. Every product refers to D1's identifiers, so one document is one snapshot of one model under one assignment. The encoding is the repository's; the specification leaves it open.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "model",
+    "catalog",
+    "assignment",
+    "d1"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tensorspine-derived/2.0"
+    },
+    "model": {
+      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/model_id"
+    },
+    "catalog": {
+      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/catalog_reference"
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal"
+      }
+    },
+    "d1": {
+      "$ref": "#/$defs/d1"
+    },
+    "d2": {
+      "$ref": "#/$defs/d2"
+    },
+    "d3": {
+      "$ref": "#/$defs/d3"
+    },
+    "d4": {
+      "$ref": "#/$defs/d4"
+    },
+    "d5": {
+      "$ref": "#/$defs/d5"
+    },
+    "d6": {
+      "$ref": "#/$defs/d6"
+    }
+  },
+  "$defs": {
+    "node_identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\[[^\\[\\]]+\\])?(/[A-Za-z_][A-Za-z0-9_-]*(\\[[^\\[\\]]+\\])?)*$",
+      "description": "§5.2 rule 2: a root occurrence by name, a generated one as <composition>/<site>[<index>=<value>,…], an occurrence of a template prefixed by its instance."
+    },
+    "value_reference": {
+      "type": "string",
+      "pattern": "^.+\\.[A-Za-z_][A-Za-z0-9_-]*$",
+      "description": "<node identifier>.<port or slot>"
+    },
+    "identity_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A parameter or state identity instance: the identity's name with its evaluated indices, prefixed by its template instance when inside one."
+    },
+    "argument_value": {
+      "oneOf": [
+        {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal"
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/argument_value"
+          }
+        }
+      ]
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/node_identifier"
+        },
+        "port": {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+        }
+      },
+      "required": [
+        "node",
+        "port"
+      ]
+    },
+    "axis_extent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+        },
+        "extent": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "factors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "axis": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "extent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "axis",
+              "extent"
+            ]
+          },
+          "minItems": 2
+        }
+      },
+      "required": [
+        "axis",
+        "extent"
+      ]
+    },
+    "shape": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/axis_extent"
+      }
+    },
+    "count": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Element count of a stream per invocation, as multipliers of the public inputs' counts: merges divide, inserts add (§5.3)."
+    },
+    "domain": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "stream"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "sequence",
+            "token",
+            "position",
+            "patch"
+          ]
+        },
+        "stream": {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+        }
+      }
+    },
+    "cut_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bytes_by_input": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "d1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/node_identifier"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "contract": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/contract_reference"
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/argument_value"
+                }
+              },
+              "families": {
+                "type": "array",
+                "items": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "contract",
+              "arguments",
+              "families"
+            ]
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rule": {
+                "type": "string"
+              },
+              "from": {
+                "$ref": "#/$defs/endpoint"
+              },
+              "to": {
+                "$ref": "#/$defs/endpoint"
+              }
+            },
+            "required": [
+              "rule",
+              "from",
+              "to"
+            ]
+          }
+        },
+        "interfaces": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "inputs": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "to": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/endpoint"
+                    },
+                    "minItems": 1
+                  },
+                  "kind": {
+                    "enum": [
+                      "sequence",
+                      "token",
+                      "position",
+                      "patch"
+                    ]
+                  },
+                  "stream": {
+                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                  },
+                  "fragmented": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "to",
+                  "kind"
+                ]
+              }
+            },
+            "outputs": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "node": {
+                    "$ref": "#/$defs/node_identifier"
+                  },
+                  "port": {
+                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                  },
+                  "generative": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "node",
+                  "port",
+                  "generative"
+                ]
+              }
+            }
+          },
+          "required": [
+            "inputs",
+            "outputs"
+          ]
+        },
+        "topological_order": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node_identifier"
+          }
+        },
+        "instances": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/node_identifier"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "contract": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/contract_reference"
+              },
+              "arguments": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/argument_value"
+                }
+              }
+            },
+            "required": [
+              "contract",
+              "arguments"
+            ]
+          }
+        }
+      },
+      "required": [
+        "nodes",
+        "edges",
+        "interfaces",
+        "topological_order"
+      ],
+      "description": "The expanded graph (§5): the canonical listing — nodes by identifier, edges by (source, destination)."
+    },
+    "cut_payload_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/value_reference"
+        },
+        "bytes_per_element": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "count": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "value",
+        "bytes_per_element",
+        "count"
+      ]
+    },
+    "d2": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "streams": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "sequence",
+                  "token",
+                  "position",
+                  "patch"
+                ]
+              },
+              "count": {
+                "$ref": "#/$defs/count"
+              }
+            },
+            "required": [
+              "kind",
+              "count"
+            ]
+          }
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "$ref": "#/$defs/value_reference"
+              },
+              "to": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/value_reference"
+                }
+              },
+              "shape": {
+                "$ref": "#/$defs/shape"
+              },
+              "role": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "dtype": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
+              },
+              "elements": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "bytes_per_element": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "domain": {
+                "$ref": "#/$defs/domain"
+              },
+              "count": {
+                "$ref": "#/$defs/count"
+              }
+            },
+            "required": [
+              "value",
+              "to",
+              "shape",
+              "role",
+              "dtype",
+              "elements",
+              "bytes_per_element",
+              "domain",
+              "count"
+            ]
+          }
+        },
+        "cuts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cut": {
+                "$ref": "#/$defs/cut_id"
+              },
+              "kind": {
+                "enum": [
+                  "layer",
+                  "family"
+                ]
+              },
+              "sizes": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "payload": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/cut_payload_entry"
+                }
+              },
+              "bytes_per_element": {
+                "type": "number"
+              },
+              "bytes_per_invocation": {
+                "$ref": "#/$defs/bytes_by_input"
+              }
+            },
+            "required": [
+              "cut",
+              "kind",
+              "sizes",
+              "payload",
+              "bytes_per_element",
+              "bytes_per_invocation"
+            ]
+          }
+        }
+      },
+      "required": [
+        "streams",
+        "values",
+        "cuts"
+      ],
+      "description": "Values (§7): every value with its shape, role, dtype and domain; the element count of every stream; the payload of every structural legal cut."
+    },
+    "d3": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tensors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/identity_name"
+              },
+              "members": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/value_reference"
+                },
+                "minItems": 1
+              },
+              "contract": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "slot": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+              },
+              "role": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "sensitivity": {
+                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/precision_role_definition/properties/sensitivity"
+              },
+              "dtype": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
+              },
+              "shape": {
+                "$ref": "#/$defs/shape"
+              },
+              "multiplicity": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "elements": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "bytes": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "tied": {
+                "type": "boolean"
+              },
+              "sparsity": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "unit": {
+                    "type": "integer"
+                  },
+                  "axis": {
+                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                  },
+                  "activated_per_element": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "units": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "activated_fraction": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "unit",
+                  "axis",
+                  "activated_per_element",
+                  "units",
+                  "activated_fraction"
+                ]
+              }
+            },
+            "required": [
+              "identity",
+              "members",
+              "contract",
+              "slot",
+              "role",
+              "sensitivity",
+              "dtype",
+              "shape",
+              "multiplicity",
+              "elements",
+              "bytes",
+              "tied"
+            ]
+          }
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tensors": {
+              "type": "integer"
+            },
+            "elements": {
+              "type": "number"
+            },
+            "bytes": {
+              "type": "number"
+            },
+            "tied": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "tensors",
+            "elements",
+            "bytes",
+            "tied"
+          ]
+        }
+      },
+      "required": [
+        "tensors",
+        "totals"
+      ],
+      "description": "Parameter tensors (§7): one entry per identity instance; a tied tensor once."
+    },
+    "d4": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "states": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/identity_name"
+              },
+              "members": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/value_reference"
+                },
+                "minItems": 1
+              },
+              "contract": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "state": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+              },
+              "law": {
+                "oneOf": [
+                  {
+                    "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_rule/properties/law"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "access": {
+                "oneOf": [
+                  {
+                    "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_rule/properties/access"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "sharing": {
+                "oneOf": [
+                  {
+                    "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_rule/properties/sharing"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "stream": {
+                "$ref": "#/$defs/domain"
+              },
+              "indexed_by_source": {
+                "type": "boolean"
+              },
+              "instance_key": {
+                "type": "array",
+                "items": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                }
+              },
+              "carried_across_fragments": {
+                "type": "boolean"
+              },
+              "span": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stride": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "payload": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "component": {
+                      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                    },
+                    "role": {
+                      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                    },
+                    "dtype": {
+                      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
+                    },
+                    "shape": {
+                      "$ref": "#/$defs/shape"
+                    },
+                    "elements": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "bytes": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "component",
+                    "role",
+                    "dtype",
+                    "shape",
+                    "elements",
+                    "bytes"
+                  ]
+                }
+              },
+              "bytes_per_cached_position": {
+                "type": "number"
+              },
+              "bytes_bounded": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "operations": {
+                "type": "array",
+                "items": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_operation/properties/effect"
+                }
+              },
+              "visits": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "write": {
+                    "type": "string"
+                  },
+                  "read": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "write",
+                  "read"
+                ]
+              }
+            },
+            "required": [
+              "identity",
+              "members",
+              "contract",
+              "state",
+              "law",
+              "access",
+              "sharing",
+              "stream",
+              "indexed_by_source",
+              "instance_key",
+              "carried_across_fragments",
+              "span",
+              "stride",
+              "payload",
+              "bytes_per_cached_position",
+              "bytes_bounded",
+              "operations",
+              "visits"
+            ]
+          }
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "identities": {
+              "type": "integer"
+            },
+            "by_law": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              }
+            },
+            "append_bytes_per_cached_position": {
+              "type": "number"
+            },
+            "bounded_bytes": {
+              "type": "number"
+            },
+            "fixed_bytes": {
+              "type": "number"
+            },
+            "carried": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/identity_name"
+              }
+            }
+          },
+          "required": [
+            "identities",
+            "by_law",
+            "append_bytes_per_cached_position",
+            "bounded_bytes",
+            "fixed_bytes",
+            "carried"
+          ]
+        }
+      },
+      "required": [
+        "states",
+        "totals"
+      ],
+      "description": "Complete state (§7): one entry per identity instance — descriptor, instance key, carrying, payload per cached position, visits."
+    },
+    "qualified_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+        }
+      },
+      "required": [
+        "value",
+        "status"
+      ]
+    },
+    "d5": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "elements": {
+              "type": "number"
+            },
+            "bytes": {
+              "type": "number"
+            },
+            "status": {
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+            }
+          },
+          "required": [
+            "elements",
+            "bytes",
+            "status"
+          ]
+        },
+        "operations": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "element": {
+              "$ref": "#/$defs/qualified_value"
+            },
+            "cached_position": {
+              "$ref": "#/$defs/qualified_value"
+            },
+            "sequence": {
+              "$ref": "#/$defs/qualified_value"
+            },
+            "invocation": {
+              "$ref": "#/$defs/qualified_value"
+            }
+          },
+          "required": [
+            "element",
+            "cached_position",
+            "sequence",
+            "invocation"
+          ]
+        },
+        "corrections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "$ref": "#/$defs/node_identifier"
+              },
+              "contract": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "entry": {
+                "type": "integer"
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "status": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+              },
+              "per": {
+                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/cost_entry/properties/per"
+              }
+            },
+            "required": [
+              "node",
+              "contract",
+              "entry",
+              "value",
+              "status",
+              "per"
+            ]
+          }
+        },
+        "sparsity": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "$ref": "#/$defs/node_identifier"
+              },
+              "contract": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "unit": {
+                "type": "integer"
+              },
+              "activated_per_element": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "units": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "activated_fraction": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "union_per_invocation": {
+                "$ref": "#/$defs/qualified_value"
+              }
+            },
+            "required": [
+              "node",
+              "contract",
+              "unit",
+              "activated_per_element",
+              "units",
+              "activated_fraction",
+              "union_per_invocation"
+            ]
+          }
+        },
+        "state": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "append_bytes_per_cached_position": {
+              "type": "number"
+            },
+            "bounded_bytes": {
+              "type": "number"
+            },
+            "fixed_bytes": {
+              "type": "number"
+            },
+            "status": {
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+            }
+          },
+          "required": [
+            "append_bytes_per_cached_position",
+            "bounded_bytes",
+            "fixed_bytes",
+            "status"
+          ]
+        },
+        "cuts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cut": {
+                "$ref": "#/$defs/cut_id"
+              },
+              "bytes_per_element": {
+                "type": "number"
+              },
+              "bytes_per_invocation": {
+                "$ref": "#/$defs/bytes_by_input"
+              }
+            },
+            "required": [
+              "cut",
+              "bytes_per_element",
+              "bytes_per_invocation"
+            ]
+          }
+        }
+      },
+      "required": [
+        "parameters",
+        "operations",
+        "corrections",
+        "sparsity",
+        "state",
+        "cuts"
+      ],
+      "description": "Logical costs (§7): totals carry the status the algebra of §2.2 gives them; never operations actually executed."
+    },
+    "d6": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cuts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cut": {
+                "$ref": "#/$defs/cut_id"
+              },
+              "kind": {
+                "enum": [
+                  "layer",
+                  "family"
+                ]
+              },
+              "sizes": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "crossing_values": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "cut",
+              "kind",
+              "sizes",
+              "crossing_values"
+            ]
+          }
+        },
+        "partitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "$ref": "#/$defs/node_identifier"
+              },
+              "contract": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "target": {
+                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/partition_target"
+              },
+              "communication": {
+                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/partition/properties/communication"
+              }
+            },
+            "required": [
+              "node",
+              "contract",
+              "target",
+              "communication"
+            ]
+          }
+        },
+        "information_loss": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "$ref": "#/$defs/node_identifier"
+              },
+              "slot": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+              },
+              "axis": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "node",
+              "slot",
+              "axis",
+              "reason"
+            ]
+          }
+        }
+      },
+      "required": [
+        "cuts",
+        "partitions",
+        "information_loss"
+      ],
+      "description": "Legal cuts and semantic partition axes (§7); a flattened axis without factors is information loss, never non-partitionability (O5.10)."
+    }
+  }
+}
