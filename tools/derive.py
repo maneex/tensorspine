@@ -1,5 +1,6 @@
-"""`--derive`: emit D2–D6 (§7), the products a valid document and its contracts
-make computable without inference code.
+"""`--derive`: emit the derived document (§7) — D1, the expanded graph, and
+D2–D6, the products a valid document and its contracts make computable
+without inference code — as one file, validated against the derived schema.
 
   D3  parameter tensors: one entry per identity instance — members, role,
       selected dtype, sensitivity, shape, elements, bytes, sparsity unit.
@@ -25,6 +26,7 @@ import os
 from collections import Counter, defaultdict, deque
 
 import catalog as catalog_mod
+import d1 as d1_mod
 import validate as validate_mod
 from expr import UNRESOLVED, contract_condition, contract_value, missing_assignment
 
@@ -250,6 +252,35 @@ def graph_value(graph, e):
     return model_value(e, graph['quantities'], {})
 
 
+def _select(graph, sel):
+    if sel['kind'] == 'root':
+        return ('root', sel['occurrence'])
+    return ('gen', sel['composition'], sel['occurrence'],
+            tuple(sorted((k, graph_value(graph, v)) for k, v in sel['indices'].items())))
+
+
+def _source_id(graph, key, port):
+    """`node.port` as D1 names it: a template instance's output is the
+    template's own output endpoint, prefixed by the instance (§5.2 rule 2)."""
+    sub = graph['sub_results'].get(key)
+    if sub is None:
+        return f"{ident(key)}.{port}"
+    decl = sub['graph']['model']['interfaces']['outputs'][port]
+    inner = _select(sub['graph'], decl['from']['occurrence'])
+    return f"{ident(key)}/{_source_id(sub['graph'], inner, decl['from']['port'])}"
+
+
+def _target_ids(graph, key, port):
+    sub = graph['sub_results'].get(key)
+    if sub is None:
+        return [f"{ident(key)}.{port}"]
+    out = []
+    for endpoint in sub['graph']['model']['interfaces']['inputs'][port]['to']:
+        inner = _select(sub['graph'], endpoint['occurrence'])
+        out.extend(f"{ident(key)}/{t}" for t in _target_ids(sub['graph'], inner, endpoint['port']))
+    return out
+
+
 def _ancestors(nodes, edges):
     up = defaultdict(set)
     for src, _sp, dst, _dp, _bid in edges:
@@ -300,7 +331,7 @@ def d2(graph, cat):
     for src, sp, dst, dp, bid in edges:
         name, definition, args = resolved[src]
         port = definition['ports']['outputs'][sp]
-        vid = f"{ident(src)}.{sp}"
+        vid = _source_id(graph, src, sp)
         if vid not in values:
             dom = domains.get((src, sp))
             n = _elements(port['shape'], args) if 'shape' in port else 0
@@ -310,7 +341,7 @@ def d2(graph, cat):
                            "bytes_per_element": n * BYTES[dtype] if n is not None else None,
                            "domain": {"kind": dom[0], "stream": dom[1]} if dom else None,
                            "count": counts.get((src, sp))}
-        values[vid]['to'].append(f"{ident(dst)}.{dp}")
+        values[vid]['to'].extend(_target_ids(graph, dst, dp))
     streams = {}
     for (key, pname), c in counts.items():
         dom = domains.get((key, pname))
@@ -321,7 +352,8 @@ def d2(graph, cat):
         crossing = {}
         for src, sp, dst, dp, bid in edges:
             if src in block and dst not in block:
-                crossing.setdefault(f"{ident(src)}.{sp}", values[f"{ident(src)}.{sp}"])
+                vid = _source_id(graph, src, sp)
+                crossing.setdefault(vid, values[vid])
         per_invocation = Counter()
         for v in crossing.values():
             for inp, mult in (v['count'] or {}).items():
@@ -381,15 +413,19 @@ def d5(graph, cat, products3, products4, products2, stats):
 
 # --- D6 ---------------------------------------------------------------------
 
-def d6(graph, cat, products2):
+def d6(graph, cat, products2, prefix=''):
     resolved = graph['resolved']
     partitions = []
     loss = []
+    for key, sub in graph['sub_results'].items():
+        inner = d6(sub['graph'], cat, {'cuts': []}, prefix + ident(key) + '/')
+        partitions.extend(inner['partitions'])
+        loss.extend(inner['information_loss'])
     for key, (name, definition, args) in resolved.items():
         for p in definition.get('partitions', []):
             if 'when' in p and not contract_condition(p['when'], args):
                 continue
-            partitions.append({"node": ident(key), "contract": name, "target": p['target'],
+            partitions.append({"node": prefix + ident(key), "contract": name, "target": p['target'],
                                "communication": p['communication']})
         for pname, param in definition['parameters'].items():
             if 'present_when' in param and not contract_condition(param['present_when'], args):
@@ -397,7 +433,7 @@ def d6(graph, cat, products2):
             for a in param['shape']['axes']:
                 flattened = isinstance(a['extent'], dict) and a['extent'].get('op') == 'multiply'
                 if flattened and 'factors' not in a:
-                    loss.append({"node": ident(key), "slot": pname, "axis": a['axis'],
+                    loss.append({"node": prefix + ident(key), "slot": pname, "axis": a['axis'],
                                  "reason": "flattened axis without declared factors (O5.10): "
                                            "partitionability along its factors is unknown"})
     return {"cuts": [{"cut": c['cut'], "kind": c['kind'], "sizes": c['sizes'],
@@ -417,14 +453,14 @@ def products(model_path, cat, assignment=None):
     p2 = d2(graph, cat)
     p5 = d5(graph, cat, p3, p4, p2, result['stats'])
     p6 = d6(graph, cat, p2)
-    declared = {name for name, q in graph['model']['quantities'].items() if q['source']['kind'] == 'external'}
-    return {"schema": "tensorspine-products/2.0", "model": graph['model']['model'],
-            "assignment": {k: v for k, v in (assignment or {}).items() if k in declared},
-            "d2": p2, "d3": p3, "d4": p4, "d5": p5, "d6": p6}
+    document = d1_mod.emit(model_path, cat, assignment)
+    document.update({"d2": p2, "d3": p3, "d4": p4, "d5": p5, "d6": p6})
+    return document
 
 
-def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None):
-    """Emit the products of each model. Returns (failed, skipped)."""
+def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None,
+        schema_dir=None):
+    """Emit the derived document of each model, D1 to D6. Returns (failed, skipped)."""
     failed = 0
     skipped = 0
     for path in model_paths:
@@ -448,8 +484,15 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
             failed += 1
             print(f"  {name:34s} failed: {e}")
             continue
+        problems = d1_mod.self_check(doc, schema_dir)
+        if problems:
+            failed += 1
+            print(f"  {name:34s} the emitted document is off the derived schema:")
+            for line in problems[:5]:
+                print(f"      {line}")
+            continue
         if output:
-            target = (os.path.join(output, os.path.basename(path).replace('.json', '.products.json'))
+            target = (os.path.join(output, d1_mod.output_name(path, 'derived'))
                       if os.path.isdir(output) else output)
             with open(target, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=1, ensure_ascii=False)

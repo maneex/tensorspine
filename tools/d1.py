@@ -15,10 +15,12 @@ binding is emitted only where the occurrences it names are (rule 3).
 import itertools
 import json
 import os
+import re
 from collections import defaultdict, deque
 
 import catalog as catalog_mod
 import model as model_mod
+import schema as schema_mod
 from expr import (UNRESOLVED, contract_value, index_grid, missing_assignment,
                   model_condition, model_value, resolve_quantities, static_argument)
 
@@ -98,14 +100,14 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
                 sub_assignment[arg_name] = v
         sub = emit(catalog_mod.template_path(cat, definition), cat, sub_assignment,
                    instance + "/", _depth + 1, _stack + (contract_name,))
-        nodes_sub = sub['nodes']
-        edges.extend(sub['edges'])
+        nodes_sub = sub['d1']['nodes']
+        edges.extend(sub['d1']['edges'])
         instances[instance] = {"contract": occurrence['contract'],
                                "arguments": dict(sub_assignment)}
-        instances.update(sub.get('instances') or {})
-        for port_name, port in sub['interfaces']['inputs'].items():
+        instances.update(sub['d1'].get('instances') or {})
+        for port_name, port in sub['d1']['interfaces']['inputs'].items():
             inputs_of[(key, port_name)] = [(e['node'], e['port']) for e in port['to']]
-        for port_name, port in sub['interfaces']['outputs'].items():
+        for port_name, port in sub['d1']['interfaces']['outputs'].items():
             outputs_of[(key, port_name)] = (port['node'], port['port'])
         keys_sub = nodes_sub
         for n, v in keys_sub.items():
@@ -215,20 +217,39 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
 
     declared = {name for name, q in model['quantities'].items()
                 if q['source']['kind'] == 'external'}
-    out = {"schema": "tensorspine-d1/2.0",
-           "model": model['model'],
-           "catalog": model['catalog'],
-           "assignment": {k: v for k, v in assignment.items() if k in declared},
-           "nodes": nodes,
-           "edges": edges,
-           "interfaces": interfaces,
-           "topological_order": order}
+    graph = {"nodes": nodes, "edges": edges, "interfaces": interfaces, "topological_order": order}
     if instances:
-        out["instances"] = instances
-    return out
+        graph["instances"] = instances
+    return {"schema": "tensorspine-derived/2.0",
+            "model": model['model'],
+            "catalog": model['catalog'],
+            "assignment": {k: v for k, v in assignment.items() if k in declared},
+            "d1": graph}
 
 
-def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None):
+def output_name(model_path, suffix):
+    """`llama3-8b.d1.json`; for a template in its versioned directory,
+    `decoder-causal-yarn@1.0.0.d1.json`."""
+    base = os.path.basename(model_path)[:-5]
+    if re.fullmatch(r'\d+\.\d+\.\d+', base):
+        base = f"{os.path.basename(os.path.dirname(model_path))}@{base}"
+    return f"{base}.{suffix}.json"
+
+
+def self_check(document, schema_dir):
+    """An emitter validates its own output against the derived schema before
+    writing it: a document it cannot vouch for is not written."""
+    if schema_dir is None:
+        return []
+    schema_path = schema_mod.locate(schema_dir, 'derived')
+    if schema_path is None:
+        return [f"no schema with $id ending in /derived.json under {schema_dir}/"]
+    return [schema_mod.format_error(e)
+            for e in schema_mod.check_document(schema_path, document, schema_mod.registry(schema_dir))]
+
+
+def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None,
+        schema_dir=None):
     """Emit D1 for each model. Returns (failed, skipped).
 
     A template with no assignment has no single D1 — it has one per
@@ -257,8 +278,15 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
             failed += 1
             print(f"  {name:34s} failed: {e}")
             continue
+        problems = self_check(document, schema_dir)
+        if problems:
+            failed += 1
+            print(f"  {name:34s} the emitted document is off the derived schema:")
+            for line in problems[:5]:
+                print(f"      {line}")
+            continue
         if output:
-            target = (os.path.join(output, os.path.basename(path).replace('.json', '.d1.json'))
+            target = (os.path.join(output, output_name(path, 'd1'))
                       if os.path.isdir(output) else output)
             with open(target, 'w', encoding='utf-8') as f:
                 json.dump(document, f, indent=2, ensure_ascii=False)
@@ -266,6 +294,6 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
             where = f"  -> {target}"
         else:
             where = ""
-        print(f"  {name:34s} {len(document['nodes'])} nodes, "
-              f"{len(document['edges'])} edges, acyclic{where}")
+        print(f"  {name:34s} {len(document['d1']['nodes'])} nodes, "
+              f"{len(document['d1']['edges'])} edges, acyclic{where}")
     return failed, skipped

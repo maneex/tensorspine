@@ -62,6 +62,15 @@ def check(schema_path, doc_path, reg):
     return sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path))
 
 
+def check_document(schema_path, document, reg):
+    """Errors of one in-memory document against one schema; empty when it
+    conforms. What an emitter runs on its own output before writing it."""
+    with open(schema_path, encoding='utf-8') as f:
+        schema = json.load(f)
+    validator = Draft202012Validator(schema, registry=reg)
+    return sorted(validator.iter_errors(document), key=lambda e: list(e.absolute_path))
+
+
 def format_error(e):
     """One error as a single line: where, then what."""
     where = '/'.join(str(p) for p in e.absolute_path) or '<root>'

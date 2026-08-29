@@ -4,7 +4,7 @@
     tensorspine --validate [PATH ...]    grammar, then meaning. The gate.
     tensorspine --lint     [PATH ...]    hygiene. Advisory, never blocks.
     tensorspine --d1       [PATH ...]    emit D1, the expanded graph (§7).
-    tensorspine --derive   [PATH ...]    emit D2–D6, the derived products (§7).
+    tensorspine --derive   [PATH ...]    emit the derived document, D1 to D6 (§7).
     tensorspine --view     [PATH ...]    render a self-contained HTML page.
     tensorspine --document catalog [PATH ...]
                                       render the catalog as one Markdown file.
@@ -70,8 +70,10 @@ def build_parser():
                          help='emit D1, the expanded graph: loops unrolled, indices '
                               'evaluated, template contracts expanded in place.')
     command.add_argument('--derive', action='store_true',
-                         help='emit D2–D6: values and cut payloads, parameter tensors, states, '
-                              'logical costs, legal cuts and partitions, as one JSON per model.')
+                         help='emit the derived document: D1 with D2–D6 — values and cut '
+                              'payloads, parameter tensors, states, logical costs, legal cuts and '
+                              'partitions — as one JSON per model, validated against the derived '
+                              'schema. --d1 emits the graph alone in the same form.')
     command.add_argument('--view', action='store_true',
                          help='render a self-contained HTML page. Needs Graphviz on PATH.')
     command.add_argument('--document', metavar='WHAT', choices=['catalog'],
@@ -165,13 +167,15 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.d1:
         import d1
         print(f"d1  {len(documents)} document(s)")
-        failed, skipped = d1.run(documents, bases, args.output, assignment)
+        failed, skipped = d1.run(documents, bases, args.output, assignment,
+                                 schema_dir=args.schemas)
         return 1 if failed else 0
 
     if args.derive:
         import derive
         print(f"derive  {len(documents)} document(s)")
-        failed, skipped = derive.run(documents, bases, args.output, assignment)
+        failed, skipped = derive.run(documents, bases, args.output, assignment,
+                                     schema_dir=args.schemas)
         return 1 if failed else 0
 
     if args.view:
