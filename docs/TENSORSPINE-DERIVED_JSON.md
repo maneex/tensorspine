@@ -50,7 +50,7 @@ occurrence by its name (`embed`), a generated one as `<composition>/<site>[<inde
 (`decoder/attn[layer=3]`), an occurrence inside a template instance prefixed by the instance
 (`text/decoder/attn[layer=3]`). A port, slot or state of a node is `node.name`. A parameter or
 state identity instance is the identity's name with its evaluated indices
-(`decoder.attn.qkv[layer=3]`, `tied_embeddings`, `shared.sliding.kv`), prefixed by its instance
+(`decoder.attn.q[layer=3]`, `tied_embeddings`, `shared.sliding.kv`), prefixed by its instance
 when it lives inside a template. Identifiers are representation, not meaning (§5.2): two
 documents denote the same graph when they correspond up to occurrence renaming.
 
@@ -105,7 +105,7 @@ One entry per parameter identity instance, a tied tensor once.
 
 | Field | Content |
 |---|---|
-| `identity` | The identity instance (`decoder.attn.qkv[layer=3]`). |
+| `identity` | The identity instance (`decoder.attn.q[layer=3]`). |
 | `members` | The slots it satisfies, `node.slot`; several for a tied tensor. |
 | `contract`, `slot`, `role` | Of the first member; V15 makes the others compatible. |
 | `sensitivity` | The role's quantisation advice (`quantizable`, `reduced`, `full_precision`), carried through as §7 requires. |

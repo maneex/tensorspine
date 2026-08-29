@@ -177,13 +177,13 @@ parameters or states:
                         "to":   {"site": "attn_n", "port": "input"},
                         "when": { "compare": { "operator": "greater_or_equal", "left": {"index": "layer"}, "right": {"literal": 1} } } }
     },
-    "parameters": { "attn.qkv": { "members": [ {"site": "attn", "parameter": "qkv"} ] } },
+    "parameters": { "attn.q":   { "members": [ {"site": "attn", "parameter": "q"} ] } },
     "states":     { "attn.kv":  { "members": [ {"site": "attn", "state": "kv"} ] } }
   }
 }
 ```
 
-`attn.norm_in`, `attn.qkv` and `attn.kv` exist exactly where `attn` does. The carry edge keeps a
+`attn.norm_in`, `attn.q` and `attn.kv` exist exactly where `attn` does. The carry edge keeps a
 guard of its own because it states a fact of its own — the first layer has no predecessor: an index
 outside the composition's ranges is a rejection (V1), never a silent omission; only an occurrence
 absent *by its guard* makes a binding absent. A rule with several members is emitted where all of

@@ -1096,7 +1096,7 @@ function nodeIndex(id) {
 }
 
 // A listing folded along the model's own index: the 32 rows of
-// decoder.attn.qkv[layer=0…31] are one row that opens into 32.
+// decoder.attn.q[layer=0…31] are one row that opens into 32.
 function foldOf(id) {
   const m = /^(.*)\[([^\]]*)\]$/.exec(id);
   if (!m) return { key: id, index: null };

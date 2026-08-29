@@ -157,9 +157,9 @@ global catalog version.
 The corpus shows the compression achieved by declaration:
 
 - `llama3-8b`: 3 root occurrences, 1 composition of 6 sites and 9 quantities expand to 195
-  occurrences, 258 value edges, 195 parameter slots under 9 tensor families, and 32 state identities.
+  occurrences, 258 value edges, 291 parameter slots under 11 tensor families, and 32 state identities.
 - `deepseek-v4-pro`: 16 root occurrences and 3 compositions (7 + 6 + 6 sites) expand to 382
-  occurrences and 1,711 parameter slots.
+  occurrences and 1,773 parameter slots.
 - `gemma3n-kvshare`: one composition of 17 sites over 30 layers — full attention when
   `layer mod 5 = 4`, sparse FFN below layer 10 — expands to 455 occurrences; 30 state slots resolve
   to 20 identities, making KV sharing machine-readable.
@@ -262,7 +262,7 @@ documents validate as written. A template is a model document like any other and
 catalog manifest says (`templates`, here `data/models/`), under `<name>/<version>.json`; the contract
 that pins it (`decoder.causal_yarn`) names it, its `version` and its `id`, and the reference does not
 resolve (V1) if they disagree. `shieldstral-3b-composite` instantiates it: the
-validator expands the template at the call site, so the composite derives the same 309 parameter
+validator expands the template at the call site, so the composite derives the same 459 parameter
 slots and 26 states as the flat `shieldstral-3b`.
 
 After expanding compositions, evaluating model-level `when` conditions, and resolving contract-level

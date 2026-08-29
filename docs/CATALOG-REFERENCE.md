@@ -14,7 +14,7 @@ External documentation:
 
 - [Tensorspine Language Specification](SPECIFICATION.md) *(specification)* — Normative authority on contract contents (§4) and identity (§8.2).
 
-Bases consulted, in order: `data/catalog`. 34 contracts, 35 axes, 54 precision roles.
+Bases consulted, in order: `data/catalog`. 34 contracts, 36 axes, 55 precision roles.
 
 ## Contents
 
@@ -60,7 +60,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 
 | Contract | Summary | Shape |
 |---|---|---|
-| [attention.dense@1.0.0](#contract-attention.dense-1.0.0) | Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm. | 18 args · 2→1 ports · 9 params · state `kv` |
+| [attention.dense@1.0.0](#contract-attention.dense-1.0.0) | Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm. | 19 args · 2→1 ports · 11 params · state `kv` |
 | [attention.latent_compressed@1.0.0](#contract-attention.latent_compressed-1.0.0) | Latent attention: low-rank query and output projections, one compressed latent KV, optional sparse index. | 11 args · 1→1 ports · 16 params · state `kv`, `sliding`, `compressor`, `index`, `index_compressor` |
 | [conditioning.layer_select@1.0.0](#contract-conditioning.layer_select-1.0.0) | Selects, from the per-layer auxiliary vectors, the slice that belongs to one layer. | 3 args · 1→1 ports · 0 params |
 | [conditioning.multiplicative@1.0.0](#contract-conditioning.multiplicative-1.0.0) | Per-layer conditioning: gates the input, multiplies by the condition, projects back and normalizes. | 3 args · 2→1 ports · 3 params |
@@ -71,14 +71,14 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [embedding.token_position@1.0.0](#contract-embedding.token_position-1.0.0) | Token embedding plus a learned position table. | 3 args · 1→1 ports · 2 params |
 | [embedding.token_position_type@1.0.0](#contract-embedding.token_position_type-1.0.0) | BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm. | 4 args · 1→1 ports · 5 params |
 | [ffn.dense@1.0.0](#contract-ffn.dense-1.0.0) | Dense feed-forward network: an up projection, a non-linearity, then a down projection. | 8 args · 1→1 ports · 6 params |
-| [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0) | Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection. | 8 args · 1→1 ports · 6 params |
+| [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0) | Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection. | 8 args · 1→1 ports · 8 params |
 | [lm_head@1.0.0](#contract-lm_head-1.0.0) | Output head: projects the hidden state to one logit per vocabulary entry. | 2 args · 1→1 ports · 1 params |
 | [mix.collapse@1.0.0](#contract-mix.collapse-1.0.0) | Hyper-connections head: reduces the `multiplicity` residual streams to one before the final norm. | 2 args · 1→1 ports · 3 params |
 | [mix.doubly_stochastic@1.0.0](#contract-mix.doubly_stochastic-1.0.0) | Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition. | 4 args · 2→1 ports · 3 params |
-| [moe@1.0.0](#contract-moe-1.0.0) | Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts. | 14 args · 1→1 ports · 8 params |
+| [moe@1.0.0](#contract-moe-1.0.0) | Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts. | 14 args · 1→1 ports · 9 params |
 | [mtp.merge@1.0.0](#contract-mtp.merge-1.0.0) | Multi-token prediction merge: the current hidden state and the next token's embedding, projected to `width`. | 1 args · 2→1 ports · 1 params |
 | [norm.layer@1.0.0](#contract-norm.layer-1.0.0) | Layer normalization with a learned scale and bias. | 2 args · 1→1 ports · 2 params |
-| [norm.rms@1.0.0](#contract-norm.rms-1.0.0) | Root-mean-square normalization with a learned scale. | 2 args · 1→1 ports · 1 params |
+| [norm.rms@1.0.0](#contract-norm.rms-1.0.0) | Root-mean-square normalization with a learned scale. | 3 args · 1→1 ports · 1 params |
 | [patch_embed@1.0.0](#contract-patch_embed-1.0.0) | Patch embedding: projects each image or video patch to `width`. | 6 args · 1→1 ports · 3 params |
 | [pooler@1.0.0](#contract-pooler-1.0.0) | Pooling head: projects hidden states to `project_to` features, optionally normalized and reduced. | 4 args · 1→1 ports · 1 params |
 | [projector.patch_merge_bottleneck@1.0.0](#contract-projector.patch_merge_bottleneck-1.0.0) | Vision-language projector: normalizes, merges patches by a mixing matrix, then a two-projection bottleneck. | 3 args · 1→1 ports · 4 params |
@@ -109,6 +109,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [attention.o_rank](#axis-attention.o_rank) | value | Rank of one output group; flattened as `o_groups * o_rank`. |
 | [attention.q_rank](#axis-attention.q_rank) | value | Rank of the query bottleneck of latent attention. |
 | [attention.qkv_flat](#axis-attention.qkv_flat) | value | Fused query/key/value projection width. |
+| [attention.query_gate](#axis-attention.query_gate) | value | Which rows of a gated query projection, per head: the query rows, then the gate rows. |
 | [audio.kernel](#axis-audio.kernel) | value | Support of a temporal convolution, in frames. |
 | [audio.mels](#axis-audio.mels) | value | Mel bins of a spectrogram frame. |
 | [conditioning.feature](#axis-conditioning.feature) | value | Width of a conditioning vector: per-layer inputs and their projections. |
@@ -171,8 +172,9 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [embedding.table](#role-embedding.table) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Token embedding tables, and the output heads tied to them. |
 | [embedding.token_type](#role-embedding.token_type) | `f32`, `bf16`, `f16` | `bf16` | full_precision | Segment-type embedding table. |
 | [ffn.down_projection](#role-ffn.down_projection) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Down projection of a feed-forward network or expert. |
+| [ffn.gate_projection](#role-ffn.gate_projection) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Gate projection of a feed-forward network or shared expert. |
 | [ffn.projection_bias](#role-ffn.projection_bias) | `f32`, `bf16`, `f16` | `bf16` | full_precision | Biases of feed-forward projections. |
-| [ffn.up_projection](#role-ffn.up_projection) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Up, or fused gate and up, projection of a feed-forward network or expert. |
+| [ffn.up_projection](#role-ffn.up_projection) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Up projection of a feed-forward network or shared expert; the fused gate and up projection of a routed expert. |
 | [frontend.bias](#role-frontend.bias) | `f32`, `bf16`, `f16` | `bf16` | full_precision | Biases of the audio front-end convolutions. |
 | [frontend.convolution](#role-frontend.convolution) | `f32`, `bf16`, `f16` | `bf16` | reduced | Kernels of the audio front-end convolutions. |
 | [moe.hash_table](#role-moe.hash_table) | `i32`, `i64` | `i64` | full_precision | Fixed token-to-experts routing table: integers. |
@@ -224,6 +226,8 @@ Three arguments change what the primitive *is* rather than how it computes:
 
 `rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.
 
+The projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).
+
 > **Note (maintainers).** Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants.
 
 External documentation:
@@ -236,7 +240,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 18 (5 required, 15 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | 1 correction(s) |
+| 19 (5 required, 15 structural) | 2 | 1 | 11 | 0 | `kv` (append, window) | 4 | 1 correction(s) |
 
 ##### Arguments
 
@@ -277,8 +281,9 @@ External documentation:
 | `k_bias` | boolean | no | `false` | yes | Learned bias on the key projection.<br>*Note: learned K bias; a synthetic runtime zero stays false* |
 | `v_bias` | boolean | no | `false` | yes | Learned bias on the value projection. |
 | `out_bias` | boolean | no | `false` | yes | Learned bias on the output projection. |
-| `output_gate` | boolean | no | `false` | yes | Per-head sigmoid gate on the attention output, computed from `input` by the `q_gate` projection.<br>*Note: per-head gate projection, distinct from Q* |
+| `output_gate` | boolean | no | `false` | yes | Per-head sigmoid gate on the attention output, computed from `input` by the gate rows of the gated query projection `q_gated`.<br>*Note: per-head gate projection, distinct from Q* |
 | `qk_norm_weight` | boolean | no | `false` | yes | The Q/K normalization has a learned per-channel scale: declares the `q_norm` and `k_norm` slots.<br>*Note: Q/K RMSNorm has a learned scale* |
+| `qk_norm_zero_centered` | boolean | no | `false` | no | The learned Q/K normalization scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor; without `qk_norm_weight` it has no effect. |
 
 Values of `mask`:
 
@@ -322,13 +327,15 @@ Outputs:
 
 | Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
 |---|---|---|---|---|---|---|
-| `qkv` | [attention.qkv_projection](#role-attention.qkv_projection) | `[qkv_flat: (heads + 2*kv_heads)*head_dim] × [feature: width]` | [attention.qkv_flat](#axis-attention.qkv_flat) (projection) × [model.width](#axis-model.width) (feature) | exclusive | always | Fused query, key and value projection: `heads + 2*kv_heads` blocks of `head_dim` rows.<br>*Note: usual fused shape; under GQA this is not an exact product, hence no factors* |
-| `out` | [attention.output_projection](#role-attention.output_projection) | `[feature: width] × [heads_flat: heads*head_dim]` | [model.width](#axis-model.width) (feature) × [attention.heads](#axis-attention.heads) (projection) | exclusive | always | Output projection from the concatenated query heads back to `width`. |
-| `q_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[query: heads*head_dim]` | [attention.heads](#axis-attention.heads) (projection) | exclusive | q_bias = true | Bias of the query projection. |
-| `k_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[key: kv_heads*head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) | exclusive | k_bias = true | Bias of the key projection. |
-| `v_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[value: kv_heads*head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) | exclusive | v_bias = true | Bias of the value projection. |
+| `q` | [attention.qkv_projection](#role-attention.qkv_projection) | `[heads_flat: heads*head_dim = heads: heads × head_dim: head_dim] × [feature: width]` | [attention.heads](#axis-attention.heads) (projection) = [attention.heads](#axis-attention.heads) × [attention.head_dim](#axis-attention.head_dim) × [model.width](#axis-model.width) (feature) | exclusive | output_gate = false | Query projection: `heads` heads of `head_dim` rows, stored as the reference implementation stores it. |
+| `q_gated` | [attention.qkv_projection](#role-attention.qkv_projection) | `[gated_flat: heads*2*head_dim = heads: heads × part: 2 × head_dim: head_dim] × [feature: width]` | [attention.heads](#axis-attention.heads) (projection) = [attention.heads](#axis-attention.heads) × [attention.query_gate](#axis-attention.query_gate) × [attention.head_dim](#axis-attention.head_dim) × [model.width](#axis-model.width) (feature) | exclusive | output_gate = true | Gated query projection: per head, `head_dim` query rows then `head_dim` gate rows, as the reference implementation stores them; the gate rows are applied through a sigmoid to the attention output. |
+| `k` | [attention.qkv_projection](#role-attention.qkv_projection) | `[kv_heads_flat: kv_heads*head_dim = kv_heads: kv_heads × head_dim: head_dim] × [feature: width]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) = [attention.kv_heads](#axis-attention.kv_heads) × [attention.head_dim](#axis-attention.head_dim) × [model.width](#axis-model.width) (feature) | exclusive | always | Key projection: `kv_heads` heads of `head_dim` rows. |
+| `v` | [attention.qkv_projection](#role-attention.qkv_projection) | `[kv_heads_flat: kv_heads*head_dim = kv_heads: kv_heads × head_dim: head_dim] × [feature: width]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) = [attention.kv_heads](#axis-attention.kv_heads) × [attention.head_dim](#axis-attention.head_dim) × [model.width](#axis-model.width) (feature) | exclusive | always | Value projection: `kv_heads` heads of `head_dim` rows. |
+| `out` | [attention.output_projection](#role-attention.output_projection) | `[feature: width] × [heads_flat: heads*head_dim = heads: heads × head_dim: head_dim]` | [model.width](#axis-model.width) (feature) × [attention.heads](#axis-attention.heads) (projection) = [attention.heads](#axis-attention.heads) × [attention.head_dim](#axis-attention.head_dim) | exclusive | always | Output projection from the concatenated query heads back to `width`. |
+| `q_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[query: heads*head_dim = heads: heads × head_dim: head_dim]` | [attention.heads](#axis-attention.heads) (projection) = [attention.heads](#axis-attention.heads) × [attention.head_dim](#axis-attention.head_dim) | exclusive | q_bias = true | Bias of the query projection. |
+| `k_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[key: kv_heads*head_dim = kv_heads: kv_heads × head_dim: head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) = [attention.kv_heads](#axis-attention.kv_heads) × [attention.head_dim](#axis-attention.head_dim) | exclusive | k_bias = true | Bias of the key projection. |
+| `v_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[value: kv_heads*head_dim = kv_heads: kv_heads × head_dim: head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) = [attention.kv_heads](#axis-attention.kv_heads) × [attention.head_dim](#axis-attention.head_dim) | exclusive | v_bias = true | Bias of the value projection. |
 | `out_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | out_bias = true | Bias of the output projection. |
-| `q_gate` | [attention.output_gate](#role-attention.output_gate) | `[heads_flat: heads*head_dim] × [feature: width]` | [attention.heads](#axis-attention.heads) (projection) × [model.width](#axis-model.width) (feature) | exclusive | output_gate = true | Gate projection: one value per query channel, applied through a sigmoid to the attention output. |
 | `q_norm` | [norm.scale](#role-norm.scale) | `[head_dim: head_dim]` | [attention.head_dim](#axis-attention.head_dim) (feature) | exclusive | qk_norm_weight = true | Learned scale of the query normalization. |
 | `k_norm` | [norm.scale](#role-norm.scale) | `[head_dim: head_dim]` | [attention.head_dim](#axis-attention.head_dim) (feature) | exclusive | qk_norm_weight = true | Learned scale of the key normalization. |
 
@@ -1166,7 +1173,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 **Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection.**
 
-`in` fuses the gate and up projections into `2*inner` rows; the activation is applied to the gate half and multiplied by the up half, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is selected by `condition`; `activation_sparsity` zeroes a structural fraction of the activations.
+`gate` and `up` project the input to `inner` rows each, stored separately as the reference implementation stores them; the activation is applied to the gate projection and multiplied by the up projection, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is selected by `condition`; `activation_sparsity` zeroes a structural fraction of the activations.
 
 > **Note (maintainers).** Gated FFN: gate and up projections, multiplicative activation, then down projection.
 
@@ -1176,7 +1183,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 8 (3 required, 5 structural) | 1 | 1 | 6 | 0 | none | 1 | — |
+| 8 (3 required, 5 structural) | 1 | 1 | 8 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1185,7 +1192,7 @@ External documentation:
 | `width` | cardinality | yes |  | yes | Feature width of `input` and `output`. |
 | `inner` | cardinality | yes |  | yes | Inner width: the size of the gate and up outputs. |
 | `activation` | enum: `"silu"`, `"gelu"`, `"gelu_tanh"`, `"relu2"` | yes |  | no | Non-linearity applied to the gate half.<br>*Note: selects the non-linearity; not structural* |
-| `in_bias` | boolean | no | `false` | yes | Learned bias on the fused gate/up projection. |
+| `in_bias` | boolean | no | `false` | yes | Learned bias on the gate and up gate/up projection. |
 | `out_bias` | boolean | no | `false` | yes | Learned bias on the down projection. |
 | `condition_dim` | cardinality | no |  | yes | Rank of the conditioning projector; present, `condition_in` and `condition_out` exist.<br>*Note: rank of the temporal conditioning projector* |
 | `condition` | enum: `"time"` | no |  | no | How the conditioning signal is applied. |
@@ -1220,9 +1227,11 @@ Outputs:
 
 | Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
 |---|---|---|---|---|---|---|
-| `in` | [ffn.up_projection](#role-ffn.up_projection) | `[gate_flat: 2*inner = projection: 2 × inner: inner] × [feature: width]` | [ffn.gate_flat](#axis-ffn.gate_flat) (projection) = [ffn.projection](#axis-ffn.projection) × [ffn.inner](#axis-ffn.inner) × [model.width](#axis-model.width) (feature) | exclusive | always | Fused gate and up projection. |
+| `gate` | [ffn.gate_projection](#role-ffn.gate_projection) | `[inner: inner] × [feature: width]` | [ffn.inner](#axis-ffn.inner) (feature) × [model.width](#axis-model.width) (feature) | exclusive | always | Gate projection, `inner` rows. |
+| `up` | [ffn.up_projection](#role-ffn.up_projection) | `[inner: inner] × [feature: width]` | [ffn.inner](#axis-ffn.inner) (feature) × [model.width](#axis-model.width) (feature) | exclusive | always | Up projection, `inner` rows. |
 | `out` | [ffn.down_projection](#role-ffn.down_projection) | `[feature: width] × [inner: inner]` | [model.width](#axis-model.width) (feature) × [ffn.inner](#axis-ffn.inner) (feature) | exclusive | always | Down projection. |
-| `in_bias` | [ffn.projection_bias](#role-ffn.projection_bias) | `[inner: 2*inner]` | [ffn.inner](#axis-ffn.inner) (feature) | exclusive | in_bias = true | Bias of the fused projection, over both halves. |
+| `gate_bias` | [ffn.projection_bias](#role-ffn.projection_bias) | `[inner: inner]` | [ffn.inner](#axis-ffn.inner) (feature) | exclusive | in_bias = true | Bias of the gate projection. |
+| `up_bias` | [ffn.projection_bias](#role-ffn.projection_bias) | `[inner: inner]` | [ffn.inner](#axis-ffn.inner) (feature) | exclusive | in_bias = true | Bias of the up projection. |
 | `out_bias` | [ffn.projection_bias](#role-ffn.projection_bias) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | out_bias = true | Bias of the down projection. |
 | `condition_in` | [conditioning.projection](#role-conditioning.projection) | `[condition: condition_dim] × [feature: width]` | [conditioning.feature](#axis-conditioning.feature) (feature) × [model.width](#axis-model.width) (feature) | exclusive | condition_dim present | Projection of the input into the conditioning rank. |
 | `condition_out` | [conditioning.projection](#role-conditioning.projection) | `[feature: width] × [condition: condition_dim]` | [model.width](#axis-model.width) (feature) × [conditioning.feature](#axis-conditioning.feature) (feature) | exclusive | condition_dim present | Projection of the conditioning rank back to `width`. |
@@ -1530,7 +1539,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 1 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
+| 3 (2 required, 1 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1538,6 +1547,7 @@ External documentation:
 |---|---|---|---|---|---|
 | `width` | cardinality | yes |  | yes | Feature width normalized over. |
 | `eps` | real | yes |  | no | Added to the mean square before the root; changes no tensor. |
+| `zero_centered` | boolean | no | `false` | no | The scale is stored as an offset from one: the output is the normalized input times `1 + weight`, as Qwen 3.5 stores it. Changes no tensor. |
 
 ##### Ports
 
@@ -2676,7 +2686,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 **Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts.**
 
-Each token is scored by `router` against `experts` experts and sent to the `top_k` best; an expert is a gated FFN (`in` fuses gate and up, `out` projects down). `shared` experts of inner width `shared_inner` are applied to every token, optionally weighted by a learned `shared_gate`. `score_bias` adds a learned per-expert bias to the routing scores before selection (load balancing without an auxiliary loss); `hash_vocabulary` replaces learned routing by a fixed token-to-experts table.
+Each token is scored by `router` against `experts` experts and sent to the `top_k` best; an expert is a gated FFN (`in` fuses gate and up as the reference implementation stores routed experts, `out` projects down). `shared` experts of inner width `shared_inner` — `shared_gate`, `shared_up` and `shared_out`, stored separately as the reference does — are applied to every token, optionally weighted by a learned `shared_output_gate`. `score_bias` adds a learned per-expert bias to the routing scores before selection (load balancing without an auxiliary loss); `hash_vocabulary` replaces learned routing by a fixed token-to-experts table.
 
 `norm_topk`, `routing`, `scale`, `scoring` and `swiglu_limit` change how scores are computed and combined, not which tensors exist; each is a closed enum, boolean or real. The set of experts a batch activates is not the per-token count: `top_k` bounds a token, `experts` bounds a batch (§4.5).
 
@@ -2689,7 +2699,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 14 (4 required, 9 structural) | 1 | 1 | 8 | 0 | none | 2 | — |
+| 14 (4 required, 9 structural) | 1 | 1 | 9 | 0 | none | 2 | — |
 
 ##### Arguments
 
@@ -2706,7 +2716,7 @@ External documentation:
 | `scoring` | enum: `"softmax"`, `"sigmoid"`, `"sqrtsoftplus"` | no | `"softmax"` | no | Function turning router logits into scores. |
 | `shared_inner` | cardinality | no | `inner` | yes | Inner width of one shared expert. |
 | `swiglu_limit` | real | no |  | no | Clamp applied to the gate and up activations inside each expert; absent, none. |
-| `shared_gate` | boolean | no | `false` | yes | The shared experts' output is weighted by a learned gate projection. |
+| `shared_output_gate` | boolean | no | `false` | yes | The shared experts' output is weighted by a learned gate projection. |
 | `score_bias` | boolean | no | `false` | yes | A learned per-expert bias is added to the routing scores before selection. |
 | `hash_vocabulary` | cardinality | no |  | yes | Size of a fixed token-to-experts table; present, routing is a table lookup rather than `router`.<br>*Note: vocabulary of the token to experts table* |
 
@@ -2742,9 +2752,10 @@ Outputs:
 | `router` | [moe.router](#role-moe.router) | `[experts: experts] × [feature: width]` | [moe.experts](#axis-moe.experts) (structural) × [model.width](#axis-model.width) (feature) | exclusive | always | Routing scores: one row per expert. |
 | `in` | [ffn.up_projection](#role-ffn.up_projection) | `[experts: experts] × [gate_flat: 2*inner = projection: 2 × inner: inner] × [feature: width]` | [moe.experts](#axis-moe.experts) (structural) × [ffn.gate_flat](#axis-ffn.gate_flat) (projection) = [ffn.projection](#axis-ffn.projection) × [ffn.inner](#axis-ffn.inner) × [model.width](#axis-model.width) (feature) | exclusive | always | Gate and up projections of every routed expert, fused.<br>*Note: SwiGLU experts: fused gate and up, hence the factor 2* |
 | `out` | [ffn.down_projection](#role-ffn.down_projection) | `[experts: experts] × [feature: width] × [inner: inner]` | [moe.experts](#axis-moe.experts) (structural) × [model.width](#axis-model.width) (feature) × [ffn.inner](#axis-ffn.inner) (feature) | exclusive | always | Down projection of every routed expert. |
-| `shared_in` | [ffn.up_projection](#role-ffn.up_projection) | `[gate_flat: 2*shared_inner = projection: 2 × inner: shared_inner] × [feature: width]` | [ffn.gate_flat](#axis-ffn.gate_flat) (projection) = [ffn.projection](#axis-ffn.projection) × [ffn.inner](#axis-ffn.inner) × [model.width](#axis-model.width) (feature) | exclusive | shared > 0; × shared | Gate and up projections of one shared expert, `shared` times. |
+| `shared_gate` | [ffn.gate_projection](#role-ffn.gate_projection) | `[inner: shared_inner] × [feature: width]` | [ffn.inner](#axis-ffn.inner) (feature) × [model.width](#axis-model.width) (feature) | exclusive | shared > 0; × shared | Gate projection of one shared expert, `shared` times. |
+| `shared_up` | [ffn.up_projection](#role-ffn.up_projection) | `[inner: shared_inner] × [feature: width]` | [ffn.inner](#axis-ffn.inner) (feature) × [model.width](#axis-model.width) (feature) | exclusive | shared > 0; × shared | Up projection of one shared expert, `shared` times. |
 | `shared_out` | [ffn.down_projection](#role-ffn.down_projection) | `[feature: width] × [inner: shared_inner]` | [model.width](#axis-model.width) (feature) × [ffn.inner](#axis-ffn.inner) (feature) | exclusive | shared > 0; × shared | Down projection of one shared expert, `shared` times. |
-| `shared_gate` | [moe.shared_gate](#role-moe.shared_gate) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | shared_gate = true | Gate projection weighting the shared experts' output. |
+| `shared_output_gate` | [moe.shared_gate](#role-moe.shared_gate) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | shared_output_gate = true | Gate projection weighting the shared experts' output, through a sigmoid. |
 | `score_bias` | [moe.score_bias](#role-moe.score_bias) | `[experts: experts]` | [moe.experts](#axis-moe.experts) (structural) | exclusive | score_bias = true | Per-expert bias added to the routing scores. |
 | `hash_table` | [moe.hash_table](#role-moe.hash_table) | `[vocabulary: hash_vocabulary] × [selected: top_k]` | [model.vocabulary](#axis-model.vocabulary) (structural) × [moe.experts](#axis-moe.experts) (structural) | exclusive | hash_vocabulary present | Fixed assignment of each token identifier to `top_k` experts. |
 
@@ -3005,6 +3016,7 @@ An axis names a dimension. Shapes unify by axis identity (V4): the same extent o
 | <a id="axis-attention.o_rank"></a>`attention.o_rank` | value | Rank of one output group; flattened as `o_groups * o_rank`. |
 | <a id="axis-attention.q_rank"></a>`attention.q_rank` | value | Rank of the query bottleneck of latent attention. |
 | <a id="axis-attention.qkv_flat"></a>`attention.qkv_flat` | value | Fused query/key/value projection width.<br>*Note: fused QKV width; under GQA this is not an exact product, hence no factors* |
+| <a id="axis-attention.query_gate"></a>`attention.query_gate` | value | Which rows of a gated query projection, per head: the query rows, then the gate rows. |
 | <a id="axis-audio.kernel"></a>`audio.kernel` | value | Support of a temporal convolution, in frames.<br>*Note: support of a temporal convolution* |
 | <a id="axis-audio.mels"></a>`audio.mels` | value | Mel bins of a spectrogram frame. |
 | <a id="axis-conditioning.feature"></a>`conditioning.feature` | value | Width of a conditioning vector: per-layer inputs and their projections. |
@@ -3089,8 +3101,9 @@ A precision role bounds the storage types a slot, port or state component may ta
 | <a id="role-embedding.table"></a>`embedding.table` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Token embedding tables, and the output heads tied to them. |
 | <a id="role-embedding.token_type"></a>`embedding.token_type` | `f32`, `bf16`, `f16` | `bf16` | full_precision | Segment-type embedding table. |
 | <a id="role-ffn.down_projection"></a>`ffn.down_projection` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Down projection of a feed-forward network or expert. |
+| <a id="role-ffn.gate_projection"></a>`ffn.gate_projection` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Gate projection of a feed-forward network or shared expert. |
 | <a id="role-ffn.projection_bias"></a>`ffn.projection_bias` | `f32`, `bf16`, `f16` | `bf16` | full_precision | Biases of feed-forward projections. |
-| <a id="role-ffn.up_projection"></a>`ffn.up_projection` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Up, or fused gate and up, projection of a feed-forward network or expert. |
+| <a id="role-ffn.up_projection"></a>`ffn.up_projection` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Up projection of a feed-forward network or shared expert; the fused gate and up projection of a routed expert. |
 | <a id="role-frontend.bias"></a>`frontend.bias` | `f32`, `bf16`, `f16` | `bf16` | full_precision | Biases of the audio front-end convolutions. |
 | <a id="role-frontend.convolution"></a>`frontend.convolution` | `f32`, `bf16`, `f16` | `bf16` | reduced | Kernels of the audio front-end convolutions. |
 | <a id="role-moe.hash_table"></a>`moe.hash_table` | `i32`, `i64` | `i64` | full_precision | Fixed token-to-experts routing table: integers. |
@@ -3156,17 +3169,17 @@ Every value of every closed enumeration that at least one unit uses, and how man
 
 | Field | Value | Units |
 |---|---|---|
-| argument type | `boolean` | 6 |
+| argument type | `boolean` | 7 |
 | argument type | `cardinality` | 33 |
 | argument type | `enum` | 7 |
 | argument type | `physical` | 2 |
 | argument type | `real` | 11 |
 | argument type | `record` | 3 |
 | axis nature | `feature` | 33 |
-| axis nature | `projection` | 8 |
+| axis nature | `projection` | 7 |
 | axis nature | `structural` | 19 |
 | axis space | `instance` | 2 |
-| axis space | `value` | 33 |
+| axis space | `value` | 34 |
 | cost per | `cached_position` | 2 |
 | cost per | `element` | 2 |
 | cost status | `exact` | 3 |
@@ -3174,11 +3187,11 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | domain transform relation | `align` | 1 |
 | domain transform relation | `insert` | 1 |
 | domain transform relation | `merge` | 4 |
-| dtype admissible | `bf16` | 51 |
-| dtype admissible | `f16` | 48 |
-| dtype admissible | `f32` | 49 |
-| dtype admissible | `f8e4m3` | 28 |
-| dtype admissible | `fp4` | 26 |
+| dtype admissible | `bf16` | 52 |
+| dtype admissible | `f16` | 49 |
+| dtype admissible | `f32` | 50 |
+| dtype admissible | `f8e4m3` | 29 |
+| dtype admissible | `fp4` | 27 |
 | dtype admissible | `i32` | 2 |
 | dtype admissible | `i64` | 2 |
 | parameter sharing | `exclusive` | 26 |
@@ -3197,7 +3210,7 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | port domain | `position` | 1 |
 | port domain | `token` | 9 |
 | precision sensitivity | `full_precision` | 19 |
-| precision sensitivity | `quantizable` | 29 |
+| precision sensitivity | `quantizable` | 30 |
 | precision sensitivity | `reduced` | 6 |
 | sparsity policy | `argument` | 1 |
 | sparsity policy | `element` | 4 |
@@ -3228,9 +3241,9 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 34 | 34 | 100% |
-| argument | 182 | 182 | 100% |
+| argument | 184 | 184 | 100% |
 | port | 78 | 78 | 100% |
-| parameter | 111 | 111 | 100% |
+| parameter | 116 | 116 | 100% |
 | state | 8 | 8 | 100% |
 | carrying | 1 | 1 | 100% |
 | component | 9 | 9 | 100% |
@@ -3240,8 +3253,8 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 | partition | 41 | 41 | 100% |
 | transform | 6 | 6 | 100% |
 | sparsity | 12 | 12 | 100% |
-| axis | 35 | 35 | 100% |
-| precision_role | 54 | 54 | 100% |
+| axis | 36 | 36 | 100% |
+| precision_role | 55 | 55 | 100% |
 
 
 <a id="appendix-c" name="appendix-c"></a>
