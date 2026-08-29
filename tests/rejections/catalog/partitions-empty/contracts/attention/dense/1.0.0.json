@@ -1088,6 +1088,9 @@
             "indexed_by": {
               "self": true
             },
+            "span": {
+              "argument": "chunk.span"
+            },
             "description": "Ring of one chunk: `chunk.span` positions."
           },
           {
@@ -1191,57 +1194,7 @@
         "output"
       ]
     },
-    "partitions": [
-      {
-        "target": {
-          "argument_axis": "attention.heads"
-        },
-        "semantics": "preserved",
-        "communication": "all_reduce",
-        "description": "Tensor parallelism across query heads; the output projection needs an all-reduce."
-      },
-      {
-        "target": {
-          "argument_axis": "attention.kv_heads"
-        },
-        "semantics": "preserved",
-        "communication": "all_reduce",
-        "when": {
-          "compare": {
-            "operator": "greater",
-            "left": {
-              "argument": "kv_heads"
-            },
-            "right": {
-              "literal": 1
-            }
-          }
-        },
-        "description": "Partition across KV heads, only when there is more than one."
-      },
-      {
-        "target": {
-          "instance_key_axis": "instance.session"
-        },
-        "semantics": "preserved",
-        "communication": "none",
-        "note": "instance-key axis, always legal",
-        "description": "Instance-key axis: sessions are independent."
-      },
-      {
-        "target": {
-          "payload_axis": {
-            "state": "kv",
-            "component": "k",
-            "axis": "attention.kv_heads"
-          }
-        },
-        "semantics": "preserved",
-        "communication": "none",
-        "note": "KV payload partition by head: target tagged payload, not argument",
-        "description": "The cache itself partitions by KV head, with no communication."
-      }
-    ],
+    "partitions": [],
     "domain_transforms": [
       {
         "from_port": "source_values",

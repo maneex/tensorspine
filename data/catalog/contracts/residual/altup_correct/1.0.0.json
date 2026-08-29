@@ -205,7 +205,16 @@
         "active"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Streams are corrected per feature; features are independent."
+      }
+    ],
     "note": "AltUp correction of the stream set and scaling of the active stream."
   }
 }

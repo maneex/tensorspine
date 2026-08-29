@@ -213,7 +213,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce",
+        "description": "Row-parallel over the merged input: partial outputs are reduced."
+      }
+    ],
     "domain_transforms": [
       {
         "from_port": "input",

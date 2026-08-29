@@ -377,27 +377,6 @@
         "output"
       ]
     },
-    "logical_cost": {
-      "operations": {
-        "expression": {
-          "op": "multiply",
-          "args": [
-            {
-              "literal": 6
-            },
-            {
-              "argument": "width"
-            },
-            {
-              "argument": "inner"
-            }
-          ]
-        },
-        "status": "exact",
-        "per": "token",
-        "description": "Three `width × inner` projections per token."
-      }
-    },
     "partitions": [
       {
         "target": {

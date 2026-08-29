@@ -1061,6 +1061,27 @@
         "description": "Cross-attention aligns the source domain onto the query domain."
       }
     ],
-    "note": "Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants."
+    "note": "Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants.",
+    "logical_cost": {
+      "sequence_operations": {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 4
+            },
+            {
+              "argument": "heads"
+            },
+            {
+              "argument": "head_dim"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "position",
+        "description": "Scores and weighted values of every query head against one cached position."
+      }
+    }
   }
 }

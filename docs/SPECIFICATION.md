@@ -219,8 +219,8 @@ language.
 | **Logical tensors** | A symbolic learned-parameter inventory derived from arguments: shapes, roles, and sharing rules (O6.1). |
 | **State ports** | Ports conditional on arguments, with their derivation function (§4.3). |
 | **Effects and aliasing** | What the operation writes and what it may overlap. |
-| **Logical cost** | Operations and bytes logically read and written, never operations actually executed. |
-| **Semantic partitions** | Axes whose partition preserves meaning and the resulting logical communication (O7.1). |
+| **Logical cost** | Derived: two operations per weight element a token consumes, scaled by the activated fraction of a sparse unit (§4.5), and the bytes of the inventory; a contract declares only the corrections the inventory cannot see — operations per token on a fixed-size state, operations per token and cached position on a growing or windowed one. Never operations actually executed. |
+| **Semantic partitions** | Axes whose partition preserves meaning and the resulting logical communication (O7.1), stated for every contract: at least one axis, `any_axis` for an elementwise primitive, or `none` — an explicit fact, never an empty list. |
 
 Anything a contract does not declare it cannot interpret, and is rejected (§8.1): the closed
 vocabulary is the rejection condition.
@@ -310,9 +310,10 @@ or arguments (V1); a derived product such as D4 takes deployment intent as a sep
 
 ### 4.5 — Structured sparsity *(O6.6)*
 
-When a primitive activates only some tensors per token, its contract declares the **activatable
-unit**, **routing policy**, **count activated per token**, and an **upper bound on the union of
-units activated per batch**.
+When a primitive activates only some tensors per token, its contract declares its **sparsity**: the
+**activatable unit** (the parameter slots that form one unit and the axis along which units are
+laid out), the **routing policy** (the argument that selects units), the **count activated per
+token**, and an **upper bound on the union of units activated per batch**.
 
 Per-token count is insufficient because a batch's union may include every unit. This yields three
 separate qualified quantities: exact resident cost, upper-bounded worst-case transfer, and estimated
@@ -469,7 +470,7 @@ code or human knowledge of a named mechanism:
 | **D2** | **Values:** the value and shape inventory, including value liveness at every cut. |
 | **D3** | **Parameter tensors:** shapes, roles, sharing, and total count. |
 | **D4** | **Complete state:** descriptors, instances, keys, state liveness, and permitted operations. |
-| **D5** | **Logical costs:** parameters, activations, state per token, computation, and cut traffic. |
+| **D5** | **Logical costs:** parameters, activations, state per token, computation — derived from the inventory and the declared corrections (§4.1) — and cut traffic. |
 | **D6** | **Legal cuts and semantic partition axes.** |
 
 These are compilation outputs. Their encoding and the decisions that consume them are outside this

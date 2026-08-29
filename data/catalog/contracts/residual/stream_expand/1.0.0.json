@@ -143,7 +143,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Per feature; features are independent."
+      }
+    ],
     "note": "Expansion of an active stream into several residual streams, with one projection per auxiliary stream."
   }
 }

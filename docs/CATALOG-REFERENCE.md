@@ -14,7 +14,7 @@ External documentation:
 
 - [Tensorspine Language Specification](SPECIFICATION.md) *(specification)* — Normative authority on contract contents (§4) and identity (§8.2).
 
-Bases consulted, in order: `data/catalog`. 36 contracts, 37 axes, 54 precision roles.
+Bases consulted, in order: `data/catalog`. 35 contracts, 35 axes, 54 precision roles.
 
 ## Contents
 
@@ -27,11 +27,12 @@ Bases consulted, in order: `data/catalog`. 36 contracts, 37 axes, 54 precision r
   - [embedding.*](#namespace-embedding): [embedding.token_auxiliary@1.0.0](#contract-embedding.token_auxiliary-1.0.0), [embedding.token_position@1.0.0](#contract-embedding.token_position-1.0.0), [embedding.token_position_type@1.0.0](#contract-embedding.token_position_type-1.0.0)
   - [ffn.*](#namespace-ffn): [ffn.dense@1.0.0](#contract-ffn.dense-1.0.0), [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0)
   - [mix.*](#namespace-mix): [mix.collapse@1.0.0](#contract-mix.collapse-1.0.0), [mix.doubly_stochastic@1.0.0](#contract-mix.doubly_stochastic-1.0.0)
+  - [mtp.*](#namespace-mtp): [mtp.merge@1.0.0](#contract-mtp.merge-1.0.0)
   - [norm.*](#namespace-norm): [norm.layer@1.0.0](#contract-norm.layer-1.0.0), [norm.rms@1.0.0](#contract-norm.rms-1.0.0)
   - [projector.*](#namespace-projector): [projector.patch_merge_bottleneck@1.0.0](#contract-projector.patch_merge_bottleneck-1.0.0), [projector.patch_merge_mlp@1.0.0](#contract-projector.patch_merge_mlp-1.0.0), [projector.temporal_stack@1.0.0](#contract-projector.temporal_stack-1.0.0)
   - [residual.*](#namespace-residual): [residual.add@1.0.0](#contract-residual.add-1.0.0), [residual.altup_correct@1.0.0](#contract-residual.altup_correct-1.0.0), [residual.altup_predict@1.0.0](#contract-residual.altup_predict-1.0.0), [residual.combine@1.0.0](#contract-residual.combine-1.0.0), [residual.laurel@1.0.0](#contract-residual.laurel-1.0.0), [residual.stream_collapse@1.0.0](#contract-residual.stream_collapse-1.0.0), [residual.stream_expand@1.0.0](#contract-residual.stream_expand-1.0.0), [residual.stream_inject@1.0.0](#contract-residual.stream_inject-1.0.0)
   - [sequence.*](#namespace-sequence): [sequence.gated_delta@1.0.0](#contract-sequence.gated_delta-1.0.0)
-  - [unqualified](#namespace-unqualified): [conv_frontend@1.0.0](#contract-conv_frontend-1.0.0), [embed@1.0.0](#contract-embed-1.0.0), [identity@1.0.0](#contract-identity-1.0.0), [lm_head@1.0.0](#contract-lm_head-1.0.0), [moe@1.0.0](#contract-moe-1.0.0), [mtp@1.0.0](#contract-mtp-1.0.0), [patch_embed@1.0.0](#contract-patch_embed-1.0.0), [pooler@1.0.0](#contract-pooler-1.0.0), [splice@1.0.0](#contract-splice-1.0.0), [vit_block@1.0.0](#contract-vit_block-1.0.0)
+  - [unqualified](#namespace-unqualified): [conv_frontend@1.0.0](#contract-conv_frontend-1.0.0), [embed@1.0.0](#contract-embed-1.0.0), [identity@1.0.0](#contract-identity-1.0.0), [lm_head@1.0.0](#contract-lm_head-1.0.0), [moe@1.0.0](#contract-moe-1.0.0), [patch_embed@1.0.0](#contract-patch_embed-1.0.0), [pooler@1.0.0](#contract-pooler-1.0.0), [splice@1.0.0](#contract-splice-1.0.0)
 - [Axes](#axes)
 - [Precision roles](#precision-roles)
 - [Tags](#tags)
@@ -76,7 +77,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [mix.collapse@1.0.0](#contract-mix.collapse-1.0.0) | Hyper-connections head: reduces the `multiplicity` residual streams to one before the final norm. | 2 args · 1→1 ports · 3 params |
 | [mix.doubly_stochastic@1.0.0](#contract-mix.doubly_stochastic-1.0.0) | Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition. | 4 args · 2→1 ports · 3 params |
 | [moe@1.0.0](#contract-moe-1.0.0) | Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts. | 14 args · 1→1 ports · 8 params |
-| [mtp@1.0.0](#contract-mtp-1.0.0) | Multi-token prediction: one projection per prediction depth, applied to the hidden state. | 2 args · 1→1 ports · 1 params |
+| [mtp.merge@1.0.0](#contract-mtp.merge-1.0.0) | Multi-token prediction merge: the current hidden state and the next token's embedding, projected to `width`. | 1 args · 2→1 ports · 1 params |
 | [norm.layer@1.0.0](#contract-norm.layer-1.0.0) | Layer normalization with a learned scale and bias. | 2 args · 1→1 ports · 2 params |
 | [norm.rms@1.0.0](#contract-norm.rms-1.0.0) | Root-mean-square normalization with a learned scale. | 2 args · 1→1 ports · 1 params |
 | [patch_embed@1.0.0](#contract-patch_embed-1.0.0) | Patch embedding: projects each image or video patch to `width`. | 6 args · 1→1 ports · 3 params |
@@ -94,7 +95,6 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [residual.stream_inject@1.0.0](#contract-residual.stream_inject-1.0.0) | Reinjects a modified active stream into the set of residual streams. | 2 args · 2→1 ports · 0 params |
 | [sequence.gated_delta@1.0.0](#contract-sequence.gated_delta-1.0.0) | Gated DeltaNet layer: a per-head matrix state updated by the delta rule, behind a short causal convolution. | 6 args · 1→1 ports · 9 params · state `recurrent`, `conv` |
 | [splice@1.0.0](#contract-splice-1.0.0) | Inserts an already-projected stream into the token sequence. | 1 args · 2→1 ports · 0 params |
-| [vit_block@1.0.0](#contract-vit_block-1.0.0) | Vision-transformer block projections: fused QKV, attention output, FFN up and down. | 4 args · 1→1 ports · 4 params |
 
 ### Axes
 
@@ -115,8 +115,6 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [conditioning.feature](#axis-conditioning.feature) | value | Width of a conditioning vector: per-layer inputs and their projections. |
 | [deltanet.conv_width](#axis-deltanet.conv_width) | value | Channels of the causal convolution of a gated-delta layer. |
 | [deltanet.head_dim](#axis-deltanet.head_dim) | value | Dimension of one gated-delta head; the state matrix is `head_dim × head_dim`. |
-| [deltanet.key_dim](#axis-deltanet.key_dim) | value | Flattened key width of a gated-delta layer, `key_heads * head_dim`. |
-| [deltanet.key_heads](#axis-deltanet.key_heads) | value | Query/key heads of a gated-delta layer. |
 | [deltanet.value_dim](#axis-deltanet.value_dim) | value | Flattened value width of a gated-delta layer, `value_heads * head_dim`. |
 | [deltanet.value_heads](#axis-deltanet.value_heads) | value | Value heads of a gated-delta layer; one state matrix each. |
 | [ffn.gate_flat](#axis-ffn.gate_flat) | value | Fused gate and up projection width, `2 * inner`. |
@@ -239,7 +237,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 18 (5 required, 15 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | — |
+| 18 (5 required, 15 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | `sequence_operations` |
 
 ##### Arguments
 
@@ -373,6 +371,12 @@ Derivation rules, in order — the first whose condition holds applies:
 - Reads: `input`, `source_values`
 - Writes: `output`
 
+##### Logical cost
+
+| Quantity | Expression | Status | Per | Description |
+|---|---|---|---|---|
+| `sequence_operations` | `4*heads*head_dim` | exact | position | Scores and weighted values of every query head against one cached position. |
+
 ##### Semantic partitions
 
 | Target | Semantics | Communication | When | Description |
@@ -412,7 +416,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 11 (9 required, 10 structural) | 1 | 1 | 16 | 0 | `kv`, `sliding`, `compressor`, `index`, `index_compressor` (append, window) | 4 | — |
+| 11 (9 required, 10 structural) | 1 | 1 | 16 | 0 | `kv`, `sliding`, `compressor`, `index`, `index_compressor` (append, window) | 4 | `sequence_operations` |
 
 ##### Arguments
 
@@ -637,6 +641,12 @@ Derivation rules, in order — the first whose condition holds applies:
 - Reads: `input`
 - Writes: `output`
 
+##### Logical cost
+
+| Quantity | Expression | Status | Per | Description |
+|---|---|---|---|---|
+| `sequence_operations` | `4*heads*head_dim` | exact | position | Scores and weighted values of every query head against one cached latent. |
+
 ##### Semantic partitions
 
 | Target | Semantics | Communication | When | Description |
@@ -664,7 +674,7 @@ The input carries one `width` vector per layer (`layers × width`); `layer` name
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 3 (3 required, 2 structural) | 1 | 1 | 0 | 0 | none | 0 | — |
+| 3 (3 required, 2 structural) | 1 | 1 | 0 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -703,7 +713,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| none: no cut preserves meaning | preserved | none | always | Selects one slice; no cut preserves meaning below the slice. |
 
 <a id="contract-conditioning.multiplicative-1.0.0" name="contract-conditioning.multiplicative-1.0.0"></a>
 
@@ -719,7 +731,7 @@ The input is projected by `gate` to `condition_width` and multiplied element-wis
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 3 (3 required, 2 structural) | 2 | 1 | 3 | 0 | none | 0 | — |
+| 3 (3 required, 2 structural) | 2 | 1 | 3 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -763,7 +775,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| any axis (elementwise) | preserved | none | always | Elementwise per feature: any axis, no communication. |
 
 <a id="namespace-decoder" name="namespace-decoder"></a>
 
@@ -1044,7 +1058,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 8 (3 required, 5 structural) | 1 | 1 | 6 | 0 | none | 1 | `operations` |
+| 8 (3 required, 5 structural) | 1 | 1 | 6 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1104,12 +1118,6 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `input`
 - Writes: `output`
 
-##### Logical cost
-
-| Quantity | Expression | Status | Per | Description |
-|---|---|---|---|---|
-| `operations` | `4*width*inner` | exact | token | Two `width × inner` projections per token. |
-
 ##### Semantic partitions
 
 | Target | Semantics | Communication | When | Description |
@@ -1134,7 +1142,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 8 (3 required, 5 structural) | 1 | 1 | 6 | 0 | none | 1 | `operations` |
+| 8 (3 required, 5 structural) | 1 | 1 | 6 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1194,12 +1202,6 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `input`
 - Writes: `output`
 
-##### Logical cost
-
-| Quantity | Expression | Status | Per | Description |
-|---|---|---|---|---|
-| `operations` | `6*width*inner` | exact | token | Three `width × inner` projections per token. |
-
 ##### Semantic partitions
 
 | Target | Semantics | Communication | When | Description |
@@ -1230,7 +1232,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 1 | 1 | 3 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 3 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1272,7 +1274,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are mixed per feature; features are independent. |
 
 <a id="contract-mix.doubly_stochastic-1.0.0" name="contract-mix.doubly_stochastic-1.0.0"></a>
 
@@ -1294,7 +1298,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 2 structural) | 2 | 1 | 3 | 0 | none | 0 | — |
+| 4 (4 required, 2 structural) | 2 | 1 | 3 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1339,7 +1343,73 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are mixed per feature; features are independent. |
+
+<a id="namespace-mtp" name="namespace-mtp"></a>
+
+### mtp.*
+
+<a id="contract-mtp.merge-1.0.0" name="contract-mtp.merge-1.0.0"></a>
+
+#### `mtp.merge@1.0.0`
+
+*data/catalog/contracts/mtp/merge/1.0.0.json*
+
+**Multi-token prediction merge: the current hidden state and the next token's embedding, projected to `width`.**
+
+The one computation a multi-token-prediction head adds to the vocabulary. The head itself is a second trunk of the model: the shared embedding table (tied) supplies the embedding of the next token, `merge` combines it with the main trunk's final hidden state, ordinary block primitives follow, and the shared output head (tied) produces the logits of the token one step further ahead. Follows the published DeepSeek-V3 design with one prediction depth; deeper heads chain further trunks.
+
+External documentation:
+
+- [DeepSeek-V3 Technical Report (DeepSeek-AI, 2024)](https://arxiv.org/abs/2412.19437) *(paper)* — Multi-token prediction modules, §2.2.
+
+| Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
+|---|---|---|---|---|---|---|---|
+| 1 (1 required, 1 structural) | 2 | 1 | 1 | 0 | none | 1 | — |
+
+##### Arguments
+
+| Argument | Type | Required | Default | Structural | Description |
+|---|---|---|---|---|---|
+| `width` | cardinality | yes |  | yes | Feature width of both inputs and of the output. |
+
+##### Ports
+
+Inputs:
+
+| Port | Shape | Axes | Domain | Role | Presence | Description |
+|---|---|---|---|---|---|---|
+| `hidden` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | The main trunk's final hidden state of the current token. |
+| `next_embedding` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | The embedding of the next token. |
+
+Outputs:
+
+| Port | Shape | Axes | Domain | Role | Presence | Description |
+|---|---|---|---|---|---|---|
+| `output` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | The merged state, input of the prediction block. |
+
+##### Parameters
+
+| Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
+|---|---|---|---|---|---|---|
+| `weight` | [mtp.projection](#role-mtp.projection) | `[feature: width] × [merged: 2*width]` | [model.width](#axis-model.width) (feature) × [model.width](#axis-model.width) (projection) | exclusive | always | The `width × 2·width` merge projection. |
+
+##### State ports
+
+None: this primitive carries no state. Only a sequence operator does (§4.1).
+
+##### Effects
+
+- Reads: `hidden`, `next_embedding`
+- Writes: `output`
+
+##### Semantic partitions
+
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | all_gather | always | Column-parallel over the output features; the shards are gathered for the block that follows. |
 
 <a id="namespace-norm" name="namespace-norm"></a>
 
@@ -1363,7 +1433,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 1 structural) | 1 | 1 | 2 | 0 | none | 0 | — |
+| 2 (2 required, 1 structural) | 1 | 1 | 2 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1404,7 +1474,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | all_reduce | always | Mean and variance over the feature axis: partial sums are reduced. |
 
 <a id="contract-norm.rms-1.0.0" name="contract-norm.rms-1.0.0"></a>
 
@@ -1424,7 +1496,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 1 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 2 (2 required, 1 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1464,7 +1536,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | all_reduce | always | The sum of squares over the feature axis is reduced. |
 
 <a id="namespace-projector" name="namespace-projector"></a>
 
@@ -1486,7 +1560,7 @@ Patches are normalized (`norm`), `merge_count` of them combined by the learned `
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 4 | 0 | none | 0 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 4 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1531,7 +1605,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | all_reduce | always | Row-parallel over the merged input: partial outputs are reduced. |
 
 ##### Domain transforms
 
@@ -1559,7 +1635,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 6 | 0 | none | 0 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 6 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1606,7 +1682,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Column-parallel up, row-parallel down over the inner axis; the down projection's partial outputs are reduced. |
 
 ##### Domain transforms
 
@@ -1634,7 +1712,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 2 | 0 | none | 0 | — |
+| 4 (4 required, 4 structural) | 1 | 1 | 2 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1677,7 +1755,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | all_gather | always | Column-parallel over the output features. |
 
 ##### Domain transforms
 
@@ -1703,7 +1783,7 @@ An occurrence with two input ports, not an annotation on a step: the value graph
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 1 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 1 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1741,7 +1821,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
 
 <a id="contract-residual.altup_correct-1.0.0" name="contract-residual.altup_correct-1.0.0"></a>
 
@@ -1763,7 +1845,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 2 | 2 | 2 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 2 | 2 | 2 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1806,7 +1888,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are corrected per feature; features are independent. |
 
 <a id="contract-residual.altup_predict-1.0.0" name="contract-residual.altup_predict-1.0.0"></a>
 
@@ -1828,7 +1912,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 1 | 2 | 3 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 2 | 3 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1871,7 +1955,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are predicted per feature; features are independent. |
 
 <a id="contract-residual.combine-1.0.0" name="contract-residual.combine-1.0.0"></a>
 
@@ -1887,7 +1973,7 @@ The scales change the computation, not a tensor. Used where a model averages two
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 4 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1928,7 +2014,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
 
 <a id="contract-residual.laurel-1.0.0" name="contract-residual.laurel-1.0.0"></a>
 
@@ -1948,7 +2036,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 3 (3 required, 2 structural) | 1 | 1 | 3 | 0 | none | 0 | — |
+| 3 (3 required, 2 structural) | 1 | 1 | 3 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1991,7 +2079,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [residual.rank](#axis-residual.rank) (argument) | preserved | all_reduce | always | The low-rank bottleneck is split; the up projection's partial outputs are reduced. |
 
 <a id="contract-residual.stream_collapse-1.0.0" name="contract-residual.stream_collapse-1.0.0"></a>
 
@@ -2013,7 +2103,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2053,7 +2143,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Per feature; features are independent. |
 
 <a id="contract-residual.stream_expand-1.0.0" name="contract-residual.stream_expand-1.0.0"></a>
 
@@ -2075,7 +2167,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2115,7 +2207,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Per feature; features are independent. |
 
 <a id="contract-residual.stream_inject-1.0.0" name="contract-residual.stream_inject-1.0.0"></a>
 
@@ -2133,7 +2227,7 @@ Replaces the active stream among `streams` with the given `active` vector; the o
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 2 (2 required, 2 structural) | 2 | 1 | 0 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2172,7 +2266,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
 
 <a id="namespace-sequence" name="namespace-sequence"></a>
 
@@ -2200,7 +2296,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 6 (4 required, 6 structural) | 1 | 1 | 9 | 0 | `recurrent`, `conv` (fixed, window) | 2 | `operations` |
+| 6 (4 required, 6 structural) | 1 | 1 | 9 | 0 | `recurrent`, `conv` (fixed, window) | 2 | `state_operations` |
 
 ##### Arguments
 
@@ -2314,7 +2410,7 @@ Derivation rules, in order — the first whose condition holds applies:
 
 | Quantity | Expression | Status | Per | Description |
 |---|---|---|---|---|
-| `operations` | `2*value_heads*head_dim*head_dim` | exact | token | State update and read-out: two `head_dim × head_dim` products per value head and token. |
+| `state_operations` | `2*value_heads*head_dim*head_dim` | exact | token | State update and read-out: two `head_dim × head_dim` products per value head and token. |
 
 ##### Semantic partitions
 
@@ -2345,7 +2441,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 6 (3 required, 6 structural) | 1 | 1 | 5 | 0 | none | 0 | — |
+| 6 (3 required, 6 structural) | 1 | 1 | 5 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2393,7 +2489,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Output channels are independent: each shard computes its channels. |
 
 <a id="contract-embed-1.0.0" name="contract-embed-1.0.0"></a>
 
@@ -2469,7 +2567,7 @@ A public input is a single endpoint and a value edge has one destination; when a
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 1 (1 required, 1 structural) | 1 | 1 | 0 | 0 | none | 0 | — |
+| 1 (1 required, 1 structural) | 1 | 1 | 0 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2506,7 +2604,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
 
 <a id="contract-lm_head-1.0.0" name="contract-lm_head-1.0.0"></a>
 
@@ -2524,7 +2624,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 1 | `operations` |
+| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2562,12 +2662,6 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `input`
 - Writes: `logits`
 
-##### Logical cost
-
-| Quantity | Expression | Status | Per | Description |
-|---|---|---|---|---|
-| `operations` | `2*width*vocabulary` | exact | token | One `width × vocabulary` projection per token. |
-
 ##### Semantic partitions
 
 | Target | Semantics | Communication | When | Description |
@@ -2595,7 +2689,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 14 (4 required, 9 structural) | 1 | 1 | 8 | 0 | none | 2 | `operations` |
+| 14 (4 required, 9 structural) | 1 | 1 | 8 | 0 | none | 2 | — |
 
 ##### Arguments
 
@@ -2663,11 +2757,16 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `input`
 - Writes: `output`
 
-##### Logical cost
+##### Structured sparsity
 
-| Quantity | Expression | Status | Per | Description |
-|---|---|---|---|---|
-| `operations` | `6*width*inner*(top_k + shared)` | exact | token | Three `width × inner` projections per activated expert, routed and shared. |
+| Fact | Declaration |
+|---|---|
+| activatable unit | `in`, `out` along [moe.experts](#axis-moe.experts) |
+| selecting argument | `routing` |
+| activated per token | `top_k` |
+| union per batch | `experts` (upper_bound, per sequence) |
+
+Each routed expert is one activatable unit: its `in` and `out` projections along `moe.experts`. `top_k` are activated per token; shared experts are always active and are not units.
 
 ##### Semantic partitions
 
@@ -2675,65 +2774,6 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 |---|---|---|---|---|
 | axis [moe.experts](#axis-moe.experts) (argument) | preserved | all_to_all | always | Expert parallelism: tokens are exchanged between expert shards. |
 | axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism inside every expert; the down projection needs an all-reduce. |
-
-<a id="contract-mtp-1.0.0" name="contract-mtp-1.0.0"></a>
-
-#### `mtp@1.0.0`
-
-*data/catalog/contracts/mtp/1.0.0.json*
-
-**Multi-token prediction: one projection per prediction depth, applied to the hidden state.**
-
-`weight` is declared with multiplicity `layers`: one `width × width` projection per additional token predicted ahead. The primitive carries the projections only; the blocks of each prediction depth are ordinary occurrences of the model.
-
-External documentation:
-
-- [Better & Faster Large Language Models via Multi-token Prediction (Gloeckle et al., 2024)](https://arxiv.org/abs/2404.19737) *(paper)*
-- [DeepSeek-V3 Technical Report (DeepSeek-AI, 2024)](https://arxiv.org/abs/2412.19437) *(paper)* — Sequential multi-token prediction modules with a projection per depth.
-
-| Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
-|---|---|---|---|---|---|---|---|
-| 2 (2 required, 2 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
-
-##### Arguments
-
-| Argument | Type | Required | Default | Structural | Description |
-|---|---|---|---|---|---|
-| `width` | cardinality | yes |  | yes | Feature width of the hidden state. |
-| `layers` | cardinality | yes |  | yes | Number of prediction depths, hence of projections. |
-
-##### Ports
-
-Inputs:
-
-| Port | Shape | Axes | Domain | Role | Presence | Description |
-|---|---|---|---|---|---|---|
-| `input` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | Hidden state. |
-
-Outputs:
-
-| Port | Shape | Axes | Domain | Role | Presence | Description |
-|---|---|---|---|---|---|---|
-| `output` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | Projected hidden state. |
-
-##### Parameters
-
-| Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
-|---|---|---|---|---|---|---|
-| `weight` | [mtp.projection](#role-mtp.projection) | `[feature: width] × [input: width]` | [model.width](#axis-model.width) (feature) × [model.width](#axis-model.width) (feature) | exclusive | always; × layers | Projection of one prediction depth, `layers` times. |
-
-##### State ports
-
-None: this primitive carries no state. Only a sequence operator does (§4.1).
-
-##### Effects
-
-- Reads: `input`
-- Writes: `output`
-
-##### Semantic partitions
-
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
 
 <a id="contract-patch_embed-1.0.0" name="contract-patch_embed-1.0.0"></a>
 
@@ -2754,7 +2794,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 6 (3 required, 6 structural) | 1 | 1 | 3 | 0 | none | 0 | — |
+| 6 (3 required, 6 structural) | 1 | 1 | 3 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2800,7 +2840,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Output channels are independent. |
 
 <a id="contract-pooler-1.0.0" name="contract-pooler-1.0.0"></a>
 
@@ -2818,7 +2860,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (3 required, 4 structural) | 1 | 1 | 1 | 0 | none | 0 | — |
+| 4 (3 required, 4 structural) | 1 | 1 | 1 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2871,7 +2913,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
+| Target | Semantics | Communication | When | Description |
+|---|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | preserved | all_gather | always | Column-parallel over the projection's output features. |
 
 <a id="contract-splice-1.0.0" name="contract-splice-1.0.0"></a>
 
@@ -2889,7 +2933,7 @@ Both inputs are in the token domain at `width`: `text` is the embedded token seq
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 1 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 0 | — |
+| 1 (1 required, 1 structural) | 2 | 1 | 0 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -2927,77 +2971,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-No partition axis is declared: partitioning this primitive preserves no meaning the catalog vouches for.
-
-<a id="contract-vit_block-1.0.0" name="contract-vit_block-1.0.0"></a>
-
-#### `vit_block@1.0.0`
-
-*data/catalog/contracts/vit_block/1.0.0.json*
-
-**Vision-transformer block projections: fused QKV, attention output, FFN up and down.**
-
-Tags: [`multimodal`](#tag-multimodal)
-
-The learned tensors of one bidirectional vision block: `qkv`, whose fused axis is an exact product `projection × head × channel` and therefore declares its factors; `out`; and a dense FFN `in` / `ffn_out`. A vision tower processes an image in one pass without causality, so the block carries no state.
-
-> **Note (maintainers).** no state: a vision tower processes an image in one pass, without causality
-
-External documentation:
-
-- [An Image is Worth 16x16 Words (Dosovitskiy et al., 2020)](https://arxiv.org/abs/2010.11929) *(paper)*
-
-| Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
-|---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 4 | 0 | none | 2 | — |
-
-##### Arguments
-
-| Argument | Type | Required | Default | Structural | Description |
-|---|---|---|---|---|---|
-| `width` | cardinality | yes |  | yes | Feature width of the vision tower. |
-| `heads` | cardinality | yes |  | yes | Attention heads. |
-| `head_dim` | cardinality | yes |  | yes | Dimension of one head. |
-| `inner` | cardinality | yes |  | yes | Inner width of the FFN. |
-
-##### Ports
-
-Inputs:
-
-| Port | Shape | Axes | Domain | Role | Presence | Description |
-|---|---|---|---|---|---|---|
-| `input` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | Patch activations. |
-
-Outputs:
-
-| Port | Shape | Axes | Domain | Role | Presence | Description |
-|---|---|---|---|---|---|---|
-| `output` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | Block output. |
-
-##### Parameters
-
-| Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
-|---|---|---|---|---|---|---|
-| `qkv` | [attention.qkv_projection](#role-attention.qkv_projection) | `[qkv_flat: 3*heads*head_dim = projection: 3 × head: heads × channel: head_dim] × [feature: width]` | [attention.qkv_flat](#axis-attention.qkv_flat) (projection) = [ffn.projection](#axis-ffn.projection) × [attention.heads](#axis-attention.heads) × [attention.head_dim](#axis-attention.head_dim) × [model.width](#axis-model.width) (feature) | exclusive | always | Fused query, key and value projection: `3 × heads × head_dim` rows.<br>*Note: without GQA the fused axis IS an exact product: the projection x head x channel decomposition is declarable* |
-| `out` | [attention.output_projection](#role-attention.output_projection) | `[feature: width] × [heads_flat: heads*head_dim]` | [model.width](#axis-model.width) (feature) × [attention.heads](#axis-attention.heads) (projection) | exclusive | always | Attention output projection. |
-| `in` | [ffn.up_projection](#role-ffn.up_projection) | `[inner: inner] × [feature: width]` | [ffn.inner](#axis-ffn.inner) (feature) × [model.width](#axis-model.width) (feature) | exclusive | always | FFN up projection. |
-| `ffn_out` | [ffn.down_projection](#role-ffn.down_projection) | `[feature: width] × [inner: inner]` | [model.width](#axis-model.width) (feature) × [ffn.inner](#axis-ffn.inner) (feature) | exclusive | always | FFN down projection. |
-
-##### State ports
-
-None: this primitive carries no state. Only a sequence operator does (§4.1).
-
-##### Effects
-
-- Reads: `input`
-- Writes: `output`
-
-##### Semantic partitions
-
 | Target | Semantics | Communication | When | Description |
 |---|---|---|---|---|
-| axis [attention.heads](#axis-attention.heads) (argument) | preserved | all_reduce | always | Tensor parallelism across heads. |
-| axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism across the FFN inner width. |
+| any axis (elementwise) | preserved | none | always | Elementwise placement: any axis, no communication. |
 
 <a id="axes" name="axes"></a>
 
@@ -3022,8 +2998,6 @@ An axis names a dimension. Shapes unify by axis identity (V4): the same extent o
 | <a id="axis-conditioning.feature"></a>`conditioning.feature` | value | Width of a conditioning vector: per-layer inputs and their projections. |
 | <a id="axis-deltanet.conv_width"></a>`deltanet.conv_width` | value | Channels of the causal convolution of a gated-delta layer. |
 | <a id="axis-deltanet.head_dim"></a>`deltanet.head_dim` | value | Dimension of one gated-delta head; the state matrix is `head_dim × head_dim`. |
-| <a id="axis-deltanet.key_dim"></a>`deltanet.key_dim` | value | Flattened key width of a gated-delta layer, `key_heads * head_dim`. |
-| <a id="axis-deltanet.key_heads"></a>`deltanet.key_heads` | value | Query/key heads of a gated-delta layer. |
 | <a id="axis-deltanet.value_dim"></a>`deltanet.value_dim` | value | Flattened value width of a gated-delta layer, `value_heads * head_dim`. |
 | <a id="axis-deltanet.value_heads"></a>`deltanet.value_heads` | value | Value heads of a gated-delta layer; one state matrix each. |
 | <a id="axis-ffn.gate_flat"></a>`ffn.gate_flat` | value | Fused gate and up projection width, `2 * inner`.<br>*Note: fused gate and up: exact product projection x inner, hence factors* |
@@ -3171,19 +3145,20 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | Field | Value | Units |
 |---|---|---|
 | argument type | `boolean` | 6 |
-| argument type | `cardinality` | 35 |
+| argument type | `cardinality` | 34 |
 | argument type | `enum` | 7 |
 | argument type | `physical` | 2 |
 | argument type | `port_reference` | 4 |
 | argument type | `real` | 11 |
 | argument type | `record` | 3 |
-| axis nature | `feature` | 35 |
+| axis nature | `feature` | 34 |
 | axis nature | `projection` | 8 |
 | axis nature | `structural` | 19 |
 | axis space | `instance` | 2 |
-| axis space | `value` | 35 |
-| cost per | `token` | 5 |
-| cost status | `exact` | 5 |
+| axis space | `value` | 33 |
+| cost per | `position` | 2 |
+| cost per | `token` | 1 |
+| cost status | `exact` | 3 |
 | domain transform relation | `align` | 1 |
 | domain transform relation | `merge` | 3 |
 | dtype admissible | `bf16` | 51 |
@@ -3193,17 +3168,19 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | dtype admissible | `fp4` | 26 |
 | dtype admissible | `i32` | 2 |
 | dtype admissible | `i64` | 2 |
-| parameter sharing | `exclusive` | 27 |
+| parameter sharing | `exclusive` | 26 |
 | parameter sharing | `shareable` | 5 |
-| partition communication | `all_gather` | 6 |
-| partition communication | `all_reduce` | 7 |
+| partition communication | `all_gather` | 9 |
+| partition communication | `all_reduce` | 11 |
 | partition communication | `all_to_all` | 1 |
-| partition communication | `none` | 3 |
-| partition semantics | `preserved` | 12 |
-| partition target | `argument_axis` | 12 |
+| partition communication | `none` | 18 |
+| partition semantics | `preserved` | 34 |
+| partition target | `any_axis` | 6 |
+| partition target | `argument_axis` | 27 |
 | partition target | `instance_key_axis` | 3 |
+| partition target | `none` | 1 |
 | partition target | `payload_axis` | 2 |
-| port domain | `inherit` | 28 |
+| port domain | `inherit` | 27 |
 | port domain | `patch` | 1 |
 | port domain | `position` | 1 |
 | port domain | `token` | 9 |
@@ -3236,18 +3213,18 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 | Site | Documented | Total | Coverage |
 |---|---|---|---|
 | base | 1 | 1 | 100% |
-| contract | 36 | 36 | 100% |
-| argument | 191 | 191 | 100% |
-| port | 81 | 81 | 100% |
-| parameter | 115 | 115 | 100% |
+| contract | 35 | 35 | 100% |
+| argument | 186 | 186 | 100% |
+| port | 80 | 80 | 100% |
+| parameter | 111 | 111 | 100% |
 | state | 8 | 8 | 100% |
 | component | 9 | 9 | 100% |
 | operation | 21 | 21 | 100% |
 | rule | 12 | 12 | 100% |
-| partition | 21 | 21 | 100% |
+| cost | 3 | 3 | 100% |
+| partition | 42 | 42 | 100% |
 | transform | 4 | 4 | 100% |
-| cost | 5 | 5 | 100% |
-| axis | 37 | 37 | 100% |
+| axis | 35 | 35 | 100% |
 | precision_role | 54 | 54 | 100% |
 
 

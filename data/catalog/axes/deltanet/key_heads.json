@@ -1,9 +1,0 @@
-{
-  "schema": "tensorspine-catalog-unit/2.0",
-  "kind": "axis",
-  "name": "deltanet.key_heads",
-  "definition": {
-    "space": "value",
-    "summary": "Query/key heads of a gated-delta layer."
-  }
-}

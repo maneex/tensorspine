@@ -229,10 +229,19 @@ multiple members. See [Specification §3.4](SPECIFICATION.md#34--bindings).
 
 ### Partition
 
-A division along a contract-declared semantic axis that preserves the primitive's meaning. A
-contract derives the resulting logical communication; hardware placement and the actual collective
-remain outside the model. See
+A division along a contract-declared semantic axis that preserves the primitive's meaning, with
+the logical communication it implies. Every contract states its partitions: one or more axes,
+`any_axis` for an elementwise primitive, or `none`; an empty list is refused. Hardware placement
+and the actual collective remain outside the model. See
 [Specification §4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part).
+
+### Sparsity
+
+A contract's declaration that only some of its tensors are activated per token: the activatable
+unit (parameter slots along an axis), the argument that selects units, the count activated per
+token, and the upper bound on the union a batch may activate. Cost derivation counts a unit's
+weights at the activated fraction per token and in full for residency and worst-case transfer.
+See [Specification §4.5](SPECIFICATION.md#45--structured-sparsity-o66).
 
 ### Port
 

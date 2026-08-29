@@ -131,7 +131,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce",
+        "description": "Mean and variance over the feature axis: partial sums are reduced."
+      }
+    ],
     "note": "LayerNorm: carries a bias, unlike RMSNorm. That is what makes them non-interchangeable."
   }
 }

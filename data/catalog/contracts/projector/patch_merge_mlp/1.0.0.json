@@ -275,7 +275,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "ffn.inner"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce",
+        "description": "Column-parallel up, row-parallel down over the inner axis; the down projection's partial outputs are reduced."
+      }
+    ],
     "domain_transforms": [
       {
         "from_port": "input",

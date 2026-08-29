@@ -1258,6 +1258,27 @@
         "description": "The latent cache partitions along `head_dim`, with no communication."
       }
     ],
-    "note": "Latent attention with low-rank projections, temporal compression and an optional sparse index."
+    "note": "Latent attention with low-rank projections, temporal compression and an optional sparse index.",
+    "logical_cost": {
+      "sequence_operations": {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 4
+            },
+            {
+              "argument": "heads"
+            },
+            {
+              "argument": "head_dim"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "position",
+        "description": "Scores and weighted values of every query head against one cached latent."
+      }
+    }
   }
 }

@@ -101,7 +101,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "none": true
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Selects one slice; no cut preserves meaning below the slice."
+      }
+    ],
     "note": "Explicit selection of the conditioning slice associated with a layer."
   }
 }

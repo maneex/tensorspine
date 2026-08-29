@@ -242,7 +242,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Streams are mixed per feature; features are independent."
+      }
+    ],
     "note": "Hyper-connections: the residual is a stack of `multiplicity` parallel streams. Replaces residual.add; this is not a step annotation."
   }
 }

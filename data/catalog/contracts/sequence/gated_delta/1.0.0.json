@@ -587,8 +587,9 @@
         "description": "Instance-key axis: sessions are independent."
       }
     ],
+    "note": "Gated-delta recurrent layer with a short causal convolution and a per-head matrix state.",
     "logical_cost": {
-      "operations": {
+      "state_operations": {
         "expression": {
           "op": "multiply",
           "args": [
@@ -610,7 +611,6 @@
         "per": "token",
         "description": "State update and read-out: two `head_dim × head_dim` products per value head and token."
       }
-    },
-    "note": "Gated-delta recurrent layer with a short causal convolution and a per-head matrix state."
+    }
   }
 }

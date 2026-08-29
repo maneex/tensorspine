@@ -75,6 +75,21 @@
       "base": "catalog/context-in-contract",
       "match": "definition/state_ports/kv/rules",
       "note": "A contract reading an undeclared analysis fact: there is no context namespace; a span is an argument (§4.4)."
+    },
+    {
+      "base": "catalog/partitions-empty",
+      "match": "[] should be non-empty",
+      "note": "An empty partition list is an omission, not a statement: a contract says `none` when no cut preserves meaning (§4.1)."
+    },
+    {
+      "base": "catalog/sparsity-unknown-slot",
+      "match": "unit parameter 'expert_weights' is not a slot",
+      "note": "A sparsity unit naming a slot the contract does not have (§4.5)."
+    },
+    {
+      "base": "catalog/cost-declared-not-corrected",
+      "match": "'operations' was unexpected",
+      "note": "Operations on parameters are derived, never declared (§4.1); a contract declares only state and sequence corrections."
     }
   ]
 }

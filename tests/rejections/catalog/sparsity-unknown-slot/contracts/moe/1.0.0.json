@@ -591,8 +591,7 @@
     "sparsity": {
       "unit": {
         "parameters": [
-          "in",
-          "out"
+          "expert_weights"
         ],
         "axis": "moe.experts"
       },

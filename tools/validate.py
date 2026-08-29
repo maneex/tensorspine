@@ -593,6 +593,75 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     stats['tensors'] = tensor_identities
     stats['shared'] = ties
 
+    # --- D5, first derivation: parameter elements, operations per token ---
+    # Two operations per weight element a token consumes (O0.3 makes this
+    # exact), scaled by the activated fraction of a sparse unit (§4.5);
+    # a contract adds only what the inventory cannot see (§4.1).
+    def elements(shape, args, multiplicity=None):
+        n = 1
+        for a in shape['axes']:
+            extent = contract_value(a['extent'], args)
+            if extent is UNRESOLVED or not isinstance(extent, (int, float)):
+                return None
+            n *= extent
+        if multiplicity is not None:
+            m = contract_value(multiplicity, args)
+            if m is UNRESOLVED or not isinstance(m, (int, float)):
+                return None
+            n *= m
+        return n
+
+    resident = 0
+    ops_per_token = 0
+    ops_per_position = 0
+    for key, (name, definition, args) in resolved.items():
+        sparsity = definition.get('sparsity')
+        fraction = 1
+        if sparsity is not None:
+            activated = contract_value(sparsity['activated_per_token'], args)
+            unit_axis = sparsity['unit']['axis']
+            units = None
+            for pname in sparsity['unit']['parameters']:
+                for a in definition['parameters'][pname]['shape']['axes']:
+                    if a['axis'] == unit_axis:
+                        units = contract_value(a['extent'], args)
+            if activated is not UNRESOLVED and units:
+                fraction = activated / units
+        for param_name, param in definition['parameters'].items():
+            if 'present_when' in param and not contract_condition(param['present_when'], args):
+                continue
+            n = elements(param['shape'], args, param.get('multiplicity'))
+            if n is None:
+                continue
+            sparse = sparsity is not None and param_name in sparsity['unit']['parameters']
+            ops_per_token += 2 * n * (fraction if sparse else 1)
+        for cname, cost in definition.get('logical_cost', {}).items():
+            v = contract_value(cost['expression'], args)
+            if v is UNRESOLVED:
+                continue
+            if cname == 'state_operations':
+                ops_per_token += v
+            elif cname == 'sequence_operations':
+                ops_per_position += v
+    # Resident elements count each tensor identity once (tied tensors once).
+    seen_ids = set()
+    for tid, binding in model['bindings']['parameters'].items():
+        for env in loop_envs(binding, tid):
+            member = binding['members'][0]
+            key = select(member['occurrence'], env)
+            if key not in resolved:
+                continue
+            _n, definition, args = resolved[key]
+            param = definition['parameters'].get(member['parameter'])
+            if param is None:
+                continue
+            n = elements(param['shape'], args, param.get('multiplicity'))
+            if n is not None:
+                resident += n
+    stats['parameter_elements'] = int(resident)
+    stats['ops_per_token'] = int(ops_per_token)
+    stats['ops_per_token_per_position'] = int(ops_per_position)
+
     # --- V3p: precision admissibility (catalog gives a set, model a value) -
     policy = cat.get('precision', {})
 

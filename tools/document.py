@@ -53,7 +53,7 @@ DOC_SCHEMA_ID = 'https://tensorspine.dev/schema/2.0/documentation.json'
 
 GRAMMAR = {
     'contract': {'version', 'arguments', 'ports', 'parameters', 'constants', 'state_ports',
-                 'effects', 'logical_cost', 'partitions', 'constraints', 'note',
+                 'effects', 'logical_cost', 'sparsity', 'partitions', 'constraints', 'note',
                  'domain_transforms'},
     'template': {'version', 'template', 'note'},
     'argument': {'type', 'required', 'structural', 'default', 'present_when', 'note'},
@@ -733,6 +733,7 @@ class Renderer:
             out += self.states(d, where, label)
             out += self.effects(d, where, label)
             out += self.cost(d, where, label)
+            out += self.sparsity(d, where, label)
             out += self.partitions(d, where, label)
             out += self.transforms(d, where, label)
             out += self.constraints(d)
@@ -995,8 +996,8 @@ class Renderer:
         out = ['##### Semantic partitions', '']
         parts = d.get('partitions', [])
         if not parts:
-            return out + ['No partition axis is declared: partitioning this primitive '
-                          'preserves no meaning the catalog vouches for.', '']
+            return out + ['No partition is stated — the catalog grammar refuses this; a contract '
+                          'says `none` when no cut preserves meaning.', '']
         rows = []
         who = label.split('@')[0]
         for i, p in enumerate(parts, 1):
@@ -1012,15 +1013,38 @@ class Renderer:
                 pa = t['payload_axis']
                 target = f"state `{pa['state']}` · component `{pa['component']}` · axis {self.link_axis(pa['axis'])} (payload)"
                 kind = 'payload_axis'
-            else:
+            elif 'instance_key_axis' in t:
                 target = f"instance key axis {self.link_axis(t['instance_key_axis'])}"
                 kind = 'instance_key_axis'
+            elif 'any_axis' in t:
+                target = "any axis (elementwise)"
+                kind = 'any_axis'
+            else:
+                target = "none: no cut preserves meaning"
+                kind = 'none'
             self.vocab.add('partition target', kind, who)
             self.vocab.add('partition semantics', p['semantics'], who)
             self.vocab.add('partition communication', p['communication'], who)
             rows.append([target, p['semantics'], p['communication'],
                          cond(p['when']) if 'when' in p else 'always', describe(pdocs, p)])
         out += table(['Target', 'Semantics', 'Communication', 'When', 'Description'], rows)
+        return out
+
+    def sparsity(self, d, where, label):
+        sp = d.get('sparsity')
+        if not sp:
+            return []
+        out = ['##### Structured sparsity', '']
+        unit = sp['unit']
+        rows = [["activatable unit", ', '.join(code(p) for p in unit['parameters'])
+                 + f" along {self.link_axis(unit['axis'])}"],
+                ["selecting argument", code(sp['policy']['argument'])],
+                ["activated per token", code(expr(sp['activated_per_token']))],
+                ["union per batch", f"{code(expr(sp['union_per_batch']['expression']))} "
+                                    f"({sp['union_per_batch']['status']}, per {sp['union_per_batch']['per']})"]]
+        out += table(['Fact', 'Declaration'], rows)
+        if sp.get('description'):
+            out += [sp['description'], '']
         return out
 
     def transforms(self, d, where, label):

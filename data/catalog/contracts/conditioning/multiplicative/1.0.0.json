@@ -190,7 +190,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Elementwise per feature: any axis, no communication."
+      }
+    ],
     "note": "Per-condition multiplicative gate, reprojection to the model width and RMSNorm."
   }
 }

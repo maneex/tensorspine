@@ -133,7 +133,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Elementwise: any axis, no communication."
+      }
+    ],
     "note": "Combination of two branches with explicit scalar factors."
   }
 }

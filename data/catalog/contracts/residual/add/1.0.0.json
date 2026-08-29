@@ -100,7 +100,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Elementwise: any axis, no communication."
+      }
+    ],
     "note": "Residual addition. §10.6: this is not a step annotation, it is an occurrence with two input ports."
   }
 }

@@ -127,7 +127,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Elementwise: any axis, no communication."
+      }
+    ],
     "note": "Reinjection of a modified active stream into the residual stream set."
   }
 }

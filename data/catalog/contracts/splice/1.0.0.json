@@ -103,7 +103,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Elementwise placement: any axis, no communication."
+      }
+    ],
     "note": "Insertion of an already projected stream into the token sequence."
   }
 }

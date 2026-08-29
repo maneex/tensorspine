@@ -300,6 +300,321 @@
         "decoder",
         "residual"
       ]
+    },
+    "mtp_embed": {
+      "contract": {
+        "name": "embed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "mtp",
+        "embedding"
+      ]
+    },
+    "mtp_embed_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "mtp",
+        "norm"
+      ]
+    },
+    "mtp_hidden_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "mtp",
+        "norm"
+      ]
+    },
+    "mtp_merge": {
+      "contract": {
+        "name": "mtp.merge",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        }
+      },
+      "families": [
+        "mtp"
+      ]
+    },
+    "mtp_attn_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "mtp",
+        "norm"
+      ]
+    },
+    "mtp_attn": {
+      "contract": {
+        "name": "attention.latent_compressed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "heads": {
+          "quantity": "heads"
+        },
+        "head_dim": {
+          "quantity": "hd"
+        },
+        "q_rank": {
+          "quantity": "q_rank"
+        },
+        "o_groups": {
+          "quantity": "o_groups"
+        },
+        "o_rank": {
+          "quantity": "o_rank"
+        },
+        "mask": {
+          "literal": "causal"
+        },
+        "window": {
+          "record": {
+            "span": {
+              "quantity": "win_n"
+            }
+          }
+        },
+        "compress": {
+          "record": {
+            "ratio": {
+              "quantity": "csa_m"
+            },
+            "overlap": {
+              "literal": 2
+            }
+          }
+        },
+        "rope": {
+          "record": {
+            "theta": {
+              "literal": 10000
+            },
+            "compress_theta": {
+              "literal": 160000
+            },
+            "partial_dims": {
+              "quantity": "rope_dims"
+            },
+            "scaling": {
+              "record": {
+                "kind": {
+                  "literal": "yarn"
+                },
+                "factor": {
+                  "literal": 16
+                },
+                "beta_fast": {
+                  "literal": 32
+                },
+                "beta_slow": {
+                  "literal": 1
+                },
+                "orig_ctx": {
+                  "literal": 65536
+                }
+              }
+            }
+          }
+        },
+        "index": {
+          "record": {
+            "head_dim": {
+              "quantity": "idx_hd"
+            },
+            "heads": {
+              "quantity": "idx_heads"
+            },
+            "topk": {
+              "quantity": "idx_topk"
+            },
+            "overlap": {
+              "literal": 2
+            }
+          }
+        }
+      },
+      "families": [
+        "mtp",
+        "compressed_sparse"
+      ]
+    },
+    "mtp_attn_r": {
+      "contract": {
+        "name": "residual.add",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        }
+      },
+      "families": [
+        "mtp",
+        "residual"
+      ]
+    },
+    "mtp_moe_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "mtp",
+        "norm"
+      ]
+    },
+    "mtp_moe": {
+      "contract": {
+        "name": "moe",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "experts": {
+          "quantity": "experts"
+        },
+        "top_k": {
+          "quantity": "top_k"
+        },
+        "inner": {
+          "quantity": "expert_ffn"
+        },
+        "shared": {
+          "quantity": "shared_n"
+        },
+        "swiglu_limit": {
+          "literal": 10
+        },
+        "routing": {
+          "literal": "learned"
+        },
+        "scoring": {
+          "literal": "sqrtsoftplus"
+        },
+        "norm_topk": {
+          "literal": true
+        },
+        "scale": {
+          "literal": 2.5
+        },
+        "score_bias": {
+          "literal": true
+        }
+      },
+      "families": [
+        "mtp",
+        "mixture",
+        "routed"
+      ]
+    },
+    "mtp_moe_r": {
+      "contract": {
+        "name": "residual.add",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        }
+      },
+      "families": [
+        "mtp",
+        "residual"
+      ]
+    },
+    "mtp_final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "mtp",
+        "norm"
+      ]
+    },
+    "mtp_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "mtp",
+        "output",
+        "head"
+      ]
     }
   },
   "compositions": {
@@ -3998,6 +4313,230 @@
           },
           "port": "input"
         }
+      },
+      "mtp.embed_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_embed_n"
+          },
+          "port": "input"
+        }
+      },
+      "mtp.hidden_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "collapse"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_hidden_n"
+          },
+          "port": "input"
+        }
+      },
+      "mtp.merge.hidden": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_hidden_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_merge"
+          },
+          "port": "hidden"
+        }
+      },
+      "mtp.merge.next": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_embed_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_merge"
+          },
+          "port": "next_embedding"
+        }
+      },
+      "mtp.attn_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_merge"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn_n"
+          },
+          "port": "input"
+        }
+      },
+      "mtp.attn_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_merge"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn_r"
+          },
+          "port": "a"
+        }
+      },
+      "mtp.attn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn"
+          },
+          "port": "input"
+        }
+      },
+      "mtp.attn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn_r"
+          },
+          "port": "b"
+        }
+      },
+      "mtp.moe_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn_r"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_moe_n"
+          },
+          "port": "input"
+        }
+      },
+      "mtp.moe_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_attn_r"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_moe_r"
+          },
+          "port": "a"
+        }
+      },
+      "mtp.moe.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_moe_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_moe"
+          },
+          "port": "input"
+        }
+      },
+      "mtp.moe_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_moe"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_moe_r"
+          },
+          "port": "b"
+        }
+      },
+      "mtp.final_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_moe_r"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_final_n"
+          },
+          "port": "input"
+        }
+      },
+      "mtp.head.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_head"
+          },
+          "port": "input"
+        }
       }
     },
     "parameters": {
@@ -4010,6 +4549,13 @@
             "occurrence": {
               "kind": "root",
               "occurrence": "embed"
+            },
+            "parameter": "weight"
+          },
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_embed"
             },
             "parameter": "weight"
           }
@@ -4040,6 +4586,13 @@
             "occurrence": {
               "kind": "root",
               "occurrence": "lm_head"
+            },
+            "parameter": "weight"
+          },
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_head"
             },
             "parameter": "weight"
           }
@@ -4090,10 +4643,501 @@
           }
         ],
         "dtype": "f32"
+      },
+      "mtp.embed_n.weight": {
+        "tensor": {
+          "name": "mtp.embed_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_embed_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.hidden_n.weight": {
+        "tensor": {
+          "name": "mtp.hidden_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_hidden_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.merge.weight": {
+        "tensor": {
+          "name": "mtp.merge.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_merge"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn_n.weight": {
+        "tensor": {
+          "name": "mtp.attn_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn.q_a": {
+        "tensor": {
+          "name": "mtp.attn.q_a"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "q_a"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.attn.kv": {
+        "tensor": {
+          "name": "mtp.attn.kv"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "kv"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.attn.q_a_norm": {
+        "tensor": {
+          "name": "mtp.attn.q_a_norm"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "q_a_norm"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn.q_b": {
+        "tensor": {
+          "name": "mtp.attn.q_b"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "q_b"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.attn.kv_norm": {
+        "tensor": {
+          "name": "mtp.attn.kv_norm"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "kv_norm"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn.o_a": {
+        "tensor": {
+          "name": "mtp.attn.o_a"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "o_a"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.attn.o_b": {
+        "tensor": {
+          "name": "mtp.attn.o_b"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "o_b"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.attn.sinks": {
+        "tensor": {
+          "name": "mtp.attn.sinks"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "sinks"
+          }
+        ],
+        "dtype": "f32"
+      },
+      "mtp.attn.compressor_ape": {
+        "tensor": {
+          "name": "mtp.attn.compressor_ape"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "compressor_ape"
+          }
+        ],
+        "dtype": "f32"
+      },
+      "mtp.attn.compressor_kv_gate": {
+        "tensor": {
+          "name": "mtp.attn.compressor_kv_gate"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "compressor_kv_gate"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn.compressor_norm": {
+        "tensor": {
+          "name": "mtp.attn.compressor_norm"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "compressor_norm"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn.index_q": {
+        "tensor": {
+          "name": "mtp.attn.index_q"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "index_q"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.attn.index_weights": {
+        "tensor": {
+          "name": "mtp.attn.index_weights"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "index_weights"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn.index_compressor_ape": {
+        "tensor": {
+          "name": "mtp.attn.index_compressor_ape"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "index_compressor_ape"
+          }
+        ],
+        "dtype": "f32"
+      },
+      "mtp.attn.index_compressor_kv_gate": {
+        "tensor": {
+          "name": "mtp.attn.index_compressor_kv_gate"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "index_compressor_kv_gate"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.attn.index_compressor_norm": {
+        "tensor": {
+          "name": "mtp.attn.index_compressor_norm"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "parameter": "index_compressor_norm"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.moe_n.weight": {
+        "tensor": {
+          "name": "mtp.moe_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.moe.router": {
+        "tensor": {
+          "name": "mtp.moe.router"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe"
+            },
+            "parameter": "router"
+          }
+        ],
+        "dtype": "bf16"
+      },
+      "mtp.moe.in": {
+        "tensor": {
+          "name": "mtp.moe.in"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe"
+            },
+            "parameter": "in"
+          }
+        ],
+        "dtype": "fp4"
+      },
+      "mtp.moe.out": {
+        "tensor": {
+          "name": "mtp.moe.out"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe"
+            },
+            "parameter": "out"
+          }
+        ],
+        "dtype": "fp4"
+      },
+      "mtp.moe.shared_in": {
+        "tensor": {
+          "name": "mtp.moe.shared_in"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe"
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.moe.shared_out": {
+        "tensor": {
+          "name": "mtp.moe.shared_out"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe"
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.moe.score_bias": {
+        "tensor": {
+          "name": "mtp.moe.score_bias"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe"
+            },
+            "parameter": "score_bias"
+          }
+        ],
+        "dtype": "f32"
+      },
+      "mtp.final_n.weight": {
+        "tensor": {
+          "name": "mtp.final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": "bf16"
       }
     },
     "constants": {},
-    "states": {}
+    "states": {
+      "mtp.attn.kv": {
+        "identity": {
+          "name": "mtp.attn.kv"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "state": "kv"
+          }
+        ]
+      },
+      "mtp.attn.sliding": {
+        "identity": {
+          "name": "mtp.attn.sliding"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "state": "sliding"
+          }
+        ]
+      },
+      "mtp.attn.compressor": {
+        "identity": {
+          "name": "mtp.attn.compressor"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "state": "compressor"
+          }
+        ]
+      },
+      "mtp.attn.index": {
+        "identity": {
+          "name": "mtp.attn.index"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "state": "index"
+          }
+        ]
+      },
+      "mtp.attn.index_compressor": {
+        "identity": {
+          "name": "mtp.attn.index_compressor"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_attn"
+            },
+            "state": "index_compressor"
+          }
+        ]
+      }
+    }
   },
   "interfaces": {
     "inputs": {
@@ -4109,6 +5153,19 @@
           "kind": "token",
           "source": "self"
         }
+      },
+      "next_tokens": {
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_embed"
+          },
+          "port": "tokens"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "self"
+        }
       }
     },
     "outputs": {
@@ -4117,6 +5174,20 @@
           "occurrence": {
             "kind": "root",
             "occurrence": "lm_head"
+          },
+          "port": "logits"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "tokens"
+        },
+        "generative": true
+      },
+      "next_plus_one": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "mtp_head"
           },
           "port": "logits"
         },

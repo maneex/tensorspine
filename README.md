@@ -174,8 +174,8 @@ tensorspine/
 ├── data/
 │   ├── catalog/                  vocabulary, one unit per file
 │   │   ├── catalog.json          `base` unit naming the catalog
-│   │   ├── axes/                 37 named axes
-│   │   ├── contracts/            36 versioned contracts
+│   │   ├── axes/                 35 named axes
+│   │   ├── contracts/            35 versioned contracts
 │   │   └── precision/            54 precision roles
 │   └── models/                   12 model documents
 ├── schemas/
@@ -235,7 +235,9 @@ Those fields are inert for validation and derivation (§10.2); their shape is fi
 ### Models
 
 `data/models/` contains twelve documents: text decoders (`llama3-8b`, `llama4-scout`,
-`shieldstral-3b`), MoE and multi-state models (`qwen3.5-397b`, `qwen3.8-27b`, `deepseek-v4-pro`),
+`shieldstral-3b`), MoE and multi-state models (`qwen3.5-397b`, `qwen3.8-27b`, `deepseek-v4-pro`
+— with its multi-token-prediction head as a second trunk: tied embedding and output head, one
+`mtp.merge`, one block, a second generative output),
 audio (`whisper-large-v3`, `voxtral-realtime`), retrieval (`colbert-v2`), shared KV
 (`gemma3n-kvshare`), a composite (`shieldstral-3b-composite`), and the
 `decoder-causal-yarn.json` template.
@@ -289,6 +291,7 @@ python3 tests/run_templates.py                          # template parity, defau
 python3 tests/run_states.py                             # derived instance keys, sharing, boundaries
 python3 tests/run_expressions.py                        # conditionals, guards, scoped-binding expansion
 python3 tests/run_signatures.py                         # every model still denotes its recorded graph
+python3 tests/run_costs.py                              # D5: operations per token from the inventory
 python3 tools/tensorspine --document catalog -o docs/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
 # Templates require external quantity assignments.

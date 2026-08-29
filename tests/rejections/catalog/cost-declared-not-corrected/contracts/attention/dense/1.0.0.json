@@ -1088,6 +1088,9 @@
             "indexed_by": {
               "self": true
             },
+            "span": {
+              "argument": "chunk.span"
+            },
             "description": "Ring of one chunk: `chunk.span` positions."
           },
           {
@@ -1253,24 +1256,12 @@
     ],
     "note": "Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants.",
     "logical_cost": {
-      "sequence_operations": {
+      "operations": {
         "expression": {
-          "op": "multiply",
-          "args": [
-            {
-              "literal": 4
-            },
-            {
-              "argument": "heads"
-            },
-            {
-              "argument": "head_dim"
-            }
-          ]
+          "literal": 1
         },
         "status": "exact",
-        "per": "position",
-        "description": "Scores and weighted values of every query head against one cached position."
+        "per": "token"
       }
     }
   }

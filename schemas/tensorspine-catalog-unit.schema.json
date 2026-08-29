@@ -1197,6 +1197,32 @@
           "required": [
             "payload_axis"
           ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "any_axis"
+          ],
+          "properties": {
+            "any_axis": {
+              "const": true
+            }
+          },
+          "description": "Elementwise: every axis may be partitioned, with no communication."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "none"
+          ],
+          "properties": {
+            "none": {
+              "const": true
+            }
+          },
+          "description": "No meaning-preserving partition exists — a stated fact, never an omission."
         }
       ]
     },
@@ -1237,7 +1263,8 @@
         "target",
         "semantics",
         "communication"
-      ]
+      ],
+      "description": "One axis along which partition preserves meaning, with the logical communication it implies (O7.1). A contract declares at least one entry: `none` when no cut preserves meaning."
     },
     "domain_transform": {
       "type": "object",
@@ -1287,6 +1314,7 @@
         "per": {
           "enum": [
             "token",
+            "position",
             "sequence",
             "invocation"
           ]
@@ -1311,16 +1339,14 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "operations": {
+        "state_operations": {
           "$ref": "#/$defs/cost_derivation"
         },
-        "bytes_read": {
-          "$ref": "#/$defs/cost_derivation"
-        },
-        "bytes_written": {
+        "sequence_operations": {
           "$ref": "#/$defs/cost_derivation"
         }
-      }
+      },
+      "description": "Corrections to the derived cost (§4.1, D5). Operations on parameters — two per weight element consumed per token, scaled by the activated fraction of a sparse unit — and parameter bytes are derived from the inventory and never declared. A contract declares only what that rule cannot see: `state_operations`, per token, on a fixed-size state; `sequence_operations`, per token and per cached position, on a growing or windowed state."
     },
     "external_doc": {
       "type": "object",
@@ -1421,6 +1447,7 @@
         },
         "partitions": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "$ref": "#/$defs/partition"
           }
@@ -1454,6 +1481,9 @@
         },
         "note": {
           "type": "string"
+        },
+        "sparsity": {
+          "$ref": "#/$defs/sparsity"
         }
       },
       "required": [
@@ -1641,6 +1671,68 @@
         "template"
       ],
       "description": "A template contract: its meaning is the family of graphs a template — a parameterized model document — denotes, one per assignment (§4.6)."
+    },
+    "sparsity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "policy",
+        "activated_per_token",
+        "union_per_batch"
+      ],
+      "properties": {
+        "unit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "parameters",
+            "axis"
+          ],
+          "properties": {
+            "parameters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+              }
+            },
+            "axis": {
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+            }
+          },
+          "description": "The activatable unit: the parameter slots that form one unit, and the axis along which units are laid out."
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "argument"
+          ],
+          "properties": {
+            "argument": {
+              "$ref": "#/$defs/argument_path"
+            }
+          },
+          "description": "The argument that selects units."
+        },
+        "activated_per_token": {
+          "$ref": "#/$defs/expression"
+        },
+        "union_per_batch": {
+          "$ref": "#/$defs/cost_derivation"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "description": "Structured sparsity (§4.5, O6.6): what is activated per token, and the bound on what a batch may touch."
     }
   }
 }

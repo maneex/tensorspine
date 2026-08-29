@@ -256,8 +256,9 @@ A complete primitive contract provides the consequences needed to interpret an o
 | **Parameters and constants** | Conditional logical slots, shapes, precision roles and sharing rules. |
 | **State ports** | Conditional presence, payload components, key axes and ordered derivation rules. |
 | **Effects** | The values read and written and any permitted aliasing. |
-| **Logical cost** | Logical operations and bytes read or written, never executed FLOPs. |
-| **Semantic partitions** | Axes along which partitioning preserves meaning and the resulting logical communication. |
+| **Logical cost** | Derived from the parameter inventory (two operations per weight element per token, the activated fraction of a sparse unit) plus the contract's declared corrections: `state_operations` per token, `sequence_operations` per token and cached position. Never executed FLOPs. |
+| **Semantic partitions** | Axes along which partitioning preserves meaning and the resulting logical communication; every contract states at least one, `any_axis` or `none`. |
+| **Sparsity** | For a primitive activating only some tensors per token: the activatable unit, the selecting argument, the count per token and the batch-union bound (§4.5). |
 | **Domain transforms** | Explicit relationships between different indexing domains. |
 
 Every primitive has a contract, including embeddings, feed-forward blocks, mixtures of experts,
@@ -360,7 +361,7 @@ The language defines six derived products:
 | **D2** | Values, shapes and value liveness at graph cuts | Specified, not yet emitted |
 | **D3** | Parameter tensors, roles, shapes and sharing | Specified; validation resolves slots and identities |
 | **D4** | Complete state descriptors, instances, derived keys, state liveness and operations | Specified; validation resolves slots and identities |
-| **D5** | Logical costs and cut traffic | Specified, not yet emitted |
+| **D5** | Logical costs and cut traffic | Validation derives parameter elements, operations per token and per cached position (`--validate` stats); cut traffic not yet |
 | **D6** | Legal cuts and semantic partition axes | Specified, not yet emitted |
 
 A valid document must reject unresolved references, missing required arguments, undeclared

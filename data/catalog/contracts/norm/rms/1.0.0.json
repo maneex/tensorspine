@@ -112,7 +112,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce",
+        "description": "The sum of squares over the feature axis is reduced."
+      }
+    ],
     "note": "RMSNorm. eps is not structural: it changes no slot, port or state."
   }
 }

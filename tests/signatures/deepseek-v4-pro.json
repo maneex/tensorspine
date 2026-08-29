@@ -1,22 +1,25 @@
 {
- "nodes": 370,
- "edges": 491,
+ "nodes": 382,
+ "edges": 505,
  "per_contract": {
-  "attention.latent_compressed": 61,
-  "embed": 1,
-  "lm_head": 1,
+  "attention.latent_compressed": 62,
+  "embed": 2,
+  "lm_head": 2,
   "mix.collapse": 1,
   "mix.doubly_stochastic": 122,
-  "moe": 61,
-  "norm.rms": 123
+  "moe": 62,
+  "mtp.merge": 1,
+  "norm.rms": 128,
+  "residual.add": 2
  },
- "wl": "d98e53d8409038fe",
- "parameter_slots": 1681,
- "tensors": 1681,
- "shared": 0,
- "state_slots": 243,
- "state_identities": 243,
+ "wl": "8373ef26cbef6ae0",
+ "parameter_slots": 1711,
+ "tensors": 1709,
+ "shared": 2,
+ "state_slots": 248,
+ "state_identities": 248,
  "instance_keys": {
+  "instance.session\u00d7instance.branch": 5,
   "layer\u00d7instance.session\u00d7instance.branch": 243
  }
 }

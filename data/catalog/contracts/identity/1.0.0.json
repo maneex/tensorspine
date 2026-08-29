@@ -77,7 +77,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Elementwise: any axis, no communication."
+      }
+    ],
     "note": "Fan-out point with no computation. A public input is a single endpoint; the input of a pre-norm trunk feeds two ports (the norm and the 'a' of the first residual)."
   }
 }

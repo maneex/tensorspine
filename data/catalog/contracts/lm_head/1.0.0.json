@@ -135,27 +135,6 @@
         "communication": "all_gather",
         "description": "Vocabulary parallelism: each shard computes a slice of the logits; the slices are gathered."
       }
-    ],
-    "logical_cost": {
-      "operations": {
-        "expression": {
-          "op": "multiply",
-          "args": [
-            {
-              "literal": 2
-            },
-            {
-              "argument": "width"
-            },
-            {
-              "argument": "vocabulary"
-            }
-          ]
-        },
-        "status": "exact",
-        "per": "token",
-        "description": "One `width × vocabulary` projection per token."
-      }
-    }
+    ]
   }
 }

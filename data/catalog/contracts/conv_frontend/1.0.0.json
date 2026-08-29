@@ -296,6 +296,15 @@
         "output"
       ]
     },
-    "partitions": []
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "semantics": "preserved",
+        "communication": "none",
+        "description": "Output channels are independent: each shard computes its channels."
+      }
+    ]
   }
 }

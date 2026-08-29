@@ -368,6 +368,28 @@ def contract_references(d, cat):
         for pth in _expression_paths(cost['expression']):
             if pth not in paths:
                 out.append(f"logical_cost.{cname}: reads undeclared argument '{pth}'")
+    if 'sparsity' in d:
+        sp = d['sparsity']
+        for pname in sp['unit']['parameters']:
+            param = d['parameters'].get(pname)
+            if param is None:
+                out.append(f"sparsity: unit parameter '{pname}' is not a slot of this contract")
+            elif sp['unit']['axis'] not in {a['axis'] for a in param['shape']['axes']}:
+                out.append(f"sparsity: unit axis '{sp['unit']['axis']}' is not an axis of slot '{pname}'")
+        if sp['unit']['axis'] not in cat['axes']:
+            out.append(f"sparsity: axis '{sp['unit']['axis']}' is not in the catalog")
+        if sp['policy']['argument'] not in paths:
+            out.append(f"sparsity: policy names undeclared argument '{sp['policy']['argument']}'")
+        for label, e in (('activated_per_token', sp['activated_per_token']),
+                         ('union_per_batch', sp['union_per_batch']['expression'])):
+            for pth in _expression_paths(e):
+                if pth not in paths:
+                    out.append(f"sparsity.{label}: reads undeclared argument '{pth}'")
+    for i, part in enumerate(d['partitions']):
+        if 'none' in part['target'] and part['communication'] != 'none':
+            out.append(f"partition {i}: a `none` target implies no communication")
+        if 'none' in part['target'] and len(d['partitions']) > 1:
+            out.append(f"partition {i}: `none` cannot stand beside other partitions")
     return out
 
 

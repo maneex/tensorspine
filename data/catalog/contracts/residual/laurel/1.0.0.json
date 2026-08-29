@@ -174,7 +174,16 @@
         "output"
       ]
     },
-    "partitions": [],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "residual.rank"
+        },
+        "semantics": "preserved",
+        "communication": "all_reduce",
+        "description": "The low-rank bottleneck is split; the up projection's partial outputs are reduced."
+      }
+    ],
     "note": "Low-rank LAuReL residual branch followed by an RMSNorm."
   }
 }
