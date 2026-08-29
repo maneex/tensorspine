@@ -260,11 +260,12 @@ External documentation:
 | `rope` | record of 5 field(s) | no |  | no | Rotary position encoding: base, layout, rotated fraction, multimodal sections and context-extension scaling. Changes the computation, not a tensor or a state. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.theta` | real | yes |  | no | Base of the rotary frequencies. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.layout` | enum: `"split"`, `"interleaved"`, `"2d"` | no | `"split"` | no | How the rotated pairs are laid out along `head_dim`. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`rope.partial` | real | no |  | no | Fraction of `head_dim` that is rotated; the rest is left as is. Absent, the whole head is rotated. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope` | record of 3 field(s) | no |  | no | Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.partial` | real | no |  | no | Fraction of `head_dim` that is rotated; the rest is left as is. The rotated channels are the first `partial * head_dim` of each head, and their base frequencies are computed on that width, not on `head_dim`. Absent, the whole head is rotated. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope` | record of 4 field(s) | no |  | no | Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index; `sections` says how the three are laid out on the frequency axis. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.t` | cardinality | yes |  | no | Channels of the temporal section. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.h` | cardinality | yes |  | no | Channels of the height section. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.w` | cardinality | yes |  | no | Channels of the width section. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.sections` | enum: `"contiguous"`, `"interleaved"` | yes |  | no | How the three sections sit on the rotated frequency axis: `contiguous` — all temporal frequencies, then height, then width (Qwen2-VL, Qwen2.5-VL); `interleaved` — temporal, height and width frequencies alternating (Qwen3-VL, Qwen 3.5, Qwen 3.8). Two published layouts, so no default: a document says which. For a single position stream they compute the same thing; an image tells them apart. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling` | record of 7 field(s) | no |  | no | Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.kind` | enum: `"yarn"`, `"llama3"`, `"linear"` | yes |  | no | Context-extension method applied to the rotary frequencies. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.factor` | real | yes |  | no | Ratio between the served context and `orig_ctx`. |
@@ -273,7 +274,7 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
-| `qk_norm` | enum: `"rms"`, `"layer"` | no |  | no | Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`. |
+| `qk_norm` | enum: `"rms"`, `"layer"` | no |  | no | Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`. Applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding. |
 | `temperature` | record of 2 field(s) | no |  | no | Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`temperature.floor` | cardinality | yes |  | no | Positions per temperature step: the scale grows once per `floor` positions. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`temperature.scale` | real | yes |  | no | Growth of the logit scale per step. |
@@ -293,9 +294,14 @@ Values of `mask`:
 
 Values of `rope.layout`:
 
-- `"split"` — Pair `i` with `i + head_dim/2` (the Llama layout).
-- `"interleaved"` — Pair `2i` with `2i+1` (the GPT-NeoX layout).
+- `"split"` — Pair channel `i` with `i + rotary/2` over the rotated channels — rotate-half — the Llama and GPT-NeoX layout.
+- `"interleaved"` — Pair channel `2i` with `2i+1` — the GPT-J layout.
 - `"2d"` — Two-dimensional rotation over patch rows and columns (vision).
+
+Values of `rope.mrope.sections`:
+
+- `"contiguous"` — Sections laid end to end: `t` temporal frequencies, then `h`, then `w`.
+- `"interleaved"` — Sections interleaved frequency by frequency: temporal, height, width, temporal, …
 
 Values of `rope.scaling.kind`:
 
@@ -2329,6 +2335,8 @@ A linear-attention substitute for a sequence operator. Each position produces qu
 
 The state has a fixed size: it does not grow with the sequence, cannot be addressed by position, and can be shared between sessions only at a fork point. For a runtime that is the whole difference from a KV cache: zero bytes per token, nothing to page.
 
+What the controls compute, as the reference implementation does: the update strength is `beta = sigmoid(b)` and the log decay `g = -exp(A_log) * softplus(a + dt_bias)`, per position and value head; inside the rule the queries and keys are L2-normalised over `head_dim` (epsilon 1e-6) and the query scaled by `head_dim^-1/2`; at each position the state is multiplied by `exp(g)`, then updated by `k (v - S^T k) beta`, and read as `S^T q`; when `value_heads` exceeds `key_heads`, each query and key head serves `value_heads / key_heads` value heads in order. The read-out is RMS-normalised per head, scaled by `norm` (not zero-centred) and gated by `out_gate` applied to `z`.
+
 > **Note (maintainers).** Gated-delta recurrent layer with a short causal convolution and a per-head matrix state.
 
 External documentation:
@@ -3241,7 +3249,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 34 | 34 | 100% |
-| argument | 184 | 184 | 100% |
+| argument | 185 | 185 | 100% |
 | port | 78 | 78 | 100% |
 | parameter | 116 | 116 | 100% |
 | state | 8 | 8 | 100% |
