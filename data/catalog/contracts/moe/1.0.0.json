@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Mixture of experts: a router sends each token to `top_k` of `experts` gated FFNs, plus optional shared experts.",
-    "description": "Each token is scored by `router` against `experts` experts and sent to the `top_k` best; an expert is a gated FFN (`in` fuses gate and up, `out` projects down). `shared` experts of inner width `shared_inner` are applied to every token, optionally weighted by a learned `shared_gate`. `score_bias` adds a learned per-expert bias to the routing scores before selection (load balancing without an auxiliary loss); `hash_vocabulary` replaces learned routing by a fixed token-to-experts table.\n\n`norm_topk`, `routing`, `scale`, `scoring` and `swiglu_limit` change how scores are computed and combined, not which tensors exist; each is a closed enum, boolean or real. The set of experts a batch activates is not the per-token count: `top_k` bounds a token, `experts` bounds a batch (§4.5).",
+    "description": "Each token is scored by `router` against `experts` experts and sent to the `top_k` best; an expert is a gated FFN (`in` fuses gate and up as the reference implementation stores routed experts, `out` projects down). `shared` experts of inner width `shared_inner` — `shared_gate`, `shared_up` and `shared_out`, stored separately as the reference does — are applied to every token, optionally weighted by a learned `shared_output_gate`. `score_bias` adds a learned per-expert bias to the routing scores before selection (load balancing without an auxiliary loss); `hash_vocabulary` replaces learned routing by a fixed token-to-experts table.\n\n`norm_topk`, `routing`, `scale`, `scoring` and `swiglu_limit` change how scores are computed and combined, not which tensors exist; each is a closed enum, boolean or real. The set of experts a batch activates is not the per-token count: `top_k` bounds a token, `experts` bounds a batch (§4.5).",
     "external_docs": [
       {
         "url": "https://arxiv.org/abs/1701.06538",
@@ -154,7 +154,7 @@
         "structural": false,
         "description": "Clamp applied to the gate and up activations inside each expert; absent, none."
       },
-      "shared_gate": {
+      "shared_output_gate": {
         "type": {
           "kind": "boolean"
         },
@@ -361,7 +361,48 @@
         },
         "description": "Down projection of every routed expert."
       },
-      "shared_in": {
+      "shared_gate": {
+        "role": "ffn.gate_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "present_when": {
+          "compare": {
+            "operator": "greater",
+            "left": {
+              "argument": "shared"
+            },
+            "right": {
+              "literal": 0
+            }
+          }
+        },
+        "multiplicity": {
+          "argument": "shared"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "shared_inner"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Gate projection of one shared expert, `shared` times."
+      },
+      "shared_up": {
         "role": "ffn.up_projection",
         "sharing": {
           "kind": "exclusive"
@@ -383,38 +424,12 @@
         "shape": {
           "axes": [
             {
-              "name": "gate_flat",
-              "axis": "ffn.gate_flat",
-              "nature": "projection",
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
               "extent": {
-                "op": "multiply",
-                "args": [
-                  {
-                    "literal": 2
-                  },
-                  {
-                    "argument": "shared_inner"
-                  }
-                ]
-              },
-              "factors": [
-                {
-                  "name": "projection",
-                  "axis": "ffn.projection",
-                  "nature": "projection",
-                  "extent": {
-                    "literal": 2
-                  }
-                },
-                {
-                  "name": "inner",
-                  "axis": "ffn.inner",
-                  "nature": "feature",
-                  "extent": {
-                    "argument": "shared_inner"
-                  }
-                }
-              ]
+                "argument": "shared_inner"
+              }
             },
             {
               "name": "feature",
@@ -426,7 +441,7 @@
             }
           ]
         },
-        "description": "Gate and up projections of one shared expert, `shared` times."
+        "description": "Up projection of one shared expert, `shared` times."
       },
       "shared_out": {
         "role": "ffn.down_projection",
@@ -469,7 +484,7 @@
         },
         "description": "Down projection of one shared expert, `shared` times."
       },
-      "shared_gate": {
+      "shared_output_gate": {
         "role": "moe.shared_gate",
         "sharing": {
           "kind": "exclusive"
@@ -490,14 +505,14 @@
           "compare": {
             "operator": "equal",
             "left": {
-              "argument": "shared_gate"
+              "argument": "shared_output_gate"
             },
             "right": {
               "literal": true
             }
           }
         },
-        "description": "Gate projection weighting the shared experts' output."
+        "description": "Gate projection weighting the shared experts' output, through a sigmoid."
       },
       "score_bias": {
         "role": "moe.score_bias",
