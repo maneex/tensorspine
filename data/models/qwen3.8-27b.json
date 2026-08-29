@@ -712,6 +712,9 @@
                 }
               }
             },
+            "qk_norm": {
+              "literal": "rms"
+            },
             "output_gate": {
               "literal": true
             },
