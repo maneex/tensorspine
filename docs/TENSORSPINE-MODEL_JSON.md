@@ -371,7 +371,7 @@ From the repository root, the current entry point is:
 python3 tools/tensorspine --validate
 python3 tools/tensorspine --lint
 python3 tools/tensorspine --d1 data/models/llama3-8b.json -o /tmp/llama3-8b.d1.json
-python3 tools/tensorspine --derive data/models/llama3-8b.json -o /tmp/
+python3 tools/tensorspine --derive data/models/llama3-8b.json -o /tmp/     # the derived document, see TENSORSPINE-DERIVED_JSON.md
 ```
 
 `--validate` checks the model schema and then performs semantic validation: catalog resolution,
