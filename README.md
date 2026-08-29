@@ -182,7 +182,7 @@ tensorspine/
 │   │   ├── axes/                 35 named axes
 │   │   ├── contracts/            34 versioned contracts
 │   │   └── precision/            54 precision roles
-│   └── models/                   11 model documents, one template (`decoder-causal-yarn/1.0.0.json`)
+│   └── models/                   12 model documents, one template (`decoder-causal-yarn/1.0.0.json`)
 ├── schemas/
 │   ├── tensorspine.schema.json      model grammar (JSON Schema 2020-12)
 │   ├── tensorspine-catalog-unit.schema.json
@@ -249,16 +249,19 @@ Those fields are inert for validation and derivation (§10.2); their shape is fi
 
 ### Models
 
-`data/models/` contains twelve documents: text decoders (`llama3-8b`, `llama4-scout`,
-`shieldstral-3b`), MoE and multi-state models (`qwen3.5-397b`, `qwen3.8-27b`, `deepseek-v4-pro`
+`data/models/` contains thirteen documents: text decoders (`llama3-8b`, `llama4-scout`,
+`shieldstral-3b`, `qwen3.5-4b-text` — the text trunk of Qwen 3.5 4B, tied embeddings, located),
+MoE and multi-state models (`qwen3.5-397b`, `qwen3.8-27b`, `deepseek-v4-pro`
 — with its multi-token-prediction head as a second trunk: tied embedding and output head, one
 `mtp.merge`, one block, a second generative output),
 audio (`whisper-large-v3`, `voxtral-realtime`), retrieval (`colbert-v2`), shared KV
 (`gemma3n-kvshare`), a composite (`shieldstral-3b-composite`), and the
 `decoder-causal-yarn/1.0.0.json` template — one immutable file per version, like a contract.
-`llama3-8b` also locates every one of its 291 tensors in the Hugging Face checkpoint it wraps
-(`location`, Specification §3.4): a runtime loads it from the document and the files, and
-`--validate --checkpoint DIR` checks the two against each other from the file headers alone.
+`llama3-8b`, `qwen3.5-4b-text`, `qwen3.8-27b` and `qwen3.5-397b` also locate every one of their
+tensors in the Hugging Face checkpoint they wrap (`location`, Specification §3.4): a runtime loads
+them from the document and the files, and `--validate --checkpoint DIR` checks the two against each
+other from the file headers alone — which is how the 4B's gated-delta norm scales were found to be
+stored in f32.
 
 The template has `external` quantities that must be assigned during validation; the other eleven
 documents validate as written. A template is a model document like any other and lives where the
