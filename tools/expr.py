@@ -143,8 +143,8 @@ def resolve_quantities(model, assignment=None):
         src = decl['source']
         if src['kind'] == 'literal':
             q[name] = src['value']
-        elif src['kind'] == 'external' and src['name'] in assignment:
-            q[name] = assignment[src['name']]
+        elif src['kind'] == 'external' and name in assignment:
+            q[name] = assignment[name]
         elif src['kind'] == 'external' and 'default' in src:
             pending.append((name, src['default']))
         elif src['kind'] == 'derived':
@@ -213,9 +213,10 @@ def static_argument(v, quantities, env=None):
 
 
 def external_names(model, with_defaults=True):
-    """External quantity names the document expects an assignment to supply;
-    `with_defaults=False` leaves out those a declared default can stand for."""
-    return {q['source']['name'] for q in model['quantities'].values()
+    """External quantity names the document expects an assignment to supply —
+    the quantity's own name; `with_defaults=False` leaves out those a declared
+    default can stand for."""
+    return {name for name, q in model['quantities'].items()
             if q['source']['kind'] == 'external'
             and (with_defaults or 'default' not in q['source'])}
 
