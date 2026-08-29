@@ -299,7 +299,8 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     try:
         model = model_mod.load(model_path)
     except model_mod.ModelError as e:
-        return dict(empty, errors=[f"[V12] {e}" if 'duplicate' in str(e) else f"[V1] {e}"])
+        code = 'V12' if ('duplicate' in str(e) or 'declared both' in str(e)) else 'V1'
+        return dict(empty, errors=[f"[{code}] {e}"])
     errors = []
     advisories = []
     stats = {}
