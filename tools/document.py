@@ -53,25 +53,25 @@ DOC_SCHEMA_ID = 'https://tensorspine.dev/schema/2.0/documentation.json'
 
 GRAMMAR = {
     'contract': {'version', 'arguments', 'ports', 'parameters', 'constants', 'state_ports',
-                 'effects', 'logical_cost', 'sparsity', 'partitions', 'constraints', 'note',
+                 'effects', 'logical_cost', 'sparsity', 'partitions', 'note',
                  'domain_transforms'},
     'template': {'version', 'template', 'note'},
     'argument': {'type', 'required', 'structural', 'default', 'present_when', 'note'},
-    'port': {'shape', 'domain', 'multiplicity', 'present_when', 'optional', 'note', 'role'},
+    'port': {'shape', 'domain', 'multiplicity', 'present_when', 'note', 'role'},
     'parameter': {'role', 'shape', 'present_when', 'multiplicity', 'note', 'views', 'sharing'},
     'constant': {'shape', 'present_when', 'note', 'role'},
-    'state': {'present_when', 'payload', 'rules', 'operations', 'key_axes', 'internal', 'note'},
+    'state': {'present_when', 'payload', 'rules', 'operations', 'key_axes', 'carried_across', 'note'},
+    'carrying': {'when', 'note'},
     'component': {'shape', 'multiplicity', 'note', 'present_when', 'role'},
-    'rule': {'when', 'law', 'access', 'sharing', 'indexed_by', 'span', 'stride',
-             'carried_across', 'frozen_after', 'note'},
-    'operation': {'effect', 'precondition', 'note'},
-    'alias': {'output', 'may_alias', 'note'},
-    'cost': {'expression', 'status', 'per', 'note'},
-    'partition': {'target', 'semantics', 'communication', 'when', 'note'},
+    'rule': {'when', 'law', 'access', 'sharing', 'indexed_by', 'span', 'stride', 'note'},
+    'operation': {'effect', 'note'},
+    'cost': {'when', 'expression', 'status', 'per', 'note'},
+    'sparsity': {'unit', 'policy', 'activated_per_element', 'union_per_invocation', 'note'},
+    'partition': {'target', 'communication', 'when', 'note'},
     'transform': {'from_port', 'to_port', 'relation', 'factor', 'note'},
     'axis': {'space', 'note'},
     'precision_role': {'admissible', 'default', 'sensitivity', 'note'},
-    'base': {'catalog', 'note'},
+    'base': {'catalog', 'templates', 'note'},
 }
 
 # Which fragment of the documentation schema governs the documentation of a
@@ -81,8 +81,8 @@ FRAGMENT = {
     'axis': 'unit_documentation', 'precision_role': 'unit_documentation',
     'base': 'base_documentation', 'argument': 'argument_documentation',
 }
-for _site in ('port', 'parameter', 'constant', 'state', 'component', 'rule', 'operation',
-              'alias', 'cost', 'partition', 'transform'):
+for _site in ('port', 'parameter', 'constant', 'state', 'carrying', 'component', 'rule',
+              'operation', 'cost', 'sparsity', 'partition', 'transform'):
     FRAGMENT[_site] = 'element_documentation'
 
 
@@ -736,7 +736,6 @@ class Renderer:
             out += self.sparsity(d, where, label)
             out += self.partitions(d, where, label)
             out += self.transforms(d, where, label)
-            out += self.constraints(d)
             self.check_conditions(d, where)
         return out
 
@@ -749,7 +748,7 @@ class Renderer:
         for s in states.values():
             for r in s['rules']:
                 laws.add(r['law'])
-        cost = ', '.join(f"`{k}`" for k in d.get('logical_cost', {})) or '—'
+        cost = f"{len(d.get('logical_cost', []))} correction(s)" if d.get('logical_cost') else '—'
         rows = [[f"{len(declared)} ({required} required, {structural} structural)",
                  str(len(d['ports']['inputs'])), str(len(d['ports']['outputs'])),
                  str(len(d.get('parameters', {}))), str(len(d.get('constants', {}))),
@@ -831,8 +830,6 @@ class Renderer:
                 for a in p['shape'].get('axes', []):
                     self.vocab.add('axis nature', a['nature'], label.split('@')[0])
                 flags = []
-                if p.get('optional'):
-                    flags.append('optional')
                 if 'present_when' in p:
                     flags.append(f"present when {cond(p['present_when'])}")
                 if 'multiplicity' in p:
@@ -902,8 +899,7 @@ class Renderer:
         who = label.split('@')[0]
         for sname, s in states.items():
             sdocs = self.docs.of('state', s, f"{where} state {sname}", f"{label}.{sname}")
-            out += [f"**State port `{sname}`**" + (' (internal)' if s.get('internal') else ''),
-                    '']
+            out += [f"**State port `{sname}`**", '']
             if 'description' in sdocs:
                 out += prose(sdocs['description'])
             out += note_block(s.get('note'))
@@ -911,6 +907,13 @@ class Renderer:
             if s.get('key_axes'):
                 facts.append('- Instance key axes: ' +
                              ', '.join(self.link_axis(a) for a in s['key_axes']))
+            if 'carried_across' in s:
+                ca = s['carried_across']
+                cadocs = self.docs.of('carrying', ca, f"{where} state {sname} carried_across",
+                                      f"{label}.{sname} carrying")
+                extra = describe(cadocs, ca)
+                facts.append(f"- Carried across fragments of its stream when: {cond(ca['when'])}"
+                             + (f" — {extra}" if extra else ''))
             out += facts + ['']
             rows = []
             for cname, c in s['payload'].items():
@@ -931,11 +934,9 @@ class Renderer:
                 odocs = self.docs.of('operation', o, f"{where} state {sname} operation {oname}",
                                      f"{label}.{sname}.{oname}")
                 self.vocab.add('state operation effect', o['effect'], who)
-                rows.append([code(oname), o['effect'],
-                             cond(o['precondition']) if 'precondition' in o else '—',
-                             describe(odocs, o)])
+                rows.append([code(oname), o['effect'], describe(odocs, o)])
             out += ['Permitted operations:', '']
-            out += table(['Operation', 'Effect', 'Precondition', 'Description'], rows)
+            out += table(['Operation', 'Effect', 'Description'], rows)
             rows = []
             for i, r in enumerate(s['rules'], 1):
                 rdocs = self.docs.of('rule', r, f"{where} state {sname} rule {i}",
@@ -943,26 +944,18 @@ class Renderer:
                 self.vocab.add('state law', r['law'], who)
                 self.vocab.add('state access', r['access'], who)
                 self.vocab.add('state sharing', r['sharing'], who)
-                if r.get('carried_across'):
-                    self.vocab.add('state carried across', r['carried_across'], who)
-                if r.get('frozen_after'):
-                    self.vocab.add('state frozen after', r['frozen_after'], who)
                 extent = []
                 if 'span' in r:
                     extent.append(f"span {expr(r['span'])}")
                 if 'stride' in r:
                     extent.append(f"stride {expr(r['stride'])}")
-                boundary = []
-                if r.get('carried_across'):
-                    boundary.append(f"carried across {r['carried_across']}")
-                if r.get('frozen_after'):
-                    boundary.append(f"frozen after {r['frozen_after'].replace('_', ' ')}")
                 rows.append([str(i), cond(r['when']), r['law'], r['access'], r['sharing'],
                              origin_str(r['indexed_by']), '; '.join(extent) or '—',
-                             '; '.join(boundary) or '—', describe(rdocs, r)])
-            out += ['Derivation rules, in order — the first whose condition holds applies:', '']
+                             describe(rdocs, r)])
+            out += ['Derivation rules, in order — the first whose condition holds applies; a '
+                    'state indexed by a port is frozen once that stream is complete (§5.3):', '']
             out += table(['#', 'When', 'Law', 'Access', 'Sharing', 'Indexed by', 'Extent',
-                          'Boundary', 'Description'], rows)
+                          'Description'], rows)
         return out
 
     def effects(self, d, where, label):
@@ -970,26 +963,25 @@ class Renderer:
         out = ['##### Effects', '']
         out.append('- Reads: ' + (', '.join(f"`{p}`" for p in e['reads']) or 'nothing'))
         out.append('- Writes: ' + (', '.join(f"`{p}`" for p in e['writes']) or 'nothing'))
-        for i, a in enumerate(e.get('aliases', []), 1):
-            adocs = self.docs.of('alias', a, f"{where} alias {i}", f"{label} alias {i}")
-            extra = describe(adocs, a)
-            out.append(f"- Output `{a['output']}` may alias `{a['may_alias']}`"
-                       + (f" — {extra}" if extra else ''))
         return out + ['']
 
     def cost(self, d, where, label):
         costs = d.get('logical_cost')
         if not costs:
             return []
-        out = ['##### Logical cost', '']
+        out = ['##### Logical cost', '',
+               'Corrections to the derived cost (§4.1): every entry whose condition holds '
+               'contributes, on top of two operations per weight element per element of the '
+               'output domain.', '']
         rows = []
-        for k, c in costs.items():
-            cdocs = self.docs.of('cost', c, f"{where} logical_cost {k}", f"{label} cost {k}")
+        for i, c in enumerate(costs, 1):
+            cdocs = self.docs.of('cost', c, f"{where} logical_cost {i}", f"{label} cost {i}")
             self.vocab.add('cost status', c['status'], label.split('@')[0])
             self.vocab.add('cost per', c['per'], label.split('@')[0])
-            rows.append([code(k), code(expr(c['expression'])), c['status'], c['per'],
+            rows.append([str(i), cond(c['when']) if 'when' in c else 'always',
+                         code(expr(c['expression'])), c['status'], c['per'].replace('_', ' '),
                          describe(cdocs, c)])
-        out += table(['Quantity', 'Expression', 'Status', 'Per', 'Description'], rows)
+        out += table(['#', 'When', 'Expression', 'Status', 'Per', 'Description'], rows)
         return out
 
     def partitions(self, d, where, label):
@@ -1023,28 +1015,39 @@ class Renderer:
                 target = "none: no cut preserves meaning"
                 kind = 'none'
             self.vocab.add('partition target', kind, who)
-            self.vocab.add('partition semantics', p['semantics'], who)
             self.vocab.add('partition communication', p['communication'], who)
-            rows.append([target, p['semantics'], p['communication'],
+            rows.append([target, p['communication'],
                          cond(p['when']) if 'when' in p else 'always', describe(pdocs, p)])
-        out += table(['Target', 'Semantics', 'Communication', 'When', 'Description'], rows)
+        out += table(['Target', 'Communication', 'When', 'Description'], rows)
         return out
 
     def sparsity(self, d, where, label):
         sp = d.get('sparsity')
         if not sp:
             return []
-        out = ['##### Structured sparsity', '']
-        unit = sp['unit']
-        rows = [["activatable unit", ', '.join(code(p) for p in unit['parameters'])
-                 + f" along {self.link_axis(unit['axis'])}"],
-                ["selecting argument", code(sp['policy']['argument'])],
-                ["activated per token", code(expr(sp['activated_per_token']))],
-                ["union per batch", f"{code(expr(sp['union_per_batch']['expression']))} "
-                                    f"({sp['union_per_batch']['status']}, per {sp['union_per_batch']['per']})"]]
-        out += table(['Fact', 'Declaration'], rows)
-        if sp.get('description'):
-            out += [sp['description'], '']
+        out = ['##### Structured sparsity', '',
+               'Activatable units (§4.5): a lookup table is the limiting case, one row per '
+               'element.', '']
+        rows = []
+        for i, u in enumerate(sp, 1):
+            udocs = self.docs.of('sparsity', u, f"{where} sparsity {i}", f"{label} sparsity {i}")
+            unit = u['unit']
+            policy = u['policy']
+            if 'argument' in policy:
+                selector = f"argument `{policy['argument']}`"
+            elif 'port' in policy:
+                selector = f"the value on port `{policy['port']}`"
+            else:
+                selector = "the element itself"
+            self.vocab.add('sparsity policy', next(iter(policy)), label.split('@')[0])
+            ub = u['union_per_invocation']
+            self.vocab.add('cost status', ub['status'], label.split('@')[0])
+            rows.append([str(i), ', '.join(code(p) for p in unit['parameters'])
+                         + f" along {self.link_axis(unit['axis'])}", selector,
+                         code(expr(u['activated_per_element'])),
+                         f"{code(expr(ub['expression']))} ({ub['status']})", describe(udocs, u)])
+        out += table(['#', 'Unit', 'Selected by', 'Activated per element',
+                      'Union per invocation', 'Description'], rows)
         return out
 
     def transforms(self, d, where, label):
@@ -1062,16 +1065,6 @@ class Renderer:
         out += table(['From port', 'To port', 'Relation', 'Factor', 'Description'], rows)
         return out
 
-    def constraints(self, d):
-        cs = d.get('constraints')
-        if not cs:
-            return []
-        out = ['##### Constraints', '', 'Every constraint must hold; an argument combination '
-               'that violates one is rejected (V8).', '']
-        for c in cs:
-            out.append(f"- {cond(c)}")
-        return out + ['']
-
     def check_conditions(self, d, where):
         """A condition or expression citing an argument the contract does not
         declare can never fire (present) or resolve (compare): worth knowing."""
@@ -1085,6 +1078,10 @@ class Renderer:
                 sites.append((f"{section} {sname}", s))
         for i, p in enumerate(d.get('partitions', []), 1):
             sites.append((f"partition {i}", p))
+        for i, c in enumerate(d.get('logical_cost', []), 1):
+            sites.append((f"logical_cost {i}", c))
+        for i, u in enumerate(d.get('sparsity', []), 1):
+            sites.append((f"sparsity {i}", u))
         for aname, a in d['arguments'].items():
             if 'default' in a:
                 sites.append((f"argument {aname} default", a['default']))
@@ -1104,8 +1101,9 @@ class Renderer:
             out.append(f"- *Note: {m['note']}*")
         found = find_template(self.cat, d)
         if found is None:
-            out.append(f"- Template `{m['name']}.json` not found in the models base.")
-            self.report.find(where, "template not found in the models base")
+            out.append(f"- Template `{m['name']}` {m['version']} not found where the base "
+                       f"declares its templates.")
+            self.report.find(where, "template not found at the declared location")
             return out + ['']
         path, model = found
         declared_id = model.get('model', '?')
@@ -1121,16 +1119,20 @@ class Renderer:
                 continue
             t = q['type']
             tdesc = t['kind'] + (': ' + ', '.join(f"`{json.dumps(v)}`" for v in t['values']) if t['kind'] == 'enum' else '')
-            rows.append([code(src['name']), tdesc, self.quantity_domain(q.get('domain')),
-                         code(expr(q['default'])) if 'default' in q else ''])
+            rows.append([code(qname), tdesc, self.quantity_domain(q.get('domain')),
+                         code(expr(src['default'])) if 'default' in src else ''])
         out += ['Arguments — the external quantities of the template (§4.6), supplied by an '
                 'assignment at the call site:', '']
         out += table(['Argument', 'Type', 'Domain', 'Default'], rows) if rows else ['none', '']
         rows = []
         for side in ('inputs', 'outputs'):
             for pname, p in model.get('interfaces', {}).get(side, {}).items():
-                dom = p.get('domain', {})
-                rows.append([side[:-1], code(pname), f"{dom.get('kind', '?')} ({dom.get('source', '?')})",
+                if side == 'inputs':
+                    dom = p['kind'] + (f", joins `{p['stream']}`" if 'stream' in p else '') \
+                        + (', fragmented' if p.get('fragmented') else '')
+                else:
+                    dom = 'derived from the port (§5.3)'
+                rows.append([side[:-1], code(pname), dom,
                              'yes' if p.get('generative') else ('no' if side == 'outputs' else '—')])
         out += ['Ports — the public interfaces of the template:', '']
         out += table(['Side', 'Port', 'Domain', 'Generative'], rows)
@@ -1211,7 +1213,7 @@ class Renderer:
         out = heading(2, 'Precision roles', 'precision-roles')
         out += ["A precision role bounds the storage types a slot, port or state component may "
                 "take. A model that selects a dtype outside the admissible set is refused "
-                "(V3p); a model that selects none gets the default.", '']
+                "(V14); a model that selects none gets the default.", '']
         rows = []
         details = []
         for u in self.roles:
@@ -1283,15 +1285,15 @@ class Renderer:
 # --- entry point --------------------------------------------------------------------------
 
 def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None,
-        models_base=catalog_mod.DEFAULT_MODELS):
+        models_base=None):
     """Render the catalog of the given bases to Markdown. Returns the exit status:
     0 written, 1 refused (malformed documentation, unreadable catalog), with the
-    causes on stderr. Templates are resolved against `models_base`."""
+    causes on stderr. Templates are resolved where each base declares them."""
     status = sys.stderr if output is None else sys.stdout
     try:
         cat = catalog_mod.load(*catalog_bases, models_base=models_base)
         manifests, units = load_units(catalog_bases)
-    except (ValueError, OSError, KeyError) as e:
+    except (ValueError, OSError, KeyError, catalog_mod.CatalogError) as e:
         print(f"  catalog not readable: {e}", file=sys.stderr)
         return 1
     report = Report()
