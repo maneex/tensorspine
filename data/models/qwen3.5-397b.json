@@ -752,6 +752,9 @@
                     },
                     "w": {
                       "literal": 10
+                    },
+                    "sections": {
+                      "literal": "interleaved"
                     }
                   }
                 }
