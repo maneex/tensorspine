@@ -74,7 +74,7 @@ def signature(model_path, cat=None):
     cat = cat or catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
     name = name_of(model_path)
     assignment = ASSIGNMENTS.get(name)
-    document = d1.emit(model_path, cat, assignment)
+    document = d1.emit(model_path, cat, assignment)['d1']
     result = validate.analyse(model_path, cat, assignment)
     if result['errors']:
         raise ValueError(f"{name}: not valid, no signature: {result['errors'][0]}")
