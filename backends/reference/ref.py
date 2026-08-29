@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """The reference backend's command line.
 
-    ref.py info MODEL [--capacity N] [--compute f32|bf16] [--device cpu|cuda]
-    ref.py run  MODEL --random --ids 1,2,3 [--steps N] [--dump F] [--truncate decoder.layer=3]
+    ref.py info    MODEL [--capacity N]                      bytes from D3/D4, free memory, refusals
+    ref.py verify  MODEL --checkpoint DIR                    V17 against the file headers; nothing is read
+    ref.py run     MODEL --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--compile]
+    ref.py run     MODEL --random [--seed N] …               parameters drawn from the D3 shapes
+    ref.py chat    MODEL --checkpoint DIR [--max-new-tokens N] [--temperature T --top-p P --seed N]
+    ref.py compare OURS THEIRS [--atol A --rtol R]           two dumps, at every cut and state
 
-MODEL is a model document (derived here) or a derived document.
+Common options: --device cpu|cuda[:i], --compute f32|bf16, --capacity N, --truncate decoder.layer=N,
+--set path=value. MODEL is a model document (derived here) or a derived document. In a chat, an
+empty line quits; the session persists across turns. See backends/reference/README.md.
 """
 import argparse
 import json
