@@ -295,3 +295,8 @@ python3 tools/armature --validate data/models/decoder-causal-yarn.json \
 - `--document catalog` renders every unit of the catalog bases — definitions and documentation
   fields — into one Markdown file. Malformed documentation is a refusal (exit 1); a unit without
   documentation is rendered from its definition alone.
+
+## 4. License
+
+Armature — the tooling, the specification and documentation, and the catalog and model data — is
+licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Perceval Anichini.
