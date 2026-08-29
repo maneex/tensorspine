@@ -6,8 +6,7 @@
     tensorspine --d1       [PATH ...]    emit D1, the expanded graph (§7).
     tensorspine --view     [PATH ...]    render a self-contained HTML page.
     tensorspine --document catalog [PATH ...]
-                                      render the catalog as one Markdown file;
-                                      PATHs say where templates live.
+                                      render the catalog as one Markdown file.
 
 With no PATH, every model of the default model directory is taken. Every
 location defaults to the layout of the repository and can be overridden.
@@ -74,9 +73,8 @@ def build_parser():
     command.add_argument('--document', metavar='WHAT', choices=['catalog'],
                          help='render WHAT as one Markdown document. `catalog`: every '
                               'contract, axis and precision role of the bases, with the '
-                              'documentation fields they carry. PATHs only say where the '
-                              'templates of template contracts are looked for. Writes to -o, '
-                              'or to stdout.')
+                              'documentation fields they carry; templates are resolved where '
+                              'each base declares them. Writes to -o, or to stdout.')
 
     parser.add_argument('paths', nargs='*', metavar='PATH',
                         help=f'model documents, or a directory of them '
@@ -91,9 +89,6 @@ def build_parser():
                              'declares in its `catalog` field (which are resolved relative to '
                              'the document). --lint and --document without it use the first '
                              f'document\'s bases, or {os.path.relpath(DEFAULT_CATALOG, ROOT)}/.')
-    parser.add_argument('--models', metavar='DIR', default=DEFAULT_MODELS,
-                        help=f'the models base: where the templates of template contracts are '
-                             f'resolved (default: {os.path.relpath(DEFAULT_MODELS, ROOT)}/)')
     parser.add_argument('--schemas', metavar='DIR', default=DEFAULT_SCHEMAS,
                         help=f'directory holding the JSON Schemas; they are indexed by '
                              f'their own $id (default: {os.path.relpath(DEFAULT_SCHEMAS, ROOT)}/)')
@@ -152,8 +147,7 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.validate:
         import validate
         print(f"validate  {len(documents)} document(s)")
-        failed, skipped = validate.run(documents, args.schemas, bases, assignment,
-                                       models_base=args.models)
+        failed, skipped = validate.run(documents, args.schemas, bases, assignment)
         print(f"  {len(documents) - failed - skipped}/{len(documents)} pass"
               + (f", {skipped} need an assignment" if skipped else "")
               + (f", {failed} fail" if failed else ""))
@@ -162,13 +156,12 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.lint:
         import lint
         print(f"lint  {len(documents)} document(s)")
-        return lint.run(documents, bases, relative_to=ROOT, models_base=args.models)
+        return lint.run(documents, bases, relative_to=ROOT)
 
     if args.d1:
         import d1
         print(f"d1  {len(documents)} document(s)")
-        failed, skipped = d1.run(documents, bases, args.output, assignment,
-                                 models_base=args.models)
+        failed, skipped = d1.run(documents, bases, args.output, assignment)
         return 1 if failed else 0
 
     if args.view:
@@ -183,7 +176,7 @@ def dispatch(args, documents, bases, assignment, parser):
         print(f"document  {args.document}",
               file=sys.stderr if args.output is None else sys.stdout)
         return document.run(documents, bases or [DEFAULT_CATALOG], args.schemas, args.output,
-                            relative_to=ROOT, models_base=args.models)
+                            relative_to=ROOT)
 
     parser.print_help()
     return 2
