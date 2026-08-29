@@ -50,6 +50,21 @@ def render(tokenizer, transcript, closed=False):
     return tokenizer.encode(text), 'plain'
 
 
+MARKERS = ("\nUser:", "\nAssistant:")
+
+
+def turn_marker(text):
+    """Where a plain transcript's next turn begins in generated text, if it does."""
+    hits = [text.find(m) for m in MARKERS if m in text]
+    return min(hits) if hits else None
+
+
+def held_back(text):
+    """Characters at the end of `text` that could be the start of a turn marker — not
+    printed yet, so that a marker is never shown."""
+    return max((k for m in MARKERS for k in range(1, len(m)) if text.endswith(m[:k])), default=0)
+
+
 def sample(logits, temperature, top_p, generator):
     if temperature <= 0:
         return int(logits.argmax())
@@ -97,7 +112,7 @@ def chat(model, graph, checkpoint, capacity, device, dtype, max_new_tokens=256, 
         t0 = time.time()
         logits = session.prefill(new)[graph.generative[0]][-1]
         generated = []
-        text_so_far = ''
+        text_so_far, shown = '', 0
         print("bot> ", end='', file=out, flush=True)
         for _ in range(max_new_tokens):
             nxt = sample(logits, temperature, top_p, generator)
@@ -105,9 +120,18 @@ def chat(model, graph, checkpoint, capacity, device, dtype, max_new_tokens=256, 
                 break
             generated.append(nxt)
             text = tokenizer.decode(generated, clean_up_tokenization_spaces=False)
-            print(text[len(text_so_far):], end='', file=out, flush=True)
+            cut = turn_marker(text) if mode == 'plain' else None
+            if cut is not None:                     # a base model started the next turn itself
+                text_so_far = text[:cut]
+                break
             text_so_far = text
+            safe = len(text) - held_back(text) if mode == 'plain' else len(text)
+            if safe > shown:
+                print(text[shown:safe], end='', file=out, flush=True)
+                shown = safe
             logits = session.decode(nxt)[graph.generative[0]][-1]
+        if len(text_so_far) > shown:
+            print(text_so_far[shown:], end='', file=out, flush=True)
         dt = time.time() - t0
         print(f"\n  ({len(generated)} tokens, {len(generated) / dt if dt else 0:.2f} tok/s; {session.consumed.get(stream, 0)} positions)", file=out)
         transcript.append({'role': 'assistant', 'content': text_so_far})
