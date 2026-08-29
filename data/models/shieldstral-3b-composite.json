@@ -114,7 +114,18 @@
       },
       "source": {
         "kind": "literal",
-        "value": 64
+        "value": 64,
+        "derivation": {
+          "op": "floor_divide",
+          "args": [
+            {
+              "quantity": "d_vis"
+            },
+            {
+              "quantity": "vit_heads"
+            }
+          ]
+        }
       }
     },
     "vit_ffn": {

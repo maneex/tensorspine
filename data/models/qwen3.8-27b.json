@@ -167,8 +167,37 @@
         "kind": "cardinality"
       },
       "source": {
-        "kind": "literal",
-        "value": 10240
+        "kind": "derived",
+        "expression": {
+          "op": "add",
+          "args": [
+            {
+              "op": "multiply",
+              "args": [
+                {
+                  "literal": 2
+                },
+                {
+                  "quantity": "gdn_k"
+                },
+                {
+                  "quantity": "gdn_hd"
+                }
+              ]
+            },
+            {
+              "op": "multiply",
+              "args": [
+                {
+                  "quantity": "gdn_v"
+                },
+                {
+                  "quantity": "gdn_hd"
+                }
+              ]
+            }
+          ]
+        }
       }
     },
     "attn_q": {
