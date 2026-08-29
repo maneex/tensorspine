@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""M0 — the reference backend on random weights, no checkpoint (reference-backend plan §0):
+"""M0 and M1 of the reference-backend plan (§0).
+
+M0 — random weights, no checkpoint:
 
   1. a tiny llama document (the corpus document with its quantities shrunk by the generic
      edit helper) derives, builds a module, and runs prefill and decode with every produced
@@ -7,6 +9,10 @@
   2. the dump holds exactly the values D2 lists at every layer cut, and every state;
   3. the masked (compiled-form) attention equals the sliced one;
   4. optionally, the decode step compiles (`--compile`).
+
+M1 — the Llama 3 8B checkpoint, when it is on disk (else `skip`): the 3-layer document loaded by
+location, every layer output, the KV states after prefill and the logits within tolerance of the
+committed `transformers` dump, and the same greedy tokens.
 
     python3 backends/reference/tests/run_reference.py [--compile]
 """
@@ -29,6 +35,10 @@ from kernels import attention_dense  # noqa: E402
 from module import TensorspineModel  # noqa: E402
 from plan import Plan            # noqa: E402
 from session import Session, greedy  # noqa: E402
+from compare import compare, read_dump  # noqa: E402
+
+CHECKPOINT = os.path.expanduser('~/work/perso/huggingface/Meta-Llama-3-8B')
+FIXTURE = os.path.join(REF, 'fixtures', 'llama3-8b.3layers.hf.safetensors')
 
 TINY = {'quantities.d.source.value': 64, 'quantities.ffn.source.value': 128, 'quantities.heads.source.value': 4,
         'quantities.kv_heads.source.value': 2, 'quantities.head_dim.source.value': 16,
@@ -63,8 +73,8 @@ def main(compile_step=False):
     ok &= check("decode: logits [1, vocab]", list(out['logits'].shape) == [1, 256])
     ok &= check("positions consumed per stream: 9", session.consumed == {'tokens': 9})
     ok &= check("append states hold 9 positions", all(s.length == 9 for s in session.states.values()))
-    expected = {f"{c['cut']}/{p['value']}" for c in g.layer_cuts() for p in c['payload']}
-    ok &= check("dump keys = the D2 payload of every layer cut", set(dump) == expected, f"{sorted(set(dump) ^ expected)[:4]}")
+    expected = {f"value/{p['value']}" for c in g.cuts for p in c['payload']}
+    ok &= check("dump keys = the D2 payload of every cut", set(dump) == expected, f"{sorted(set(dump) ^ expected)[:4]}")
     ok &= check("finite outputs", bool(torch.isfinite(out['logits']).all()))
     # masked == sliced
     torch.manual_seed(0)
@@ -89,8 +99,48 @@ def main(compile_step=False):
             model.static = False
     else:
         print("  skip compile (pass --compile)")
+    ok &= m1(check)
     print("reference: all good" if ok else "reference: FAILED")
     return 0 if ok else 1
+
+
+def m1(check):
+    if not (os.path.isdir(CHECKPOINT) and os.path.exists(FIXTURE)):
+        print("  skip M1 (checkpoint or fixture not on disk)")
+        return True
+    theirs, header = read_dump(FIXTURE)
+    ids = header['ids']
+    tmp = tempfile.mkdtemp(prefix='tensorspine-ref-m1-')
+    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'),
+                                  f"decoder.layer={header['layers']}", tmp)
+    g = graph_mod.load(path)
+    errors, _, stats = loader.verify(g, CHECKPOINT)
+    ok = check(f"M1: the {header['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
+    kernels = registry.load_kernels()
+    params = loader.load_parameters(g, CHECKPOINT, 'cpu')
+    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+    ours = {}
+    out = session.prefill(ids, ours)
+    for ident, st in session.states.items():
+        bufs, length = st.read()
+        for c, buf in bufs.items():
+            ours[f"state/{ident}/{c}"] = buf[:length].detach().to('cpu', torch.float32)
+    logits = out[g.generative[0]]
+    ours['logits/last'] = logits[-1].detach().to('cpu', torch.float32)
+    ours['logits/argmax'] = logits.argmax(-1).detach().cpu()
+    nxt = greedy(out, g)
+    tokens = [nxt]
+    for _ in range(len(header['tokens']) - 1):
+        out = session.decode(nxt)
+        nxt = greedy(out, g)
+        tokens.append(nxt)
+    rows, failures, _ = compare(ours, theirs, atol=1e-3, rtol=1e-2)
+    worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
+    ok &= check(f"M1: {len(rows)} values, states and logits within tolerance of transformers (max |d| {worst:.1e})",
+                failures == 0, [r for r in rows if 'EXCEEDS' in r[3] or r[1] is None][:2])
+    ok &= check(f"M1: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
+    return ok
 
 
 if __name__ == '__main__':

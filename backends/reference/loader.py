@@ -1,9 +1,13 @@
 """verify / refuse / info / load (R05, R06). M0: random parameters from D3 shapes
 and the feasibility report; loading by location follows the location plan."""
 import os
+import sys
 import torch
 
-from graph import DTYPES
+from graph import DTYPES, ROOT
+
+sys.path.insert(0, os.path.join(ROOT, 'tools'))
+import artifact                 # noqa: E402  the language's own header reader and V17 check
 
 WIDTH = {'bf16': 2, 'f16': 2, 'f32': 4, 'f8e4m3': 1, 'fp4': 0.5}
 
@@ -65,3 +69,64 @@ def info(graph, capacity, compute_dtype, device):
 
 def gib(n):
     return f"{n / 2**30:.2f} GiB"
+
+
+def verify(graph, checkpoint):
+    """V17 against the checkpoint headers, through the language's own check."""
+    headers = artifact.read_headers(checkpoint)
+    return artifact.check(graph.doc['d3'], headers)
+
+
+def load_parameters(graph, checkpoint, device):
+    """One tensor per D3 identity, assembled from its evaluated location: read, stack,
+    concatenate, slice, unit axes dropped; shard by shard, straight to the device (R05)."""
+    from safetensors import safe_open
+    headers = artifact.read_headers(checkpoint)
+    root = checkpoint if os.path.isdir(checkpoint) else os.path.dirname(checkpoint)
+    handles = {}
+
+    def get(name):
+        h = headers[name]
+        f = handles.get(h['file'])
+        if f is None:
+            path = os.path.join(root, h['file']) if os.path.isdir(checkpoint) else checkpoint
+            f = handles[h['file']] = safe_open(path, framework='pt', device=str(device))
+        return f.get_tensor(name)
+
+    def fetch(ev, logical):
+        if 'tensor' in ev:
+            t = get(ev['tensor'])
+            return t.reshape(logical) if list(t.shape) != logical else t
+        if 'stack' in ev:
+            dim = ev['stack']['dim']
+            inner = logical[:dim] + logical[dim + 1:]
+            return torch.stack([fetch(p, inner) for p in ev['stack']['parts']], dim=dim)
+        if 'concat' in ev:
+            dim = ev['concat']['dim']
+            parts = []
+            for p in ev['concat']['parts']:
+                names, _ = artifact._names(p)
+                extent = artifact.squeeze(headers[names[0]]['shape'])[[i for i, d in enumerate(logical) if d != 1].index(dim)]
+                own = list(logical)
+                own[dim] = extent
+                parts.append(fetch(p, own))
+            return torch.cat(parts, dim=dim)
+        if 'slice' in ev:
+            s = ev['slice']
+            t = get(s['tensor'])
+            squeezed = artifact.squeeze(list(t.shape))
+            t = t.reshape(squeezed)
+            pos = [i for i, d in enumerate(logical) if d != 1].index(s['dim'])
+            return t.narrow(pos, s['offset'], s['extent']).reshape(logical)
+        raise ValueError(f"unknown location form {list(ev)}")
+
+    out = {}
+    for ident, t in graph.tensors.items():
+        ev = t.get('location')
+        if ev is None:
+            raise ValueError(f"{ident}: no location — the document does not locate its weights")
+        logical = [a['extent'] for a in t['shape']]
+        out[ident] = fetch(ev, logical).to(getattr(torch, DTYPES[t['dtype']]))
+    for f in handles.values():
+        del f
+    return out

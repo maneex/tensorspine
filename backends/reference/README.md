@@ -6,17 +6,25 @@ against the official implementation at every layer boundary, and a small chat. N
 system. The plan is [`docs/reference-backend-plan.md`](../../docs/reference-backend-plan.md); the
 weight locations it loads by are [`docs/location-plan.md`](../../docs/location-plan.md).
 
-**Status: M0.** Random weights, no checkpoint: the derived document builds a module, prefill and
-decode run with every value checked against D2, the values at every layer cut are dumped. Six
+**Status: M1 on the 3-layer fixture.** `llama3-8b` loads from the Hugging Face checkpoint by the
+locations its document declares (291 tensors, verified against the file headers first), runs, and
+agrees with `transformers` on the same truncated model: layer outputs within 2e-7, KV states
+within 3e-6, logits within 8e-6 (fp32 against fp32), argmax and greedy tokens identical. Six
 kernels (`embed`, `norm.rms`, `attention.dense` causal/GQA/RoPE, `residual.add`, `ffn.gated`,
 `lm_head`), one state law exercised (`append`; `window` and `fixed` implemented, unexercised).
+The full 32-layer run needs ~18 GB free; the chat and the compile-by-default are next.
 
 ```sh
-python3 backends/reference/ref.py info data/models/llama3-8b.json --capacity 4096
-python3 backends/reference/ref.py run  data/models/llama3-8b.json --random --truncate decoder.layer=3 \
-        --ids 1,2,3,4 --steps 2 --dump /tmp/llama.3layers.safetensors
-python3 backends/reference/ref.py run  data/models/llama3-8b.json --random --set quantities.d.source.value=64 …
-python3 backends/reference/tests/run_reference.py [--compile]
+CK=~/work/perso/huggingface/Meta-Llama-3-8B
+python3 backends/reference/ref.py info    data/models/llama3-8b.json --capacity 4096
+python3 backends/reference/ref.py verify  data/models/llama3-8b.json --checkpoint $CK
+python3 backends/reference/ref.py run     data/models/llama3-8b.json --checkpoint $CK --ids 128000,791,6864,315,9822,374 --steps 7
+python3 backends/reference/ref.py run     data/models/llama3-8b.json --checkpoint $CK --truncate decoder.layer=3 \
+        --ids 128000,791,6864,315,9822,374 --steps 3 --dump /tmp/ours.safetensors
+python3 backends/reference/fixtures/dump_hf.py --model $CK --layers 3 --ids 128000,791,6864,315,9822,374 --steps 3 --out /tmp/theirs.safetensors
+python3 backends/reference/ref.py compare /tmp/ours.safetensors /tmp/theirs.safetensors
+python3 backends/reference/ref.py run     data/models/llama3-8b.json --random --set quantities.d.source.value=64 …
+python3 backends/reference/tests/run_reference.py [--compile]     # M0 on random weights; M1 when the checkpoint is on disk
 ```
 
 What it reads: the derived document only (D1 graph and arguments, D2 shapes, D3 tensors, D4

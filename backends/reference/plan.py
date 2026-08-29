@@ -36,7 +36,7 @@ class Plan:
             self.steps.append(Step(node, kernels[key], entry, graph))
         self.blocks = [(0, len(self.steps))]
         self.dump_values = {}
-        for c in graph.layer_cuts():
+        for c in graph.cuts:                       # layer cuts, and the family cuts that close the last layer
             for p in c['payload']:
                 self.dump_values.setdefault(p['value'], []).append(c['cut'])
         self.remaining = {v: len(c) for v, c in graph.consumers.items()}

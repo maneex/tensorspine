@@ -63,8 +63,7 @@ def step(model, inputs, positions, states, dump=None):
                     raise ShapeError(f"{vname}: D2 says {expect} per element for {n} elements, got {list(t.shape)}")
             values[vname] = t
             if dump is not None and vname in plan.dump_values:
-                for cut in plan.dump_values[vname]:
-                    dump[f"{cut}/{vname}"] = t.detach().to('cpu', torch.float32)
+                dump[f"value/{vname}"] = t.detach().to('cpu', torch.float32)
         for port, (kind, ref) in s.inputs.items():
             if kind == 'value':
                 remaining[ref] -= 1
