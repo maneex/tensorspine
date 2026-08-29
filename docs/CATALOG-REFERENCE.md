@@ -14,7 +14,7 @@ External documentation:
 
 - [Tensorspine Language Specification](SPECIFICATION.md) *(specification)* — Normative authority on contract contents (§4) and identity (§8.2).
 
-Bases consulted, in order: `data/catalog`. 35 contracts, 35 axes, 54 precision roles.
+Bases consulted, in order: `data/catalog`. 34 contracts, 35 axes, 54 precision roles.
 
 ## Contents
 
@@ -32,7 +32,7 @@ Bases consulted, in order: `data/catalog`. 35 contracts, 35 axes, 54 precision r
   - [projector.*](#namespace-projector): [projector.patch_merge_bottleneck@1.0.0](#contract-projector.patch_merge_bottleneck-1.0.0), [projector.patch_merge_mlp@1.0.0](#contract-projector.patch_merge_mlp-1.0.0), [projector.temporal_stack@1.0.0](#contract-projector.temporal_stack-1.0.0)
   - [residual.*](#namespace-residual): [residual.add@1.0.0](#contract-residual.add-1.0.0), [residual.altup_correct@1.0.0](#contract-residual.altup_correct-1.0.0), [residual.altup_predict@1.0.0](#contract-residual.altup_predict-1.0.0), [residual.combine@1.0.0](#contract-residual.combine-1.0.0), [residual.laurel@1.0.0](#contract-residual.laurel-1.0.0), [residual.stream_collapse@1.0.0](#contract-residual.stream_collapse-1.0.0), [residual.stream_expand@1.0.0](#contract-residual.stream_expand-1.0.0), [residual.stream_inject@1.0.0](#contract-residual.stream_inject-1.0.0)
   - [sequence.*](#namespace-sequence): [sequence.gated_delta@1.0.0](#contract-sequence.gated_delta-1.0.0)
-  - [unqualified](#namespace-unqualified): [conv_frontend@1.0.0](#contract-conv_frontend-1.0.0), [embed@1.0.0](#contract-embed-1.0.0), [identity@1.0.0](#contract-identity-1.0.0), [lm_head@1.0.0](#contract-lm_head-1.0.0), [moe@1.0.0](#contract-moe-1.0.0), [patch_embed@1.0.0](#contract-patch_embed-1.0.0), [pooler@1.0.0](#contract-pooler-1.0.0), [splice@1.0.0](#contract-splice-1.0.0)
+  - [unqualified](#namespace-unqualified): [conv_frontend@1.0.0](#contract-conv_frontend-1.0.0), [embed@1.0.0](#contract-embed-1.0.0), [lm_head@1.0.0](#contract-lm_head-1.0.0), [moe@1.0.0](#contract-moe-1.0.0), [patch_embed@1.0.0](#contract-patch_embed-1.0.0), [pooler@1.0.0](#contract-pooler-1.0.0), [splice@1.0.0](#contract-splice-1.0.0)
 - [Axes](#axes)
 - [Precision roles](#precision-roles)
 - [Tags](#tags)
@@ -72,7 +72,6 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [embedding.token_position_type@1.0.0](#contract-embedding.token_position_type-1.0.0) | BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm. | 4 args · 1→1 ports · 5 params |
 | [ffn.dense@1.0.0](#contract-ffn.dense-1.0.0) | Dense feed-forward network: an up projection, a non-linearity, then a down projection. | 8 args · 1→1 ports · 6 params |
 | [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0) | Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection. | 8 args · 1→1 ports · 6 params |
-| [identity@1.0.0](#contract-identity-1.0.0) | Fan-out point: passes its input to its output unchanged. | 1 args · 1→1 ports · 0 params |
 | [lm_head@1.0.0](#contract-lm_head-1.0.0) | Output head: projects the hidden state to one logit per vocabulary entry. | 2 args · 1→1 ports · 1 params |
 | [mix.collapse@1.0.0](#contract-mix.collapse-1.0.0) | Hyper-connections head: reduces the `multiplicity` residual streams to one before the final norm. | 2 args · 1→1 ports · 3 params |
 | [mix.doubly_stochastic@1.0.0](#contract-mix.doubly_stochastic-1.0.0) | Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition. | 4 args · 2→1 ports · 3 params |
@@ -82,9 +81,9 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [norm.rms@1.0.0](#contract-norm.rms-1.0.0) | Root-mean-square normalization with a learned scale. | 2 args · 1→1 ports · 1 params |
 | [patch_embed@1.0.0](#contract-patch_embed-1.0.0) | Patch embedding: projects each image or video patch to `width`. | 6 args · 1→1 ports · 3 params |
 | [pooler@1.0.0](#contract-pooler-1.0.0) | Pooling head: projects hidden states to `project_to` features, optionally normalized and reduced. | 4 args · 1→1 ports · 1 params |
-| [projector.patch_merge_bottleneck@1.0.0](#contract-projector.patch_merge_bottleneck-1.0.0) | Vision-language projector: normalizes, merges patches by a mixing matrix, then a two-projection bottleneck. | 4 args · 1→1 ports · 4 params |
-| [projector.patch_merge_mlp@1.0.0](#contract-projector.patch_merge_mlp-1.0.0) | Vision-language projector: merges `merge_count` patches, normalizes, then a two-layer MLP with biases. | 4 args · 1→1 ports · 6 params |
-| [projector.temporal_stack@1.0.0](#contract-projector.temporal_stack-1.0.0) | Audio-language projector: stacks `merge_count` consecutive frames, then two bias-free projections. | 4 args · 1→1 ports · 2 params |
+| [projector.patch_merge_bottleneck@1.0.0](#contract-projector.patch_merge_bottleneck-1.0.0) | Vision-language projector: normalizes, merges patches by a mixing matrix, then a two-projection bottleneck. | 3 args · 1→1 ports · 4 params |
+| [projector.patch_merge_mlp@1.0.0](#contract-projector.patch_merge_mlp-1.0.0) | Vision-language projector: merges `merge_count` patches, normalizes, then a two-layer MLP with biases. | 3 args · 1→1 ports · 6 params |
+| [projector.temporal_stack@1.0.0](#contract-projector.temporal_stack-1.0.0) | Audio-language projector: stacks `merge_count` consecutive frames, then two bias-free projections. | 3 args · 1→1 ports · 2 params |
 | [residual.add@1.0.0](#contract-residual.add-1.0.0) | Residual addition: `a + b`. | 1 args · 2→1 ports · 0 params |
 | [residual.altup_correct@1.0.0](#contract-residual.altup_correct-1.0.0) | AltUp correction: updates every stream from the computed active stream and rescales it. | 2 args · 2→2 ports · 2 params |
 | [residual.altup_predict@1.0.0](#contract-residual.altup_predict-1.0.0) | AltUp prediction: mixes the `streams` residual streams and selects the active one. | 2 args · 1→2 ports · 3 params |
@@ -219,11 +218,11 @@ Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_
 
 Three arguments change what the primitive *is* rather than how it computes:
 
-- `source` makes it **cross-attention**: keys and values come from the `source_values` port, in the indexing domain the argument names, and the cache is frozen once that source is complete;
+- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;
 - `window` bounds the span a query may attend to, and turns the cache into a ring of that span;
 - `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.
 
-`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.
+`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.
 
 > **Note (maintainers).** Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants.
 
@@ -237,7 +236,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 18 (5 required, 15 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | `sequence_operations` |
+| 18 (5 required, 15 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | 1 correction(s) |
 
 ##### Arguments
 
@@ -252,8 +251,8 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;`window.span` | physical (tokens) | yes |  | yes | Window span, in tokens. |
 | `chunk` | record of 1 field(s) | yes |  | yes | Chunked attention: the positions a query may attend to are its own chunk of `chunk.span` tokens. Required with `mask: chunked`, forbidden otherwise; the cache is a ring of one chunk.<br>*Applicable when mask = "chunked".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;`chunk.span` | physical (tokens) | yes |  | yes | Chunk span, in tokens: a query attends within its own chunk of `span` positions. |
-| `source` | port_reference | no |  | yes | Cross-attention: the port whose indexing domain supplies keys and values. Their values arrive on `source_values`; absent, keys and values come from `input`.<br>*Note: port K and V come from; absent = self-attention* |
-| `streaming` | boolean | no |  | yes | The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`. |
+| `cross` | boolean | no | `false` | yes | Cross-attention: keys and values come from the value on `source_values`, in the stream that edge carries; the cache grows along that stream and is frozen once it is complete. False, keys and values come from `input`.<br>*Note: keys and values come from another stream; false = self-attention* |
+| `streaming` | boolean | no | `false` | yes | The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`. |
 | `rope` | record of 5 field(s) | no |  | no | Rotary position encoding: base, layout, rotated fraction, multimodal sections and context-extension scaling. Changes the computation, not a tensor or a state. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.theta` | real | yes |  | no | Base of the rotary frequencies. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.layout` | enum: `"split"`, `"interleaved"`, `"2d"` | no | `"split"` | no | How the rotated pairs are laid out along `head_dim`. |
@@ -311,7 +310,7 @@ Inputs:
 | Port | Shape | Axes | Domain | Role | Presence | Description |
 |---|---|---|---|---|---|---|
 | `input` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | Residual-stream activation: one vector of `width` per element of the indexing domain. |
-| `source_values` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (argument `source`) | [activation.hidden](#role-activation.hidden) | optional; present when source present | Values of the cross-attention source, in the domain named by `source`.<br>*Note: cross-attention: K/V come from ANOTHER trunk. The `source` argument names the domain; this port carries the value.* |
+| `source_values` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | present when cross = true | Values of the cross-attention source, in the stream of the edge that feeds this port.<br>*Note: cross-attention: K/V come from ANOTHER stream, the one the edge into this port carries (an `align` transform).* |
 
 Outputs:
 
@@ -339,8 +338,9 @@ Outputs:
 
 Keys and values of every position the current query may still attend to: two components of one shape. Which law applies is decided by the first matching rule below.
 
-- Present when: not (mask = "none") or streaming = true or source present
+- Present when: not (mask = "none") or streaming = true or cross = true
 - Instance key axes: [instance.session](#axis-instance.session), [instance.branch](#axis-instance.branch)
+- Carried across fragments of its stream when: streaming = true — With `streaming`, the cache survives between the invocations that deliver successive fragments of the input's stream, whatever the mask.
 
 Payload, per indexed position:
 
@@ -351,20 +351,20 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `append` | append | — | Write the keys and values of a new position at the end. |
-| `read` | read | — | Read every cached position for a query. |
+| Operation | Effect | Description |
+|---|---|---|
+| `append` | append | Write the keys and values of a new position at the end. |
+| `read` | read | Read every cached position for a query. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | mask = "none" and streaming = true and source absent and window absent | append | logical_position | by_position | self | — | carried across fragment | Bidirectional streaming encoder: fragments accumulate, and the cache is carried across fragments. |
-| 2 | source present | append | logical_position | by_source | argument source | — | frozen after source complete | Cross-attention: indexed by the source, frozen once the source is complete. |
-| 3 | mask = "chunked" and source absent | window | ring | within_span | self | span chunk.span | — | Ring of one chunk: `chunk.span` positions. |
-| 4 | window present and source absent | window | ring | within_span | self | span window.span | — | Sliding window: a ring of `window.span` positions. |
-| 5 | source absent and window absent and not (mask = "none" and streaming = true) and not (mask = "chunked") | append | logical_position | by_position | self | — | — | Plain causal decoding: append per position. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | mask = "none" and streaming = true and cross = false and window absent | append | logical_position | by_position | self | — | Bidirectional streaming encoder: fragments accumulate; the port-level carrying condition keeps the cache across fragments. |
+| 2 | cross = true | append | logical_position | by_source | port source_values | — | Cross-attention: indexed by the stream of `source_values`, frozen once that stream is complete. |
+| 3 | mask = "chunked" and cross = false | window | ring | within_span | self | span chunk.span | Ring of one chunk: `chunk.span` positions. |
+| 4 | window present and cross = false | window | ring | within_span | self | span window.span | Sliding window: a ring of `window.span` positions. |
+| 5 | cross = false and window absent and not (mask = "none" and streaming = true) and not (mask = "chunked") | append | logical_position | by_position | self | — | Plain causal decoding: append per position. |
 
 ##### Effects
 
@@ -373,24 +373,26 @@ Derivation rules, in order — the first whose condition holds applies:
 
 ##### Logical cost
 
-| Quantity | Expression | Status | Per | Description |
-|---|---|---|---|---|
-| `sequence_operations` | `4*heads*head_dim` | exact | position | Scores and weighted values of every query head against one cached position. |
+Corrections to the derived cost (§4.1): every entry whose condition holds contributes, on top of two operations per weight element per element of the output domain.
+
+| # | When | Expression | Status | Per | Description |
+|---|---|---|---|---|---|
+| 1 | always | `4*heads*head_dim` | exact | cached position | Scores and weighted values of every query head against one cached position. |
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [attention.heads](#axis-attention.heads) (argument) | preserved | all_reduce | always | Tensor parallelism across query heads; the output projection needs an all-reduce. |
-| axis [attention.kv_heads](#axis-attention.kv_heads) (argument) | preserved | all_reduce | kv_heads > 1 | Partition across KV heads, only when there is more than one. |
-| instance key axis [instance.session](#axis-instance.session) | preserved | none | always | Instance-key axis: sessions are independent.<br>*Note: instance-key axis, always legal* |
-| state `kv` · component `k` · axis [attention.kv_heads](#axis-attention.kv_heads) (payload) | preserved | none | always | The cache itself partitions by KV head, with no communication.<br>*Note: KV payload partition by head: target tagged payload, not argument* |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [attention.heads](#axis-attention.heads) (argument) | all_reduce | always | Tensor parallelism across query heads; the output projection needs an all-reduce. |
+| axis [attention.kv_heads](#axis-attention.kv_heads) (argument) | all_reduce | kv_heads > 1 | Partition across KV heads, only when there is more than one. |
+| instance key axis [instance.session](#axis-instance.session) | none | always | Instance-key axis: sessions are independent.<br>*Note: instance-key axis, always legal* |
+| state `kv` · component `k` · axis [attention.kv_heads](#axis-attention.kv_heads) (payload) | none | always | The cache itself partitions by KV head, with no communication.<br>*Note: KV payload partition by head: target tagged payload, not argument* |
 
 ##### Domain transforms
 
 | From port | To port | Relation | Factor | Description |
 |---|---|---|---|---|
-| `source_values` | `output` | align | — | Cross-attention aligns the source domain onto the query domain.<br>*Note: cross-attention: K/V come from another indexing domain (§5.3). The output stays in the query domain; attention aligns the source onto it.* |
+| `source_values` | `output` | align | — | Cross-attention aligns the source domain onto the query domain.<br>*Note: cross-attention: K/V come from another stream (§5.3). The output stays in the query domain; attention aligns the source onto it.* |
 
 <a id="contract-attention.latent_compressed-1.0.0" name="contract-attention.latent_compressed-1.0.0"></a>
 
@@ -416,7 +418,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 11 (9 required, 10 structural) | 1 | 1 | 16 | 0 | `kv`, `sliding`, `compressor`, `index`, `index_compressor` (append, window) | 4 | `sequence_operations` |
+| 11 (9 required, 10 structural) | 1 | 1 | 16 | 0 | `kv`, `sliding`, `compressor`, `index`, `index_compressor` (append, window) | 4 | 3 correction(s) |
 
 ##### Arguments
 
@@ -516,17 +518,18 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `append` | append | — | Add an entry at the end. |
-| `read` | read | — | Read the cached entries for a query. |
-| `evict` | evict | — | Drop entries no longer needed. |
+| Operation | Effect | Description |
+|---|---|---|
+| `append` | append | Add an entry at the end. |
+| `read` | read | Read the cached entries for a query. |
+| `evict` | evict | Drop entries no longer needed. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | always | append | logical_position | by_position | self | stride compress.ratio | — | Grows by one latent every `compress.ratio` positions. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | index present | append | selected | by_position | self | stride compress.ratio | With the sparse index: latents are appended per compressed position and read at the positions the index selects for each query. |
+| 2 | index absent | append | logical_position | by_position | self | stride compress.ratio | Grows by one latent every `compress.ratio` positions. |
 
 **State port `sliding`**
 
@@ -543,17 +546,17 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `append` | append | — | Add an entry at the end. |
-| `read` | read | — | Read the cached entries for a query. |
-| `evict` | evict | — | Drop entries no longer needed. |
+| Operation | Effect | Description |
+|---|---|---|
+| `append` | append | Add an entry at the end. |
+| `read` | read | Read the cached entries for a query. |
+| `evict` | evict | Drop entries no longer needed. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | always | window | ring | within_span | self | span window.span | — | Ring of `window.span` positions. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | always | window | ring | within_span | self | span window.span | Ring of `window.span` positions. |
 
 **State port `compressor`**
 
@@ -570,17 +573,17 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `append` | append | — | Add an entry at the end. |
-| `read` | read | — | Read the cached entries for a query. |
-| `evict` | evict | — | Drop entries no longer needed. |
+| Operation | Effect | Description |
+|---|---|---|
+| `append` | append | Add an entry at the end. |
+| `read` | read | Read the cached entries for a query. |
+| `evict` | evict | Drop entries no longer needed. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | always | window | ring | within_span | self | span compress.overlap*compress.ratio | — | Ring over the open group: `compress.overlap * compress.ratio` positions. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | always | window | ring | within_span | self | span compress.overlap*compress.ratio | Ring over the open group: `compress.overlap * compress.ratio` positions. |
 
 **State port `index`**
 
@@ -597,17 +600,17 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `append` | append | — | Add an entry at the end. |
-| `read` | read | — | Read the cached entries for a query. |
-| `evict` | evict | — | Drop entries no longer needed. |
+| Operation | Effect | Description |
+|---|---|---|
+| `append` | append | Add an entry at the end. |
+| `read` | read | Read the cached entries for a query. |
+| `evict` | evict | Drop entries no longer needed. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | always | append | logical_position | by_position | self | stride compress.ratio | — | Grows at the compression stride. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | always | append | logical_position | by_position | self | stride compress.ratio | Grows at the compression stride. |
 
 **State port `index_compressor`**
 
@@ -624,17 +627,17 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `append` | append | — | Add an entry at the end. |
-| `read` | read | — | Read the cached entries for a query. |
-| `evict` | evict | — | Drop entries no longer needed. |
+| Operation | Effect | Description |
+|---|---|---|
+| `append` | append | Add an entry at the end. |
+| `read` | read | Read the cached entries for a query. |
+| `evict` | evict | Drop entries no longer needed. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | always | window | ring | within_span | self | span index.overlap*compress.ratio | — | Ring over the open index group. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | always | window | ring | within_span | self | span index.overlap*compress.ratio | Ring over the open index group. |
 
 ##### Effects
 
@@ -643,18 +646,22 @@ Derivation rules, in order — the first whose condition holds applies:
 
 ##### Logical cost
 
-| Quantity | Expression | Status | Per | Description |
-|---|---|---|---|---|
-| `sequence_operations` | `4*heads*head_dim` | exact | position | Scores and weighted values of every query head against one cached latent. |
+Corrections to the derived cost (§4.1): every entry whose condition holds contributes, on top of two operations per weight element per element of the output domain.
+
+| # | When | Expression | Status | Per | Description |
+|---|---|---|---|---|---|
+| 1 | index present | `4*heads*head_dim*index.topk` | exact | element | With the sparse index: scores and weighted values of every query head against the `index.topk` latents the index selects, per query. |
+| 2 | index present | `2*index.heads*index.head_dim` | exact | cached position | With the sparse index: the index scores every cached key once per query. |
+| 3 | index absent | `4*heads*head_dim` | exact | cached position | Without an index: scores and weighted values of every query head against one cached latent. |
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [attention.heads](#axis-attention.heads) (argument) | preserved | all_reduce | always | Tensor parallelism across heads; the output needs an all-reduce. |
-| axis [attention.o_groups](#axis-attention.o_groups) (argument) | preserved | all_gather | always | Partition across output groups; the group outputs are gathered. |
-| instance key axis [instance.session](#axis-instance.session) | preserved | none | always | Instance-key axis: sessions are independent. |
-| state `kv` · component `latent` · axis [attention.head_dim](#axis-attention.head_dim) (payload) | preserved | none | always | The latent cache partitions along `head_dim`, with no communication. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [attention.heads](#axis-attention.heads) (argument) | all_reduce | always | Tensor parallelism across heads; the output needs an all-reduce. |
+| axis [attention.o_groups](#axis-attention.o_groups) (argument) | all_gather | always | Partition across output groups; the group outputs are gathered. |
+| instance key axis [instance.session](#axis-instance.session) | none | always | Instance-key axis: sessions are independent. |
+| state `kv` · component `latent` · axis [attention.head_dim](#axis-attention.head_dim) (payload) | none | always | The latent cache partitions along `head_dim`, with no communication. |
 
 <a id="namespace-conditioning" name="namespace-conditioning"></a>
 
@@ -713,9 +720,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| none: no cut preserves meaning | preserved | none | always | Selects one slice; no cut preserves meaning below the slice. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| none: no cut preserves meaning | none | always | Selects one slice; no cut preserves meaning below the slice. |
 
 <a id="contract-conditioning.multiplicative-1.0.0" name="contract-conditioning.multiplicative-1.0.0"></a>
 
@@ -775,9 +782,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| any axis (elementwise) | preserved | none | always | Elementwise per feature: any axis, no communication. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| any axis (elementwise) | none | always | Elementwise per feature: any axis, no communication. |
 
 <a id="namespace-decoder" name="namespace-decoder"></a>
 
@@ -803,7 +810,7 @@ External documentation:
 
 - Template `decoder-causal-yarn`, model id `decoder_causal_yarn`, template version `1.0.0`
 - *Note: template: data/models/decoder-causal-yarn.json, resolved against the models base*
-- Resolved to `data/models/decoder-causal-yarn.json`
+- Resolved to `data/models/decoder-causal-yarn/1.0.0.json`
 
 Arguments — the external quantities of the template (§4.6), supplied by an assignment at the call site:
 
@@ -822,14 +829,13 @@ Ports — the public interfaces of the template:
 
 | Side | Port | Domain | Generative |
 |---|---|---|---|
-| input | `hidden` | token (self) | — |
-| output | `hidden_out` | token (self) | no |
+| input | `hidden` | token | — |
+| output | `hidden_out` | derived from the port (§5.3) | no |
 
 Contracts the template cites, transitively — the capabilities a consumer needs (§8.1), never the composite itself:
 
 - [attention.dense@1.0.0](#contract-attention.dense-1.0.0)
 - [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0)
-- [identity@1.0.0](#contract-identity-1.0.0)
 - [norm.rms@1.0.0](#contract-norm.rms-1.0.0)
 - [residual.add@1.0.0](#contract-residual.add-1.0.0)
 
@@ -898,11 +904,20 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `tokens`
 - Writes: `output`, `auxiliary`
 
+##### Structured sparsity
+
+Activatable units (§4.5): a lookup table is the limiting case, one row per element.
+
+| # | Unit | Selected by | Activated per element | Union per invocation | Description |
+|---|---|---|---|---|---|
+| 1 | `weight` along [model.vocabulary](#axis-model.vocabulary) | the value on port `tokens` | `1` | `vocabulary` (upper_bound) | A lookup: each token activates one row of the table, selected by the token id on `tokens`. |
+| 2 | `per_layer_embed` along [model.vocabulary](#axis-model.vocabulary) | the value on port `tokens` | `1` | `per_layer_vocabulary` (upper_bound) | A lookup: each token activates one row of the per-layer table, selected by the token id on `tokens`. |
+
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.vocabulary](#axis-model.vocabulary) (argument) | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
 
 <a id="contract-embedding.token_position-1.0.0" name="contract-embedding.token_position-1.0.0"></a>
 
@@ -962,11 +977,20 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `tokens`
 - Writes: `output`
 
+##### Structured sparsity
+
+Activatable units (§4.5): a lookup table is the limiting case, one row per element.
+
+| # | Unit | Selected by | Activated per element | Union per invocation | Description |
+|---|---|---|---|---|---|
+| 1 | `weight` along [model.vocabulary](#axis-model.vocabulary) | the value on port `tokens` | `1` | `vocabulary` (upper_bound) | A lookup: each token activates one row of the table, selected by the token id on `tokens`. |
+| 2 | `position` along [sequence.position](#axis-sequence.position) | the element itself | `1` | `positions` (upper_bound) | A lookup: each token activates the row of its own position. |
+
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.vocabulary](#axis-model.vocabulary) (argument) | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
 
 <a id="contract-embedding.token_position_type-1.0.0" name="contract-embedding.token_position_type-1.0.0"></a>
 
@@ -1030,11 +1054,21 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `tokens`
 - Writes: `output`
 
+##### Structured sparsity
+
+Activatable units (§4.5): a lookup table is the limiting case, one row per element.
+
+| # | Unit | Selected by | Activated per element | Union per invocation | Description |
+|---|---|---|---|---|---|
+| 1 | `weight` along [model.vocabulary](#axis-model.vocabulary) | the value on port `tokens` | `1` | `vocabulary` (upper_bound) | A lookup: each token activates one row of the table, selected by the token id on `tokens`. |
+| 2 | `position` along [sequence.position](#axis-sequence.position) | the element itself | `1` | `positions` (upper_bound) | A lookup: each token activates the row of its own position. |
+| 3 | `token_type` along [token.type](#axis-token.type) | the element itself | `1` | `token_types` (upper_bound) | A lookup: each token activates the row of its own type. |
+
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.vocabulary](#axis-model.vocabulary) (argument) | all_gather | always | Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered. |
 
 <a id="namespace-ffn" name="namespace-ffn"></a>
 
@@ -1120,9 +1154,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism across the inner width; the down projection needs an all-reduce. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [ffn.inner](#axis-ffn.inner) (argument) | all_reduce | always | Tensor parallelism across the inner width; the down projection needs an all-reduce. |
 
 <a id="contract-ffn.gated-1.0.0" name="contract-ffn.gated-1.0.0"></a>
 
@@ -1204,9 +1238,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism across the inner width; the down projection needs an all-reduce. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [ffn.inner](#axis-ffn.inner) (argument) | all_reduce | always | Tensor parallelism across the inner width; the down projection needs an all-reduce. |
 
 <a id="namespace-mix" name="namespace-mix"></a>
 
@@ -1274,9 +1308,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are mixed per feature; features are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Streams are mixed per feature; features are independent. |
 
 <a id="contract-mix.doubly_stochastic-1.0.0" name="contract-mix.doubly_stochastic-1.0.0"></a>
 
@@ -1343,9 +1377,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are mixed per feature; features are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Streams are mixed per feature; features are independent. |
 
 <a id="namespace-mtp" name="namespace-mtp"></a>
 
@@ -1407,9 +1441,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | all_gather | always | Column-parallel over the output features; the shards are gathered for the block that follows. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | all_gather | always | Column-parallel over the output features; the shards are gathered for the block that follows. |
 
 <a id="namespace-norm" name="namespace-norm"></a>
 
@@ -1474,9 +1508,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | all_reduce | always | Mean and variance over the feature axis: partial sums are reduced. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | all_reduce | always | Mean and variance over the feature axis: partial sums are reduced. |
 
 <a id="contract-norm.rms-1.0.0" name="contract-norm.rms-1.0.0"></a>
 
@@ -1536,9 +1570,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | all_reduce | always | The sum of squares over the feature axis is reduced. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | all_reduce | always | The sum of squares over the feature axis is reduced. |
 
 <a id="namespace-projector" name="namespace-projector"></a>
 
@@ -1560,7 +1594,7 @@ Patches are normalized (`norm`), `merge_count` of them combined by the learned `
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 4 | 0 | none | 1 | — |
+| 3 (3 required, 3 structural) | 1 | 1 | 4 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1569,7 +1603,6 @@ Patches are normalized (`norm`), `merge_count` of them combined by the learned `
 | `width` | cardinality | yes |  | yes | Feature width of the language model. |
 | `source_width` | cardinality | yes |  | yes | Feature width of the vision tower. |
 | `merge_count` | cardinality | yes |  | yes | Patches merged into one token. |
-| `source` | port_reference | yes |  | yes | The port whose patch domain the merge consumes. |
 
 ##### Ports
 
@@ -1605,9 +1638,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | all_reduce | always | Row-parallel over the merged input: partial outputs are reduced. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | all_reduce | always | Row-parallel over the merged input: partial outputs are reduced. |
 
 ##### Domain transforms
 
@@ -1635,7 +1668,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 6 | 0 | none | 1 | — |
+| 3 (3 required, 3 structural) | 1 | 1 | 6 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1644,7 +1677,6 @@ External documentation:
 | `width` | cardinality | yes |  | yes | Feature width of the language model. |
 | `source_width` | cardinality | yes |  | yes | Feature width of the vision tower. |
 | `merge_count` | cardinality | yes |  | yes | Patches merged into one token. |
-| `source` | port_reference | yes |  | yes | The port whose patch domain the merge consumes. |
 
 ##### Ports
 
@@ -1682,9 +1714,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Column-parallel up, row-parallel down over the inner axis; the down projection's partial outputs are reduced. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [ffn.inner](#axis-ffn.inner) (argument) | all_reduce | always | Column-parallel up, row-parallel down over the inner axis; the down projection's partial outputs are reduced. |
 
 ##### Domain transforms
 
@@ -1712,7 +1744,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 2 | 0 | none | 1 | — |
+| 3 (3 required, 3 structural) | 1 | 1 | 2 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1721,7 +1753,6 @@ External documentation:
 | `width` | cardinality | yes |  | yes | Feature width of the language model. |
 | `source_width` | cardinality | yes |  | yes | Feature width of the audio encoder. |
 | `merge_count` | cardinality | yes |  | yes | Frames stacked into one token. |
-| `source` | port_reference | yes |  | yes | The port whose position domain the stacking consumes. |
 
 ##### Ports
 
@@ -1755,9 +1786,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | all_gather | always | Column-parallel over the output features. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | all_gather | always | Column-parallel over the output features. |
 
 ##### Domain transforms
 
@@ -1779,7 +1810,7 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 An occurrence with two input ports, not an annotation on a step: the value graph says which output feeds `a` and which feeds `b`, and the values live at a cut follow from it.
 
-> **Note (maintainers).** Residual addition. §10.6: this is not a step annotation, it is an occurrence with two input ports.
+> **Note (maintainers).** Residual addition. §3.5: this is not a step annotation, it is an occurrence with two input ports.
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
@@ -1821,9 +1852,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| any axis (elementwise) | none | always | Elementwise: any axis, no communication. |
 
 <a id="contract-residual.altup_correct-1.0.0" name="contract-residual.altup_correct-1.0.0"></a>
 
@@ -1888,9 +1919,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are corrected per feature; features are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Streams are corrected per feature; features are independent. |
 
 <a id="contract-residual.altup_predict-1.0.0" name="contract-residual.altup_predict-1.0.0"></a>
 
@@ -1955,9 +1986,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Streams are predicted per feature; features are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Streams are predicted per feature; features are independent. |
 
 <a id="contract-residual.combine-1.0.0" name="contract-residual.combine-1.0.0"></a>
 
@@ -2014,9 +2045,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| any axis (elementwise) | none | always | Elementwise: any axis, no communication. |
 
 <a id="contract-residual.laurel-1.0.0" name="contract-residual.laurel-1.0.0"></a>
 
@@ -2079,9 +2110,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [residual.rank](#axis-residual.rank) (argument) | preserved | all_reduce | always | The low-rank bottleneck is split; the up projection's partial outputs are reduced. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [residual.rank](#axis-residual.rank) (argument) | all_reduce | always | The low-rank bottleneck is split; the up projection's partial outputs are reduced. |
 
 <a id="contract-residual.stream_collapse-1.0.0" name="contract-residual.stream_collapse-1.0.0"></a>
 
@@ -2143,9 +2174,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Per feature; features are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Per feature; features are independent. |
 
 <a id="contract-residual.stream_expand-1.0.0" name="contract-residual.stream_expand-1.0.0"></a>
 
@@ -2207,9 +2238,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Per feature; features are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Per feature; features are independent. |
 
 <a id="contract-residual.stream_inject-1.0.0" name="contract-residual.stream_inject-1.0.0"></a>
 
@@ -2266,9 +2297,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| any axis (elementwise) | none | always | Elementwise: any axis, no communication. |
 
 <a id="namespace-sequence" name="namespace-sequence"></a>
 
@@ -2296,7 +2327,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 6 (4 required, 6 structural) | 1 | 1 | 9 | 0 | `recurrent`, `conv` (fixed, window) | 2 | `state_operations` |
+| 6 (4 required, 6 structural) | 1 | 1 | 9 | 0 | `recurrent`, `conv` (fixed, window) | 2 | 1 correction(s) |
 
 ##### Arguments
 
@@ -2364,16 +2395,16 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `read` | read | — | Read the state to produce the output. |
-| `write` | write | — | Overwrite the state after the update. |
+| Operation | Effect | Description |
+|---|---|---|
+| `read` | read | Read the state to produce the output. |
+| `write` | write | Overwrite the state after the update. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | always | fixed | aggregate | at_fork_point | self | — | — | Fixed size, read as a whole; shareable only at a fork point. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | always | fixed | aggregate | at_fork_point | self | — | Fixed size, read as a whole; shareable only at a fork point. |
 
 **State port `conv`**
 
@@ -2390,16 +2421,16 @@ Payload, per indexed position:
 
 Permitted operations:
 
-| Operation | Effect | Precondition | Description |
-|---|---|---|---|
-| `append` | append | — | Push the current input. |
-| `read` | read | — | Read the history for the convolution. |
+| Operation | Effect | Description |
+|---|---|---|
+| `append` | append | Push the current input. |
+| `read` | read | Read the history for the convolution. |
 
-Derivation rules, in order — the first whose condition holds applies:
+Derivation rules, in order — the first whose condition holds applies; a state indexed by a port is frozen once that stream is complete (§5.3):
 
-| # | When | Law | Access | Sharing | Indexed by | Extent | Boundary | Description |
-|---|---|---|---|---|---|---|---|---|
-| 1 | always | window | ring | within_span | self | span conv.history | — | Ring of `conv.history` positions. |
+| # | When | Law | Access | Sharing | Indexed by | Extent | Description |
+|---|---|---|---|---|---|---|---|
+| 1 | always | window | ring | within_span | self | span conv.history | Ring of `conv.history` positions. |
 
 ##### Effects
 
@@ -2408,16 +2439,18 @@ Derivation rules, in order — the first whose condition holds applies:
 
 ##### Logical cost
 
-| Quantity | Expression | Status | Per | Description |
-|---|---|---|---|---|
-| `state_operations` | `2*value_heads*head_dim*head_dim` | exact | token | State update and read-out: two `head_dim × head_dim` products per value head and token. |
+Corrections to the derived cost (§4.1): every entry whose condition holds contributes, on top of two operations per weight element per element of the output domain.
+
+| # | When | Expression | Status | Per | Description |
+|---|---|---|---|---|---|
+| 1 | always | `2*value_heads*head_dim*head_dim` | exact | element | State update and read-out: two `head_dim × head_dim` products per value head and token. |
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [deltanet.value_heads](#axis-deltanet.value_heads) (argument) | preserved | all_reduce | always | Partition across value heads; the output projection needs an all-reduce. |
-| instance key axis [instance.session](#axis-instance.session) | preserved | none | always | Instance-key axis: sessions are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [deltanet.value_heads](#axis-deltanet.value_heads) (argument) | all_reduce | always | Partition across value heads; the output projection needs an all-reduce. |
+| instance key axis [instance.session](#axis-instance.session) | none | always | Instance-key axis: sessions are independent. |
 
 <a id="namespace-unqualified" name="namespace-unqualified"></a>
 
@@ -2487,11 +2520,25 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `frames`
 - Writes: `output`
 
+##### Structured sparsity
+
+Activatable units (§4.5): a lookup table is the limiting case, one row per element.
+
+| # | Unit | Selected by | Activated per element | Union per invocation | Description |
+|---|---|---|---|---|---|
+| 1 | `position` along [sequence.position](#axis-sequence.position) | the element itself | `1` | `position` (upper_bound) | A lookup: each frame activates the row of its own position. |
+
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Output channels are independent: each shard computes its channels. |
+
+##### Domain transforms
+
+| From port | To port | Relation | Factor | Description |
 |---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Output channels are independent: each shard computes its channels. |
+| `frames` | `output` | merge | `stride` | The second convolution is strided: one output position per `stride` input frames, in the same stream. |
 
 <a id="contract-embed-1.0.0" name="contract-embed-1.0.0"></a>
 
@@ -2547,66 +2594,19 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `tokens`
 - Writes: `output`
 
-##### Semantic partitions
+##### Structured sparsity
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard holds a slice of the table; the looked-up rows are gathered. |
+Activatable units (§4.5): a lookup table is the limiting case, one row per element.
 
-<a id="contract-identity-1.0.0" name="contract-identity-1.0.0"></a>
-
-#### `identity@1.0.0`
-
-*data/catalog/contracts/identity/1.0.0.json*
-
-**Fan-out point: passes its input to its output unchanged.**
-
-A public input is a single endpoint and a value edge has one destination; when a value must feed several ports — the first norm and the residual `a` of a pre-norm trunk — it goes through an identity occurrence whose output is bound to each of them. No parameter, no computation.
-
-> **Note (maintainers).** Fan-out point with no computation. A public input is a single endpoint; the input of a pre-norm trunk feeds two ports (the norm and the 'a' of the first residual).
-
-| Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
-|---|---|---|---|---|---|---|---|
-| 1 (1 required, 1 structural) | 1 | 1 | 0 | 0 | none | 1 | — |
-
-##### Arguments
-
-| Argument | Type | Required | Default | Structural | Description |
+| # | Unit | Selected by | Activated per element | Union per invocation | Description |
 |---|---|---|---|---|---|
-| `width` | cardinality | yes |  | yes | Feature width passed through. |
-
-##### Ports
-
-Inputs:
-
-| Port | Shape | Axes | Domain | Role | Presence | Description |
-|---|---|---|---|---|---|---|
-| `input` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | The value to fan out. |
-
-Outputs:
-
-| Port | Shape | Axes | Domain | Role | Presence | Description |
-|---|---|---|---|---|---|---|
-| `output` | `[feature: width]` | [model.width](#axis-model.width) (feature) | inherit (self) | [activation.hidden](#role-activation.hidden) | always | The same value. |
-
-##### Parameters
-
-This primitive owns no learned tensor.
-
-##### State ports
-
-None: this primitive carries no state. Only a sequence operator does (§4.1).
-
-##### Effects
-
-- Reads: `input`
-- Writes: `output`
+| 1 | `weight` along [model.vocabulary](#axis-model.vocabulary) | the value on port `tokens` | `1` | `vocabulary` (upper_bound) | A lookup: each token activates one row of the table, selected by the token id on `tokens`. |
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| any axis (elementwise) | preserved | none | always | Elementwise: any axis, no communication. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.vocabulary](#axis-model.vocabulary) (argument) | all_gather | always | Vocabulary parallelism: each shard holds a slice of the table; the looked-up rows are gathered. |
 
 <a id="contract-lm_head-1.0.0" name="contract-lm_head-1.0.0"></a>
 
@@ -2664,9 +2664,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.vocabulary](#axis-model.vocabulary) (argument) | preserved | all_gather | always | Vocabulary parallelism: each shard computes a slice of the logits; the slices are gathered. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.vocabulary](#axis-model.vocabulary) (argument) | all_gather | always | Vocabulary parallelism: each shard computes a slice of the logits; the slices are gathered. |
 
 <a id="contract-moe-1.0.0" name="contract-moe-1.0.0"></a>
 
@@ -2759,21 +2759,19 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Structured sparsity
 
-| Fact | Declaration |
-|---|---|
-| activatable unit | `in`, `out` along [moe.experts](#axis-moe.experts) |
-| selecting argument | `routing` |
-| activated per token | `top_k` |
-| union per batch | `experts` (upper_bound, per sequence) |
+Activatable units (§4.5): a lookup table is the limiting case, one row per element.
 
-Each routed expert is one activatable unit: its `in` and `out` projections along `moe.experts`. `top_k` are activated per token; shared experts are always active and are not units.
+| # | Unit | Selected by | Activated per element | Union per invocation | Description |
+|---|---|---|---|---|---|
+| 1 | `in`, `out` along [moe.experts](#axis-moe.experts) | argument `routing` | `top_k` | `experts` (upper_bound) | Each routed expert is one activatable unit: its `in` and `out` projections along `moe.experts`. `top_k` are activated per element; shared experts are always active and are not units. |
+| 2 | `hash_table` along [model.vocabulary](#axis-model.vocabulary) | argument `routing` | `1` | `hash_vocabulary` (upper_bound) | A lookup: with hash routing each token reads one row of the token-to-experts table. |
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [moe.experts](#axis-moe.experts) (argument) | preserved | all_to_all | always | Expert parallelism: tokens are exchanged between expert shards. |
-| axis [ffn.inner](#axis-ffn.inner) (argument) | preserved | all_reduce | always | Tensor parallelism inside every expert; the down projection needs an all-reduce. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [moe.experts](#axis-moe.experts) (argument) | all_to_all | always | Expert parallelism: tokens are exchanged between expert shards. |
+| axis [ffn.inner](#axis-ffn.inner) (argument) | all_reduce | always | Tensor parallelism inside every expert; the down projection needs an all-reduce. |
 
 <a id="contract-patch_embed-1.0.0" name="contract-patch_embed-1.0.0"></a>
 
@@ -2838,11 +2836,19 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 - Reads: `pixels`
 - Writes: `output`
 
+##### Structured sparsity
+
+Activatable units (§4.5): a lookup table is the limiting case, one row per element.
+
+| # | Unit | Selected by | Activated per element | Union per invocation | Description |
+|---|---|---|---|---|---|
+| 1 | `position` along [sequence.position](#axis-sequence.position) | the element itself | `1` | `pos` (upper_bound) | A lookup: each patch activates the row of its own position. |
+
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | none | always | Output channels are independent. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | none | always | Output channels are independent. |
 
 <a id="contract-pooler-1.0.0" name="contract-pooler-1.0.0"></a>
 
@@ -2913,9 +2919,9 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
-|---|---|---|---|---|
-| axis [model.width](#axis-model.width) (argument) | preserved | all_gather | always | Column-parallel over the projection's output features. |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| axis [model.width](#axis-model.width) (argument) | all_gather | always | Column-parallel over the projection's output features. |
 
 <a id="contract-splice-1.0.0" name="contract-splice-1.0.0"></a>
 
@@ -2971,9 +2977,15 @@ None: this primitive carries no state. Only a sequence operator does (§4.1).
 
 ##### Semantic partitions
 
-| Target | Semantics | Communication | When | Description |
+| Target | Communication | When | Description |
+|---|---|---|---|
+| any axis (elementwise) | none | always | Elementwise placement: any axis, no communication. |
+
+##### Domain transforms
+
+| From port | To port | Relation | Factor | Description |
 |---|---|---|---|---|
-| any axis (elementwise) | preserved | none | always | Elementwise placement: any axis, no communication. |
+| `source` | `output` | insert | — | The elements arriving on `source` are inserted into the token stream of `text`, which the output keeps. |
 
 <a id="axes" name="axes"></a>
 
@@ -3041,7 +3053,7 @@ Every primitive that reads or writes the residual stream declares its `input` an
 
 ## Precision roles
 
-A precision role bounds the storage types a slot, port or state component may take. A model that selects a dtype outside the admissible set is refused (V3p); a model that selects none gets the default.
+A precision role bounds the storage types a slot, port or state component may take. A model that selects a dtype outside the admissible set is refused (V14); a model that selects none gets the default.
 
 | Role | Admissible | Default | Sensitivity | Summary |
 |---|---|---|---|---|
@@ -3145,22 +3157,23 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | Field | Value | Units |
 |---|---|---|
 | argument type | `boolean` | 6 |
-| argument type | `cardinality` | 34 |
+| argument type | `cardinality` | 33 |
 | argument type | `enum` | 7 |
 | argument type | `physical` | 2 |
-| argument type | `port_reference` | 4 |
 | argument type | `real` | 11 |
 | argument type | `record` | 3 |
-| axis nature | `feature` | 34 |
+| axis nature | `feature` | 33 |
 | axis nature | `projection` | 8 |
 | axis nature | `structural` | 19 |
 | axis space | `instance` | 2 |
 | axis space | `value` | 33 |
-| cost per | `position` | 2 |
-| cost per | `token` | 1 |
+| cost per | `cached_position` | 2 |
+| cost per | `element` | 2 |
 | cost status | `exact` | 3 |
+| cost status | `upper_bound` | 7 |
 | domain transform relation | `align` | 1 |
-| domain transform relation | `merge` | 3 |
+| domain transform relation | `insert` | 1 |
+| domain transform relation | `merge` | 4 |
 | dtype admissible | `bf16` | 51 |
 | dtype admissible | `f16` | 48 |
 | dtype admissible | `f32` | 49 |
@@ -3173,25 +3186,26 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | partition communication | `all_gather` | 9 |
 | partition communication | `all_reduce` | 11 |
 | partition communication | `all_to_all` | 1 |
-| partition communication | `none` | 18 |
-| partition semantics | `preserved` | 34 |
-| partition target | `any_axis` | 6 |
+| partition communication | `none` | 17 |
+| partition target | `any_axis` | 5 |
 | partition target | `argument_axis` | 27 |
 | partition target | `instance_key_axis` | 3 |
 | partition target | `none` | 1 |
 | partition target | `payload_axis` | 2 |
-| port domain | `inherit` | 27 |
+| port domain | `inherit` | 26 |
 | port domain | `patch` | 1 |
 | port domain | `position` | 1 |
 | port domain | `token` | 9 |
 | precision sensitivity | `full_precision` | 19 |
 | precision sensitivity | `quantizable` | 29 |
 | precision sensitivity | `reduced` | 6 |
+| sparsity policy | `argument` | 1 |
+| sparsity policy | `element` | 4 |
+| sparsity policy | `port` | 4 |
 | state access | `aggregate` | 1 |
 | state access | `logical_position` | 2 |
 | state access | `ring` | 3 |
-| state carried across | `fragment` | 1 |
-| state frozen after | `source_complete` | 1 |
+| state access | `selected` | 1 |
 | state law | `append` | 2 |
 | state law | `fixed` | 1 |
 | state law | `window` | 3 |
@@ -3213,17 +3227,19 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 | Site | Documented | Total | Coverage |
 |---|---|---|---|
 | base | 1 | 1 | 100% |
-| contract | 35 | 35 | 100% |
-| argument | 186 | 186 | 100% |
-| port | 80 | 80 | 100% |
+| contract | 34 | 34 | 100% |
+| argument | 182 | 182 | 100% |
+| port | 78 | 78 | 100% |
 | parameter | 111 | 111 | 100% |
 | state | 8 | 8 | 100% |
+| carrying | 1 | 1 | 100% |
 | component | 9 | 9 | 100% |
 | operation | 21 | 21 | 100% |
-| rule | 12 | 12 | 100% |
-| cost | 3 | 3 | 100% |
-| partition | 42 | 42 | 100% |
-| transform | 4 | 4 | 100% |
+| rule | 13 | 13 | 100% |
+| cost | 5 | 5 | 100% |
+| partition | 41 | 41 | 100% |
+| transform | 6 | 6 | 100% |
+| sparsity | 12 | 12 | 100% |
 | axis | 35 | 35 | 100% |
 | precision_role | 54 | 54 | 100% |
 

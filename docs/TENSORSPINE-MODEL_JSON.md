@@ -389,8 +389,7 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
   --assign '{"width":3072,"layers":26,"heads":32,"kv_heads":8,"head_dim":128,"inner":9216,"eps":0.00001,"precision":"bf16"}'
 ```
 
-As of this revision, the eleven concrete corpus documents validate as written against the grammar
-and the rules of the specification (the tools that check them are being brought to this revision). The template,
+As of this revision, the eleven concrete corpus documents validate as written. The template,
 `decoder-causal-yarn/1.0.0.json`, is schema-valid and also passes semantic validation with the
 assignment above; the catalog manifest says where templates live (`templates`), one immutable file
 per version.
