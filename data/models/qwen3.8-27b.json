@@ -1112,6 +1112,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".input_layernorm.weight"
+              ]
             }
           },
           "gdn.qkv": {
@@ -1123,6 +1132,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.in_proj_qkv.weight"
+              ]
             }
           },
           "gdn.z": {
@@ -1134,6 +1152,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.in_proj_z.weight"
+              ]
             }
           },
           "gdn.b": {
@@ -1145,6 +1172,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.in_proj_b.weight"
+              ]
             }
           },
           "gdn.a": {
@@ -1156,6 +1192,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.in_proj_a.weight"
+              ]
             }
           },
           "gdn.conv_weight": {
@@ -1167,6 +1212,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.conv1d.weight"
+              ]
             }
           },
           "gdn.dt_bias": {
@@ -1178,6 +1232,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.dt_bias"
+              ]
             }
           },
           "gdn.A_log": {
@@ -1187,7 +1250,16 @@
                 "parameter": "A_log"
               }
             ],
-            "dtype": "f32"
+            "dtype": "f32",
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.A_log"
+              ]
+            }
           },
           "gdn.norm": {
             "members": [
@@ -1198,6 +1270,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.norm.weight"
+              ]
             }
           },
           "gdn.out": {
@@ -1209,6 +1290,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".linear_attn.out_proj.weight"
+              ]
             }
           },
           "mlp_n.weight": {
@@ -1220,6 +1310,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".post_attention_layernorm.weight"
+              ]
             }
           },
           "mlp.gate": {
@@ -1231,6 +1330,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.gate_proj.weight"
+              ]
             }
           },
           "mlp.up": {
@@ -1242,6 +1350,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.up_proj.weight"
+              ]
             }
           },
           "mlp.out": {
@@ -1253,6 +1370,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.down_proj.weight"
+              ]
             }
           },
           "attn_n.weight": {
@@ -1264,6 +1390,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".input_layernorm.weight"
+              ]
             }
           },
           "attn.q_gated": {
@@ -1275,6 +1410,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.q_proj.weight"
+              ]
             }
           },
           "attn.k": {
@@ -1286,6 +1430,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.k_proj.weight"
+              ]
             }
           },
           "attn.v": {
@@ -1297,6 +1450,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.v_proj.weight"
+              ]
             }
           },
           "attn.out": {
@@ -1308,6 +1470,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.o_proj.weight"
+              ]
             }
           },
           "attn.q_norm": {
@@ -1319,6 +1490,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.q_norm.weight"
+              ]
             }
           },
           "attn.k_norm": {
@@ -1330,6 +1510,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.language_model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.k_norm.weight"
+              ]
             }
           }
         },
@@ -1647,6 +1836,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".norm1.weight"
+              ]
             }
           },
           "attn_n.bias": {
@@ -1658,6 +1856,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".norm1.bias"
+              ]
             }
           },
           "attn.q": {
@@ -1669,6 +1876,21 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "slice": {
+                "tensor": [
+                  "model.visual.blocks.",
+                  {
+                    "index": "layer"
+                  },
+                  ".attn.qkv.weight"
+                ],
+                "axis": "heads_flat",
+                "offset": {
+                  "literal": 0
+                }
+              }
             }
           },
           "attn.k": {
@@ -1680,6 +1902,21 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "slice": {
+                "tensor": [
+                  "model.visual.blocks.",
+                  {
+                    "index": "layer"
+                  },
+                  ".attn.qkv.weight"
+                ],
+                "axis": "kv_heads_flat",
+                "offset": {
+                  "quantity": "d_vis"
+                }
+              }
             }
           },
           "attn.v": {
@@ -1691,6 +1928,29 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "slice": {
+                "tensor": [
+                  "model.visual.blocks.",
+                  {
+                    "index": "layer"
+                  },
+                  ".attn.qkv.weight"
+                ],
+                "axis": "kv_heads_flat",
+                "offset": {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "literal": 2
+                    },
+                    {
+                      "quantity": "d_vis"
+                    }
+                  ]
+                }
+              }
             }
           },
           "attn.out": {
@@ -1702,6 +1962,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".attn.proj.weight"
+              ]
             }
           },
           "attn.q_bias": {
@@ -1713,6 +1982,21 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "slice": {
+                "tensor": [
+                  "model.visual.blocks.",
+                  {
+                    "index": "layer"
+                  },
+                  ".attn.qkv.bias"
+                ],
+                "axis": "query",
+                "offset": {
+                  "literal": 0
+                }
+              }
             }
           },
           "attn.k_bias": {
@@ -1724,6 +2008,21 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "slice": {
+                "tensor": [
+                  "model.visual.blocks.",
+                  {
+                    "index": "layer"
+                  },
+                  ".attn.qkv.bias"
+                ],
+                "axis": "key",
+                "offset": {
+                  "quantity": "d_vis"
+                }
+              }
             }
           },
           "attn.v_bias": {
@@ -1735,6 +2034,29 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "slice": {
+                "tensor": [
+                  "model.visual.blocks.",
+                  {
+                    "index": "layer"
+                  },
+                  ".attn.qkv.bias"
+                ],
+                "axis": "value",
+                "offset": {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "literal": 2
+                    },
+                    {
+                      "quantity": "d_vis"
+                    }
+                  ]
+                }
+              }
             }
           },
           "attn.out_bias": {
@@ -1746,6 +2068,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".attn.proj.bias"
+              ]
             }
           },
           "ffn_n.weight": {
@@ -1757,6 +2088,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".norm2.weight"
+              ]
             }
           },
           "ffn_n.bias": {
@@ -1768,6 +2108,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".norm2.bias"
+              ]
             }
           },
           "ffn.in": {
@@ -1779,6 +2128,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.linear_fc1.weight"
+              ]
             }
           },
           "ffn.out": {
@@ -1790,6 +2148,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.linear_fc2.weight"
+              ]
             }
           },
           "ffn.in_bias": {
@@ -1801,6 +2168,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.linear_fc1.bias"
+              ]
             }
           },
           "ffn.out_bias": {
@@ -1812,6 +2188,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.visual.blocks.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.linear_fc2.bias"
+              ]
             }
           }
         }
@@ -2025,6 +2410,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.patch_embed.proj.weight"
+          ]
         }
       },
       "patch_embed.bias": {
@@ -2042,6 +2432,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.patch_embed.proj.bias"
+          ]
         }
       },
       "patch_embed.position": {
@@ -2059,6 +2454,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.pos_embed.weight"
+          ]
         }
       },
       "embed.weight": {
@@ -2076,6 +2476,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.language_model.embed_tokens.weight"
+          ]
         }
       },
       "final_n.weight": {
@@ -2093,6 +2498,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.language_model.norm.weight"
+          ]
         }
       },
       "lm_head.weight": {
@@ -2110,6 +2520,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "lm_head.weight"
+          ]
         }
       },
       "vision_projector.norm": {
@@ -2127,6 +2542,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.merger.norm.weight"
+          ]
         }
       },
       "vision_projector.norm_bias": {
@@ -2144,6 +2564,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.merger.norm.bias"
+          ]
         }
       },
       "vision_projector.hidden": {
@@ -2161,6 +2586,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.merger.linear_fc1.weight"
+          ]
         }
       },
       "vision_projector.hidden_bias": {
@@ -2178,6 +2608,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.merger.linear_fc1.bias"
+          ]
         }
       },
       "vision_projector.output": {
@@ -2195,6 +2630,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.merger.linear_fc2.weight"
+          ]
         }
       },
       "vision_projector.output_bias": {
@@ -2212,6 +2652,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.visual.merger.linear_fc2.bias"
+          ]
         }
       }
     },
