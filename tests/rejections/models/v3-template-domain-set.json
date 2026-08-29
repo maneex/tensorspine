@@ -320,9 +320,6 @@
         },
         "merge_count": {
           "literal": 4
-        },
-        "source": {
-          "literal": "vision"
         }
       },
       "families": [
@@ -1385,30 +1382,28 @@
   "interfaces": {
     "inputs": {
       "pixels": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "patch_embed"
-          },
-          "port": "pixels"
-        },
-        "domain": {
-          "kind": "patch",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "patch_embed"
+            },
+            "port": "pixels"
+          }
+        ],
+        "kind": "patch"
       },
       "tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
       }
     },
     "outputs": {
@@ -1419,10 +1414,6 @@
             "occurrence": "lm_head"
           },
           "port": "logits"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
         },
         "generative": true
       }

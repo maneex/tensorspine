@@ -1,0 +1,17 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "state.kv_test",
+  "definition": {
+    "summary": "Storage type of key/value caches.",
+    "description": "The KV cache is the largest growing allocation of a decoder and the first candidate for quantization: `f8e4m3` is admissible, `fp4` is not. The default `bf16` is what a runtime assumes when a state binding selects no dtype.",
+    "admissible": [
+      "bf16",
+      "f16",
+      "f8e4m3"
+    ],
+    "default": "bf16",
+    "sensitivity": "whatever",
+    "note": "the cache is the first candidate for quantization"
+  }
+}

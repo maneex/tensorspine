@@ -1,0 +1,1348 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "attention.dense",
+  "definition": {
+    "version": "1.0.1",
+    "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
+    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.",
+    "tags": [
+      "sequence-operator"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1706.03762",
+        "title": "Attention Is All You Need (Vaswani et al., 2017)",
+        "kind": "paper",
+        "description": "Scaled dot-product attention with multiple heads."
+      },
+      {
+        "url": "https://arxiv.org/abs/1911.02150",
+        "title": "Fast Transformer Decoding: One Write-Head is All You Need (Shazeer, 2019)",
+        "kind": "paper",
+        "description": "Multi-query attention: `kv_heads = 1`."
+      },
+      {
+        "url": "https://arxiv.org/abs/2305.13245",
+        "title": "GQA: Training Generalized Multi-Query Transformer Models (Ainslie et al., 2023)",
+        "kind": "paper",
+        "description": "Grouped-query attention: `1 < kv_heads < heads`."
+      },
+      {
+        "url": "https://arxiv.org/abs/2310.06825",
+        "title": "Mistral 7B (Jiang et al., 2023)",
+        "kind": "paper",
+        "description": "Sliding-window attention with a rolling cache: the `window` argument."
+      },
+      {
+        "url": "https://arxiv.org/abs/2104.09864",
+        "title": "RoFormer: Enhanced Transformer with Rotary Position Embedding (Su et al., 2021)",
+        "kind": "paper",
+        "description": "Rotary position encoding, what the `rope` argument declares."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of `input` and `output`: the residual stream dimension."
+      },
+      "heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of query heads."
+      },
+      "head_dim": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Dimension of one head; queries, keys and values share it."
+      },
+      "kv_heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "argument": "heads"
+        },
+        "note": "without GQA, as many KV heads as Q heads: a fact of the primitive, hence a contract default",
+        "description": "Number of key/value heads. Fewer than `heads` is grouped-query attention; one is multi-query attention."
+      },
+      "mask": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "causal",
+            "chunked",
+            "none"
+          ]
+        },
+        "required": true,
+        "structural": true,
+        "description": "Which positions a query may attend to.",
+        "value_descriptions": {
+          "causal": "Each position attends to itself and to earlier positions; the cache grows with the sequence.",
+          "chunked": "Causal within fixed chunks of `chunk.span` positions; the cache is a ring of one chunk.",
+          "none": "Every position attends to every other. Stateless unless `streaming` or `source` says otherwise."
+        }
+      },
+      "window": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "span": {
+              "type": {
+                "kind": "physical",
+                "unit": "tokens"
+              },
+              "required": true,
+              "structural": true,
+              "description": "Window span, in tokens."
+            }
+          }
+        },
+        "required": false,
+        "structural": true,
+        "description": "Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span. Inapplicable with `mask: chunked`, whose span is `chunk.span`.",
+        "present_when": {
+          "compare": {
+            "operator": "not_equal",
+            "left": {
+              "argument": "mask"
+            },
+            "right": {
+              "literal": "chunked"
+            }
+          }
+        }
+      },
+      "chunk": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "span": {
+              "type": {
+                "kind": "physical",
+                "unit": "tokens"
+              },
+              "required": true,
+              "structural": true,
+              "description": "Chunk span, in tokens: a query attends within its own chunk of `span` positions."
+            }
+          }
+        },
+        "required": true,
+        "structural": true,
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "mask"
+            },
+            "right": {
+              "literal": "chunked"
+            }
+          }
+        },
+        "description": "Chunked attention: the positions a query may attend to are its own chunk of `chunk.span` tokens. Required with `mask: chunked`, forbidden otherwise; the cache is a ring of one chunk."
+      },
+      "cross": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "note": "keys and values come from another stream; false = self-attention",
+        "description": "Cross-attention: keys and values come from the value on `source_values`, in the stream that edge carries; the cache grows along that stream and is frozen once it is complete. False, keys and values come from `input`."
+      },
+      "streaming": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "description": "The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`.",
+        "default": {
+          "literal": false
+        }
+      },
+      "rope": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "theta": {
+              "type": {
+                "kind": "real"
+              },
+              "required": true,
+              "structural": false,
+              "description": "Base of the rotary frequencies."
+            },
+            "layout": {
+              "type": {
+                "kind": "enum",
+                "values": [
+                  "split",
+                  "interleaved",
+                  "2d"
+                ]
+              },
+              "required": false,
+              "structural": false,
+              "default": {
+                "literal": "split"
+              },
+              "description": "How the rotated pairs are laid out along `head_dim`.",
+              "value_descriptions": {
+                "split": "Pair `i` with `i + head_dim/2` (the Llama layout).",
+                "interleaved": "Pair `2i` with `2i+1` (the GPT-NeoX layout).",
+                "2d": "Two-dimensional rotation over patch rows and columns (vision)."
+              }
+            },
+            "partial": {
+              "type": {
+                "kind": "real"
+              },
+              "required": false,
+              "structural": false,
+              "description": "Fraction of `head_dim` that is rotated; the rest is left as is. Absent, the whole head is rotated."
+            },
+            "mrope": {
+              "type": {
+                "kind": "record",
+                "fields": {
+                  "t": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "structural": false,
+                    "description": "Channels of the temporal section."
+                  },
+                  "h": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "structural": false,
+                    "description": "Channels of the height section."
+                  },
+                  "w": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "structural": false,
+                    "description": "Channels of the width section."
+                  }
+                }
+              },
+              "required": false,
+              "structural": false,
+              "description": "Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index."
+            },
+            "scaling": {
+              "type": {
+                "kind": "record",
+                "fields": {
+                  "kind": {
+                    "type": {
+                      "kind": "enum",
+                      "values": [
+                        "yarn",
+                        "llama3",
+                        "linear"
+                      ]
+                    },
+                    "required": true,
+                    "structural": false,
+                    "description": "Context-extension method applied to the rotary frequencies.",
+                    "value_descriptions": {
+                      "yarn": "YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.",
+                      "llama3": "Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.",
+                      "linear": "Position interpolation: every position is divided by `factor`."
+                    }
+                  },
+                  "factor": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": true,
+                    "structural": false,
+                    "description": "Ratio between the served context and `orig_ctx`."
+                  },
+                  "orig_ctx": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "structural": false,
+                    "description": "Context length the frequencies were trained at."
+                  },
+                  "beta_fast": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "structural": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "yarn"
+                        }
+                      }
+                    },
+                    "description": "YaRN: number of rotations above which a frequency is left unscaled."
+                  },
+                  "beta_slow": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "structural": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "yarn"
+                        }
+                      }
+                    },
+                    "description": "YaRN: number of rotations below which a frequency is fully interpolated."
+                  },
+                  "low": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "structural": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "llama3"
+                        }
+                      }
+                    },
+                    "description": "Llama 3: low-frequency factor."
+                  },
+                  "high": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "structural": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "llama3"
+                        }
+                      }
+                    },
+                    "description": "Llama 3: high-frequency factor."
+                  }
+                }
+              },
+              "required": false,
+              "structural": false,
+              "description": "Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained."
+            }
+          }
+        },
+        "required": false,
+        "structural": false,
+        "description": "Rotary position encoding: base, layout, rotated fraction, multimodal sections and context-extension scaling. Changes the computation, not a tensor or a state."
+      },
+      "qk_norm": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "rms",
+            "layer"
+          ]
+        },
+        "required": false,
+        "structural": false,
+        "description": "Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`.",
+        "value_descriptions": {
+          "rms": "RMS normalization.",
+          "layer": "Layer normalization."
+        }
+      },
+      "temperature": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "floor": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "structural": false,
+              "description": "Positions per temperature step: the scale grows once per `floor` positions."
+            },
+            "scale": {
+              "type": {
+                "kind": "real"
+              },
+              "required": true,
+              "structural": false,
+              "description": "Growth of the logit scale per step."
+            }
+          }
+        },
+        "required": false,
+        "structural": false,
+        "description": "Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`."
+      },
+      "q_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "note": "learned Q bias; a synthetic runtime zero stays false",
+        "description": "Learned bias on the query projection."
+      },
+      "k_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "note": "learned K bias; a synthetic runtime zero stays false",
+        "description": "Learned bias on the key projection."
+      },
+      "v_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "description": "Learned bias on the value projection."
+      },
+      "out_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "description": "Learned bias on the output projection."
+      },
+      "output_gate": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "note": "per-head gate projection, distinct from Q",
+        "description": "Per-head sigmoid gate on the attention output, computed from `input` by the `q_gate` projection."
+      },
+      "qk_norm_weight": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "note": "Q/K RMSNorm has a learned scale",
+        "description": "The Q/K normalization has a learned per-channel scale: declares the `q_norm` and `k_norm` slots."
+      },
+      "source": {
+        "type": {
+          "kind": "port_reference"
+        },
+        "required": false,
+        "structural": true
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Residual-stream activation: one vector of `width` per element of the indexing domain."
+        },
+        "source_values": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "present_when": {
+            "compare": {
+              "operator": "equal",
+              "left": {
+                "argument": "cross"
+              },
+              "right": {
+                "literal": true
+              }
+            }
+          },
+          "note": "cross-attention: K/V come from ANOTHER stream, the one the edge into this port carries (an `align` transform).",
+          "role": "activation.hidden",
+          "description": "Values of the cross-attention source, in the stream of the edge that feeds this port."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Attention output after the output projection and the gate, if any, in the domain of `input`."
+        }
+      }
+    },
+    "parameters": {
+      "qkv": {
+        "role": "attention.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "qkv_flat",
+              "axis": "attention.qkv_flat",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "argument": "heads"
+                      },
+                      {
+                        "op": "multiply",
+                        "args": [
+                          {
+                            "literal": 2
+                          },
+                          {
+                            "argument": "kv_heads"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "note": "usual fused shape; under GQA this is not an exact product, hence no factors",
+        "description": "Fused query, key and value projection: `heads + 2*kv_heads` blocks of `head_dim` rows."
+      },
+      "out": {
+        "role": "attention.output_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "heads_flat",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "description": "Output projection from the concatenated query heads back to `width`."
+      },
+      "q_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "query",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "q_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the query projection."
+      },
+      "k_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "key",
+              "axis": "attention.kv_heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "kv_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "k_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the key projection."
+      },
+      "v_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value",
+              "axis": "attention.kv_heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "kv_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "v_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the value projection."
+      },
+      "out_bias": {
+        "role": "attention.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "out_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the output projection."
+      },
+      "q_gate": {
+        "role": "attention.output_gate",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "heads_flat",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "output_gate"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Gate projection: one value per query channel, applied through a sigmoid to the attention output."
+      },
+      "q_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "qk_norm_weight"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Learned scale of the query normalization."
+      },
+      "k_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "attention.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "qk_norm_weight"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Learned scale of the key normalization."
+      }
+    },
+    "constants": {},
+    "state_ports": {
+      "kv": {
+        "present_when": {
+          "any": [
+            {
+              "not": {
+                "compare": {
+                  "operator": "equal",
+                  "left": {
+                    "argument": "mask"
+                  },
+                  "right": {
+                    "literal": "none"
+                  }
+                }
+              }
+            },
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "streaming"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
+            },
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "cross"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
+            }
+          ]
+        },
+        "payload": {
+          "k": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.kv",
+            "description": "Keys of one position: one `head_dim` vector per KV head."
+          },
+          "v": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.kv",
+            "description": "Values of one position, same layout as `k`."
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "carried_across": {
+          "when": {
+            "compare": {
+              "operator": "equal",
+              "left": {
+                "argument": "streaming"
+              },
+              "right": {
+                "literal": true
+              }
+            }
+          },
+          "description": "With `streaming`, the cache survives between the invocations that deliver successive fragments of the input's stream, whatever the mask."
+        },
+        "operations": {
+          "append": {
+            "effect": "append",
+            "description": "Write the keys and values of a new position at the end."
+          },
+          "read": {
+            "effect": "read",
+            "description": "Read every cached position for a query."
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "mask"
+                    },
+                    "right": {
+                      "literal": "none"
+                    }
+                  }
+                },
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "streaming"
+                    },
+                    "right": {
+                      "literal": true
+                    }
+                  }
+                },
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "cross"
+                    },
+                    "right": {
+                      "literal": false
+                    }
+                  }
+                },
+                {
+                  "not": {
+                    "present": "window"
+                  }
+                }
+              ]
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_position",
+            "indexed_by": {
+              "self": true
+            },
+            "description": "Bidirectional streaming encoder: fragments accumulate; the port-level carrying condition keeps the cache across fragments."
+          },
+          {
+            "when": {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "cross"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_source",
+            "indexed_by": {
+              "port": "source_values"
+            },
+            "description": "Cross-attention: indexed by the stream of `source_values`, frozen once that stream is complete."
+          },
+          {
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "mask"
+                    },
+                    "right": {
+                      "literal": "chunked"
+                    }
+                  }
+                },
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "cross"
+                    },
+                    "right": {
+                      "literal": false
+                    }
+                  }
+                }
+              ]
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "argument": "chunk.span"
+            },
+            "description": "Ring of one chunk: `chunk.span` positions."
+          },
+          {
+            "when": {
+              "all": [
+                {
+                  "present": "window"
+                },
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "cross"
+                    },
+                    "right": {
+                      "literal": false
+                    }
+                  }
+                }
+              ]
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "argument": "window.span"
+            },
+            "description": "Sliding window: a ring of `window.span` positions."
+          },
+          {
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "cross"
+                    },
+                    "right": {
+                      "literal": false
+                    }
+                  }
+                },
+                {
+                  "not": {
+                    "present": "window"
+                  }
+                },
+                {
+                  "not": {
+                    "all": [
+                      {
+                        "compare": {
+                          "operator": "equal",
+                          "left": {
+                            "argument": "mask"
+                          },
+                          "right": {
+                            "literal": "none"
+                          }
+                        }
+                      },
+                      {
+                        "compare": {
+                          "operator": "equal",
+                          "left": {
+                            "argument": "streaming"
+                          },
+                          "right": {
+                            "literal": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "compare": {
+                      "operator": "equal",
+                      "left": {
+                        "argument": "mask"
+                      },
+                      "right": {
+                        "literal": "chunked"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_position",
+            "indexed_by": {
+              "self": true
+            },
+            "description": "Plain causal decoding: append per position."
+          }
+        ],
+        "description": "Keys and values of every position the current query may still attend to: two components of one shape. Which law applies is decided by the first matching rule below."
+      }
+    },
+    "effects": {
+      "reads": [
+        "input",
+        "source_values"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "attention.heads"
+        },
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across query heads; the output projection needs an all-reduce."
+      },
+      {
+        "target": {
+          "argument_axis": "attention.kv_heads"
+        },
+        "communication": "all_reduce",
+        "when": {
+          "compare": {
+            "operator": "greater",
+            "left": {
+              "argument": "kv_heads"
+            },
+            "right": {
+              "literal": 1
+            }
+          }
+        },
+        "description": "Partition across KV heads, only when there is more than one."
+      },
+      {
+        "target": {
+          "instance_key_axis": "instance.session"
+        },
+        "communication": "none",
+        "note": "instance-key axis, always legal",
+        "description": "Instance-key axis: sessions are independent."
+      },
+      {
+        "target": {
+          "payload_axis": {
+            "state": "kv",
+            "component": "k",
+            "axis": "attention.kv_heads"
+          }
+        },
+        "communication": "none",
+        "note": "KV payload partition by head: target tagged payload, not argument",
+        "description": "The cache itself partitions by KV head, with no communication."
+      }
+    ],
+    "domain_transforms": [
+      {
+        "from_port": "source_values",
+        "to_port": "output",
+        "relation": "align",
+        "note": "cross-attention: K/V come from another stream (§5.3). The output stays in the query domain; attention aligns the source onto it.",
+        "description": "Cross-attention aligns the source domain onto the query domain."
+      }
+    ],
+    "note": "Dense or grouped Q/K/V attention, with bias, output gate and Q/K normalization variants.",
+    "logical_cost": [
+      {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 4
+            },
+            {
+              "argument": "heads"
+            },
+            {
+              "argument": "head_dim"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "cached_position",
+        "description": "Scores and weighted values of every query head against one cached position."
+      }
+    ]
+  }
+}

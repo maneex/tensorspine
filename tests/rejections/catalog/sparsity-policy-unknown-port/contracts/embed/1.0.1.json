@@ -1,0 +1,155 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "embed",
+  "definition": {
+    "version": "1.0.1",
+    "summary": "Token embedding: looks up one `width` vector per token identifier.",
+    "description": "The learned table `weight` may be shared with an output head of the same shape (weight tying): the slot is `shareable` with role `embedding.table`, and a model ties the two by giving them one parameter identity.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1608.05859",
+        "title": "Using the Output Embedding to Improve Language Models (Press & Wolf, 2017)",
+        "kind": "paper",
+        "description": "Tying the embedding table and the output head."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of the embedding."
+      },
+      "vocabulary": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of token identifiers."
+      }
+    },
+    "ports": {
+      "inputs": {
+        "tokens": {
+          "shape": {
+            "axes": []
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "note": "token identifier: rank-zero scalar",
+          "role": "activation.token_index",
+          "description": "Token identifier: a rank-zero integer per token."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The embedded token."
+        }
+      }
+    },
+    "parameters": {
+      "weight": {
+        "role": "embedding.table",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "embedding.table"
+          ],
+          "note": "sharing allowed between embedding table and output head: same axis identities in the same order, no view required"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "vocabulary",
+              "axis": "model.vocabulary",
+              "nature": "structural",
+              "extent": {
+                "argument": "vocabulary"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "The embedding table, `vocabulary × width`."
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "tokens"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.vocabulary"
+        },
+        "communication": "all_gather",
+        "description": "Vocabulary parallelism: each shard holds a slice of the table; the looked-up rows are gathered."
+      }
+    ],
+    "sparsity": [
+      {
+        "unit": {
+          "parameters": [
+            "weight"
+          ],
+          "axis": "model.vocabulary"
+        },
+        "policy": {
+          "port": "token"
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "vocabulary"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates one row of the table, selected by the token id on `tokens`."
+      }
+    ]
+  }
+}

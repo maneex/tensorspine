@@ -1,0 +1,698 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "llama3-8b",
+  "catalog": [
+    {
+      "base": "../catalog/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 4096
+      }
+    },
+    "ffn": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 14336
+      }
+    },
+    "heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 32
+      }
+    },
+    "kv_heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "head_dim": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128,
+        "derivation": {
+          "op": "floor_divide",
+          "args": [
+            {
+              "quantity": "d"
+            },
+            {
+              "quantity": "heads"
+            }
+          ]
+        }
+      }
+    },
+    "layers": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 32
+      }
+    },
+    "vocab": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128256
+      }
+    },
+    "eps": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-05
+      }
+    },
+    "precision": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "enum",
+        "values": [
+          "fp4"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "fp4"
+      }
+    }
+  },
+  "constants": {},
+  "occurrences": {
+    "embed": {
+      "contract": {
+        "name": "embed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "input",
+        "embedding"
+      ]
+    },
+    "final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ]
+    },
+    "lm_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "output",
+        "head"
+      ]
+    }
+  },
+  "compositions": {
+    "decoder": {
+      "indices": {
+        "layer": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "literal": 32
+          },
+          "step": {
+            "literal": 1
+          }
+        }
+      },
+      "families": [
+        "decoder"
+      ],
+      "occurrences": {
+        "attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "head_dim"
+            },
+            "mask": {
+              "literal": "causal"
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 500000
+                },
+                "layout": {
+                  "literal": "split"
+                }
+              }
+            }
+          },
+          "families": [
+            "sequence_operator"
+          ]
+        },
+        "attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "ffn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "ffn": {
+          "contract": {
+            "name": "ffn.gated",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "inner": {
+              "quantity": "ffn"
+            },
+            "activation": {
+              "literal": "silu"
+            }
+          },
+          "families": [
+            "feed_forward"
+          ]
+        },
+        "ffn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        }
+      },
+      "bindings": {
+        "values": {
+          "attn_n.carry": {
+            "from": {
+              "site": "ffn_r",
+              "indices": {
+                "layer": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "layer"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_n",
+              "port": "input"
+            },
+            "when": {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          },
+          "attn_r.a_carry": {
+            "from": {
+              "site": "ffn_r",
+              "indices": {
+                "layer": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "layer"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_r",
+              "port": "a"
+            },
+            "when": {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          },
+          "attn.norm_in": {
+            "from": {
+              "site": "attn_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn",
+              "port": "input"
+            }
+          },
+          "attn_r.b": {
+            "from": {
+              "site": "attn",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_r",
+              "port": "b"
+            }
+          },
+          "ffn_n.in": {
+            "from": {
+              "site": "attn_r",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_n",
+              "port": "input"
+            }
+          },
+          "ffn_r.a": {
+            "from": {
+              "site": "attn_r",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_r",
+              "port": "a"
+            }
+          },
+          "ffn.norm_in": {
+            "from": {
+              "site": "ffn_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn",
+              "port": "input"
+            }
+          },
+          "ffn_r.b": {
+            "from": {
+              "site": "ffn",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_r",
+              "port": "b"
+            }
+          }
+        },
+        "parameters": {
+          "attn_n.weight": {
+            "members": [
+              {
+                "site": "attn_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.qkv": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "qkv"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.out": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_n.weight": {
+            "members": [
+              {
+                "site": "ffn_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn.in": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "in"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn.out": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          }
+        },
+        "states": {
+          "attn.kv": {
+            "members": [
+              {
+                "site": "attn",
+                "state": "kv"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "decoder.entry": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_n",
+            "indices": {
+              "layer": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "decoder.entry.a": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_r",
+            "indices": {
+              "layer": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "a"
+        }
+      },
+      "final_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_r",
+            "indices": {
+              "layer": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "layers"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
+        }
+      },
+      "lm_head.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "embed.weight": {
+        "tensor": {
+          "name": "embed.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "final_n.weight": {
+        "tensor": {
+          "name": "final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "lm_head.weight": {
+        "tensor": {
+          "name": "lm_head.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "lm_head"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      }
+    },
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "tokens": {
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "logits": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "logits"
+        },
+        "generative": true
+      }
+    }
+  }
+}

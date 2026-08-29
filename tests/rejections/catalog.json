@@ -4,92 +4,127 @@
     {
       "base": "catalog/state-law-typo",
       "match": "'apend' is not one of ['append', 'window', 'fixed']",
-      "note": "A state law outside the closed vocabulary (§4.3)."
+      "note": "A state law outside the closed vocabulary (§4.3) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/state-access-unknown",
       "match": "'paged_blocks' is not one of",
-      "note": "An access geometry naming a runtime data structure (N8)."
+      "note": "An access geometry naming a runtime data structure (N8) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/opaque-argument",
       "match": "'opaque'",
-      "note": "The opaque type is gone: a value the contract cannot type cannot be rejected."
+      "note": "The opaque type is gone: a value the contract cannot type cannot be rejected — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/window-without-span",
       "match": "'span' is a required property",
-      "note": "A window law must declare its span."
+      "note": "A window law must declare its span — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/unknown-axis",
       "match": "axis 'attention.qkv_flatt' is not in the catalog",
-      "note": "A shape citing an axis the catalog does not hold."
+      "note": "A shape citing an axis the catalog does not hold — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/unknown-precision-role",
       "match": "role 'attention.output_projektion' has no precision rule",
-      "note": "A parameter role with no precision rule."
+      "note": "A parameter role with no precision rule — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/guard-on-undeclared-argument",
-      "match": "present_when tests undeclared argument 'o_rank'",
-      "note": "A guard on an argument the contract never declares: a dead guard, the case found in attention.dense before this schema."
+      "match": "tests undeclared argument 'o_rank'",
+      "note": "A guard on an argument the contract never declares: a dead guard, the case found in attention.dense before this schema — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/enum-default-out-of-set",
       "match": "default 'bidirectional' is not among",
-      "note": "A default the enum does not admit."
+      "note": "A default the enum does not admit — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/effect-on-unknown-port",
       "match": "effects.reads: 'keys' is not an input port",
-      "note": "An effect naming no port."
+      "note": "An effect naming no port — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/version-path-mismatch",
-      "match": "version '1.0.1', path says '1.0.0'",
-      "note": "The file name is the version; the two must agree (§8.2)."
+      "match": "version '1.0.2', path says '1.0.1'",
+      "note": "The file name is the version; the two must agree (§8.2) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/precision-sensitivity-unknown",
       "match": "'whatever' is not one of",
-      "note": "A sensitivity outside the closed set."
+      "note": "A precision role with a sensitivity outside the closed set is off the grammar; the fixture role is `state.kv_test`, a new identity — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/template-version-unpinned",
-      "match": "pins template 'decoder-causal-yarn' at 9.9.9, but",
-      "note": "A contract pinning a template version the template does not carry (§4.6)."
+      "match": "template 'decoder-causal-yarn' 9.9.9 is not at",
+      "note": "A contract pinning a template version the template does not carry (§4.6) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/template-missing",
-      "match": "template 'decoder-nowhere' is not in",
-      "note": "A contract naming a template the models base does not hold."
+      "match": "template 'decoder-nowhere' 1.0.0 is not at",
+      "note": "A contract naming a template the models base does not hold — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/template-id-mismatch",
       "match": "declares model id 'decoder_causal_yarn', the contract says 'something_else'",
-      "note": "The template's model id and the contract's disagree."
+      "note": "The template's model id and the contract's disagree — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/context-in-contract",
       "match": "definition/state_ports/kv/rules",
-      "note": "A contract reading an undeclared analysis fact: there is no context namespace; a span is an argument (§4.4)."
+      "note": "A contract reading an undeclared analysis fact: there is no context namespace; a span is an argument (§4.4) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/partitions-empty",
       "match": "[] should be non-empty",
-      "note": "An empty partition list is an omission, not a statement: a contract says `none` when no cut preserves meaning (§4.1)."
+      "note": "An empty partition list is an omission, not a statement: a contract says `none` when no cut preserves meaning (§4.1) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/sparsity-unknown-slot",
       "match": "unit parameter 'expert_weights' is not a slot",
-      "note": "A sparsity unit naming a slot the contract does not have (§4.5)."
+      "note": "A sparsity unit naming a slot the contract does not have (§4.5) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
       "base": "catalog/cost-declared-not-corrected",
       "match": "'operations' was unexpected",
-      "note": "Operations on parameters are derived, never declared (§4.1); a contract declares only state and sequence corrections."
+      "note": "Operations on parameters are derived, never declared (§4.1); a contract declares only state and sequence corrections — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/port-reference-argument",
+      "match": "'port_reference' is not one of",
+      "note": "There is no reference type: an argument is a scalar, an enum or a record (O9.4) — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/port-optional",
+      "match": "'optional' was unexpected",
+      "note": "Presence of a port is present_when, one authority (I2) — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/absent-argument-comparison",
+      "match": "compares 'streaming', which may be absent",
+      "note": "A comparison on an optional argument without default outside a present test is undecidable (§4.3) — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/base-conflict",
+      "match": "with different contents (V1)",
+      "note": "One identity carried by two bases with different contents is a conflict, not a choice (V1)."
+    },
+    {
+      "base": "catalog/role-default-inadmissible",
+      "match": "is not in the admissible set",
+      "note": "A precision role's default is admissible — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/sparsity-policy-unknown-port",
+      "match": "policy names 'token', not an input port",
+      "note": "A sparsity policy names an argument or an input port of the contract — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/template-no-location",
+      "match": "declares no `templates` location",
+      "note": "A base carrying a template contract declares where its templates live (§4.6) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     }
   ]
 }

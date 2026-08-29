@@ -160,14 +160,14 @@
     {
       "document": "models/v7-binding-when-excludes-edge.json",
       "expect": "V7",
-      "match": "input port with no producer: attention.dense@('gen', 'decoder', 'attn', (('layer', 5),)).input",
+      "match": "input port with no producer: attention.dense@decoder/attn[layer=5].input",
       "note": "A binding `when` that excludes one index leaves that port unfed: the guard is read, not ignored (mutation test, §10.2)."
     },
     {
       "document": "models/v1-scoped-rule-collision.json",
-      "expect": "V1",
+      "expect": "V12",
       "match": "binding 'decoder.attn.norm_in' is declared both in composition 'decoder' and at the top level",
-      "note": "A scoped rule and a top-level rule with the same expanded name."
+      "note": "A scoped rule whose expanded name collides with a top-level rule has two readings (V12)."
     },
     {
       "document": "models/v1-scoped-unknown-site.json",
@@ -198,6 +198,84 @@
       "expect": "V3",
       "match": "quantity 'head_dim' = 1365.3333333333333 is not a cardinality",
       "note": "A derived cardinality that is not an integer: the rounding must be chosen explicitly (floor or ceiling division)."
+    },
+    {
+      "document": "models/v12-duplicate-member-name.json",
+      "expect": "schema",
+      "match": "duplicate member name 'model'",
+      "note": "A parser keeping the last value would drop a declaration silently; the JSON layer refuses duplicates (V12)."
+    },
+    {
+      "document": "models/v13-dangling-output.json",
+      "expect": "V13",
+      "match": "output consumed by nothing: norm.rms@spare.output",
+      "note": "Every output port of an emitted occurrence is consumed or exposed (V13)."
+    },
+    {
+      "document": "models/v7-unbound-state.json",
+      "expect": "V7",
+      "match": "unbound state port: attention.dense@decoder/attn[layer=0].kv",
+      "note": "Totality covers state slots (V7)."
+    },
+    {
+      "document": "models/v7-input-fed-twice.json",
+      "expect": "V7",
+      "match": "input port fed twice",
+      "note": "Uniqueness: an input port has one producer (V7)."
+    },
+    {
+      "document": "models/v7-slot-bound-twice.json",
+      "expect": "V7",
+      "match": "bound twice",
+      "note": "Uniqueness: a slot has one binding (V7)."
+    },
+    {
+      "document": "models/v14-inadmissible-dtype.json",
+      "expect": "V14",
+      "match": "outside the admissible set",
+      "note": "A dtype selected on a parameter identity is admissible for every member's role (V14)."
+    },
+    {
+      "document": "models/v15-tying-exclusive.json",
+      "expect": "V15",
+      "match": "is exclusive, it cannot be tied",
+      "note": "Tied members are shareable, roles listed in each other's rules, shapes equal (V15)."
+    },
+    {
+      "document": "models/v16-carried-without-fragmentation.json",
+      "expect": "V16",
+      "match": "carried across fragments, but its stream",
+      "note": "A carried state sits on a fragmented stream (V16)."
+    },
+    {
+      "document": "models/v5-interface-kind-mismatch.json",
+      "expect": "V5",
+      "match": "expects token, receives patch",
+      "note": "A public input is an edge like any other: its kind must be the port's (V5)."
+    },
+    {
+      "document": "models/v1-unknown-stream.json",
+      "expect": "V1",
+      "match": "joins unknown stream 'pixels'",
+      "note": "A stream an input joins must be introduced by another input (V1)."
+    },
+    {
+      "document": "models/structural-dtypes-on-occurrence.json",
+      "expect": "schema",
+      "match": "'dtypes' was unexpected",
+      "note": "Dtypes are selected on identities, never on occurrences."
+    },
+    {
+      "document": "models/structural-invocation-boundary.json",
+      "expect": "schema",
+      "match": "'invocation_boundary' was unexpected",
+      "note": "Carrying across fragments is derived, never declared."
+    },
+    {
+      "document": "models/structural-interface-old-form.json",
+      "expect": "schema",
+      "match": "is not of type 'array'",
+      "note": "A public input lists its destinations and declares a kind; the domain object is gone."
     }
   ]
 }
