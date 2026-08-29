@@ -1,14 +1,14 @@
-# Armature architecture and design rationale
+# Tensorspine architecture and design rationale
 
 > Describe a model's reusable logical structure once, derive its consequences mechanically, and
 > leave physical execution choices to the systems that have the information to make them.
 
 *Non-normative design rationale — 28 August 2026.*
 
-This document explains why Armature is divided into model documents, catalog contracts, validation,
+This document explains why Tensorspine is divided into model documents, catalog contracts, validation,
 and derived products. It is written for contributors deciding where a new fact or capability
 belongs. The [language specification](SPECIFICATION.md) remains the sole authority for syntax,
-validity, and denotation; the [model JSON guide](ARMATURE-MODEL_JSON.md) explains the concrete
+validity, and denotation; the [model JSON guide](TENSORSPINE-MODEL_JSON.md) explains the concrete
 format, and the [glossary](GLOSSARY.md) defines the project vocabulary. If this document conflicts
 with the specification, the specification wins.
 
@@ -17,7 +17,7 @@ architecture for a serving runtime.
 
 ## 1. Architecture at a glance
 
-Armature sits between model authorship and execution. Its output is logical information that a
+Tensorspine sits between model authorship and execution. Its output is logical information that a
 compiler or runtime can combine with an implementation, an artifact, deployment intent, and actual
 hardware.
 
@@ -75,7 +75,7 @@ shareable, but it cannot assert that two particular occurrences actually share i
 
 ### 3.1. Describe logical structure, not executable computation
 
-**Decision.** An Armature model is a finite graph of primitive occurrences and explicit bindings.
+**Decision.** An Tensorspine model is a finite graph of primitive occurrences and explicit bindings.
 It does not contain kernels, general tensor programs, Python classes, backend choices, or hardware
 placement.
 
@@ -83,16 +83,16 @@ placement.
 serving engine then has to recover dimensions, tensors, state lifetime, and partition boundaries
 from code written for a different purpose. A compute graph preserves operations but commonly reduces
 persistent state to ordinary tensor arguments, losing why storage grows, how long it lives, and what
-may be shared. Armature records those logical facts directly.
+may be shared. Tensorspine records those logical facts directly.
 
 **Consequences.** One model declaration can be matched to different implementations and machines.
-The cost is that Armature is not executable by itself: a consumer still needs implementations for
+The cost is that Tensorspine is not executable by itself: a consumer still needs implementations for
 the primitive contracts, a compatible artifact, and deployment decisions.
 
 **Alternatives not chosen.** A reference implementation, an engine-specific architecture class, or
-a compute graph alone is not the semantic authority for Armature. See
+a compute graph alone is not the semantic authority for Tensorspine. See
 [Specification §9.2](SPECIFICATION.md#92--non-requirements) and the
-[project motivation](../README.md#1-why-armature).
+[project motivation](../README.md#1-why-tensorspine).
 
 ### 3.2. Separate model facts from contract facts
 
@@ -279,8 +279,8 @@ device, collective, placement, or schedule.
 hardware, topology, workload, installed kernels, memory pressure, and policy. Embedding those
 choices in the model would make model identity depend on a deployment.
 
-**Consequences.** The same Armature model can be compiled differently for one accelerator, a
-cluster, or a heterogeneous system. Armature provides feasibility inputs and reference logical
+**Consequences.** The same Tensorspine model can be compiled differently for one accelerator, a
+cluster, or a heterogeneous system. Tensorspine provides feasibility inputs and reference logical
 costs, not a promise of performance or a complete deployment plan.
 
 **Alternatives not chosen.** Resolved sharding, physical traffic, batch size, cache pages, admission,
@@ -311,7 +311,7 @@ The specification defines the required result independently of the repository to
 implements the pipeline through D1 — grammar, catalog closure, typed arguments, template expansion,
 guarded compositions — and derives D3/D4 counts during validation. Implementation status belongs in
 the
-[model guide](ARMATURE-MODEL_JSON.md#5--validation-expansion-and-derived-products), not in the
+[model guide](TENSORSPINE-MODEL_JSON.md#5--validation-expansion-and-derived-products), not in the
 language architecture.
 
 ## 5. Contributor decision guide

@@ -1,4 +1,4 @@
-/* Armature site — additions to catalog.css for the hand-written documents
+/* Tensorspine site — additions to catalog.css for the hand-written documents
    (README, specification, guides). Build: tools/site.sh. */
 
 .brand a.name { color: var(--ink); }

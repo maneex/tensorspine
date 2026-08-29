@@ -1,12 +1,12 @@
-# Armature model JSON — practical format guide
+# Tensorspine model JSON — practical format guide
 
 > Represent every model as a **finite graph of parameterized primitive occurrences**, then derive
 > everything else from their contracts.
 
-*Armature model schema 2.0 — revised 28 August 2026.*
+*Tensorspine model schema 2.0 — revised 28 August 2026.*
 
-This is the practical, non-normative guide to reading and authoring an `armature/2.0` JSON model.
-The [JSON Schema](../schemas/armature.schema.json) defines the concrete grammar, while the
+This is the practical, non-normative guide to reading and authoring an `tensorspine/2.0` JSON model.
+The [JSON Schema](../schemas/tensorspine.schema.json) defines the concrete grammar, while the
 [language specification](SPECIFICATION.md) is the sole normative authority for validity and
 denotation. The [README](../README.md) provides motivation and repository orientation; the
 [architecture guide](ARCHITECTURE.md) explains the design rationale; and the
@@ -17,7 +17,7 @@ specification, the specification wins.
 
 ## §1 — How to use this guide
 
-An Armature model **is a graph**. Its nodes are occurrences of primitives; its edges are explicit
+An Tensorspine model **is a graph**. Its nodes are occurrences of primitives; its edges are explicit
 bindings. State behaviour, parameter inventories, port shapes, logical costs and legal semantic
 partitions are consequences of primitive contracts applied to each occurrence's arguments.
 
@@ -31,7 +31,7 @@ glossary.
 
 ---
 
-## §2 — The Armature 2.0 model document
+## §2 — The Tensorspine 2.0 model document
 
 The schema requires nine top-level fields, plus an optional `version` — the document's version as a
 representation, which a template must carry (§4.6). Fixed-shape objects use
@@ -40,7 +40,7 @@ representation, which a template must carry (§4.6). Fixed-shape objects use
 
 ```json
 {
-  "schema": "armature/2.0",
+  "schema": "tensorspine/2.0",
   "model": "authoritative-model-id",
   "catalog": [{ "base": "catalog/" }],
   "quantities": {},
@@ -65,7 +65,7 @@ or composition, and must expose at least one public input and one public output.
 
 | Field | Purpose |
 |---|---|
-| `schema` | Must be exactly `armature/2.0`. |
+| `schema` | Must be exactly `tensorspine/2.0`. |
 | `model` | Stable, authoritative model identifier. |
 | `catalog` | One or more catalog bases, consulted in order. There is no global catalog version. |
 | `quantities` | Typed scalar facts, variables and derivations. |
@@ -321,16 +321,16 @@ Those are model-specific facts, not consequences of a primitive in isolation.
 From the repository root, the current entry point is:
 
 ```sh
-python3 tools/armature --validate
-python3 tools/armature --lint
-python3 tools/armature --d1 data/models/llama3-8b.json -o /tmp/llama3-8b.d1.json
+python3 tools/tensorspine --validate
+python3 tools/tensorspine --lint
+python3 tools/tensorspine --d1 data/models/llama3-8b.json -o /tmp/llama3-8b.d1.json
 ```
 
 `--validate` checks the model schema and then performs semantic validation: catalog resolution,
 arguments and defaults, types (V3: enums, cardinalities, reals, booleans and records, recursively,
 after contract defaults are applied; an inapplicable field is refused, not ignored), shapes,
 domains, total bindings and value-graph acyclicity. The catalog itself is read against
-`schemas/armature-catalog-unit.schema.json` when loaded, so its vocabulary is closed by grammar,
+`schemas/tensorspine-catalog-unit.schema.json` when loaded, so its vocabulary is closed by grammar,
 not by convention; `tests/run_rejections.py` holds one document or catalog base per required
 rejection case. A validation failure is a reasoned refusal. `--lint` reports advisory findings and
 deliberately exits successfully.
@@ -338,7 +338,7 @@ deliberately exits successfully.
 The template needs an assignment when validated on its own:
 
 ```sh
-python3 tools/armature --validate data/models/decoder-causal-yarn.json \
+python3 tools/tensorspine --validate data/models/decoder-causal-yarn.json \
   --assign '{"width":3072,"layers":26,"heads":32,"kv_heads":8,"head_dim":128,"inner":9216,"eps":0.00001,"precision":"bf16"}'
 ```
 
@@ -368,7 +368,7 @@ never accepted on the assumption that it does not matter.
 
 Four models exercise topology that a homogeneous decoder does not:
 
-| Model | Property exercised | Armature 2.0 representation |
+| Model | Property exercised | Tensorspine 2.0 representation |
 |---|---|---|
 | **Whisper large-v3** | Cross-attention reads a different trunk | An explicit encoder-to-decoder value edge and `source` argument; the contract derives KV state indexed by the source and frozen once that source is complete. |
 | **Gemma 3n** | Non-adjacent layers share cache storage | State bindings merge 30 expanded state slots into 20 identities; shared identities use session and branch key axes but no layer key. |
@@ -401,7 +401,7 @@ Extensions affect existing documents and consumers differently:
 model actually uses. Delegation is the only case that can genuinely reuse existing capabilities
 without requiring a new primitive implementation.
 
-Compatible catalog extensions do not require a new `armature/2.x` model-language version. They do
+Compatible catalog extensions do not require a new `tensorspine/2.x` model-language version. They do
 have to preserve every previously published contract identity: an existing `{name, version}` pair
 must never change meaning. Publish changed contract contents under a new contract version; if an
 existing argument changes meaning, a new contract identity is mandatory.
@@ -437,5 +437,5 @@ blocks obscured:
    slot means; bindings describe which occurrences share it, how many live identities exist and what
    survives an invocation boundary.
 
-That separation is the point of Armature 2.0: a model remains a compact declaration of structure,
+That separation is the point of Tensorspine 2.0: a model remains a compact declaration of structure,
 while every reusable consequence has one versioned, inspectable source of truth.

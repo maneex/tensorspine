@@ -48,7 +48,7 @@ def parity(cat):
 def defaults():
     """A models base where the template gives `eps` a default; the composite
     then omits `eps` at the call site and must pass."""
-    tmp = tempfile.mkdtemp(prefix='armature-templates-')
+    tmp = tempfile.mkdtemp(prefix='tensorspine-templates-')
     try:
         for name in ('decoder-causal-yarn.json', 'shieldstral-3b-composite.json'):
             shutil.copy(os.path.join(MODELS, name), tmp)

@@ -2,9 +2,9 @@
 
 > Give every catalog unit a fixed place to say what it is, for people, without letting that prose
 > change what the unit means; then render the whole catalog from its definitions and that prose
-> with `armature --document catalog`.
+> with `tensorspine --document catalog`.
 
-*Proposal, 28 August 2026. Companion to `schemas/armature-documentation.schema.json`,
+*Proposal, 28 August 2026. Companion to `schemas/tensorspine-documentation.schema.json`,
 `tools/document.py` and the generated [catalog reference](CATALOG-REFERENCE.md). Non-normative:
 the [specification](SPECIFICATION.md) remains the authority on what a catalog unit means.*
 
@@ -16,11 +16,11 @@ Two things, one depending on the other:
 
 1. **A documentation model**: a closed set of documentation fields that a contract, an axis, a
    precision role and a base manifest may carry, with a fixed shape for each, expressed as a JSON
-   Schema (`schemas/armature-documentation.schema.json`). It is modelled on the documentation
+   Schema (`schemas/tensorspine-documentation.schema.json`). It is modelled on the documentation
    constructs of OpenAPI 3.1 — `info`, `summary`/`description`, `externalDocs`, `tags`,
    `deprecated` — with the same rule OpenAPI and JSON Schema both apply: **documentation never
    changes what a document denotes.**
-2. **A generator**: `armature --document catalog` reads the catalog and writes one Markdown file
+2. **A generator**: `tensorspine --document catalog` reads the catalog and writes one Markdown file
    that contains *everything* the catalog says — every argument, port, slot, state rule, cost and
    partition of every contract, rendered in readable notation — plus the documentation fields
    where they exist.
@@ -45,7 +45,7 @@ The specification already decides most of the design:
 
 ### 1.2 — OpenAPI as the model
 
-| OpenAPI 3.1 | Armature catalog | Notes |
+| OpenAPI 3.1 | Tensorspine catalog | Notes |
 |---|---|---|
 | `info` (`title`, `summary`, `description`, `contact`, `license`) | Base manifest `catalog.json`: `title`, `summary`, `description`, `contact`, `license` | `info.version` is deliberately absent: a catalog has no global version (§8.2). |
 | `tags` (declared at the top, cited by operations) | Base manifest `tags: [{name, summary, description?, external_docs?}]`; units cite by name | Namespaces (`attention.*`) already group by structure; a tag groups by a property that cuts across them. |
@@ -79,8 +79,8 @@ identity are self-explanatory, and the axis unit carries the prose.
 
 ### 2.2 — The fields
 
-The schema is `schemas/armature-documentation.schema.json` (`$id`
-`https://armature.dev/schema/2.0/documentation.json`). Its `$defs` are the authority; this table is
+The schema is `schemas/tensorspine-documentation.schema.json` (`$id`
+`https://tensorspine.dev/schema/2.0/documentation.json`). Its `$defs` are the authority; this table is
 the reading guide.
 
 | Field | Shape | Rule |
@@ -106,13 +106,13 @@ Both are kept and both are rendered — the description as prose, the note quote
 
 ### 2.4 — Integration into the catalog grammar
 
-The catalog grammar, `schemas/armature-catalog-unit.schema.json`, is in the tree and every unit of
+The catalog grammar, `schemas/tensorspine-catalog-unit.schema.json`, is in the tree and every unit of
 every base is read against it when a catalog is loaded (`catalog.load`), so a unit outside the
 vocabulary is a load error, never an advisory finding. The documentation fields are declared in that
 grammar at the site they document (`summary`, `description`, `note`, `external_docs`, `tags` on a
 unit; `description`, `value_descriptions` on an argument; `description` on ports, slots, payload
 components, operations, rules, partitions and transforms) with `additionalProperties: false`, which
-is the closure O0.6 asks for. `schemas/armature-documentation.schema.json` states the same fields
+is the closure O0.6 asks for. `schemas/tensorspine-documentation.schema.json` states the same fields
 for the generator, which validates the documentation it extracts against it; the two are kept
 aligned by hand, and a key that one knows and the other does not is reported in the reference's
 Appendix C.
@@ -133,12 +133,12 @@ Appendix C.
 - **One language.** `description` is a string, not a language map. If bilingual descriptions are
   wanted later, the change is local to `$defs/description` and `summary`.
 
-## 3 — The generator: `armature --document catalog`
+## 3 — The generator: `tensorspine --document catalog`
 
 ```sh
-python3 tools/armature --document catalog -o docs/CATALOG-REFERENCE.md
-python3 tools/armature --document catalog                                 # to stdout
-python3 tools/armature --document catalog --catalog other/catalog -o out/  # writes out/catalog.md
+python3 tools/tensorspine --document catalog -o docs/CATALOG-REFERENCE.md
+python3 tools/tensorspine --document catalog                                 # to stdout
+python3 tools/tensorspine --document catalog --catalog other/catalog -o out/  # writes out/catalog.md
 ```
 
 - **Inputs.** The catalog bases (`--catalog`, default `data/catalog/`), the documentation schema
@@ -190,8 +190,8 @@ than carry them: a list maintained by hand drifts.
 
 ## 4 — What this change contains
 
-- `schemas/armature-documentation.schema.json` — the model, 20 `$defs`.
-- `tools/document.py`, `tools/armature --document` — the generator.
+- `schemas/tensorspine-documentation.schema.json` — the model, 20 `$defs`.
+- `tools/document.py`, `tools/tensorspine --document` — the generator.
 - **The catalog, documented in full.** Every one of the 36 contracts, 37 axes and 54 precision roles
   carries a `summary` and a `description`; every argument, record field, port, parameter slot, state
 port, payload component, state operation, state rule, partition, cost entry and domain transform of

@@ -13,7 +13,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 repo_dir=$(dirname "$here")
 out=${1:-"$repo_dir/_site"}
 style="$repo_dir/docs/style"
-repo_url=${ARMATURE_REPO_URL:-$(git -C "$repo_dir" remote get-url origin 2>/dev/null | sed -E 's#^git@github\.com:#https://github.com/#; s#\.git$##')}
+repo_url=${TENSORSPINE_REPO_URL:-$(git -C "$repo_dir" remote get-url origin 2>/dev/null | sed -E 's#^git@github\.com:#https://github.com/#; s#\.git$##')}
 
 rm -rf "$out"
 mkdir -p "$out/spec" "$out/catalog" "$out/models" "$out/style"
@@ -47,20 +47,20 @@ for f in "$repo_dir"/docs/*.md; do
 done
 
 # Catalog reference: regenerate the Markdown, then render it with the catalog style.
-python3 "$here/armature" --document catalog -o "$repo_dir/docs/CATALOG-REFERENCE.md"
+python3 "$here/tensorspine" --document catalog -o "$repo_dir/docs/CATALOG-REFERENCE.md"
 "$style/catalog.sh" "$repo_dir/docs/CATALOG-REFERENCE.md" "$out/catalog/index.html" >/dev/null
 sed -i -e 's#<link rel="stylesheet" href="[^"]*catalog\.css">#<link rel="stylesheet" href="../style/catalog.css">#' \
-  -e 's#href="\(SPECIFICATION\|ARMATURE-MODEL_JSON\|GLOSSARY\|ARCHITECTURE\|CATALOG-DOCUMENTATION\)\.md#href="../spec/\L\1\E.html#g' \
+  -e 's#href="\(SPECIFICATION\|TENSORSPINE-MODEL_JSON\|GLOSSARY\|ARCHITECTURE\|CATALOG-DOCUMENTATION\)\.md#href="../spec/\L\1\E.html#g' \
   "$out/catalog/index.html"
 echo "wrote catalog/index.html"
 
 # Model views.
-python3 "$here/armature" --view "$repo_dir"/data/models/*.json -o "$out/models" >/dev/null
+python3 "$here/tensorspine" --view "$repo_dir"/data/models/*.json -o "$out/models" >/dev/null
 index="$out/models/index.md"
 {
   echo "# Model views"
   echo
-  echo "Each page is the self-contained inspector produced by \`armature --view\` for one model of"
+  echo "Each page is the self-contained inspector produced by \`tensorspine --view\` for one model of"
   echo "\`data/models/\`: its quantities, occurrences, compositions and bindings, with the value graph."
   echo
   echo '<ul class="models">'

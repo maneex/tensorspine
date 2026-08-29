@@ -184,7 +184,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
 
     declared = {q['source']['name'] for q in model['quantities'].values()
                 if q['source']['kind'] == 'external'}
-    out = {"schema": "armature-d1/2.0",
+    out = {"schema": "tensorspine-d1/2.0",
            "model": model['model'],
            "catalog": model['catalog'],
            "assignment": {k: v for k, v in assignment.items() if k in declared},

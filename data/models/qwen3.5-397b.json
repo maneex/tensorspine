@@ -1,5 +1,5 @@
 {
-  "schema": "armature/2.0",
+  "schema": "tensorspine/2.0",
   "model": "qwen3_5_397b_a17b",
   "catalog": [
     {

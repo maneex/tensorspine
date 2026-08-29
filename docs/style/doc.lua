@@ -1,4 +1,4 @@
--- Pandoc filter for the Armature site (tools/site.sh): hand-written documents.
+-- Pandoc filter for the Tensorspine site (tools/site.sh): hand-written documents.
 --
 --   * Relative links between repository files are rewritten to their location
 --     on the site: docs/*.md become spec/*.html, CATALOG-REFERENCE.md the

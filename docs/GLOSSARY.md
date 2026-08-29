@@ -1,11 +1,11 @@
-# Armature glossary
+# Tensorspine glossary
 
-This glossary is the non-normative lookup point for Armature terminology. Each entry gives a
+This glossary is the non-normative lookup point for Tensorspine terminology. Each entry gives a
 reader-facing summary and links to the document that owns the precise definition. The
 [language specification](SPECIFICATION.md) is authoritative for validity and denotation; the
-[JSON Schema](../schemas/armature.schema.json) is authoritative for the concrete model grammar. If
+[JSON Schema](../schemas/tensorspine.schema.json) is authoritative for the concrete model grammar. If
 a summary here conflicts with either authority, use the authority. The [README](../README.md) gives
-the project orientation, and the [model JSON guide](ARMATURE-MODEL_JSON.md) explains how to author
+the project orientation, and the [model JSON guide](TENSORSPINE-MODEL_JSON.md) explains how to author
 the concrete format.
 
 Concept names are written in ordinary text. Literal JSON fields and values are written as `code`.
@@ -17,7 +17,7 @@ Concept names are written in ordinary text. Literal JSON fields and values are w
 A scalar, enum, boolean, or record supplied by an occurrence to its primitive contract. Arguments
 describe structural causes such as width, head count, or mask kind; learned and non-learned numeric
 tensors are not arguments. See [Specification §3.3](SPECIFICATION.md#33--arguments-o91-o94) and
-[Model guide §2.3](ARMATURE-MODEL_JSON.md#23--occurrences).
+[Model guide §2.3](TENSORSPINE-MODEL_JSON.md#23--occurrences).
 
 ### Assignment
 
@@ -39,7 +39,7 @@ partition axes are not silently lost. See
 A graph declaration that records a model-specific relationship. Value bindings are directed edges
 from an output port to an input port. Parameter, constant, and state bindings associate one identity
 with the contract slots that use it. See [Specification §3.4](SPECIFICATION.md#34--bindings) and
-[Model guide §2.5](ARMATURE-MODEL_JSON.md#25--bindings).
+[Model guide §2.5](TENSORSPINE-MODEL_JSON.md#25--bindings).
 
 ## C
 
@@ -47,7 +47,7 @@ with the contract slots that use it. See [Specification §3.4](SPECIFICATION.md#
 
 The ordered vocabulary resolved by a model. It contains independently identified axes, precision
 roles, and versioned contracts; it has no single global version. See
-[Model guide §3](ARMATURE-MODEL_JSON.md#3--catalog-contracts) and
+[Model guide §3](TENSORSPINE-MODEL_JSON.md#3--catalog-contracts) and
 [Specification §8.2](SPECIFICATION.md#82--identity-and-versioning).
 
 ### Composition
@@ -57,7 +57,7 @@ may be guarded by `when`, so one composition over a flat layer index expresses a
 Expansion turns sites into ordinary occurrences with deterministic identifiers and scoped bindings
 into top-level rules. It is authoring shorthand, not a runtime node or a nested model. See
 [Specification §5.1](SPECIFICATION.md#51--the-expanded-graph-is-authoritative) and [Model guide
-§2.4](ARMATURE-MODEL_JSON.md#24--compositions-and-deterministic-expansion).
+§2.4](TENSORSPINE-MODEL_JSON.md#24--compositions-and-deterministic-expansion).
 
 ### Communication
 
@@ -69,7 +69,7 @@ this consequence independently of physical collectives, topology, or measured tr
 
 A non-learned numeric tensor or buffer with explicit identity, shape, and dtype, optionally located
 by a URI and identified by content digest. It is distinct from a quantity whose regime is
-`model_constant`. See [Model guide §2.2](ARMATURE-MODEL_JSON.md#22--external-constants) and
+`model_constant`. See [Model guide §2.2](TENSORSPINE-MODEL_JSON.md#22--external-constants) and
 [Specification §3](SPECIFICATION.md#3--occurrences).
 
 ### Contract
@@ -78,7 +78,7 @@ The immutable, versioned semantic definition of a primitive. An occurrence pins 
 and version; the contract declares arguments and derives ports, logical tensors, state, effects,
 costs, and legal partitions. It describes meaning, not a kernel or backend implementation. See
 [Specification §4](SPECIFICATION.md#4--primitive-semantic-contracts) and
-[Model guide §3](ARMATURE-MODEL_JSON.md#3--catalog-contracts).
+[Model guide §3](TENSORSPINE-MODEL_JSON.md#3--catalog-contracts).
 
 ## D
 
@@ -116,7 +116,7 @@ See [Specification §7](SPECIFICATION.md#7--required-derived-products).
 A tagged, inspectable construction for a scalar value or condition. Model expressions read model
 quantities and composition indices; contract expressions read resolved primitive arguments. The two
 contexts are deliberately separate. See [Model guide
-§2.1](ARMATURE-MODEL_JSON.md#21--quantities-and-expressions) and [Specification
+§2.1](TENSORSPINE-MODEL_JSON.md#21--quantities-and-expressions) and [Specification
 §2.2](SPECIFICATION.md#22--derivation-algebra-o01-o02-o03-o05-o06).
 
 ### Extent
@@ -137,7 +137,7 @@ nodes without enumerating every expanded occurrence. See
 
 ### Generative
 
-An output property stating whether a public output participates in generation. Armature also permits
+An output property stating whether a public output participates in generation. Tensorspine also permits
 non-generative and per-token outputs. See
 [Specification §2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42).
 
@@ -162,7 +162,7 @@ from an encoder source sequence. See
 A public model input or output attached to an existing occurrence port. Each interface declares its
 indexing domain; outputs also state whether they are generative. See
 [Specification §2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42) and
-[Model guide §2.6](ARMATURE-MODEL_JSON.md#26--public-interfaces).
+[Model guide §2.6](TENSORSPINE-MODEL_JSON.md#26--public-interfaces).
 
 ### Invocation boundary
 
@@ -188,12 +188,12 @@ State liveness sizes simultaneous memory; visits size computation. See
 
 ### Model document
 
-An `armature/2.0` declaration of model identity (and, for a template, its version), catalog bases,
+An `tensorspine/2.0` declaration of model identity (and, for a template, its version), catalog bases,
 quantities — literal, external with domain and optional default, or derived — constants,
 occurrences, compositions with their scoped bindings, bindings, and public interfaces. It declares
 graph-specific causes and relationships; contracts derive reusable consequences. See [Specification
 §2](SPECIFICATION.md#2--model-document) and [Model guide
-§2](ARMATURE-MODEL_JSON.md#2--the-armature-20-model-document).
+§2](TENSORSPINE-MODEL_JSON.md#2--the-tensorspine-20-model-document).
 
 ## N
 
@@ -211,7 +211,7 @@ at a particular site. See
 A node in the model graph. It has a stable identity, references one versioned contract, supplies
 that contract's arguments, and belongs to one or more families. It is an invocation of a primitive,
 not the primitive definition itself. See [Specification §3](SPECIFICATION.md#3--occurrences) and
-[Model guide §2.3](ARMATURE-MODEL_JSON.md#23--occurrences).
+[Model guide §2.3](TENSORSPINE-MODEL_JSON.md#23--occurrences).
 
 ### Operator
 
@@ -258,7 +258,7 @@ A named scalar fact or variable in a model document. Its regime, type, and sourc
 for example, an externally assigned cardinality and a literal model constant are both quantities.
 Runtime load variables such as active batch size do not belong here. See
 [Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04) and
-[Model guide §2.1](ARMATURE-MODEL_JSON.md#21--quantities-and-expressions).
+[Model guide §2.1](TENSORSPINE-MODEL_JSON.md#21--quantities-and-expressions).
 
 ## R
 
@@ -267,7 +267,7 @@ Runtime load variables such as active batch size do not belong here. See
 Whether a quantity is a `model_constant` or a `model_variable`. Regime does not say where the value
 comes from; that is the quantity's source. See
 [Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04) and
-[Model guide §2.1](ARMATURE-MODEL_JSON.md#21--quantities-and-expressions).
+[Model guide §2.1](TENSORSPINE-MODEL_JSON.md#21--quantities-and-expressions).
 
 ### Role
 
@@ -284,7 +284,7 @@ The use of one logical resource by multiple sites. A contract declares whether a
 granularity sharing is semantically permitted; model bindings declare the actual parameter or state
 identity shared by occurrences. Sharing is explicit and is never inferred from equal shapes or
 similar names. See [Specification §3.4](SPECIFICATION.md#34--bindings) and
-[Model guide §3.1](ARMATURE-MODEL_JSON.md#31--state-is-split-between-contract-and-graph).
+[Model guide §3.1](TENSORSPINE-MODEL_JSON.md#31--state-is-split-between-contract-and-graph).
 
 ### Source
 
@@ -295,7 +295,7 @@ The word is qualified by context:
 - a **value source** is the producer endpoint of a value binding.
 
 These are not interchangeable fields. See [Model guide
-§2](ARMATURE-MODEL_JSON.md#2--the-armature-20-model-document).
+§2](TENSORSPINE-MODEL_JSON.md#2--the-tensorspine-20-model-document).
 
 ### Semantics
 
@@ -322,7 +322,7 @@ fact, separate from the state descriptor derived by a contract. See
 A contract argument flagged `structural: true`: it decides which parameter slots, ports or state
 ports exist, or their shapes (`heads`, `window`, `kv_heads`). A non-structural argument (`rope`,
 `activation`) changes only the computation. See
-[Model guide §3](ARMATURE-MODEL_JSON.md#3--catalog-contracts).
+[Model guide §3](TENSORSPINE-MODEL_JSON.md#3--catalog-contracts).
 
 ## T
 
@@ -369,5 +369,5 @@ Three condition sites use similar names but different inputs and effects:
 
 They are not aliases and cannot be moved between contexts. See
 [Specification §5.2](SPECIFICATION.md#52--deterministic-expansion),
-[Model guide §2.3](ARMATURE-MODEL_JSON.md#23--occurrences), and
-[Model guide §3](ARMATURE-MODEL_JSON.md#3--catalog-contracts).
+[Model guide §2.3](TENSORSPINE-MODEL_JSON.md#23--occurrences), and
+[Model guide §3](TENSORSPINE-MODEL_JSON.md#3--catalog-contracts).

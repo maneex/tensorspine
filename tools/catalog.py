@@ -1,4 +1,4 @@
-"""Loading and resolution of an Armature catalog.
+"""Loading and resolution of an Tensorspine catalog.
 
 A base is either an exploded directory — with `contracts/`, `axes/` and
 `precision/` — or a single monolithic file, still accepted. Bases are consulted
@@ -73,7 +73,7 @@ def load_for(model_path, model, override=None, schema_dir=None, models_base=None
         _LOADED[key] = load(*bases, schema_dir=schema_dir, models_base=models_base)
     return _LOADED[key]
 
-UNIT_SCHEMA = "armature-catalog-unit/2.0"
+UNIT_SCHEMA = "tensorspine-catalog-unit/2.0"
 SECTIONS = (('contracts', 'contract'), ('axes', 'axis'), ('precision', 'precision_role'))
 
 

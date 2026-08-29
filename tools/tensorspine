@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""armature — one entry point for the model documents of this repository.
+"""tensorspine — one entry point for the model documents of this repository.
 
-    armature --validate [PATH ...]    grammar, then meaning. The gate.
-    armature --lint     [PATH ...]    hygiene. Advisory, never blocks.
-    armature --d1       [PATH ...]    emit D1, the expanded graph (§7).
-    armature --view     [PATH ...]    render a self-contained HTML page.
-    armature --document catalog [PATH ...]
+    tensorspine --validate [PATH ...]    grammar, then meaning. The gate.
+    tensorspine --lint     [PATH ...]    hygiene. Advisory, never blocks.
+    tensorspine --d1       [PATH ...]    emit D1, the expanded graph (§7).
+    tensorspine --view     [PATH ...]    render a self-contained HTML page.
+    tensorspine --document catalog [PATH ...]
                                       render the catalog as one Markdown file;
                                       PATHs say where templates live.
 
@@ -51,8 +51,8 @@ def collect(paths, default_dir):
 
 def build_parser():
     parser = argparse.ArgumentParser(
-        prog='armature',
-        description='Validate, lint, expand and visualize armature/2.0 model documents.',
+        prog='tensorspine',
+        description='Validate, lint, expand and visualize tensorspine/2.0 model documents.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="A validation error is a refusal; a lint finding is advice. "
                "That is why --lint always exits 0.")

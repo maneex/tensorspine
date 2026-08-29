@@ -1,16 +1,16 @@
-# Armature Language Specification
+# Tensorspine Language Specification
 
 > Represent every in-scope model as a **finite graph of parameterized primitive occurrences**, then
 > derive all other information from the primitives' contracts.
 
-*Armature 2.0 — language specification, revision of 29 August 2026. The language version is the
-`armature/2.0` tag every document and schema carries; catalog units carry their own versions (§8.2).
+*Tensorspine 2.0 — language specification, revision of 29 August 2026. The language version is the
+`tensorspine/2.0` tag every document and schema carries; catalog units carry their own versions (§8.2).
 This document is the sole normative authority for the language. It is self-contained: syntax,
 validity, and denotation do not depend on source code, tools, or other repository artifacts. Every
 requirement identifier it cites (O‑, I‑, N‑) is stated in Appendix A or §9.*
 
 For motivation and repository orientation, read the [README](../README.md). For a field-by-field
-authoring guide, read [Armature model JSON](ARMATURE-MODEL_JSON.md). The [glossary](GLOSSARY.md)
+authoring guide, read [Tensorspine model JSON](TENSORSPINE-MODEL_JSON.md). The [glossary](GLOSSARY.md)
 summarizes terminology and points back to its canonical sections; the
 [architecture guide](ARCHITECTURE.md) explains the design rationale. None of those explanatory
 documents adds requirements to this specification.
@@ -47,7 +47,7 @@ directed acyclic value graph per invocation, with recurrence only through state 
 | *Unique representation* | Each graph has exactly one representation. | *not required* |
 
 Functional denotation is not injectivity. Injectivity would forbid two documents from denoting the
-same graph; Armature explicitly does not require a canonical representation.
+same graph; Tensorspine explicitly does not require a canonical representation.
 
 ### 1.2 — Governing principle
 

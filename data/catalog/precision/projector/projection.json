@@ -1,5 +1,5 @@
 {
-  "schema": "armature-catalog-unit/2.0",
+  "schema": "tensorspine-catalog-unit/2.0",
   "kind": "precision_role",
   "name": "projector.projection",
   "definition": {

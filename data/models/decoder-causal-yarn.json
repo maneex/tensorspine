@@ -1,5 +1,5 @@
 {
-  "schema": "armature/2.0",
+  "schema": "tensorspine/2.0",
   "model": "decoder_causal_yarn",
   "version": "1.0.0",
   "catalog": [

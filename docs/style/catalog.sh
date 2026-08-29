@@ -2,7 +2,7 @@
 # Render the generated catalog Markdown as a styled HTML page.
 #   docs/style/catalog.sh [IN.md] [OUT.html]
 # Defaults: docs/CATALOG-REFERENCE.md -> docs/CATALOG-REFERENCE.html
-# Regenerate the Markdown first with: python3 tools/armature --document catalog -o docs/CATALOG-REFERENCE.md
+# Regenerate the Markdown first with: python3 tools/tensorspine --document catalog -o docs/CATALOG-REFERENCE.md
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 docs=$(dirname "$here")
@@ -18,6 +18,6 @@ pandoc "$in" \
   --template "$here/catalog.html" \
   --lua-filter "$here/catalog.lua" \
   --css "$css" \
-  --metadata pagetitle="Armature reference catalog" \
+  --metadata pagetitle="Tensorspine reference catalog" \
   --output "$out"
 echo "wrote $out"

@@ -1,7 +1,7 @@
 """JSON Schema validation, cross-file $ref included.
 
 The stock `jsonschema` CLI cannot follow a $ref from one schema to another: it
-has no idea where https://armature.dev/schema/2.0/catalog-unit.json lives. This
+has no idea where https://tensorspine.dev/schema/2.0/catalog-unit.json lives. This
 module builds the registry that maps the published namespace onto the files of
 the repository.
 
