@@ -29,6 +29,17 @@
         "required": true,
         "structural": false,
         "description": "Added to the mean square before the root; changes no tensor."
+      },
+      "zero_centered": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": false,
+        "default": {
+          "literal": false
+        },
+        "description": "The scale is stored as an offset from one: the output is the normalized input times `1 + weight`, as Qwen 3.5 stores it. Changes no tensor."
       }
     },
     "ports": {
