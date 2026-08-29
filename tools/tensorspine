@@ -4,6 +4,7 @@
     tensorspine --validate [PATH ...]    grammar, then meaning. The gate.
     tensorspine --lint     [PATH ...]    hygiene. Advisory, never blocks.
     tensorspine --d1       [PATH ...]    emit D1, the expanded graph (§7).
+    tensorspine --derive   [PATH ...]    emit D2–D6, the derived products (§7).
     tensorspine --view     [PATH ...]    render a self-contained HTML page.
     tensorspine --document catalog [PATH ...]
                                       render the catalog as one Markdown file.
@@ -68,6 +69,9 @@ def build_parser():
     command.add_argument('--d1', action='store_true',
                          help='emit D1, the expanded graph: loops unrolled, indices '
                               'evaluated, template contracts expanded in place.')
+    command.add_argument('--derive', action='store_true',
+                         help='emit D2–D6: values and cut payloads, parameter tensors, states, '
+                              'logical costs, legal cuts and partitions, as one JSON per model.')
     command.add_argument('--view', action='store_true',
                          help='render a self-contained HTML page. Needs Graphviz on PATH.')
     command.add_argument('--document', metavar='WHAT', choices=['catalog'],
@@ -80,10 +84,10 @@ def build_parser():
                         help=f'model documents, or a directory of them '
                              f'(default: {os.path.relpath(DEFAULT_MODELS, ROOT)}/)')
     parser.add_argument('-o', '--output', metavar='PATH',
-                        help='where to write, for --d1, --view and --document. A directory '
-                             'takes one file per model (catalog.md for --document); omitted, '
-                             '--d1 and --view land beside their model and --document writes '
-                             'to stdout.')
+                        help='where to write, for --d1, --derive, --view and --document. A '
+                             'directory takes one file per model (catalog.md for --document); '
+                             'omitted, --d1, --derive and --view land beside their model and '
+                             '--document writes to stdout.')
     parser.add_argument('--catalog', metavar='DIR', action='append',
                         help='a catalog base, repeatable, overriding the bases a document '
                              'declares in its `catalog` field (which are resolved relative to '
@@ -162,6 +166,12 @@ def dispatch(args, documents, bases, assignment, parser):
         import d1
         print(f"d1  {len(documents)} document(s)")
         failed, skipped = d1.run(documents, bases, args.output, assignment)
+        return 1 if failed else 0
+
+    if args.derive:
+        import derive
+        print(f"derive  {len(documents)} document(s)")
+        failed, skipped = derive.run(documents, bases, args.output, assignment)
         return 1 if failed else 0
 
     if args.view:
