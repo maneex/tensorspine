@@ -646,6 +646,15 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     ties = 0
     tensor_identities = 0
     checked = 0
+    tensor_instances = []               # one per identity instance, for D3
+    state_instances = []                # one per identity instance, for D4
+
+    def instance_name(symbol, env):
+        indices = symbol.get('indices', {})
+        if not indices:
+            return symbol['name']
+        return symbol['name'] + '[' + ','.join(f"{k}={value(v, env)}" for k, v in sorted(indices.items())) + ']'
+
     for tid, binding in model['bindings']['parameters'].items():
         values = _dtype_values(model, binding.get('dtype'))
         if isinstance(values, str):
@@ -657,6 +666,9 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 continue                                       # §5.2 rule 3
             tensor_identities += 1
             signatures = []
+            tensor_instances.append({'identity': instance_name(binding['tensor'], env), 'rule': tid,
+                                     'members': [(key, pname) for key, pname in members if key in resolved],
+                                     'dtype': binding.get('dtype')})
             for key, pname in members:
                 if key not in resolved:
                     fail('V1', f"parameter {tid}: occurrence does not exist {where(key)}")
@@ -785,6 +797,10 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             if any(key in absent for key, _ in members):
                 continue                                       # §5.2 rule 3
             state_identities += 1
+            state_instances.append({'identity': instance_name(binding['identity'], env), 'rule': tid if False else sid,
+                                    'members': [(key, sname) for key, sname in members if key in resolved],
+                                    'dtype': binding.get('dtype'),
+                                    'indices': sorted(binding['identity'].get('indices', {}))})
             key_axes = None
             payload = None
             rule_text = None
@@ -896,7 +912,8 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             'graph': {'resolved': resolved, 'edges': edges, 'domains': domains, 'own': own,
                       'slots': slots, 'state_slots': state_slots, 'absent': absent,
                       'model': model, 'quantities': quantities, 'fragmented': fragmented,
-                      'sub_results': sub_results}}
+                      'sub_results': sub_results, 'tensor_instances': tensor_instances,
+                      'state_instances': state_instances, 'order': order}}
 
 
 def check_quantities(model, quantities):
