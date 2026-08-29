@@ -76,7 +76,11 @@ def compute_dtype(args):
 def make_plan(g, kernels, args, dtype):
     resident = loader.state_bytes(g, args.capacity, dtype) + loader.largest_temporary(g, dtype)
     max_bytes = int(args.max_ram * 2**30) if args.max_ram else None
-    return Plan(g, kernels, max_bytes=max_bytes, elements=args.capacity, resident_bytes=resident)
+    plan = Plan(g, kernels, max_bytes=max_bytes, elements=args.capacity, resident_bytes=resident)
+    if max_bytes is not None:
+        for line in plan.summary(args.capacity, max_bytes, resident):
+            print("  " + line)
+    return plan
 
 
 def report(g, plan, i, args, dtype):
@@ -84,10 +88,7 @@ def report(g, plan, i, args, dtype):
           f"at {dtype} for a capacity of {args.capacity}; largest per-operation temporary {loader.gib(i['temporary_bytes'])}")
     print(f"  resident   {loader.gib(i['resident_bytes'])} — {i['mode']}; free on {args.device}: "
           f"{loader.gib(i['free_bytes']) if i['free_bytes'] is not None else 'unknown'}; activations not budgeted")
-    if len(plan.blocks) > 1:
-        print(f"  blocks     " + ", ".join(f"{b.name} {loader.gib(b.bytes)}" for b in plan.blocks[:8])
-              + (" …" if len(plan.blocks) > 8 else ""))
-        print(f"  traffic    {loader.gib(i['traffic_bytes'])} of parameters loaded and released per invocation")
+
 
 
 def cmd_info(args):
@@ -160,7 +161,6 @@ def build(args, g):
         return None
     print(f"  verified {stats['located']} located tensors against {stats['physical']} physical ({stats['unnamed']} unnamed)")
     if len(plan.blocks) > 1:
-        print(f"  {i['mode']}; traffic {loader.gib(i['traffic_bytes'])} of parameters per invocation")
         return TensorspineModel(g, plan, None, dtype, args.device, source=loader.Source(g, args.checkpoint, args.device).materialise)
     return TensorspineModel(g, plan, loader.load_parameters(g, args.checkpoint, args.device), dtype, args.device)
 
@@ -232,8 +232,7 @@ def cmd_run(args):
     print(f"{g.model}: {len(plan.steps)} steps, {len(g.tensors)} tensors, {len(session.states)} states, "
           f"{'random parameters' if args.random else 'loaded from ' + args.checkpoint}, "
           f"{loader.gib(i['parameter_bytes'])}, {i['mode']} ({time.time() - t0:.1f}s)")
-    if blocks:
-        print(f"  traffic {loader.gib(i['traffic_bytes'])} of parameters per invocation")
+
     ids = [int(x) for x in args.ids.split(',')] if args.ids else [1]
     dump = {} if args.dump else None
     t0 = time.time()

@@ -104,8 +104,10 @@ consecutive layers greedily while a block's parameters, the payload crossing int
 Every invocation then materialises one block at a time (an owned copy on the device; on CUDA the
 block is what lives on the card), runs it, and releases it; a tied identity used by two blocks is
 held and loaded by both. The outputs are the one-block outputs bit for bit — the test checks it on
-random weights and on both fixtures — and the cost is printed: the whole model's bytes of traffic
-per decode step. A bound below one layer plus the resident part is refused with the numbers. On
+random weights and on both fixtures — and the cost is printed. Whenever `--max-ram` is set, `info`,
+`run` and `chat` print the cut summary first: one line per block with the legal cut it opens with
+and the one it closes at (D6's names), its nodes, its parameter bytes and the payload crossing into
+it, then what stays resident and the traffic — the whole model's bytes per decode step. A bound below one layer plus the resident part is refused with the numbers. On
 llama3-8b, `--max-ram 6` gives six blocks of about 3 GiB and 14.96 GiB of traffic per token.
 
 

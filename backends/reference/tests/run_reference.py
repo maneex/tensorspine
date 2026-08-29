@@ -97,6 +97,9 @@ def main(compile_step=False, full=False):
     bout = bsession.prefill([1, 2, 3, 4, 5, 6, 7, 8])
     bnxt = greedy(bout, g)
     bout2 = bsession.decode(bnxt)
+    lines = blocked.summary(32, resident + total // 2, resident)
+    ok &= check("blocks: the cut summary has one line per block, opening and closing at D6's cuts",
+                len(lines) == len(blocked.blocks) + 2 and all('→' in l for l in lines[1:-1]) and 'start →' in lines[1] and '→ end' in lines[-2])
     ok &= check(f"blocks: {len(blocked.blocks)} blocks at legal cuts give the one-block logits bit for bit",
                 len(blocked.blocks) > 1 and bnxt == nxt and torch.equal(bout2['logits'], out['logits'])
                 and bmodel.loaded_blocks == 2 * len(blocked.blocks))

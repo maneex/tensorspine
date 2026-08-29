@@ -131,6 +131,25 @@ class Plan:
         out.append(current)
         return out
 
+    def summary(self, elements, max_bytes, resident_bytes):
+        """The cuts chosen under `--max-ram`: one line per block — the legal cut it opens
+        with and the one it closes at (D6's names), its nodes, its parameter bytes and the
+        payload crossing into it — then what stays resident and the traffic."""
+        gib = lambda n: f"{n / 2**30:.2f} GiB"
+        lines = [f"blocks: {len(self.blocks)} at legal cuts under --max-ram {gib(max_bytes)} "
+                 f"(states and the largest temporary {gib(resident_bytes)} stay resident)"]
+        largest = 0
+        for k, b in enumerate(self.blocks):
+            opening = b.cut or 'start'
+            closing = self.blocks[k + 1].cut if k + 1 < len(self.blocks) else 'end'
+            first, last = self.steps[b.steps[0]].node, self.steps[b.steps[-1]].node
+            payload = b.payload_bytes_per_element * elements
+            largest = max(largest, b.bytes + payload)
+            lines.append(f"  {k + 1:2d}. {opening} → {closing}: {len(b.steps)} nodes ({first} … {last}), "
+                         f"parameters {gib(b.bytes)}, payload in {payload / 2**20:.1f} MiB for {elements} elements")
+        lines.append(f"  resident at most {gib(largest + resident_bytes)}; traffic {gib(self.traffic_bytes())} of parameters per invocation")
+        return lines
+
     def traffic_bytes(self):
         """Parameter bytes moved per invocation: nothing when one block holds the model,
         the whole model when it is streamed block by block."""
