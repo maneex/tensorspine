@@ -543,7 +543,7 @@ def template_contracts(cat):
 def template_path(cat, contract_definition):
     """The template file of a template contract, as pinned and checked at load."""
     for (name, version), path in cat['templates'].items():
-        if cat['by_id'][(name, version)] is contract_definition:
+        if cat['by_id'][(name, version)] == contract_definition:
             return path
     ref = contract_definition['template']
     raise CatalogError(f"template '{ref['name']}' {ref['version']} was not resolved at load")
