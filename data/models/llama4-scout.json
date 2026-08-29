@@ -549,40 +549,6 @@
             "to": {
               "site": "attn",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 47
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_r.b": {
@@ -593,40 +559,6 @@
             "to": {
               "site": "attn_r",
               "port": "b"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 47
-                    }
-                  }
-                }
-              ]
             }
           },
           "moe_n.in": {
@@ -677,40 +609,6 @@
             "to": {
               "site": "attn_full",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_r.b_2": {
@@ -721,40 +619,6 @@
             "to": {
               "site": "attn_r",
               "port": "b"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           }
         },
@@ -779,40 +643,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 47
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.out": {
@@ -824,40 +654,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 47
-                    }
-                  }
-                }
-              ]
             }
           },
           "moe_n.weight": {
@@ -935,40 +731,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_full.out": {
@@ -980,40 +742,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           }
         },
@@ -1024,41 +752,7 @@
                 "site": "attn_full",
                 "state": "kv"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn.kv": {
             "members": [
@@ -1066,41 +760,7 @@
                 "site": "attn",
                 "state": "kv"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 47
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           }
         }
       }
@@ -1250,17 +910,16 @@
   "interfaces": {
     "inputs": {
       "tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
       }
     },
     "outputs": {
@@ -1271,10 +930,6 @@
             "occurrence": "lm_head"
           },
           "port": "logits"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
         },
         "generative": true
       }

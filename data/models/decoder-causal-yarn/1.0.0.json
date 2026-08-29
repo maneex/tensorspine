@@ -23,8 +23,7 @@
         }
       },
       "source": {
-        "kind": "external",
-        "name": "width"
+        "kind": "external"
       }
     },
     "layers": {
@@ -42,8 +41,7 @@
         }
       },
       "source": {
-        "kind": "external",
-        "name": "layers"
+        "kind": "external"
       }
     },
     "heads": {
@@ -61,8 +59,7 @@
         }
       },
       "source": {
-        "kind": "external",
-        "name": "heads"
+        "kind": "external"
       }
     },
     "kv_heads": {
@@ -80,8 +77,7 @@
         }
       },
       "source": {
-        "kind": "external",
-        "name": "kv_heads"
+        "kind": "external"
       }
     },
     "head_dim": {
@@ -99,8 +95,7 @@
         }
       },
       "source": {
-        "kind": "external",
-        "name": "head_dim"
+        "kind": "external"
       }
     },
     "inner": {
@@ -118,8 +113,7 @@
         }
       },
       "source": {
-        "kind": "external",
-        "name": "inner"
+        "kind": "external"
       }
     },
     "eps": {
@@ -143,8 +137,7 @@
         }
       },
       "source": {
-        "kind": "external",
-        "name": "eps"
+        "kind": "external"
       }
     },
     "precision": {
@@ -166,28 +159,12 @@
         ]
       },
       "source": {
-        "kind": "external",
-        "name": "precision"
+        "kind": "external"
       }
     }
   },
   "constants": {},
-  "occurrences": {
-    "entry": {
-      "contract": {
-        "name": "identity",
-        "version": "1.0.0"
-      },
-      "arguments": {
-        "width": {
-          "quantity": "width"
-        }
-      },
-      "families": [
-        "seam"
-      ]
-    }
-  },
+  "occurrences": {},
   "compositions": {
     "decoder": {
       "indices": {
@@ -555,52 +532,7 @@
     }
   },
   "bindings": {
-    "values": {
-      "decoder.entry": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "entry"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "decoder",
-            "occurrence": "attn_n",
-            "indices": {
-              "layer": {
-                "literal": 0
-              }
-            }
-          },
-          "port": "input"
-        }
-      },
-      "decoder.entry.a": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "entry"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "decoder",
-            "occurrence": "attn_r",
-            "indices": {
-              "layer": {
-                "literal": 0
-              }
-            }
-          },
-          "port": "a"
-        }
-      }
-    },
+    "values": {},
     "parameters": {},
     "constants": {},
     "states": {}
@@ -608,17 +540,35 @@
   "interfaces": {
     "inputs": {
       "hidden": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "entry"
+        "to": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_n",
+              "indices": {
+                "layer": {
+                  "literal": 0
+                }
+              }
+            },
+            "port": "input"
           },
-          "port": "input"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_r",
+              "indices": {
+                "layer": {
+                  "literal": 0
+                }
+              }
+            },
+            "port": "a"
+          }
+        ],
+        "kind": "token"
       }
     },
     "outputs": {
@@ -643,10 +593,6 @@
             }
           },
           "port": "output"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
         },
         "generative": false
       }

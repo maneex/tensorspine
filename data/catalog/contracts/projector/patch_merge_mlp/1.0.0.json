@@ -41,14 +41,6 @@
         "required": true,
         "structural": true,
         "description": "Patches merged into one token."
-      },
-      "source": {
-        "type": {
-          "kind": "port_reference"
-        },
-        "required": true,
-        "structural": true,
-        "description": "The port whose patch domain the merge consumes."
       }
     },
     "ports": {
@@ -280,7 +272,6 @@
         "target": {
           "argument_axis": "ffn.inner"
         },
-        "semantics": "preserved",
         "communication": "all_reduce",
         "description": "Column-parallel up, row-parallel down over the inner axis; the down projection's partial outputs are reduced."
       }

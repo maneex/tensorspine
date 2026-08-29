@@ -53,7 +53,7 @@ The specification already decides most of the design:
 | Operation `summary`, `description` | Unit-level `summary` (one line, ≤ 120 characters, plain text) and `description` (CommonMark) | On contracts, axes, precision roles and the base. |
 | Operation `deprecated: true` | `deprecated: {reason, superseded_by?: {name, version}}` | An object rather than a boolean: the useful fact is what to use instead, and the renderer links it. |
 | Parameter `description`, `deprecated` | `description` and `deprecated: {reason, superseded_by?: <argument>}` on every argument and record field | |
-| Schema `description` on every property | `description` on every port, parameter slot, constant slot, state port, payload component, state operation, state rule, partition, cost entry, domain transform, alias rule | One field per site; the site's other facts are already declared. |
+| Schema `description` on every property | `description` on every port, parameter slot, constant slot, state port, payload component, state operation, state rule, partition, cost entry, sparsity unit, domain transform | One field per site; the site's other facts are already declared. |
 | `x-enum-descriptions` (vendor extension, no standard) | `value_descriptions: {value: text}` on an enum argument | Keys must be declared values; checked by the generator. |
 | Example Object | — | Not adopted (§2.5). |
 | `x-*` specification extensions | — | Rejected: the vocabulary is closed (O0.6). |
@@ -68,7 +68,7 @@ contract's `summary` is a sibling of its `version`; an argument's `description` 
 
 | Unit kind | Unit-level fields | Element-level fields |
 |---|---|---|
-| Contract (primitive) | `summary`, `description`, `external_docs`, `tags`, `deprecated` | `description` on every argument, record field, port, parameter slot, constant slot, state port, payload component, state operation, state rule, partition, cost entry, domain transform, alias rule; `value_descriptions` and `deprecated` on arguments |
+| Contract (primitive) | `summary`, `description`, `external_docs`, `tags`, `deprecated` | `description` on every argument, record field, port, parameter slot, constant slot, state port, payload component, state operation, state rule, partition, cost entry, sparsity unit, domain transform; `value_descriptions` and `deprecated` on arguments |
 | Contract (template) | same | none: its elements are derived from the template |
 | Axis | `summary`, `description`, `external_docs`, `tags`, `deprecated` | — |
 | Precision role | `summary`, `description`, `external_docs`, `tags`, `deprecated` | — |
@@ -109,13 +109,12 @@ Both are kept and both are rendered — the description as prose, the note quote
 The catalog grammar, `schemas/tensorspine-catalog-unit.schema.json`, is in the tree and every unit of
 every base is read against it when a catalog is loaded (`catalog.load`), so a unit outside the
 vocabulary is a load error, never an advisory finding. The documentation fields are declared in that
-grammar at the site they document (`summary`, `description`, `note`, `external_docs`, `tags` on a
-unit; `description`, `value_descriptions` on an argument; `description` on ports, slots, payload
-components, operations, rules, partitions and transforms) with `additionalProperties: false`, which
-is the closure O0.6 asks for. `schemas/tensorspine-documentation.schema.json` states the same fields
-for the generator, which validates the documentation it extracts against it; the two are kept
-aligned by hand, and a key that one knows and the other does not is reported in the reference's
-Appendix C.
+grammar at the site they document, by reference: `schemas/tensorspine-documentation.schema.json` is
+the single source of their shapes, and the catalog grammar `$ref`s its definitions (`summary`,
+`description`, `external_docs`, `tags`, `deprecated`, `value_descriptions`; `title`, `contact`,
+`license` and the tag declarations on the base) with `additionalProperties: false` around them, which
+is the closure O0.6 asks for. One definition, two readers: the loader refuses a malformed field, the
+generator renders a well-formed one.
 
 ### 2.5 — What is deliberately not in the model
 
@@ -126,10 +125,6 @@ Appendix C.
 - **No documentation version or `since`.** There is no catalog version to date it against; the
   file's history is in git.
 - **No documentation on shape axes** (§2.1).
-- **No structured "rejection conditions" prose.** `constraints` is an array of bare conditions in the
-  grammar, so a constraint has nowhere to carry a `description`. Giving constraints an object form
-  (`{condition, description?}`) is a grammar change, listed under open questions; no live unit
-  declares a constraint today.
 - **One language.** `description` is a string, not a language map. If bilingual descriptions are
   wanted later, the change is local to `$defs/description` and `summary`.
 
@@ -141,18 +136,18 @@ python3 tools/tensorspine --document catalog                                 # t
 python3 tools/tensorspine --document catalog --catalog other/catalog -o out/  # writes out/catalog.md
 ```
 
-- **Inputs.** The catalog bases (`--catalog`, default `data/catalog/`), the documentation schema
-  (`--schemas`, default `schemas/`) and the models base (`--models`, default `data/models/`),
-  where the template of a template contract is resolved and its pinned version checked when the
-  catalog is loaded. The model documents given as `PATH`s are not read by this command.
+- **Inputs.** The catalog bases (`--catalog`, default `data/catalog/`) and the documentation schema
+  (`--schemas`, default `schemas/`); the template of a template contract is resolved from the
+  location its base declares (`templates`) and its pinned name, version and id are checked when
+  the catalog is loaded. The model documents given as `PATH`s are not read by this command.
 - **Output.** `-o FILE`, `-o DIR` (writes `DIR/catalog.md`), or stdout when `-o` is omitted; the
   status line then goes to stderr so the page can be piped. The output is **deterministic**: the
   same catalog gives the same bytes at the same location, with no timestamp, so the file can be
   committed and diffed.
 - **Exit status.** `0` written; `1` refused — an unreadable catalog, a malformed documentation
   field — with every cause on stderr and nothing written. Findings that are legal but worth knowing
-  (an unknown key, a tag no base declares, a condition citing an argument the contract does not
-  declare) go to the findings appendix and never block.
+  (a tag no base declares, a condition citing an argument the contract does not declare) go to the
+  findings appendix and never block.
 
 ### 3.1 — What the page contains
 
@@ -161,7 +156,7 @@ python3 tools/tensorspine --document catalog --catalog other/catalog -o out/  # 
 | Head | base manifest | Title, summary, description, contact, license, external docs; bases consulted; counts. |
 | Contents, How to read | — | Navigation; the notation: expressions in infix, conditions in words, shapes as `[name: extent]`, structural arguments, ordered rules. |
 | Overview | all units | One index table per kind: contract with summary and shape (`17 args · 2→1 ports · 9 params · state kv`), axes, precision roles. |
-| Contracts | contract units, grouped by namespace | Per contract: summary, tags, description, note, external docs, an at-a-glance row, then **Arguments** (with nested record fields and enum value descriptions), **Ports**, **Parameters** (with sharing, presence, multiplicity, declared views), **Constant slots**, **State ports** (presence, key axes, payload, permitted operations, ordered derivation rules), **Effects**, **Logical cost**, **Semantic partitions**, **Domain transforms**, **Constraints**. A template contract shows its template: resolved path, the template's external quantities as arguments with their domains, its public interfaces, and the transitive closure of contracts it cites — the consumer's capability cost (§8.1). |
+| Contracts | contract units, grouped by namespace | Per contract: summary, tags, description, note, external docs, an at-a-glance row, then **Arguments** (with nested record fields and enum value descriptions), **Ports**, **Parameters** (with sharing, presence, multiplicity, declared views), **Constant slots**, **State ports** (presence, key axes, payload, permitted operations, carrying condition, ordered derivation rules), **Effects**, **Logical cost** (corrections), **Structured sparsity** (units), **Semantic partitions**, **Domain transforms**. A template contract shows its template: resolved path, the template's external quantities as arguments with their domains, its public interfaces, and the transitive closure of contracts it cites — the consumer's capability cost (§8.1). |
 | Axes, Precision roles | axis and role units | Tables with summary, then details for units with a description. |
 | Tags | base manifest | Declared tags. A unit that carries a tag says so in its own section. |
 | Appendix A | derived | Closed vocabulary in use: every value of every closed enumeration at least one unit uses (laws, access geometries, sharing, communications, natures, domains, dtypes…), with how many units use it. A runtime that implements these values implements the catalog as it stands. |
@@ -192,10 +187,11 @@ than carry them: a list maintained by hand drifts.
 
 - `schemas/tensorspine-documentation.schema.json` — the model, 20 `$defs`.
 - `tools/document.py`, `tools/tensorspine --document` — the generator.
-- **The catalog, documented in full.** Every one of the 36 contracts, 37 axes and 54 precision roles
+- **The catalog, documented in full.** Every one of the 34 contracts, 35 axes and 54 precision roles
   carries a `summary` and a `description`; every argument, record field, port, parameter slot, state
 port, payload component, state operation, state rule, partition, cost entry and domain transform of
-  every primitive contract carries a `description`; every enum argument has `value_descriptions`.
+  every primitive contract carries a `description`, as does every cost correction and sparsity
+  unit; every enum argument has `value_descriptions`.
   The base manifest carries a title, summary, description, a `specification` external doc and
   three declared tags — `sequence-operator`, `multimodal`, `parallel-residual` — which the
   contracts concerned cite. Contracts whose primitive has a canonical paper cite it in
@@ -229,8 +225,6 @@ inert, as §10.2 requires.
 - **Lint.** Three advisory rules fall out of the generator and belong in `--lint` so they run with
   the rest of the hygiene checks: a unit without a summary, a cited tag no base declares, a
   condition citing an undeclared argument.
-- **`constraints` as objects** (`{condition, description?}`) so that rejection conditions can be
-  documented. Grammar change; no live unit affected.
 - **`--document model`.** The same renderer applied to a model document — quantities, occurrences
   with their resolved arguments, bindings, interfaces — would give the tutorial material the
   documentation plan asks for, from the corpus itself. The `--document WHAT` form leaves room for

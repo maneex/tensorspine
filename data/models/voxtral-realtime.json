@@ -280,9 +280,6 @@
         },
         "merge_count": {
           "literal": 4
-        },
-        "source": {
-          "literal": "audio"
         }
       },
       "families": [
@@ -701,14 +698,7 @@
                 "site": "attn",
                 "state": "kv"
               }
-            ],
-            "invocation_boundary": {
-              "retains": "all",
-              "domain": {
-                "kind": "fragment",
-                "source": "audio"
-              }
-            }
+            ]
           }
         }
       }
@@ -1469,30 +1459,29 @@
   "interfaces": {
     "inputs": {
       "audio": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "conv_frontend"
-          },
-          "port": "frames"
-        },
-        "domain": {
-          "kind": "fragment",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "conv_frontend"
+            },
+            "port": "frames"
+          }
+        ],
+        "kind": "position",
+        "fragmented": true
       },
       "tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
       }
     },
     "outputs": {
@@ -1503,10 +1492,6 @@
             "occurrence": "lm_head"
           },
           "port": "logits"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
         },
         "generative": true
       }

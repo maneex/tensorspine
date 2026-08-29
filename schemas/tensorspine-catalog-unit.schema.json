@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tensorspine.dev/schema/2.0/catalog-unit.json",
   "title": "Tensorspine catalog unit",
-  "description": "One logical vocabulary unit of a catalog base: a primitive contract, a named axis, a precision role, or the base itself. The file path reproduces the unit's identity; a contract's file name is its version (§8.2). Every enumeration here is the closed vocabulary a consumer may implement in advance (§4.3, O0.6); a unit outside it is refused at load time, never read with a guess (I7).",
+  "description": "One logical vocabulary unit of a catalog base: a primitive contract, a named axis, a precision role, or the base itself. The file path reproduces the unit's identity; a contract's file name is its version (§8.2). Every enumeration here is the closed vocabulary a consumer may implement in advance (§4.3, O0.6); a unit outside it is refused at load time, never read with a guess (I7). Documentation fields are defined once, in documentation.json, and referenced from the site they document.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -130,9 +130,12 @@
         },
         {
           "$ref": "#/$defs/nary_operation"
+        },
+        {
+          "$ref": "#/$defs/conditional_expression"
         }
       ],
-      "description": "Closed scalar algebra over literals and resolved arguments (O0.1). Every reference resolves to a declared argument."
+      "description": "Closed scalar algebra over literals and resolved arguments (O0.1), conditional included. Every reference resolves to a declared argument."
     },
     "unary_operation": {
       "type": "object",
@@ -349,8 +352,7 @@
             "physical",
             "boolean",
             "enum",
-            "record",
-            "port_reference"
+            "record"
           ]
         }
       },
@@ -444,36 +446,9 @@
           "then": {
             "$ref": "#/$defs/record_type"
           }
-        },
-        {
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "port_reference"
-              }
-            },
-            "required": [
-              "kind"
-            ]
-          },
-          "then": {
-            "$ref": "#/$defs/port_reference_type"
-          }
         }
       ],
-      "description": "The closed set of argument types. There is no opaque type: a value the contract cannot type cannot be refused, and §8.1 requires refusal."
-    },
-    "port_reference_type": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "const": "port_reference"
-        }
-      },
-      "required": [
-        "kind"
-      ]
+      "description": "The closed set of argument types (O9.4): a scalar, an enum, or a record of such values. There is no opaque type and no reference type: a value the contract cannot type cannot be refused, and §8.1 requires refusal."
     },
     "record_type": {
       "type": "object",
@@ -520,20 +495,16 @@
           "$ref": "#/$defs/condition"
         },
         "value_descriptions": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "One line per enum value; keys are the enum values."
-        },
-        "summary": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/value_descriptions"
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/argument_deprecation"
         }
       },
       "required": [
@@ -563,20 +534,16 @@
           "$ref": "#/$defs/condition"
         },
         "value_descriptions": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "One line per enum value; keys are the enum values."
-        },
-        "summary": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/value_descriptions"
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/argument_deprecation"
         }
       },
       "required": [
@@ -608,11 +575,8 @@
         "extent": {
           "$ref": "#/$defs/expression"
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -646,13 +610,10 @@
           "items": {
             "$ref": "#/$defs/shape_factor"
           },
-          "minItems": 1
-        },
-        "summary": {
-          "type": "string"
+          "minItems": 2
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -690,8 +651,7 @@
             "sequence",
             "token",
             "position",
-            "patch",
-            "fragment"
+            "patch"
           ]
         },
         "from": {
@@ -712,20 +672,22 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "argument": {
-                  "$ref": "#/$defs/argument_path"
+                "port": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
                 }
               },
               "required": [
-                "argument"
-              ]
+                "port"
+              ],
+              "description": "The domain of the named input port of this contract (§5.3)."
             }
           ]
         }
       },
       "required": [
         "kind"
-      ]
+      ],
+      "description": "A port's indexing domain: `inherit` — the occurrence's own domain, or the domain of one of its input ports — or a kind, the stream being that of the edge (§5.3)."
     },
     "port": {
       "type": "object",
@@ -740,17 +702,11 @@
         "role": {
           "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
-        "optional": {
-          "type": "boolean"
-        },
         "present_when": {
           "$ref": "#/$defs/condition"
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -833,11 +789,8 @@
         "multiplicity": {
           "$ref": "#/$defs/expression"
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -865,11 +818,8 @@
         "multiplicity": {
           "$ref": "#/$defs/expression"
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -890,11 +840,8 @@
         "role": {
           "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -917,11 +864,8 @@
             "write"
           ]
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -949,13 +893,14 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "argument": {
-              "$ref": "#/$defs/argument_path"
+            "port": {
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
             }
           },
           "required": [
-            "argument"
-          ]
+            "port"
+          ],
+          "description": "The state grows along the stream of the named input port and is frozen once that stream is complete (§5.3)."
         }
       ]
     },
@@ -977,7 +922,8 @@
           "enum": [
             "logical_position",
             "ring",
-            "aggregate"
+            "aggregate",
+            "selected"
           ]
         },
         "sharing": {
@@ -997,21 +943,8 @@
         "stride": {
           "$ref": "#/$defs/expression"
         },
-        "carried_across": {
-          "enum": [
-            "fragment"
-          ]
-        },
-        "frozen_after": {
-          "enum": [
-            "source_complete"
-          ]
-        },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1100,17 +1033,30 @@
           },
           "minItems": 1
         },
-        "internal": {
-          "type": "boolean"
-        },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
+        },
+        "carried_across": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "when": {
+              "$ref": "#/$defs/condition"
+            },
+            "description": {
+              "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "when"
+          ],
+          "description": "The condition over the arguments under which the state survives between the invocations that deliver successive fragments of its stream (§5.3). Declared once per state port."
         }
       },
       "required": [
@@ -1233,11 +1179,6 @@
         "target": {
           "$ref": "#/$defs/partition_target"
         },
-        "semantics": {
-          "enum": [
-            "preserved"
-          ]
-        },
         "communication": {
           "enum": [
             "none",
@@ -1249,11 +1190,8 @@
         "when": {
           "$ref": "#/$defs/condition"
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1261,7 +1199,6 @@
       },
       "required": [
         "target",
-        "semantics",
         "communication"
       ],
       "description": "One axis along which partition preserves meaning, with the logical communication it implies (O7.1). A contract declares at least one entry: `none` when no cut preserves meaning."
@@ -1279,17 +1216,15 @@
         "relation": {
           "enum": [
             "merge",
-            "align"
+            "align",
+            "insert"
           ]
         },
         "factor": {
           "$ref": "#/$defs/expression"
         },
-        "summary": {
-          "type": "string"
-        },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1299,102 +1234,32 @@
         "from_port",
         "to_port",
         "relation"
-      ]
-    },
-    "cost_derivation": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "expression": {
-          "$ref": "#/$defs/expression"
-        },
-        "status": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
-        },
-        "per": {
-          "enum": [
-            "token",
-            "position",
-            "sequence",
-            "invocation"
-          ]
-        },
-        "summary": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "note": {
-          "type": "string"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "relation": {
+                "const": "merge"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "factor"
+            ]
+          }
         }
-      },
-      "required": [
-        "expression",
-        "status",
-        "per"
-      ]
+      ],
+      "description": "How a port's domain relates to the occurrence's own (§5.3): `merge` — the output carries the input port's stream at the output's kind, one element per `factor` input elements; `align` — the input port carries another domain, the output stays in the occurrence's domain; `insert` — the input port's elements enter the occurrence's stream, which the output keeps."
     },
     "logical_cost": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "state_operations": {
-          "$ref": "#/$defs/cost_derivation"
-        },
-        "sequence_operations": {
-          "$ref": "#/$defs/cost_derivation"
-        }
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/cost_entry"
       },
-      "description": "Corrections to the derived cost (§4.1, D5). Operations on parameters — two per weight element consumed per token, scaled by the activated fraction of a sparse unit — and parameter bytes are derived from the inventory and never declared. A contract declares only what that rule cannot see: `state_operations`, per token, on a fixed-size state; `sequence_operations`, per token and per cached position, on a growing or windowed state."
-    },
-    "external_doc": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "url": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "kind": {
-          "enum": [
-            "paper",
-            "specification",
-            "documentation"
-          ]
-        },
-        "description": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "url",
-        "title",
-        "kind"
-      ]
-    },
-    "tag_definition": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
-        },
-        "summary": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "note": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "name"
-      ]
+      "description": "Corrections to the derived cost (§4.1, D5). Operations on parameters — two per weight element per element of the output domain, scaled by the activated fraction of a sparse unit — and parameter bytes are derived from the inventory and never declared. A contract declares only what that rule cannot see: operations on a state, per element or per cached position."
     },
     "primitive_contract": {
       "type": "object",
@@ -1462,28 +1327,25 @@
           "$ref": "#/$defs/logical_cost"
         },
         "tags": {
-          "type": "array",
-          "items": {
-            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
-          }
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
         },
         "external_docs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/external_doc"
-          }
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "summary": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
         },
         "sparsity": {
           "$ref": "#/$defs/sparsity"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1523,13 +1385,22 @@
           ]
         },
         "summary": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
+        },
+        "external_docs": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1559,13 +1430,22 @@
           ]
         },
         "summary": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
+        },
+        "external_docs": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1583,28 +1463,33 @@
           "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(/[A-Za-z0-9_-]+)*$"
         },
         "title": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/title"
         },
         "external_docs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/external_doc"
-          }
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "tags": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/tag_definition"
-          }
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tag_definitions"
         },
         "summary": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
+        },
+        "templates": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the templates of this base's template contracts live, relative to the base: one document `<name>/<version>.json` per template version (§4.6). Required when the base carries a template contract."
+        },
+        "contact": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/contact"
+        },
+        "license": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/license"
         }
       },
       "required": [
@@ -1620,22 +1505,16 @@
           "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/semantic_version"
         },
         "tags": {
-          "type": "array",
-          "items": {
-            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
-          }
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
         },
         "external_docs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/external_doc"
-          }
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "summary": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1664,6 +1543,9 @@
             "version",
             "id"
           ]
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1673,13 +1555,77 @@
       "description": "A template contract: its meaning is the family of graphs a template — a parameterized model document — denotes, one per assignment (§4.6)."
     },
     "sparsity": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/sparsity_unit"
+      },
+      "description": "Structured sparsity (§4.5, O6.6): the activatable units of the contract."
+    },
+    "conditional_expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "if": {
+          "$ref": "#/$defs/condition"
+        },
+        "then": {
+          "$ref": "#/$defs/expression"
+        },
+        "else": {
+          "$ref": "#/$defs/expression"
+        }
+      },
+      "required": [
+        "if",
+        "then",
+        "else"
+      ]
+    },
+    "cost_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "expression": {
+          "$ref": "#/$defs/expression"
+        },
+        "status": {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+        },
+        "per": {
+          "enum": [
+            "element",
+            "cached_position",
+            "sequence",
+            "invocation"
+          ],
+          "description": "What the expression is counted per: an element of the occurrence's output domain, a position held in a state, a sequence, or an invocation (§4.1)."
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expression",
+        "status",
+        "per"
+      ],
+      "description": "One correction to the derived cost, applying where its condition holds; every applying entry contributes (§4.1, O0.5)."
+    },
+    "sparsity_unit": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "unit",
         "policy",
-        "activated_per_token",
-        "union_per_batch"
+        "activated_per_element",
+        "union_per_invocation"
       ],
       "properties": {
         "unit": {
@@ -1704,35 +1650,84 @@
           "description": "The activatable unit: the parameter slots that form one unit, and the axis along which units are laid out."
         },
         "policy": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "argument"
-          ],
-          "properties": {
-            "argument": {
-              "$ref": "#/$defs/argument_path"
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "argument"
+              ],
+              "properties": {
+                "argument": {
+                  "$ref": "#/$defs/argument_path"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "port"
+              ],
+              "properties": {
+                "port": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "element"
+              ],
+              "properties": {
+                "element": {
+                  "const": true
+                }
+              }
             }
-          },
-          "description": "The argument that selects units."
+          ],
+          "description": "What selects the units: an argument (a routing policy), the value on an input port (a token id), or the element itself (its position, its type)."
         },
-        "activated_per_token": {
+        "activated_per_element": {
           "$ref": "#/$defs/expression"
         },
-        "union_per_batch": {
-          "$ref": "#/$defs/cost_derivation"
-        },
-        "summary": {
-          "type": "string"
+        "union_per_invocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expression": {
+              "$ref": "#/$defs/expression"
+            },
+            "status": {
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+            },
+            "per": {
+              "const": "invocation"
+            },
+            "description": {
+              "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "expression",
+            "status",
+            "per"
+          ],
+          "description": "Upper bound on the union of units an invocation may activate (O6.6)."
         },
         "description": {
-          "type": "string"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
         }
       },
-      "description": "Structured sparsity (§4.5, O6.6): what is activated per token, and the bound on what a batch may touch."
+      "description": "One activatable unit (§4.5, O6.6): the slots that form it, the axis it is laid out along, what selects it, how many are activated per element of the output domain, and the bound per invocation. A lookup table is the limiting case: one row per element."
     }
   }
 }

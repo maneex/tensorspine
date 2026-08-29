@@ -575,7 +575,6 @@
         "target": {
           "argument_axis": "moe.experts"
         },
-        "semantics": "preserved",
         "communication": "all_to_all",
         "description": "Expert parallelism: tokens are exchanged between expert shards."
       },
@@ -583,34 +582,58 @@
         "target": {
           "argument_axis": "ffn.inner"
         },
-        "semantics": "preserved",
         "communication": "all_reduce",
         "description": "Tensor parallelism inside every expert; the down projection needs an all-reduce."
       }
     ],
-    "sparsity": {
-      "unit": {
-        "parameters": [
-          "in",
-          "out"
-        ],
-        "axis": "moe.experts"
-      },
-      "policy": {
-        "argument": "routing"
-      },
-      "activated_per_token": {
-        "argument": "top_k"
-      },
-      "union_per_batch": {
-        "expression": {
-          "argument": "experts"
+    "sparsity": [
+      {
+        "unit": {
+          "parameters": [
+            "in",
+            "out"
+          ],
+          "axis": "moe.experts"
         },
-        "status": "upper_bound",
-        "per": "sequence",
-        "description": "A batch may route to every expert: the worst-case union is the whole set."
+        "policy": {
+          "argument": "routing"
+        },
+        "activated_per_element": {
+          "argument": "top_k"
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "experts"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may route to every expert: the worst-case union is the whole set."
+        },
+        "description": "Each routed expert is one activatable unit: its `in` and `out` projections along `moe.experts`. `top_k` are activated per element; shared experts are always active and are not units."
       },
-      "description": "Each routed expert is one activatable unit: its `in` and `out` projections along `moe.experts`. `top_k` are activated per token; shared experts are always active and are not units."
-    }
+      {
+        "unit": {
+          "parameters": [
+            "hash_table"
+          ],
+          "axis": "model.vocabulary"
+        },
+        "policy": {
+          "argument": "routing"
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "hash_vocabulary"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: with hash routing each token reads one row of the token-to-experts table."
+      }
+    ]
   }
 }

@@ -247,7 +247,6 @@
         "target": {
           "argument_axis": "model.width"
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Streams are mixed per feature; features are independent."
       }

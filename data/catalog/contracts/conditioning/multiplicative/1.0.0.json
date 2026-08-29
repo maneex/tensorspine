@@ -195,7 +195,6 @@
         "target": {
           "any_axis": true
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Elementwise per feature: any axis, no communication."
       }

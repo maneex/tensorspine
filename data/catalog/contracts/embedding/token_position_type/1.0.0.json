@@ -230,9 +230,79 @@
         "target": {
           "argument_axis": "model.vocabulary"
         },
-        "semantics": "preserved",
         "communication": "all_gather",
         "description": "Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered."
+      }
+    ],
+    "sparsity": [
+      {
+        "unit": {
+          "parameters": [
+            "weight"
+          ],
+          "axis": "model.vocabulary"
+        },
+        "policy": {
+          "port": "tokens"
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "vocabulary"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates one row of the table, selected by the token id on `tokens`."
+      },
+      {
+        "unit": {
+          "parameters": [
+            "position"
+          ],
+          "axis": "sequence.position"
+        },
+        "policy": {
+          "element": true
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "positions"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates the row of its own position."
+      },
+      {
+        "unit": {
+          "parameters": [
+            "token_type"
+          ],
+          "axis": "token.type"
+        },
+        "policy": {
+          "element": true
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "token_types"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates the row of its own type."
       }
     ],
     "note": "Word + position + segment type sum, followed by a LayerNorm."

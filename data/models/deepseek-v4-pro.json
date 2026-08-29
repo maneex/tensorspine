@@ -1086,40 +1086,6 @@
             "to": {
               "site": "attn_hca",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_r.b": {
@@ -1130,40 +1096,6 @@
             "to": {
               "site": "attn_r",
               "port": "b"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
             }
           },
           "moe_n.in": {
@@ -1214,40 +1146,6 @@
             "to": {
               "site": "attn_csa",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_r.b_2": {
@@ -1258,40 +1156,6 @@
             "to": {
               "site": "attn_r",
               "port": "b"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
             }
           }
         },
@@ -1312,41 +1176,7 @@
                 "parameter": "q_a"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_hca.kv": {
             "members": [
@@ -1355,41 +1185,7 @@
                 "parameter": "kv"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_hca.q_a_norm": {
             "members": [
@@ -1398,41 +1194,7 @@
                 "parameter": "q_a_norm"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_hca.q_b": {
             "members": [
@@ -1441,41 +1203,7 @@
                 "parameter": "q_b"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_hca.kv_norm": {
             "members": [
@@ -1484,41 +1212,7 @@
                 "parameter": "kv_norm"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_hca.o_a": {
             "members": [
@@ -1527,41 +1221,7 @@
                 "parameter": "o_a"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_hca.o_b": {
             "members": [
@@ -1570,41 +1230,7 @@
                 "parameter": "o_b"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_hca.sinks": {
             "members": [
@@ -1613,41 +1239,7 @@
                 "parameter": "sinks"
               }
             ],
-            "dtype": "f32",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f32"
           },
           "attn_hca.compressor_ape": {
             "members": [
@@ -1656,41 +1248,7 @@
                 "parameter": "compressor_ape"
               }
             ],
-            "dtype": "f32",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f32"
           },
           "attn_hca.compressor_kv_gate": {
             "members": [
@@ -1699,41 +1257,7 @@
                 "parameter": "compressor_kv_gate"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_hca.compressor_norm": {
             "members": [
@@ -1742,41 +1266,7 @@
                 "parameter": "compressor_norm"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_r.fn": {
             "members": [
@@ -1902,41 +1392,7 @@
                 "parameter": "q_a"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_csa.kv": {
             "members": [
@@ -1945,41 +1401,7 @@
                 "parameter": "kv"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_csa.q_a_norm": {
             "members": [
@@ -1988,41 +1410,7 @@
                 "parameter": "q_a_norm"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_csa.q_b": {
             "members": [
@@ -2031,41 +1419,7 @@
                 "parameter": "q_b"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_csa.kv_norm": {
             "members": [
@@ -2074,41 +1428,7 @@
                 "parameter": "kv_norm"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_csa.o_a": {
             "members": [
@@ -2117,41 +1437,7 @@
                 "parameter": "o_a"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_csa.o_b": {
             "members": [
@@ -2160,41 +1446,7 @@
                 "parameter": "o_b"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_csa.sinks": {
             "members": [
@@ -2203,41 +1455,7 @@
                 "parameter": "sinks"
               }
             ],
-            "dtype": "f32",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f32"
           },
           "attn_csa.compressor_ape": {
             "members": [
@@ -2246,41 +1464,7 @@
                 "parameter": "compressor_ape"
               }
             ],
-            "dtype": "f32",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f32"
           },
           "attn_csa.compressor_kv_gate": {
             "members": [
@@ -2289,41 +1473,7 @@
                 "parameter": "compressor_kv_gate"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_csa.compressor_norm": {
             "members": [
@@ -2332,41 +1482,7 @@
                 "parameter": "compressor_norm"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_csa.index_q": {
             "members": [
@@ -2375,41 +1491,7 @@
                 "parameter": "index_q"
               }
             ],
-            "dtype": "f8e4m3",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f8e4m3"
           },
           "attn_csa.index_weights": {
             "members": [
@@ -2418,41 +1500,7 @@
                 "parameter": "index_weights"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_csa.index_compressor_ape": {
             "members": [
@@ -2461,41 +1509,7 @@
                 "parameter": "index_compressor_ape"
               }
             ],
-            "dtype": "f32",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f32"
           },
           "attn_csa.index_compressor_kv_gate": {
             "members": [
@@ -2504,41 +1518,7 @@
                 "parameter": "index_compressor_kv_gate"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           },
           "attn_csa.index_compressor_norm": {
             "members": [
@@ -2547,41 +1527,7 @@
                 "parameter": "index_compressor_norm"
               }
             ],
-            "dtype": "bf16",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "bf16"
           }
         },
         "states": {
@@ -2591,41 +1537,7 @@
                 "site": "attn_hca",
                 "state": "kv"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn_hca.sliding": {
             "members": [
@@ -2633,41 +1545,7 @@
                 "site": "attn_hca",
                 "state": "sliding"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn_hca.compressor": {
             "members": [
@@ -2675,41 +1553,7 @@
                 "site": "attn_hca",
                 "state": "compressor"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 0
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 57
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn_csa.kv": {
             "members": [
@@ -2717,41 +1561,7 @@
                 "site": "attn_csa",
                 "state": "kv"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn_csa.sliding": {
             "members": [
@@ -2759,41 +1569,7 @@
                 "site": "attn_csa",
                 "state": "sliding"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn_csa.compressor": {
             "members": [
@@ -2801,41 +1577,7 @@
                 "site": "attn_csa",
                 "state": "compressor"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn_csa.index": {
             "members": [
@@ -2843,41 +1585,7 @@
                 "site": "attn_csa",
                 "state": "index"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "attn_csa.index_compressor": {
             "members": [
@@ -2885,41 +1593,7 @@
                 "site": "attn_csa",
                 "state": "index_compressor"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 2
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 1
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           }
         }
       }
@@ -5142,30 +3816,29 @@
   "interfaces": {
     "inputs": {
       "tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
       },
       "next_tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "mtp_embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token",
+        "stream": "tokens"
       }
     },
     "outputs": {
@@ -5177,10 +3850,6 @@
           },
           "port": "logits"
         },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
-        },
         "generative": true
       },
       "next_plus_one": {
@@ -5190,10 +3859,6 @@
             "occurrence": "mtp_head"
           },
           "port": "logits"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
         },
         "generative": true
       }

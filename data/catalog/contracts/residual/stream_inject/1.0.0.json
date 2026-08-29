@@ -132,7 +132,6 @@
         "target": {
           "any_axis": true
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Elementwise: any axis, no communication."
       }

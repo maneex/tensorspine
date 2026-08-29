@@ -108,9 +108,16 @@
         "target": {
           "any_axis": true
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Elementwise placement: any axis, no communication."
+      }
+    ],
+    "domain_transforms": [
+      {
+        "from_port": "source",
+        "to_port": "output",
+        "relation": "insert",
+        "description": "The elements arriving on `source` are inserted into the token stream of `text`, which the output keeps."
       }
     ],
     "note": "Insertion of an already projected stream into the token sequence."

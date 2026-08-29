@@ -136,7 +136,6 @@
         "target": {
           "argument_axis": "model.width"
         },
-        "semantics": "preserved",
         "communication": "all_reduce",
         "description": "Mean and variance over the feature axis: partial sums are reduced."
       }

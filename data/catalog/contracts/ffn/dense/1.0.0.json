@@ -348,7 +348,6 @@
         "target": {
           "argument_axis": "ffn.inner"
         },
-        "semantics": "preserved",
         "communication": "all_reduce",
         "description": "Tensor parallelism across the inner width; the down projection needs an all-reduce."
       }

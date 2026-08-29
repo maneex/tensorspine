@@ -33,14 +33,6 @@
         "required": true,
         "structural": true,
         "description": "Patches merged into one token."
-      },
-      "source": {
-        "type": {
-          "kind": "port_reference"
-        },
-        "required": true,
-        "structural": true,
-        "description": "The port whose patch domain the merge consumes."
       }
     },
     "ports": {
@@ -218,7 +210,6 @@
         "target": {
           "argument_axis": "model.width"
         },
-        "semantics": "preserved",
         "communication": "all_reduce",
         "description": "Row-parallel over the merged input: partial outputs are reduced."
       }

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tensorspine.dev/schema/2.0/documentation.json",
   "title": "Tensorspine Catalog Documentation 2.0",
-  "$comment": "The documentation model of a catalog: what a unit may say ABOUT itself, for people. Modelled on the documentation fields of OpenAPI 3.1 (info, summary/description, externalDocs, tags, deprecated) and JSON Schema (description), with the same rule as both: documentation never changes what a document denotes. Every field defined here is inert for --validate, --d1 and D2–D6 (SPECIFICATION §10.2: a field no conforming implementation reads is a comment). Only --document and --lint read them. The catalog grammar (tensorspine-catalog-unit.schema.json) declares the same fields at each site it documents; this schema is what --document validates the extracted documentation against. Nothing here is a site of its own.",
+  "$comment": "The documentation model of a catalog: what a unit may say ABOUT itself, for people. Modelled on the documentation fields of OpenAPI 3.1 (info, summary/description, externalDocs, tags, deprecated) and JSON Schema (description), with the same rule as both: documentation never changes what a document denotes. Every field defined here is inert for --validate, --d1 and D2–D6 (SPECIFICATION §10.2: a field no conforming implementation reads is a comment). Only --document and --lint read them. This schema is the single source: the catalog grammar (tensorspine-catalog-unit.schema.json) references these definitions at every site it documents rather than restating them. Nothing here is a site of its own.",
   "$defs": {
     "summary": {
       "type": "string",

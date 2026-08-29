@@ -574,7 +574,6 @@
         "target": {
           "argument_axis": "deltanet.value_heads"
         },
-        "semantics": "preserved",
         "communication": "all_reduce",
         "description": "Partition across value heads; the output projection needs an all-reduce."
       },
@@ -582,14 +581,13 @@
         "target": {
           "instance_key_axis": "instance.session"
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Instance-key axis: sessions are independent."
       }
     ],
     "note": "Gated-delta recurrent layer with a short causal convolution and a per-head matrix state.",
-    "logical_cost": {
-      "state_operations": {
+    "logical_cost": [
+      {
         "expression": {
           "op": "multiply",
           "args": [
@@ -608,9 +606,9 @@
           ]
         },
         "status": "exact",
-        "per": "token",
+        "per": "element",
         "description": "State update and read-out: two `head_dim × head_dim` products per value head and token."
       }
-    }
+    ]
   }
 }

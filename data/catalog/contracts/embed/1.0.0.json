@@ -122,9 +122,33 @@
         "target": {
           "argument_axis": "model.vocabulary"
         },
-        "semantics": "preserved",
         "communication": "all_gather",
         "description": "Vocabulary parallelism: each shard holds a slice of the table; the looked-up rows are gathered."
+      }
+    ],
+    "sparsity": [
+      {
+        "unit": {
+          "parameters": [
+            "weight"
+          ],
+          "axis": "model.vocabulary"
+        },
+        "policy": {
+          "port": "tokens"
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "vocabulary"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates one row of the table, selected by the token id on `tokens`."
       }
     ]
   }

@@ -141,7 +141,6 @@
         "target": {
           "argument_axis": "model.width"
         },
-        "semantics": "preserved",
         "communication": "all_gather",
         "description": "Column-parallel over the output features; the shards are gathered for the block that follows."
       }

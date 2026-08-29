@@ -57,8 +57,8 @@ deployment, or machine belong outside both.
 
 | Authority | Facts it owns |
 |---|---|
-| **Model document** | Model identity; source quantities; occurrences and compositions; explicit value flow; actual parameter, constant, and state identities; invocation boundaries; public interfaces. Instance keys, liveness and visit rates are derived from these (§4.4) |
-| **Primitive contract** | Argument types and declared defaults; ports and shapes; logical parameter, constant, and state slots; state evolution and access geometry; effects; logical costs; semantic partition axes |
+| **Model document** | Model identity; source quantities; occurrences and compositions; explicit value flow; actual parameter, constant, and state identities and their dtypes; public inputs with their kind, stream and fragmentation, and public outputs. Instance keys, liveness, visit rates and carrying across fragments are derived from these (§4.4, §5.3) |
+| **Primitive contract** | Argument types and declared defaults; ports, shapes and domain transforms; logical parameter, constant, and state slots; state evolution, access geometry and carrying condition; effects; cost corrections and sparsity units; semantic partition axes |
 | **Catalog** | Resolution of independently identified contracts, axes, and precision roles; no global catalog version |
 | **Implementation candidate** | Backend, kernel, algorithm, fusion, workspace, physical layout and traffic, supported physical partitions, and actual collectives |
 | **Artifact descriptor** | Physical tensor encoding and the mapping between artifact fragments and logical tensors |
@@ -75,7 +75,7 @@ shareable, but it cannot assert that two particular occurrences actually share i
 
 ### 3.1. Describe logical structure, not executable computation
 
-**Decision.** An Tensorspine model is a finite graph of primitive occurrences and explicit bindings.
+**Decision.** A Tensorspine model is a finite graph of primitive occurrences and explicit bindings.
 It does not contain kernels, general tensor programs, Python classes, backend choices, or hardware
 placement.
 
@@ -148,7 +148,7 @@ supports.
 
 **Alternatives not chosen.** Arbitrary extension objects, unknown fields, and executable callbacks
 would make acceptance depend on hidden code and would defeat exhaustive rejection. See
-[Specification §2.2](SPECIFICATION.md#22--derivation-algebra-o01-o02-o03-o05-o06) and
+[Specification §2.2](SPECIFICATION.md#22--derivation-algebra-and-qualified-values-o01-o02-o03-o05-o06) and
 [§8.1](SPECIFICATION.md#81--extension-kinds).
 
 ### 3.5. Represent expressions as tagged data, not strings or code
@@ -167,15 +167,16 @@ types, domains, failure behavior, and status propagation.
 
 **Alternatives not chosen.** String interpolation, Python-like expressions, and trusted helper
 functions are not part of the model language. See
-[Specification §2.2](SPECIFICATION.md#22--derivation-algebra-o01-o02-o03-o05-o06).
+[Specification §2.2](SPECIFICATION.md#22--derivation-algebra-and-qualified-values-o01-o02-o03-o05-o06).
 
 ### 3.6. Version meanings independently
 
 **Decision.** Each occurrence pins a primitive contract by `{name, version}`. Contract identities
 are immutable: a published `{name, version}` never changes meaning, and a changed meaning is a new
-identity. The catalog has no global version. A template also has a template version, which
-identifies its representation rather than the contract's semantic meaning. During the specification
-stage every unit is at `1.0.0`; the mechanism, not the numbers, is the decision.
+identity. The catalog has no global version. A template is versioned the same way, in its own
+immutable file, and a contract pins one template version. The digits of a version classify a change
+— patch, minor, major — and a pin is always exact (§8.2). During the specification stage every unit
+is at `1.0.0`; the mechanism, not the numbers, is the decision.
 
 **Why.** Primitives evolve independently. A global catalog version would couple unrelated changes
 and force consumers and models to coordinate upgrades that do not affect them. An unversioned
@@ -200,8 +201,9 @@ operation and its domain; an estimate never silently becomes a bound.
 
 **Why.** Placement and admission decisions depend not only on a number but on what is known about
 that number. Treating an estimate as an exact byte count can make an apparently valid plan fail at
-runtime. Direction also matters: an upper bound divided by a positive value produces a lower bound,
-not another upper bound.
+runtime. Direction also matters: dividing *by* an upper bound produces a lower bound, while dividing
+an upper bound by an exact positive value keeps it an upper bound; the table in the specification
+fixes every case, so no reader has to reason it out.
 
 **Consequences.** Derivations carry more metadata, and consumers need a status algebra rather than a
 single numeric evaluator. In return, uncertainty and information loss remain visible instead of
@@ -209,7 +211,7 @@ being converted into false precision.
 
 **Alternatives not chosen.** Unqualified numbers, comments such as “approximately,” and
 implementation-specific confidence conventions cannot support mechanical contradiction or safe
-planning. See [Specification §2.2](SPECIFICATION.md#22--derivation-algebra-o01-o02-o03-o05-o06).
+planning. See [Specification §2.2](SPECIFICATION.md#22--derivation-algebra-and-qualified-values-o01-o02-o03-o05-o06).
 
 ### 3.8. Fail closed and allow only declared defaults
 
@@ -234,7 +236,7 @@ false” behavior violate the no-silent-default invariant. See
 
 **Decision.** A model document may generate occurrences through finite compositions, conditions,
 and parameter assignments. Deterministic expansion produces D1, the authoritative occurrence graph.
-All validity rules apply to that expanded graph. Recurrence crosses invocation boundaries through
+All validity rules apply to that expanded graph. Recurrence crosses invocations through
 state ports, never through a combinational value cycle.
 
 **Why.** Repetition is necessary for compact authoring, but every consumer needs the same concrete
@@ -244,7 +246,9 @@ all later derivations decidable.
 **Consequences.** Data-dependent or unbounded topology is outside the model language. A
 parameterized document denotes a graph family and needs an admissible assignment before it denotes
 one concrete graph. Unique written representation is not required; unique meaning per assignment
-is.
+is. Expanded identifiers are representation, not meaning: two expansions are the same graph when
+their occurrences correspond one-to-one up to renaming, with contracts, arguments, edges, sharing,
+interface names and identity names preserved.
 
 **Alternatives not chosen.** General loops, recursive graph construction, runtime-dependent node
 creation, and implicit recurrence would prevent a consumer from knowing the graph before execution.
@@ -254,17 +258,18 @@ syntax. See [Specification §5](SPECIFICATION.md#5--denotation).
 ### 3.10. Split state descriptors from state topology
 
 **Decision.** A contract derives what one state port means: presence, payload, evolution, indexing,
-access geometry, sharing capability, and permitted operations. The expanded graph declares how many
-ports exist, which ports share one identity, and what
-survives an invocation boundary.
+access geometry, sharing capability, permitted operations, and the condition under which the state
+is carried across fragments of its stream. The expanded graph declares how many ports exist and
+which ports share one identity; whether a state survives between fragments follows from that
+condition and the input's fragmentation, and is never written twice.
 
 **Why.** A primitive can know that a KV cache is indexed by a source sequence; it cannot know which
 encoder output the model wires to that source. It can permit sharing; it cannot know that two
 non-adjacent layers share storage. These are topological facts.
 
 **Consequences.** State cannot be summarized safely by one cache-type enum or one head size. Authors
-declare only identity, sharing and invocation boundaries; keys, liveness and visit rates are
-derived, and runtimes can then budget arbitrary mixtures of growing, windowed, recurrent, shared,
+declare only identity, sharing and the fragmentation of inputs; keys, liveness, visit rates and
+carrying are derived, and runtimes can then budget arbitrary mixtures of growing, windowed, recurrent, shared,
 and streaming state without architecture-specific cases.
 
 **Alternatives not chosen.** State blocks copied into every model, cache types inferred from
@@ -352,9 +357,16 @@ The architecture leaves several downstream or future designs open:
 - how implementation candidates advertise capabilities and physical costs;
 - how artifact descriptors map physical fragments to D3 logical tensors;
 - how a compiler combines semantic partitions with a selected topology and workload;
-- whether a future port-based mechanism should permit sharing across a template boundary;
 - which additional normative interfaces are justified when a derivation cannot fit the closed
   scalar algebra.
+
+Candidates for the language, parked rather than rejected: conditional *absence* of a structural
+argument in an argument expression (today an expression yields a value, never absence, which is why
+an alternating-layer model needs two sites); indexed literal tables for per-repetition
+hyperparameters; per-occurrence activation dtypes; partial retention of a state's components across
+fragments; content-digest template pins; a token-id input port on `moe` for hash routing; a
+`sequence`-kind output for a pooler with `reduce`. Sharing across a template boundary is a stated
+limit of the graph language (Specification §1), not an open question: the flat form exists.
 
 These are not placeholders for hidden behavior. Until specified, they remain outside the model's
 denotation. A future design should preserve the same boundaries: one authority per fact, immutable

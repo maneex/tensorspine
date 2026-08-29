@@ -301,9 +301,44 @@
         "target": {
           "argument_axis": "model.width"
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Output channels are independent: each shard computes its channels."
+      }
+    ],
+    "domain_transforms": [
+      {
+        "from_port": "frames",
+        "to_port": "output",
+        "relation": "merge",
+        "factor": {
+          "argument": "stride"
+        },
+        "description": "The second convolution is strided: one output position per `stride` input frames, in the same stream."
+      }
+    ],
+    "sparsity": [
+      {
+        "unit": {
+          "parameters": [
+            "position"
+          ],
+          "axis": "sequence.position"
+        },
+        "policy": {
+          "element": true
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "position"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each frame activates the row of its own position."
       }
     ]
   }

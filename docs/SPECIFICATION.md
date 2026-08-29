@@ -10,7 +10,8 @@ syntax, validity, and denotation do not depend on source code, tools, or other r
 Every requirement identifier it cites (O‑, I‑, N‑) is stated in Appendix A or §9.*
 
 For motivation and repository orientation, read the [README](../README.md). For a field-by-field
-authoring guide, read [Tensorspine model JSON](TENSORSPINE-MODEL_JSON.md). The
+JSON authoring guide, read [Tensorspine model JSON](TENSORSPINE-MODEL_JSON.md); for the lossless
+human-authoring syntax, read the [TSPL 1.0 specification](TENSORSPINE_MODEL_TSPL.md). The
 [glossary](GLOSSARY.md) summarizes terminology and points back to its canonical sections; the
 [architecture guide](ARCHITECTURE.md) explains the design rationale. None of those explanatory
 documents adds requirements to this specification.
@@ -20,23 +21,28 @@ documents adds requirements to this specification.
 This document specifies what a model document can express and what a primitive contract must contain
 so all consequences can be derived.
 
-**In scope:** inference; infrastructure fixed for the duration of an analysis; a graph that is
-**statically finite per invocation**; and the architectures of the reference corpus, `data/models/`
-in the repository, which is the coverage set this revision answers for. Candidate architectures are
-drawn from what serving engines such as vLLM run at a given date; “all vLLM models” is not a finite
-set, the corpus is, and a model that cannot be written is a counter-example to be filed against it.
+**In scope:** inference; a graph that is **statically finite per invocation**; the graph class of
+§5.3 — a finite directed acyclic value graph per invocation, recurrence only through state ports —
+over contracted primitives.
 
 **Out of scope:** training; fault tolerance and session recovery; hot reconfiguration; resource
 topology; runtime data structures; placement; and hardware assignment.
 
-The coverage claim is relative and falsifiable:
+**Coverage** is a claim about topology:
 
-> Every finite graph in this scope, composed of primitives with available contracts, has **at least
-> one** representation.
+> Every graph of the class above whose occurrences use available contracts — any wiring, any sharing
+> pattern, any set of public inputs and outputs, any periodic or irregular repetition — has **at
+> least one** representation.
 
-This does not claim coverage of every present and future model. An open primitive vocabulary admits
-new **nodes**; coverage of graph **topologies** is bounded by the graph class of §5.3: a finite
-directed acyclic value graph per invocation, with recurrence only through state ports.
+New nodes come from new contracts (§8.1); the claim is about the graph language. The reference
+corpus (`data/models/`, §10.1) is the evidence for the claim and the regression set; it is not part
+of the definition. A graph of the class with no representation is a counter-example.
+
+Three limits of the graph language are stated, not discovered: sharing across a template boundary
+is not expressible (the flat form of the same graph is); a contract's port set is static, so a
+variable number of operands is expressed by chaining or by stacking along an axis; there are no
+indexed literal tables, so a per-repetition hyperparameter is an `if/then/else` over the index or
+one site per value.
 
 ### 1.1 — Required properties
 
@@ -64,7 +70,7 @@ A model document contains exactly:
 | Element | Content |
 |---|---|
 | **Identity** | A stable, authoritative model identifier (O1.2), and, for a template, the version of this representation (§4.6). |
-| **Catalog bases** | The ordered catalog bases whose units the occurrences pin, as locations relative to the document; a base that does not exist is a rejection (V1). Contract identity is per occurrence, `{name, version}`, immutable (O1.1, §8.2); there is no catalog-wide version. |
+| **Catalog bases** | The catalog bases whose units the occurrences pin, as locations relative to the document; a base that does not exist is a rejection (V1), and two bases carrying one identity with different contents are a conflict (V1). Contract identity is per occurrence, `{name, version}`, immutable (O1.1, §8.2); there is no catalog-wide version. |
 | **Quantities** | The namespace of dimensions and scalars (§2.1). |
 | **External constants** | Non-learned numeric data with identity, shape, and type (§3). |
 | **Occurrences** | Graph nodes (§3). |
@@ -88,11 +94,9 @@ independent properties:
 
 Regime and type are independent: a model constant need not be an integer.
 
-When several authorities constrain a domain—model capability, implementation limit, and deployment
-choice—each declares its own constraint, and the binding constraint must remain identifiable (O2.4).
 Load variables such as batch size and sequence count do **not** belong in the model document.
 
-### 2.2 — Derivation algebra *(O0.1, O0.2, O0.3, O0.5, O0.6)*
+### 2.2 — Derivation algebra and qualified values *(O0.1, O0.2, O0.3, O0.5, O0.6)*
 
 A derivation expressed only as a function in a general-purpose language moves code instead of making
 the derivation verifiable.
@@ -115,11 +119,28 @@ and domain — the rounding of a division is chosen explicitly (floor or ceiling
 and provenance are declared where a value can be a bound or an estimate: the logical cost a
 contract states (§4.1) and the derived products (§7).
 
-**O0.5 — Epistemic status is an algebra, not a label.** Where a product combines qualified values,
-status propagates according to the operation's monotonicity: dividing by an upper bound produces a
-lower bound. Rounding direction belongs to the status, never to the operator. Monotonicity is
-relative to a domain, and each node must prove that it stays within that domain. Propagation never
-turns an estimate into a bound.
+**O0.5 — Qualified values.** A value stated by a contract correction (§4.1), by a sparsity bound
+(§4.5), or supplied to a product from deployment intent (§10.3) carries a **status**: `exact`;
+`upper_bound` or `lower_bound`, a one-sided guarantee on a non-negative quantity; or `estimate`, no
+guaranteed relation to the true value — whether because information was lost in combination or
+because the value is an expectation supplied from outside. Expected values are never derived by the
+language. Model quantities are exact (O0.3).
+
+Status propagates through the algebra by the table below, where every operand is a non-negative
+real, `E` is exact, `U` an upper bound, `L` a lower bound, `S` an estimate, and any operation with
+an `S` operand yields `S`:
+
+| operation | E,E | E,U / U,E | E,L / L,E | U,U | L,L | U,L / L,U |
+|---|---|---|---|---|---|---|
+| `add`, `multiply`, `min`, `max` | E | U | L | U | L | S |
+| `subtract` a−b | E | a−U: L · U−b: U | a−L: U · L−b: L | S | S | U−L: U · L−U: L |
+| `divide` a/b, `floor_divide`, `ceil_divide` (b > 0) | E | a/U: L · U/b: U | a/L: U · L/b: L | S | S | U/L: U · L/U: L |
+| `negate`, `absolute` | not applicable to qualified values: a rejection | | | | | |
+| `if/then/else` | the condition ranges over exact values only; the result has the chosen branch's status | | | | | |
+
+A qualified value is rounded in the direction its status requires — an upper bound up, a lower
+bound down; an exact value by the operator chosen (O0.3). No propagation turns an estimate into a
+bound.
 
 **O0.6 —** Every language introduced by this specification is closed and decidable or uses a
 normative interface. This applies to the size algebra, the contract-condition language in §4.3, and
@@ -127,11 +148,12 @@ the expansion rules in §5. Calling a representation “symbolic” does not mak
 
 ### 2.3 — Public inputs and outputs *(O8.1, O8.2, O8.3, O4.2)*
 
-Each public input and output declares:
-
-- the attached occurrence and port;
-- its indexing domain (§5.3), such as per token, sequence, patch, or fragment;
-- for an output, whether it is generative.
+Each public **input** declares the occurrence ports it feeds — one or more — and its indexing
+domain (§5.3): a kind, and either the stream it introduces (named after the input) or an existing
+stream it joins. It may be **fragmented**: its elements arrive over several invocations. Each
+public **output** names one occurrence port and states whether it is generative; its domain is
+that of the port. A public input feeds a port that nothing else feeds (V7); several outputs may name
+one port (O8.3). A generative output has kind `token`.
 
 The language must support:
 
@@ -162,7 +184,7 @@ enumeration.
 ### 3.2 — Contract reference *(O1.1, §8.2)*
 
 An occurrence references a contract through an immutable identity, `{name, version}` with a semantic
-version. Capability rejection (§8.1) answers “Can this consumer execute it?”
+version (§8.2). Capability rejection (§8.1) answers “Can this consumer execute it?”
 Contract identity answers “Which exact meaning did the author reference?” Neither replaces the
 other.
 
@@ -183,24 +205,29 @@ of a named flow. Explicit edges determine the values live at any cut and therefo
 
 **Parameter-tensor bindings** *(O6.2)* identify the logical tensors consumed by each occurrence and
 any sharing between occurrences. With tied embeddings, one physical tensor satisfies two logical
-parameters, is counted and loaded once, and must not appear twice in an artifact.
+parameters and is counted once.
+
+**Parameter identities** are compatible only between slots whose contracts declare them
+`shareable`, whose roles are listed in each other's sharing rules, and whose shapes are equal under
+V4 (V15). A tied tensor is counted once (O6.2).
 
 **State identities** declare when occurrences use the **same storage**. Sharing is a topological fact
 that no primitive contract can know: the contract derives a state descriptor, while the graph
 declares which occurrence reads another occurrence's state.
 
-> **Use one construction for every case.** Non-adjacent layer cache sharing, cross-attention reading
-> encoder state, and state carried between fragments are all state-port identities plus an indexing
-> domain (§5.3). Case-specific fields would reintroduce redundant semantics.
+> **Use one construction for every case.** Non-adjacent layer cache sharing and cross-attention
+> reading encoder state are both state-port identities plus an indexing domain (§5.3); state carried
+> between fragments follows from the contract's carrying condition and the input's fragmentation
+> (§5.3). Case-specific fields would reintroduce redundant semantics.
 
 Each fact has one authority. If a primitive argument determines a binding, no other field redeclares
 it; if the binding is declared, no argument duplicates it.
 
 ### 3.5 — Flow multiplicity *(O4.1, O4.3)*
 
-A value port has a shape, type, and multiplicity. Residual multiplicity other than one—for example,
-parallel residual streams combined by an operation—is explicit. The combining operation is a
-contracted primitive, not an annotation.
+A value port has a shape and a role (O4.1). A residual carried as several parallel streams is a
+shape axis of the port (`residual.stream`); the primitive that combines the streams is a contracted
+occurrence, never an annotation (O4.3).
 
 ## §4 — Primitive semantic contracts
 
@@ -214,13 +241,14 @@ language.
 | Element | Content |
 |---|---|
 | **Semantic identity** | The operation's meaning and immutable reference identity. |
-| **Arguments** | Types, allowed values, required status, declared defaults, and cross-constraints. |
+| **Arguments** | Types, allowed values, required status, declared defaults, conditional presence (`present_when`). |
 | **Value ports** | Inputs and outputs with shape functions. |
 | **Logical tensors** | A symbolic learned-parameter inventory derived from arguments: shapes, roles, and sharing rules (O6.1). |
 | **State ports** | Ports conditional on arguments, with their derivation function (§4.3). |
-| **Effects and aliasing** | What the operation writes and what it may overlap. |
-| **Logical cost** | Derived: two operations per weight element a token consumes, scaled by the activated fraction of a sparse unit (§4.5), and the bytes of the inventory; a contract declares only the corrections the inventory cannot see — operations per token on a fixed-size state, operations per token and cached position on a growing or windowed one. Never operations actually executed. |
-| **Semantic partitions** | Axes whose partition preserves meaning and the resulting logical communication (O7.1), stated for every contract: at least one axis, `any_axis` for an elementwise primitive, or `none` — an explicit fact, never an empty list. |
+| **Effects** | The ports the operation reads and writes. |
+| **Logical cost** | Derived from the inventory: for every parameter slot, two operations per weight element per element of the occurrence's output domain, scaled by the activated fraction of a sparse unit (§4.5); the bytes of the inventory, in full for residency. A contract declares only **corrections**: an ordered list of entries, each guarded by a condition over the arguments, each stating an expression, a status (O0.5) and what it is counted per — `element` of the output domain, `cached_position` of a state, `sequence`, or `invocation`. Every entry whose condition holds contributes. Never operations actually executed. Known approximations are documented, not modelled: a strided convolution's first kernel (per input frame), a per-head normalisation scale, a pooler with `reduce`. |
+| **Semantic partitions** | Axes whose partition preserves meaning — an argument axis, an instance-key axis, a state payload axis, `any_axis`, or `none` — with the logical communication each implies (O7.1); at least one entry. |
+| **Domain transforms** | How a port's domain relates to the occurrence's own: `merge`, `align`, `insert` (§5.3). |
 
 Anything a contract does not declare it cannot interpret, and is rejected (§8.1): the closed
 vocabulary is the rejection condition.
@@ -228,7 +256,7 @@ vocabulary is the rejection condition.
 Within a declared shape, the **axis** supplies a dimension's catalog identity, its **extent** is the
 expression that supplies the dimension's size, and its **nature** describes the dimension's use at
 that site. A port or logical tensor's **role** identifies its semantic use for precision policy; the
-role is distinct from the dtype selected under that policy.
+role is distinct from the dtype selected under that policy (V14).
 
 Every primitive has a contract; only primitives with state ports have a state contract. Token
 embeddings, feed-forward networks, mixtures of experts, patch projections, and output heads are
@@ -258,7 +286,8 @@ defined by §4.6. Delegation relaxes none of these obligations.
 For each state port, the contract declares:
 
 - **Conditional presence, in both directions.** Arguments may add or remove a port. Non-causal
-  attention has no cache; the same encoder gains one when processing a fragmented stream.
+  attention has no cache; the same encoder gains one when it attends across the fragments of a
+  fragmented stream.
 - **Payload.** Each storage component has a shape, type, and multiplicity. One state may contain
   several components of different types (O5.1).
 - **Derived properties.** These are consequences of arguments and never appear in the model:
@@ -266,17 +295,22 @@ For each state port, the contract declares:
 | Property | Reference | Meaning |
 |---|---|---|
 | **Evolution law** | O5.2 | How extent evolves: append, bounded window, or fixed size. |
-| **Indexing domain** | §5.3 | The sequence relative to which state grows; the law alone is ambiguous. |
-| **Access geometry** | O5.3 | Logical position, block, sparse key, or aggregate, expressed as consumed properties rather than runtime data-structure names. |
+| **Indexing domain** | §5.3 | The stream along which the state grows: the occurrence's own (`self`) or that of one of its input ports (`port`); the law alone is ambiguous. |
+| **Access geometry** | O5.3 | `logical_position`, `ring`, `aggregate`, or `selected` (positions chosen per query by the primitive), as consumed properties rather than runtime data-structure names. |
 | **Sharing** | O5.3 | The granularity at which sessions may share. |
 | **Key axes** | O5.5 | The instance axes (session, branch) along which allocations of this port are distinct; with the identity's indices they form the instance key (§4.4). |
-| **Permitted operations** | O5.4 | Operations derived from evolution law × geometry, with preconditions, including conditions that make an operation unavailable (O5.9). |
-| **Modulators** | O5.8 | Scope, sampling step, rank, and depth, represented as §2.1 quantities. |
+| **Permitted operations** | O5.4 | The effects the state admits: read, append, evict, write. |
+| **Modulators** | O5.8 | Span and stride, expressions over the arguments. |
+| **Carrying** | §5.3 | A condition over the arguments under which the state survives between the invocations that deliver successive fragments of its stream (`carried_across`); declared once per state port, not per rule. A state indexed by a source stream is frozen once that stream is complete, by definition. |
 
-The condition language is closed and decidable (O0.6). It supports presence tests and argument
-equality or inequality, combined by conjunction and disjunction. Rules are ordered; the first
-matching rule wins. Conditions apply to argument **combinations**: two coexisting mechanisms produce
-two ports, while either mechanism alone produces one.
+The condition language is closed and decidable (O0.6): presence tests, comparisons of expressions,
+negation, conjunction, disjunction, and the constants. An argument that may be absent — optional,
+without a declared default — may be compared or computed with only under a `present` test of it; a
+contract that does otherwise is refused when the catalog is loaded. Rules are ordered; the first
+matching rule wins; a present state port that no rule matches for an occurrence's arguments is a
+rejection of the document (V9).
+Conditions apply to argument **combinations**: two coexisting mechanisms produce two ports, while
+either mechanism alone produces one.
 
 A flattened shape declares its decomposition (O5.10). Flattening can hide a partition axis. Without
 a decomposition, placement derivation must use the non-partitionable case and report **information
@@ -288,10 +322,11 @@ loss**, never present non-partitionability as a known fact.
 
 A contract supplies the descriptor; the graph supplies instance count and relationships. The model
 declares only what no derivation can produce: which state ports name the same storage (a state
-identity with several members), which repetition indices distinguish allocations (the identity's
-indices), and what survives an invocation boundary (§5.3). Everything else about instances is a
-consequence, computed by the same rule for every document; a field the author could only fill by
-copying that rule is not a declaration (§1.2, §10.2).
+identity with several members) and which repetition indices distinguish allocations (the identity's
+indices). Whether a state survives between fragments follows from the contract's carrying condition
+and the input's fragmentation (§5.3). Everything else about instances is a consequence, computed by
+the same rule for every document; a field the author could only fill by copying that rule is not a
+declaration (§1.2, §10.2).
 
 **State liveness** is the number of distinct state-allocation equivalence classes that may be active
 at once. It sizes simultaneous state memory. This is distinct from **value liveness**, which records
@@ -301,7 +336,7 @@ the graph values live across a cut and determines that cut's logical payload.
 |---|---|---|
 | **Instance key** | O5.5 | **Derived:** the identity's indices × the contract's `key_axes` (session, branch). Sharing is declared by listing several members under one identity, never by a relation over keys. |
 | **Liveness law** | O5.5 | **Derived:** one class per distinct instance key. How many classes are active at once is deployment intent (§10.3): the model fixes the class structure, never the count, and never the raw product of dimensions. |
-| **Visit rate** | O3.2 | **Derived** per indexing domain and phase, from the value graph, the generative outputs (§2.3) and the invocation boundaries (§5.3). Visits size computation; liveness sizes memory. Counts — tokens per request, fragments per stream — are deployment intent. |
+| **Visit rate** | O3.2 | **Derived** per indexing domain and phase (§7), from the value graph, the generative outputs (§2.3) and the fragmentation of inputs (§5.3). Visits size computation; liveness sizes memory. Counts — tokens per request, fragments per stream — are deployment intent. |
 | **Cardinality** | O5.7 | The model: any finite number of states with distinct natures, with no language-defined upper bound. |
 
 A model document therefore never references a deployment or request fact: there is no open
@@ -310,14 +345,18 @@ or arguments (V1); a derived product such as D4 takes deployment intent as a sep
 
 ### 4.5 — Structured sparsity *(O6.6)*
 
-When a primitive activates only some tensors per token, its contract declares its **sparsity**: the
-**activatable unit** (the parameter slots that form one unit and the axis along which units are
-laid out), the **routing policy** (the argument that selects units), the **count activated per
-token**, and an **upper bound on the union of units activated per batch**.
+When a primitive activates only some of its parameters per element, its contract declares one or
+more **sparsity units**: the parameter slots that form one unit and the axis along which units are
+laid out; the **policy** that selects units — an argument, the value on an input port, or the
+element itself (its position, its type); the count **activated per element**; and an **upper bound
+on the union of units activated per invocation**. A lookup is the limiting case: unit = one row of
+the table along the lookup axis, one activated per element, union bounded by the axis extent. Cost
+derivation counts a unit's weights at the activated fraction per element, and in full for residency
+and worst-case transfer.
 
-Per-token count is insufficient because a batch's union may include every unit. This yields three
-separate qualified quantities: exact resident cost, upper-bounded worst-case transfer, and estimated
-expected transfer.
+A per-element count is insufficient because an invocation's union may include every unit. This
+yields three separate qualified quantities: exact resident cost, upper-bounded worst-case transfer,
+and estimated expected transfer — the last an input with status `estimate`, never derived (O0.5).
 
 ### 4.6 — Template contracts
 
@@ -330,19 +369,18 @@ capability. The catalog designates the template; it does not describe it:
                 "id": "decoder_causal_yarn" } }
 ```
 
-The template is not the contract identity. Two templates implementing the same semantic identity are
-interchangeable; a template name identifies a realization, not a meaning. The realization is
-nevertheless pinned: the contract names the template version, and the template carries that version.
-Otherwise an in-place template change could silently change the contract's denotation.
+A template contract's **ports** are the template's public inputs and outputs, with their domains;
+its **arguments** are the template's external quantities, with their types, domains and defaults;
+`template.id` is the template's `model` identifier. The template is a document
+`<name>/<version>.json` in the location the base manifest declares (`templates`, relative to the
+base); a reference resolves only when that document exists and carries the pinned name, version and
+id (V1). Template occurrences become occurrences of the calling graph with identifiers prefixed by
+the invoking occurrence (§5.2).
 
-The two versions distinguish different facts:
-
-> **Template versions distinguish representations; contract versions distinguish meanings.**
-
-Because unique representation is not required (§1.1), two templates may denote the same graph
-family. A template version may change without changing contract identity while that family remains
-invariant. Changing the family creates a new contract identity: for a template contract, the
-template defines the meaning.
+The template is not the contract identity: two templates may realize one semantic identity, and a
+template name identifies a realization, not a meaning. The realization is nevertheless pinned —
+the contract names the template version, and the template carries that version — and how template
+and contract versions relate is defined in §8.2.
 
 A parameterized document denotes a family, not one graph. Its external-source quantities are
 contract arguments supplied by an **assignment**, except those with declared defaults:
@@ -369,9 +407,8 @@ and most of the invoking model's parameters, with counts dependent on the assign
 The contract citation graph is acyclic. A template may cite another template contract, but a
 cycle is a reasoned rejection (§8.1), not recursion.
 
-Template occurrences become occurrences in the calling graph, with identifiers prefixed by the
-invoking occurrence. Two invocations share neither state nor tensors. Sharing across the boundary is
-not expressible; any future form must use ports, never common tensor identities.
+Two instances of a template share neither state nor tensors. Sharing across the boundary is not
+expressible (§1); any future form must use ports, never common tensor identities.
 
 ## §5 — Denotation
 
@@ -390,19 +427,30 @@ These rules are normative:
 
 1. **Resolvable counts:** every repetition count resolves to an integer from declared quantities. A
    count depending on a runtime decision cannot be expanded and is rejected.
-2. **Hygienic identifiers:** expansion creates unique identifiers through a fixed rule that cannot
-   collide with handwritten identifiers.
-3. **Resolved references:** every quantity, occurrence, port, family, and tensor reference resolves;
-   unresolved references are rejected (I1).
-4. **Order:** a composition emits occurrences in its defined order, identically on every reading:
-   compositions in document order, sites in document order within each, index grids in declaration
-   order of the ranges with values ascending.
-5. **Multiple trunks:** several trunks may coexist (O3.3), and a trunk may carry no state.
+2. **Identifiers.** A root occurrence is identified by its name; a generated occurrence by
+   `<composition>/<site>[<index>=<value>,…]`, indices in name order; an occurrence of a template by
+   `<instance>/<identifier in the template>`. A scoped rule `R` of composition `C` is `C.R`; an
+   identity it names without declaring one is `C.R[<index>=<value>,…]`. These identifiers cannot
+   collide with handwritten ones. They are representation: two expanded graphs are the same when a
+   one-to-one correspondence of occurrences preserves contracts, arguments, families, every value
+   edge, the grouping of slots into parameter, constant and state identities, the interface names
+   and the identity names.
+3. **Resolved references.** Every quantity, occurrence, port, family, identity, stream, catalog
+   base and template reference resolves (V1). A binding is emitted only where every occurrence it
+   names is emitted; an occurrence absent by its guard is not a reference failure, an unknown name
+   or an index outside a composition's ranges is one. A rule naming several members is emitted
+   where all are.
+4. **Set semantics.** The expanded graph is a set of occurrences, edges, families and identities;
+   expansion is deterministic as a set, whatever the order of members in the document. Any listing
+   is conforming; the canonical listing orders occurrences by identifier, edges by (source,
+   destination), identities by name.
+5. **Trunks.** A trunk is a maximal connected component of the expanded value graph; several may
+   coexist (O3.3), and a trunk may carry no state.
 6. **Guards:** a site or a binding may carry a `when` condition over the document's quantities and
    the indices in scope; it is evaluated at every index, and a site or rule whose guard is false is
    not emitted. A guard that cannot be decided is a rejection (V10), never false: an undecidable
    guard would otherwise drop occurrences silently (I7). Guards are how a periodic layer pattern is
-   written as one composition — a site present when `layer mod 4 = 3`, an edge present when
+   written as one composition — a site present when `layer mod 4 = 3`, a carry edge present when
    `layer ≥ 1` — instead of one site per case.
 7. **Scoped bindings:** a composition may carry bindings written against its own sites. Each such
    rule `R` of composition `C` denotes exactly the top-level rule `C.R` whose `for_each` is `C`'s
@@ -411,7 +459,11 @@ These rules are normative:
    declared identity names it `C.R`, indexed by `C`'s indices. Nothing is expressible in the scoped
    form that is not expressible at the top level; the scoped form only removes the repetition of the
    composition's ranges and selectors, and every reading expands it before any other rule applies.
-   A scoped rule whose expanded name collides with a top-level rule is rejected (V1).
+   The emitted rule carries the presence of its endpoints by rule 3. A scoped rule whose expanded
+   name collides with a top-level rule is rejected (V12).
+8. **Templates.** An instance expands its template under the assignment formed by its arguments;
+   the template's inputs are fed by the instance's input edges and its outputs feed the instance's
+   output edges; two instances share nothing.
 
 The concrete representations use three related but non-interchangeable condition fields:
 
@@ -425,19 +477,44 @@ The concrete representations use three related but non-interchangeable condition
 All conditions that affect denotation must resolve deterministically. A field from one context
 cannot substitute for a field from another.
 
-### 5.3 — Indexing domains and invocation boundaries
+### 5.3 — Indexing domains, streams and fragmentation
 
-Every value and state port declares an **indexing domain**: what indexes it, such as token position
-in the current sequence, position in a source sequence, patch, or stream fragment.
+An **indexing domain** is a pair (kind, stream). The **kind** says what one element is: `sequence`
+— one element per sequence; `token` — one per token of a text sequence; `position` — one per frame
+of a sampled signal; `patch` — one per image or video patch. The **stream** is the public input that
+introduced the elements. A public input introduces the stream named after it, or joins an existing
+one.
 
-The same concept governs both interface granularity and the axis along which state grows.
+A contract port declares a kind, or `inherit`. The **occurrence's own domain** is the common domain
+of its input ports that are not transformed; V5 requires them to agree, so an elementwise primitive
+with two inputs has one domain. An input port declaring a kind constrains the kind of the edge into
+it and takes the edge's stream; an output port declaring a kind has that kind and the occurrence's
+stream unless a transform says otherwise; a port declared `inherit` from an input port has that
+port's domain.
+
+An occurrence whose every input port is transformed has no own domain; its outputs' domains come
+from its transforms.
+
+A **transform** relates a port to the occurrence's domain: `merge` — the output carries the input
+port's stream at the output's kind (which may be the same kind), one element per `factor` input
+elements; `align` — the input port carries another domain and the output stays in the occurrence's
+domain; `insert` — the input port's elements enter the occurrence's stream, which the output keeps.
+Transforms carry element counts: after a `merge` a stream has one element per `factor`; after an
+`insert` it has the inserted stream's elements in addition.
+
+**V5:** on every edge the source port's (kind, stream) equals the destination port's, unless the
+destination is the `from_port` of a transform of its contract. A public input is an edge like any
+other.
 
 Value edges form an acyclic graph within one invocation. Time recurrence must pass through a state
 port, never an implicit combinational cycle.
 
-State carried to the next invocation declares its **invocation boundary**: what is preserved and
-under which indexing domain. This supports streaming input while the graph remains statically finite
-per invocation.
+A public input may be **fragmented**: its elements arrive over several invocations. A state whose
+carrying condition holds (§4.3) survives between the invocations that deliver successive fragments
+of its stream; the graph stays finite per invocation. A state indexed by a source stream
+(`indexed_by: {port}`) grows along that stream, across its fragments, and is frozen once the stream
+is complete. A self-indexed state that is not carried is reset at each fragment of its stream. An
+occurrence whose state is carried must sit on a fragmented stream (V16); nothing is declared twice.
 
 ## §6 — Static semantics
 
@@ -446,20 +523,38 @@ implicit default.
 
 | Rule | Requirement |
 |---|---|
-| **V1** | Every quantity, occurrence, port, family, tensor, catalog base, and template reference resolves (I1). |
+| **V1** | Every quantity, occurrence, port, family, identity, stream, catalog base and template reference resolves (I1). Two bases carrying one `{name, version}` with different contents are a conflict, not a choice. |
 | **V2** | Every required contract argument is present; every undeclared argument is rejected; declared defaults are applied before checking. |
-| **V3** | Types, enums, record fields, units and domains conform, for arguments and for quantities, derived ones included; an enum value outside its declared set is rejected. |
-| **V4** | Shapes compose: each source-port output shape equals the destination-port input shape. |
-| **V5** | Indexing domains are compatible across every edge. |
+| **V3** | Types, enums, record fields, units and domains conform, for arguments and for quantities, derived ones included; an enum value outside its declared set is rejected; a number literal is an instance of its declared type (`32.0` is not a cardinality); a quantity selecting a dtype is an enum over dtypes. |
+| **V4** | Shapes compose: source and destination shapes have the same rank and, position by position, the same axis identity and equal extents; local names and natures are not compared; factors are compared when both declare them. The same rule binds a constant slot to its constant and the members of a parameter identity. |
+| **V5** | Indexing domains agree on every edge (§5.3). |
 | **V6** | The value graph is acyclic within an invocation. |
-| **V7** | Bindings are total: every input port is fed and every logical tensor is bound. |
+| **V7** | Bindings are total and unique: every input port of an emitted occurrence is fed exactly once; every parameter, constant and state slot present under its `present_when` is bound exactly once; a slot absent by its condition is bound by nothing. |
 | **V8** | Conditional argument combinations satisfy the contract. Meaningless combinations are excluded by invariant, never merely by a missing guard (I11). |
-| **V9** | A state identity connects only compatible ports: the same applicable rule, the same key axes, and equal payload shapes and indexing domains. |
+| **V9** | A state identity connects only compatible ports: the same applicable rule, the same key axes, and equal payload shapes and indexing domains; a present state port that no rule matches is rejected. |
 | **V10** | Every repetition, guard and derivation resolves under §5.2 and §2.2. |
 | **V11** | A literal quantity that declares its derivation agrees with it (I8). |
-| **V12** | Every construction has one reading; references and literals are unambiguous (I5, I6). |
+| **V12** | Every construction has one reading; references and literals are unambiguous (I5, I6); a document or unit with duplicate member names in any object is rejected. |
+| **V13** | Every output port of an emitted occurrence is consumed by an edge or exposed by a public output. |
+| **V14** | A dtype selected for a parameter identity is admissible for the role of every member; one selected for a state identity, for the role of every payload component of every member; absent, each role's default applies. |
+| **V15** | Parameter identity compatibility (§3.4). |
+| **V16** | An occurrence whose state is carried across fragments (its contract's `carried_across` condition holds) sits on a fragmented stream. |
 
 ## §7 — Required derived products
+
+An **invocation** is one evaluation of the expanded graph on one delivery of its inputs: all
+elements of a non-fragmented input, one fragment of a fragmented one; when an output is generative,
+each generated element is delivered to the token stream of the next invocation. A generative
+document has two **phases**: the invocations consuming supplied elements (prefill) and those
+consuming one generated element (decode). A **cut** is a partition of the emitted occurrences into
+two blocks; it is **legal** when every crossing edge is directed from the first block to the second.
+The **payload** of a cut is the set of values on its crossing edges — the values live at the cut —
+each sized by its port shape times the number of its domain elements in the invocation, element
+counts following the transforms of §5.3. A state instance is **visited** in every invocation that
+evaluates a member occurrence: an `append` or `window` state indexed by its own stream is written
+once per new element and read once per element produced; a state indexed by a source stream is
+written once per source element and frozen when the source is complete; a `fixed` state is read and
+written once per element. Element counts are deployment intent.
 
 A valid document and its referenced contracts make all products below computable without inference
 code or human knowledge of a named mechanism:
@@ -467,11 +562,11 @@ code or human knowledge of a named mechanism:
 | Product | Content |
 |---|---|
 | **D1** | **Expanded graph:** occurrences, edges, and families. |
-| **D2** | **Values:** the value and shape inventory, including value liveness at every cut. |
-| **D3** | **Parameter tensors:** shapes, roles, sharing, and total count. |
-| **D4** | **Complete state:** descriptors, instances, keys, state liveness, and permitted operations. |
-| **D5** | **Logical costs:** parameters, activations, state per token, computation — derived from the inventory and the declared corrections (§4.1) — and cut traffic. |
-| **D6** | **Legal cuts and semantic partition axes.** |
+| **D2** | **Values:** the value and shape inventory, and the payload of every legal cut — the values live at it, sized per invocation. |
+| **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor. |
+| **D4** | **Complete state:** descriptors, instances, keys, state liveness, visits per phase, and permitted operations. |
+| **D5** | **Logical costs:** parameters, activations, state per element, computation — derived from the inventory and the declared corrections (§4.1) — and the payload crossing each legal cut per invocation. |
+| **D6** | **Legal cuts and semantic partition axes:** the legal cuts of the expanded graph, and for every occurrence the partitions its contract declares with their communication; a flattened axis without factors is reported as information loss (O5.10). |
 
 These are compilation outputs. Their encoding and the decisions that consume them are outside this
 specification.
@@ -508,14 +603,22 @@ understand.
 
 ### 8.2 — Identity and versioning
 
-Capability rejection and contract identity are orthogonal:
+Capability rejection and contract identity are orthogonal. A published `{name, version}` is one
+immutable file; a pin names exactly one file, and resolution is exact. Every change is a new version
+file whose digits classify the change:
 
-| Change | Mechanism |
+| Digit | The publisher asserts |
 |---|---|
-| A primitive, argument, or value is **added**. | Explicit rejection; no new model-language version. |
-| The meaning of an existing argument **changes**. | A **new contract identity**; an old consumer would otherwise silently apply the old meaning. |
-| A template is rewritten but its denoted graph family is unchanged. | Update the pinned **template version**; retain contract identity (§4.6). |
-| A template's denoted family changes. | A **new contract identity**; for a template contract, the template defines the meaning. |
+| **patch** | No product (D1–D6) changes for any existing occurrence: documentation, notes, a template rewritten to the same family. |
+| **minor** | Additive only; existing occurrences unchanged: an argument with a declared default, an optional port, a new partition entry, a correction that did not apply before. |
+| **major** | An existing valid occurrence would denote or derive something different. |
+
+Pins stay exact for reproducibility. A consumer implementing `name X.Y` may accept any pin `X.Y'`,
+`Y' ≤ Y`, and rejects the rest explicitly (§8.1). A template is versioned the same way, in its own
+file; a contract pins one template version; a template rewrite is a patch of the contract pinning
+the new version, and earlier contract versions keep resolving. "Same family" is asserted by the
+digit and may be checked on any assignment by expansion (§5.2 rule 2). **Specification stage:**
+until the first release of a catalog, its units are edited in place at `1.0.0`.
 
 A compatible addition need not change the model-language version, but every prior contract identity
 must remain immutable. Otherwise occurrences cannot reference reproducible meanings.
@@ -539,14 +642,14 @@ language element carries it—but the criterion that justifies the mechanism.
 | **I6** | Every construction has one reading. |
 | **I7** | **No silent defaults:** every non-derivable answer produces a reasoned rejection. |
 | **I8** | A literal value and its declared derivation agree. |
-| **I9** | The described model and loaded artifact are mutually compatible: every logical tensor is bound, and no physical tensor is accidentally bound twice. |
 | **I11** | A meaningless combination is excluded by invariant, never merely by a missing guard. |
 
 I5 and I6 are expressiveness invariants, not concrete syntax rules. Known conformance cases include
 a dimension named like an enum value and a two-key object indistinguishable from a two-entry map.
 
-I10—detecting a decision based on stale measurements—belongs to deployment control and is outside
-this specification.
+I9—the mapping of physical fragments onto logical tensors—belongs to the artifact descriptor
+(§10.3); I10—detecting a decision based on stale measurements—belongs to deployment control. Both
+are outside this specification.
 
 ### 9.2 — Non-requirements
 
@@ -569,6 +672,8 @@ never define them.
 
 ### 10.1 — Corpus cases
 
+The corpus is evidence, not definition (§1). Each case below names the construction that carries it:
+
 | Case | Property tested | Construction |
 |---|---|---|
 | Homogeneous dense decoder | Trivial case | §3, §5.2 |
@@ -576,20 +681,29 @@ never define them.
 | **Three simultaneous state natures** | Unbounded cardinality and different operations | O5.7, §4.3 |
 | **Four states, irregular pattern, residual multiplicity** | Multiplicity and conditional combinations | §3.5, §4.3 |
 | **Non-generative, multimodal, tied weights** | Non-generative output, tensor sharing, and multiple trunks | §2.3, §3.4, §5.2 |
-| **Mixture of experts with batch > 1** | Batch union differs from per-token count | §4.5 |
+| **Mixture of experts with batch > 1** | Batch union differs from per-element count | §4.5 |
 | **Flattened shape** | Lost partition axis is reported | O5.10 |
 | **Encoder-decoder** | State read by another trunk | §3.4, §5.3 |
 | **Non-adjacent layer cache sharing** | State identity | §3.4 |
-| **Fragmented streaming input** | Invocation boundary | §5.3 |
+| **Fragmented streaming input** | Fragmentation and carrying | §5.3 |
 | **Per-token output** | Output indexing domain | §2.3, §5.3 |
 
 ### 10.2 — Required rejection cases
 
-The following are rejected at the stated level: unresolved reference (V1); missing required argument
-(V2); undeclared argument (V2); out-of-enum value (V3); incompatible shapes (V4); incompatible
-indexing domains (V5); value cycle (V6); unfed port or unbound tensor (V7); meaningless combination
-(V8); state identity between incompatible ports (V9); unresolvable repetition, guard or derivation
-(V10); and a literal quantity disagreeing with its declared derivation (V11).
+The following are rejected at the stated level: unresolved reference, or one identity carried by
+two bases with different contents (V1); missing required argument (V2); undeclared argument (V2);
+out-of-enum value, or a literal that is not an instance of its type (V3); incompatible shapes (V4);
+incompatible indexing domains (V5); value cycle (V6); unfed port, unbound tensor or state slot, or
+a port or slot fed or bound twice (V7); meaningless combination (V8); state identity between
+incompatible ports (V9); unresolvable repetition, guard or derivation (V10); a literal quantity
+disagreeing with its declared derivation (V11); duplicate member names in an object (V12); an
+output consumed by nothing (V13); an inadmissible dtype (V14); incompatible members of a parameter
+identity (V15); and a carried state on a stream that is not fragmented (V16).
+
+A catalog is refused when loaded if a contract compares or computes with an optional argument that
+has no default outside a `present` test of it; if a precision role's default is not admissible; if
+a sparsity policy names an argument or input port the contract does not declare; if a template
+contract's template is absent from the declared location or carries another name, version or id.
 
 **Mutation test:** for every normative construction, removing a field, breaking its reference, or
 changing its value must either change the expanded denotation or cause rejection. A field ignored by
@@ -605,7 +719,7 @@ every conforming implementation is a comment, even if the document remains valid
 | Dependency graph between consumer questions | Deployment control |
 | Cross-memory-domain composition of a quantity | Compilation for selected parallelism |
 | Load variables such as batch and concurrent sequences | Deployment intent |
-| Physical artifact encoding and mapping to fragments | Artifact descriptor |
+| Physical artifact encoding; mapping physical fragments onto D3 identities one-to-one — the language guarantees each logical tensor once (V7) | Artifact descriptor |
 
 ## Appendix A — Requirements
 
@@ -618,41 +732,38 @@ carries the requirement; this appendix is the requirement. Gaps in the numbering
 | **O0.2** | A derivation outside the algebra uses a normative interface with declared inputs, semantics and conformance tests; its result is at least a qualified bound. None is defined in this revision. |
 | **O0.3** | A derived quantity of a model is exact, reads only declared quantities, resolves acyclically and conforms to its declared type and domain; epistemic status and provenance are declared on contract costs and derived products. |
 | **O0.4** | Quantities form one flat namespace: each is declared once and referenced by name everywhere. |
-| **O0.5** | Where a product combines qualified values, status propagates by the monotonicity of each operation; propagation never turns an estimate into a bound. |
+| **O0.5** | A qualified value carries a status — exact, upper bound, lower bound, or estimate — that propagates through the algebra by the table of §2.2; rounding follows the status; no propagation turns an estimate into a bound. |
 | **O0.6** | Every language of this specification is closed and decidable, or uses a normative interface. |
 | **O1.1** | A contract is referenced through an immutable identity, `{name, version}`, whose meaning never changes (§8.2). |
 | **O1.2** | A model document carries a stable, authoritative identifier. |
 | **O2.1** | Every quantity and every occurrence has one stable identifier, unique after expansion. |
 | **O2.2** | Every quantity declares its regime: a model constant, or a variable with a declared domain. |
 | **O2.3** | Every quantity declares its dimensional type; physical quantities carry a unit. |
-| **O2.4** | When several authorities constrain a domain, each constraint is declared separately and the binding one remains identifiable. |
-| **O3.2** | The rate at which a state is visited, per indexing domain and phase, is derived from the graph; counts are deployment intent (§4.4). |
+| **O3.2** | The rate at which a state is visited, per indexing domain and phase, is derived from the graph; counts are deployment intent (§4.4, §7). |
 | **O3.3** | Several trunks may coexist in one document; a trunk may carry no state. |
 | **O3.5** | Every occurrence belongs to one or more named families, addressable without enumeration. |
-| **O4.1** | Every value port has a shape, a type and a multiplicity. |
+| **O4.1** | Every value port has a shape and a role; residual multiplicity is a shape axis. |
 | **O4.2** | Every flow is seeded explicitly by a public input; implicit seeds are forbidden. |
 | **O4.3** | Residual multiplicity other than one is explicit, and the combining operation is a contracted primitive. |
 | **O4.4** | Value flow is declared by explicit port-to-port edges, never inferred from ordering or from mutation of a named flow. |
 | **O4.5** | The logical payload of a cut is the set of values live across it, determined by the explicit edges; it is not measured traffic. |
 | **O5.1** | A state payload may hold several components of different shapes and types. |
 | **O5.2** | Each state port derives an evolution law: append, bounded window, or fixed size. |
-| **O5.3** | Each state port derives its access geometry and the granularity at which sessions may share it, as consumed properties, never as runtime data-structure names. |
-| **O5.4** | Each state port derives its permitted operations from evolution law and geometry, with their preconditions. |
+| **O5.3** | Each state port derives its access geometry — logical position, ring, aggregate, or selected — and the granularity at which sessions may share it, as consumed properties, never as runtime data-structure names. |
+| **O5.4** | Each state port derives its permitted operations: the effects it admits. |
 | **O5.5** | The instance key of an allocation is derived from the identity's indices and the contract's key axes; liveness is one class per distinct key, never the raw product of dimensions. |
 | **O5.7** | A model may declare any finite number of states of distinct natures; the language sets no upper bound. |
-| **O5.8** | Modulators of a state — span, stride, rank, depth — are expressions over the primitive's arguments. |
-| **O5.9** | A contract states the conditions under which a permitted operation becomes unavailable. |
+| **O5.8** | Modulators of a state — span, stride — are expressions over the primitive's arguments. |
 | **O5.10** | A flattened shape declares its decomposition into named axes; without one, placement derivation reports information loss rather than asserting non-partitionability. |
 | **O6.1** | Every contract derives its logical tensor inventory from its arguments: shapes, roles and sharing rules. |
-| **O6.2** | Parameter bindings identify the logical tensors each occurrence consumes and every sharing between occurrences; a tied tensor is counted and loaded once. |
-| **O6.6** | A primitive that activates only some of its tensors per token declares the activatable unit, the routing policy, the count activated per token, and an upper bound on the union activated per batch. |
+| **O6.2** | Parameter bindings identify the logical tensors each occurrence consumes and every sharing between occurrences; a tied tensor is counted once. |
+| **O6.6** | A primitive that activates only some of its parameters per element declares its sparsity units: the activatable unit, the policy that selects units (an argument, an input port, or the element itself), the count activated per element, and an upper bound on the union activated per invocation. |
 | **O7.1** | A contract declares the axes along which partition preserves meaning and the logical communication each partition implies. |
-| **O8.1** | Every public input and output names its occurrence and port and declares its indexing domain. |
+| **O8.1** | Every public input names one or more occurrence ports and declares its kind and stream; every public output names one occurrence port and whether it is generative. |
 | **O8.2** | A document may expose several outputs at once, including non-generative ones. |
 | **O8.3** | An auxiliary output is an additional reference to an existing value, never a new operation. |
 | **O9.1** | A model names primitives and supplies arguments; it never describes a primitive's computation. |
-| **O9.2** | A contract declares the elements of §4.1. |
+| **O9.2** | A contract declares the elements of §4.1: arguments, ports, logical tensors, state ports, effects, corrections, partitions and transforms. |
 | **O9.4** | An argument is a scalar, an enum, or a record of such values; inline numeric tensors are forbidden. |
 
-The I‑ and N‑ series are stated in §9.
-
+The I‑ and N‑ series are stated in §9. O2.4 and O5.9 are withdrawn; their numbers are reserved.

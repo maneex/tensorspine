@@ -164,7 +164,6 @@
         "target": {
           "argument_axis": "model.width"
         },
-        "semantics": "preserved",
         "communication": "all_gather",
         "description": "Column-parallel over the projection's output features."
       }

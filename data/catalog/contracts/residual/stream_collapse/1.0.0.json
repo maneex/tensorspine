@@ -148,7 +148,6 @@
         "target": {
           "argument_axis": "model.width"
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Per feature; features are independent."
       }

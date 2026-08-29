@@ -788,40 +788,6 @@
             "to": {
               "site": "attn",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 29
-                    }
-                  }
-                }
-              ]
             }
           },
           "norm_laurel": {
@@ -842,40 +808,6 @@
             "to": {
               "site": "attn_post_n",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 29
-                    }
-                  }
-                }
-              ]
             }
           },
           "active_residual": {
@@ -936,17 +868,6 @@
             "to": {
               "site": "ffn_sparse",
               "port": "input"
-            },
-            "when": {
-              "compare": {
-                "operator": "less",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           },
           "ffn_post": {
@@ -957,17 +878,6 @@
             "to": {
               "site": "post_ffn_n",
               "port": "input"
-            },
-            "when": {
-              "compare": {
-                "operator": "less",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           },
           "ffn_residual": {
@@ -1105,40 +1015,6 @@
             "to": {
               "site": "attn_full",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_post_2": {
@@ -1149,40 +1025,6 @@
             "to": {
               "site": "attn_post_n",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                }
-              ]
             }
           },
           "ffn_sparse_2": {
@@ -1193,17 +1035,6 @@
             "to": {
               "site": "ffn",
               "port": "input"
-            },
-            "when": {
-              "compare": {
-                "operator": "greater_or_equal",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           },
           "ffn_post_2": {
@@ -1214,17 +1045,6 @@
             "to": {
               "site": "post_ffn_n",
               "port": "input"
-            },
-            "when": {
-              "compare": {
-                "operator": "greater_or_equal",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           }
         },
@@ -1315,40 +1135,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 29
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.out": {
@@ -1360,40 +1146,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 29
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.q_norm": {
@@ -1405,40 +1157,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 29
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.k_norm": {
@@ -1450,40 +1168,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 29
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_post_n.weight": {
@@ -1517,17 +1201,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "compare": {
-                "operator": "less",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           },
           "ffn_sparse.out": {
@@ -1539,17 +1212,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "compare": {
-                "operator": "less",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           },
           "post_ffn_n.weight": {
@@ -1625,40 +1287,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_full.out": {
@@ -1670,40 +1298,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_full.q_norm": {
@@ -1715,40 +1309,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_full.k_norm": {
@@ -1760,40 +1320,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 5
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 4
-                    }
-                  }
-                }
-              ]
             }
           },
           "ffn_sparse.in_2": {
@@ -1805,17 +1331,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "compare": {
-                "operator": "greater_or_equal",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           },
           "ffn_sparse.out_2": {
@@ -1827,17 +1342,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "compare": {
-                "operator": "greater_or_equal",
-                "left": {
-                  "index": "layer"
-                },
-                "right": {
-                  "literal": 10
-                }
-              }
             }
           }
         },
@@ -2345,17 +1849,16 @@
   "interfaces": {
     "inputs": {
       "tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
       }
     },
     "outputs": {
@@ -2366,10 +1869,6 @@
             "occurrence": "lm_head"
           },
           "port": "logits"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
         },
         "generative": true
       }

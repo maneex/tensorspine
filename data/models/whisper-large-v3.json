@@ -777,8 +777,8 @@
             "mask": {
               "literal": "none"
             },
-            "source": {
-              "literal": "audio"
+            "cross": {
+              "literal": true
             },
             "q_bias": {
               "literal": true
@@ -1665,30 +1665,28 @@
   "interfaces": {
     "inputs": {
       "audio": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "conv_frontend"
-          },
-          "port": "frames"
-        },
-        "domain": {
-          "kind": "position",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "conv_frontend"
+            },
+            "port": "frames"
+          }
+        ],
+        "kind": "position"
       },
       "tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
       }
     },
     "outputs": {
@@ -1699,10 +1697,6 @@
             "occurrence": "lm_head"
           },
           "port": "logits"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
         },
         "generative": true
       }

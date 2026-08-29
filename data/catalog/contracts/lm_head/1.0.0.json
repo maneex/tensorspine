@@ -131,7 +131,6 @@
         "target": {
           "argument_axis": "model.vocabulary"
         },
-        "semantics": "preserved",
         "communication": "all_gather",
         "description": "Vocabulary parallelism: each shard computes a slice of the logits; the slices are gathered."
       }

@@ -921,7 +921,24 @@
         "rules": [
           {
             "when": {
-              "boolean": true
+              "present": "index"
+            },
+            "law": "append",
+            "access": "selected",
+            "sharing": "by_position",
+            "indexed_by": {
+              "self": true
+            },
+            "stride": {
+              "argument": "compress.ratio"
+            },
+            "description": "With the sparse index: latents are appended per compressed position and read at the positions the index selects for each query."
+          },
+          {
+            "when": {
+              "not": {
+                "present": "index"
+              }
             },
             "law": "append",
             "access": "logical_position",
@@ -1225,7 +1242,6 @@
         "target": {
           "argument_axis": "attention.heads"
         },
-        "semantics": "preserved",
         "communication": "all_reduce",
         "description": "Tensor parallelism across heads; the output needs an all-reduce."
       },
@@ -1233,7 +1249,6 @@
         "target": {
           "argument_axis": "attention.o_groups"
         },
-        "semantics": "preserved",
         "communication": "all_gather",
         "description": "Partition across output groups; the group outputs are gathered."
       },
@@ -1241,7 +1256,6 @@
         "target": {
           "instance_key_axis": "instance.session"
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "Instance-key axis: sessions are independent."
       },
@@ -1253,14 +1267,65 @@
             "axis": "attention.head_dim"
           }
         },
-        "semantics": "preserved",
         "communication": "none",
         "description": "The latent cache partitions along `head_dim`, with no communication."
       }
     ],
     "note": "Latent attention with low-rank projections, temporal compression and an optional sparse index.",
-    "logical_cost": {
-      "sequence_operations": {
+    "logical_cost": [
+      {
+        "when": {
+          "present": "index"
+        },
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 4
+            },
+            {
+              "argument": "heads"
+            },
+            {
+              "argument": "head_dim"
+            },
+            {
+              "argument": "index.topk"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "element",
+        "description": "With the sparse index: scores and weighted values of every query head against the `index.topk` latents the index selects, per query."
+      },
+      {
+        "when": {
+          "present": "index"
+        },
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 2
+            },
+            {
+              "argument": "index.heads"
+            },
+            {
+              "argument": "index.head_dim"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "cached_position",
+        "description": "With the sparse index: the index scores every cached key once per query."
+      },
+      {
+        "when": {
+          "not": {
+            "present": "index"
+          }
+        },
         "expression": {
           "op": "multiply",
           "args": [
@@ -1276,9 +1341,9 @@
           ]
         },
         "status": "exact",
-        "per": "position",
-        "description": "Scores and weighted values of every query head against one cached latent."
+        "per": "cached_position",
+        "description": "Without an index: scores and weighted values of every query head against one cached latent."
       }
-    }
+    ]
   }
 }

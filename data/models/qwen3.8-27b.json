@@ -326,9 +326,6 @@
         },
         "merge_count": {
           "literal": 4
-        },
-        "source": {
-          "literal": "vision"
         }
       },
       "families": [
@@ -922,40 +919,6 @@
             "to": {
               "site": "gdn",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn_r.b": {
@@ -966,40 +929,6 @@
             "to": {
               "site": "gdn_r",
               "port": "b"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "mlp_n.in": {
@@ -1010,40 +939,6 @@
             "to": {
               "site": "mlp_n",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "mlp_r.a": {
@@ -1054,40 +949,6 @@
             "to": {
               "site": "mlp_r",
               "port": "a"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "mlp.norm_in": {
@@ -1131,40 +992,6 @@
             "to": {
               "site": "attn_n",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_r.a": {
@@ -1188,40 +1015,6 @@
             "to": {
               "site": "attn_r",
               "port": "a"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.norm_in": {
@@ -1232,40 +1025,6 @@
             "to": {
               "site": "attn",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn_r.b": {
@@ -1276,40 +1035,6 @@
             "to": {
               "site": "attn_r",
               "port": "b"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "mlp_n.in_2": {
@@ -1320,40 +1045,6 @@
             "to": {
               "site": "mlp_n",
               "port": "input"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "mlp_r.a_2": {
@@ -1364,40 +1055,6 @@
             "to": {
               "site": "mlp_r",
               "port": "a"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           }
         },
@@ -1411,40 +1068,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.qkv": {
@@ -1456,40 +1079,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.z": {
@@ -1501,40 +1090,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.b": {
@@ -1546,40 +1101,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.a": {
@@ -1591,40 +1112,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.conv_weight": {
@@ -1636,40 +1123,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.dt_bias": {
@@ -1681,40 +1134,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.A_log": {
@@ -1724,41 +1143,7 @@
                 "parameter": "A_log"
               }
             ],
-            "dtype": "f32",
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
-            }
+            "dtype": "f32"
           },
           "gdn.norm": {
             "members": [
@@ -1769,40 +1154,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "gdn.out": {
@@ -1814,40 +1165,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
             }
           },
           "mlp_n.weight": {
@@ -1892,40 +1209,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.qkv": {
@@ -1937,40 +1220,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.out": {
@@ -1982,40 +1231,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.q_gate": {
@@ -2027,40 +1242,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.q_norm": {
@@ -2072,40 +1253,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           },
           "attn.k_norm": {
@@ -2117,40 +1264,6 @@
             ],
             "dtype": {
               "quantity": "precision"
-            },
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
             }
           }
         },
@@ -2161,41 +1274,7 @@
                 "site": "attn",
                 "state": "kv"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "greater_or_equal",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "gdn.recurrent": {
             "members": [
@@ -2203,41 +1282,7 @@
                 "site": "gdn",
                 "state": "recurrent"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           },
           "gdn.conv": {
             "members": [
@@ -2245,41 +1290,7 @@
                 "site": "gdn",
                 "state": "conv"
               }
-            ],
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
-                },
-                {
-                  "compare": {
-                    "operator": "less",
-                    "left": {
-                      "index": "layer"
-                    },
-                    "right": {
-                      "literal": 63
-                    }
-                  }
-                }
-              ]
-            }
+            ]
           }
         }
       }
@@ -3122,30 +2133,28 @@
   "interfaces": {
     "inputs": {
       "pixels": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "patch_embed"
-          },
-          "port": "pixels"
-        },
-        "domain": {
-          "kind": "patch",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "patch_embed"
+            },
+            "port": "pixels"
+          }
+        ],
+        "kind": "patch"
       },
       "tokens": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "tokens"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
       }
     },
     "outputs": {
@@ -3156,10 +2165,6 @@
             "occurrence": "lm_head"
           },
           "port": "logits"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "tokens"
         },
         "generative": true
       }
