@@ -30,22 +30,28 @@ def main(argv=None):
     ap.add_argument('--dtype', default='f32', choices=['f32', 'bf16'])
     ap.add_argument('--composition', default='decoder', help="the D1 composition the layers belong to")
     ap.add_argument('--layer-output', default='ffn_r', help="the D1 site whose output closes a layer")
+    ap.add_argument('--attn-site', default='attn', help="the D1 site of the attention (its kv state)")
+    ap.add_argument('--gdn-site', default='gdn', help="the D1 site of the gated delta net (recurrent, conv states)")
+    ap.add_argument('--conv-history', type=int, default=3, help="positions the D4 conv state keeps")
     ap.add_argument('--out', required=True)
     args = ap.parse_args(argv)
     from transformers import AutoConfig, AutoModelForCausalLM
     dtype = {'f32': torch.float32, 'bf16': torch.bfloat16}[args.dtype]
     config = AutoConfig.from_pretrained(args.model)
-    kwargs = {}
+    text = getattr(config, 'text_config', None) or config
     if args.layers:
-        kwargs['num_hidden_layers'] = args.layers
+        text.num_hidden_layers = args.layers
+        if getattr(text, 'layer_types', None):
+            text.layer_types = list(text.layer_types)[:args.layers]
     t0 = time.time()
-    model = AutoModelForCausalLM.from_pretrained(args.model, dtype=dtype, **kwargs)
+    model = AutoModelForCausalLM.from_pretrained(args.model, config=config, dtype=dtype)
     model.eval()
-    n_layers = model.config.num_hidden_layers
+    n_layers = text.num_hidden_layers
     print(f"loaded {args.model}: {n_layers} layers in {dtype} ({time.time() - t0:.0f}s)")
     ids = [int(x) for x in args.ids.split(',')]
     dump, hooks, hook_map = {}, [], {}
-    layers = model.model.layers
+    inner = model.model
+    layers = getattr(inner, 'layers', None) or inner.language_model.layers
     for i, layer in enumerate(layers):
         key = f"value/{args.composition}/{args.layer_output}[layer={i}].output"
         hook_map[f"model.layers.{i}"] = key
@@ -53,7 +59,7 @@ def main(argv=None):
         def hook(module, inputs, output, key=key):
             out = output[0] if isinstance(output, tuple) else output
             if key not in dump:                     # prefill only
-                dump[key] = out[0].detach().to(torch.float32).cpu()
+                dump[key] = out[0].detach().to(torch.float32).cpu().clone()
         hooks.append(layer.register_forward_hook(hook))
     with torch.no_grad():
         x = torch.tensor([ids])
@@ -61,16 +67,27 @@ def main(argv=None):
         out = model(input_ids=x, use_cache=True)
         cache = out.past_key_values
         logits = out.logits[0].to(torch.float32)
-        dump['logits/last'] = logits[-1].cpu()
-        dump['logits/argmax'] = logits.argmax(-1).cpu()
+        dump['logits/last'] = logits[-1].cpu().clone()
+        dump['logits/argmax'] = logits.argmax(-1).cpu().clone()
         for i in range(n_layers):
+            layer = cache.layers[i]
+            conv = getattr(layer, 'conv_states', None)
+            if conv is not None and len(conv) and conv[0] is not None:
+                c = conv[0][0] if conv[0].dim() == 3 else conv[0]          # [conv_dim, kernel]
+                dump[f"state/{args.composition}.{args.gdn_site}.conv[layer={i}]/w"] = c[:, -args.conv_history:].T.to(torch.float32).cpu().clone()
+                r = layer.recurrent_states[0]
+                r = r[0] if r.dim() == 4 else r                              # [heads, k_dim, v_dim]
+                dump[f"state/{args.composition}.{args.gdn_site}.recurrent[layer={i}]/s"] = r.to(torch.float32).cpu().clone()
+                continue
             try:
-                k, v = cache.layers[i].keys, cache.layers[i].values
+                k, v = layer.keys, layer.values
             except AttributeError:
                 k, v = cache[i]
-            dump[f"state/{args.composition}.attn.kv[layer={i}]/k"] = k[0].permute(1, 0, 2).to(torch.float32).cpu()
-            dump[f"state/{args.composition}.attn.kv[layer={i}]/v"] = v[0].permute(1, 0, 2).to(torch.float32).cpu()
-        hook_map['past_key_values.layers[i].keys[0].permute(1,0,2)'] = f"state/{args.composition}.attn.kv[layer=i]/k"
+            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/k"] = k[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/v"] = v[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+        hook_map['past_key_values.layers[i].keys[0].permute(1,0,2)'] = f"state/{args.composition}.{args.attn_site}.kv[layer=i]/k"
+        hook_map['past_key_values.layers[i].conv_states[0][0][:, -history:].T'] = f"state/{args.composition}.{args.gdn_site}.conv[layer=i]/w"
+        hook_map['past_key_values.layers[i].recurrent_states[0][0]'] = f"state/{args.composition}.{args.gdn_site}.recurrent[layer=i]/s"
         nxt = int(logits[-1].argmax())
         tokens = [nxt]
         print(f"prefill {len(ids)} -> {nxt} ({time.time() - t0:.1f}s)")

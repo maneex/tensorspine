@@ -44,11 +44,13 @@ def edited(model_path, edits, out_dir, suffix='edited'):
     notes = []
     for path, value in edits.items():
         node = model
-        keys = path.split('.')
+        keys = list(path) if isinstance(path, tuple) else [int(k) if k.isdigit() else k for k in path.split('.')]
         for k in keys[:-1]:
             node = node[k]
-        notes.append(f"{path}: {node.get(keys[-1])!r} -> {value!r}")
-        node[keys[-1]] = value
+        last = keys[-1]
+        before = node[last] if isinstance(node, list) else node.get(last)
+        notes.append(f"{'.'.join(map(str, keys))}: {before!r} -> {value!r}")
+        node[last] = value
     here = os.path.dirname(os.path.abspath(model_path))
     model['catalog'] = [{"base": os.path.normpath(os.path.join(here, e['base']))} for e in model['catalog']]
     model['model'] = f"{model['model']}-{suffix}"
@@ -71,6 +73,21 @@ def truncated(model_path, spec, out_dir):
     q = model.get('quantities', {}).get('layers')
     if q and q['source'].get('kind') == 'literal' and q['source'].get('value') == old:
         edits['quantities.layers.source.value'] = stop
+    # a document that names its last layer by a literal (`layer < 31`, `mlp_r[layer=31]`):
+    # every literal equal to the old last index, in the bindings and in that composition
+    def walk(node, path):
+        if isinstance(node, dict):
+            if set(node) == {'literal'} and node['literal'] == old - 1:
+                edits[path + ('literal',)] = stop - 1
+            for k, v in node.items():
+                walk(v, path + (k,))
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, path + (i,))
+    walk(model.get('bindings', {}), ('bindings',))
+    walk(model['compositions'][comp].get('bindings', {}), ('compositions', comp, 'bindings'))
+    for site, occ in model['compositions'][comp]['occurrences'].items():
+        walk(occ.get('when', {}), ('compositions', comp, 'occurrences', site, 'when'))
     return edited(model_path, edits, out_dir, suffix=f"{stop}{index}s")
 
 

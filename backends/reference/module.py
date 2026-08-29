@@ -17,11 +17,12 @@ class ShapeError(Exception):
 
 
 class Ctx:
-    def __init__(self, dtype, device, static=False):
+    def __init__(self, dtype, device, static=False, eps=1e-6):
         self.dtype = dtype
         self.device = device
         self.static = static
         self.positions = None
+        self.eps = eps            # finding: the Q/K normalisation has no `eps` of its own in the contract
 
 
 class TensorspineModel(nn.Module):
@@ -63,7 +64,7 @@ def step(model, inputs, positions, states, dump=None):
                     raise ShapeError(f"{vname}: D2 says {expect} per element for {n} elements, got {list(t.shape)}")
             values[vname] = t
             if dump is not None and vname in plan.dump_values:
-                dump[f"value/{vname}"] = t.detach().to('cpu', torch.float32)
+                dump[f"value/{vname}"] = t.detach().to('cpu', torch.float32).clone()
         for port, (kind, ref) in s.inputs.items():
             if kind == 'value':
                 remaining[ref] -= 1

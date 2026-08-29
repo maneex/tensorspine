@@ -10,11 +10,14 @@ M0 — random weights, no checkpoint:
   3. the masked (compiled-form) attention equals the sliced one;
   4. optionally, the decode step compiles (`--compile`).
 
-M1 — the Llama 3 8B checkpoint, when it is on disk (else `skip`): the 3-layer document loaded by
-location, every layer output, the KV states after prefill and the logits within tolerance of the
-committed `transformers` dump, and the same greedy tokens.
+M1, M2 — for each committed fixture whose checkpoint is on disk (else `skip`): the truncated
+document loaded by location, every layer output, every state after prefill (KV; and for Qwen 3.5
+the convolution history and the recurrent matrix) and the logits within tolerance of the
+`transformers` dump, and the same greedy tokens. With `--full`, the whole Llama 3 8B: the eight
+greedy tokens `transformers` produced in bf16 on 29 Aug 2026 (about two minutes on CPU, ~16 GB of
+page cache).
 
-    python3 backends/reference/tests/run_reference.py [--compile]
+    python3 backends/reference/tests/run_reference.py [--compile] [--full]
 """
 import os
 import sys
@@ -37,8 +40,14 @@ from plan import Plan            # noqa: E402
 from session import Session, greedy  # noqa: E402
 from compare import compare, read_dump  # noqa: E402
 
-CHECKPOINT = os.path.expanduser('~/work/perso/huggingface/Meta-Llama-3-8B')
-FIXTURE = os.path.join(REF, 'fixtures', 'llama3-8b.3layers.hf.safetensors')
+CHECKPOINTS = os.path.expanduser('~/work/perso/huggingface')
+FIXTURES = [   # (fixture, model document, checkpoint directory)
+    ('llama3-8b.3layers.hf.safetensors', 'llama3-8b', 'Meta-Llama-3-8B'),
+    ('qwen3.5-4b-text.4layers.hf.safetensors', 'qwen3.5-4b-text', 'Qwen3.5-4B'),
+]
+CHECKPOINT = os.path.join(CHECKPOINTS, 'Meta-Llama-3-8B')
+FULL_IDS = [128000, 791, 6864, 315, 9822, 374]                  # "<|begin_of_text|>The capital of France is"
+FULL_TOKENS = [12366, 13, 1102, 374, 7559, 304, 279, 10411]      # " Paris. It is located in the north" — transformers 5.14, bf16
 
 TINY = {'quantities.d.source.value': 64, 'quantities.ffn.source.value': 128, 'quantities.heads.source.value': 4,
         'quantities.kv_heads.source.value': 2, 'quantities.head_dim.source.value': 16,
@@ -51,7 +60,7 @@ def check(label, ok, detail=''):
     return ok
 
 
-def main(compile_step=False):
+def main(compile_step=False, full=False):
     ok = True
     tmp = tempfile.mkdtemp(prefix='tensorspine-ref-test-')
     path, notes = graph_mod.edited(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'), TINY, tmp, 'tiny')
@@ -100,24 +109,36 @@ def main(compile_step=False):
     else:
         print("  skip compile (pass --compile)")
     ok &= m1(check)
+    if full:
+        ok &= m1_full(check)
     print("reference: all good" if ok else "reference: FAILED")
     return 0 if ok else 1
 
 
 def m1(check):
-    if not (os.path.isdir(CHECKPOINT) and os.path.exists(FIXTURE)):
-        print("  skip M1 (checkpoint or fixture not on disk)")
+    ok = True
+    for fixture, document, checkpoint in FIXTURES:
+        ok &= fixture_case(check, os.path.join(REF, 'fixtures', fixture), document, os.path.join(CHECKPOINTS, checkpoint))
+    return ok
+
+
+def fixture_case(check, fixture, document, checkpoint):
+    label = document
+    if not (os.path.isdir(checkpoint) and os.path.exists(fixture)):
+        print(f"  skip {label} (checkpoint or fixture not on disk)")
         return True
-    theirs, header = read_dump(FIXTURE)
+    theirs, header = read_dump(fixture)
     ids = header['ids']
-    tmp = tempfile.mkdtemp(prefix='tensorspine-ref-m1-')
-    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'),
+    tmp = tempfile.mkdtemp(prefix='tensorspine-ref-fixture-')
+    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', f'{document}.json'),
                                   f"decoder.layer={header['layers']}", tmp)
     g = graph_mod.load(path)
-    errors, _, stats = loader.verify(g, CHECKPOINT)
-    ok = check(f"M1: the {header['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
+    errors, _, stats = loader.verify(g, checkpoint)
+    ok = check(f"{label}: the {header['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
     kernels = registry.load_kernels()
-    params = loader.load_parameters(g, CHECKPOINT, 'cpu')
+    refused = registry.refusals(g, kernels)
+    ok &= check(f"{label}: every contract has a kernel for its arguments", not refused, refused[:2])
+    params = loader.load_parameters(g, checkpoint, 'cpu')
     model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
     session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
     ours = {}
@@ -125,10 +146,10 @@ def m1(check):
     for ident, st in session.states.items():
         bufs, length = st.read()
         for c, buf in bufs.items():
-            ours[f"state/{ident}/{c}"] = buf[:length].detach().to('cpu', torch.float32)
+            ours[f"state/{ident}/{c}"] = buf[:length].detach().to('cpu', torch.float32).clone()
     logits = out[g.generative[0]]
-    ours['logits/last'] = logits[-1].detach().to('cpu', torch.float32)
-    ours['logits/argmax'] = logits.argmax(-1).detach().cpu()
+    ours['logits/last'] = logits[-1].detach().to('cpu', torch.float32).clone()
+    ours['logits/argmax'] = logits.argmax(-1).detach().cpu().clone()
     nxt = greedy(out, g)
     tokens = [nxt]
     for _ in range(len(header['tokens']) - 1):
@@ -137,11 +158,29 @@ def m1(check):
         tokens.append(nxt)
     rows, failures, _ = compare(ours, theirs, atol=1e-3, rtol=1e-2)
     worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
-    ok &= check(f"M1: {len(rows)} values, states and logits within tolerance of transformers (max |d| {worst:.1e})",
+    ok &= check(f"{label}: {len(rows)} values, states and logits within tolerance of transformers (max |d| {worst:.1e})",
                 failures == 0, [r for r in rows if 'EXCEEDS' in r[3] or r[1] is None][:2])
-    ok &= check(f"M1: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
+    ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
     return ok
 
 
+def m1_full(check):
+    if not os.path.isdir(CHECKPOINT):
+        print("  skip M1 full (checkpoint not on disk)")
+        return True
+    g = graph_mod.load(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'))
+    kernels = registry.load_kernels()
+    params = loader.load_parameters(g, CHECKPOINT, 'cpu')
+    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+    t0 = time.time()
+    nxt = greedy(session.prefill(FULL_IDS), g)
+    tokens = [nxt]
+    for _ in range(len(FULL_TOKENS) - 1):
+        nxt = greedy(session.decode(nxt), g)
+        tokens.append(nxt)
+    return check(f"M1 full: 32 layers, greedy tokens {tokens} equal transformers' ({time.time() - t0:.0f}s)", tokens == FULL_TOKENS)
+
+
 if __name__ == '__main__':
-    sys.exit(main(compile_step='--compile' in sys.argv))
+    sys.exit(main(compile_step='--compile' in sys.argv, full='--full' in sys.argv))

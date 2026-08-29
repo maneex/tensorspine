@@ -200,7 +200,7 @@ def cmd_run(args):
         for ident, st in session.states.items():
             bufs, length = st.read()
             for c, buf in bufs.items():
-                dump[f"state/{ident}/{c}"] = (buf[:length] if length is not None else buf).detach().to('cpu', torch.float32)
+                dump[f"state/{ident}/{c}"] = (buf[:length] if length is not None else buf).detach().to('cpu', torch.float32).clone()
     tokens = [nxt]
     for _ in range(args.steps):
         t0 = time.time()
@@ -210,8 +210,8 @@ def cmd_run(args):
         print(f"  decode -> {nxt} ({time.time() - t0:.2f}s)")
     print("tokens:", tokens)
     if args.dump:
-        dump['logits/last'] = first_logits[-1].detach().to('cpu', torch.float32)
-        dump['logits/argmax'] = first_logits.argmax(-1).detach().cpu()
+        dump['logits/last'] = first_logits[-1].detach().to('cpu', torch.float32).clone()
+        dump['logits/argmax'] = first_logits.argmax(-1).detach().cpu().clone()
         write_dump(args.dump, dump, {'model': g.model, 'ids': ids, 'tokens': tokens, 'capacity': args.capacity,
                                      'compute': str(dtype), 'random_seed': args.seed if args.random else None,
                                      'cuts': [c['cut'] for c in g.layer_cuts()]})
