@@ -25,6 +25,7 @@ import os
 from collections import Counter, defaultdict, deque
 
 import catalog as catalog_mod
+import model as model_mod
 import schema as schema_mod
 from expr import (UNRESOLVED, contract_condition, contract_value, index_grid,
                   missing_assignment, model_condition, model_value,
@@ -247,8 +248,11 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     bindings are checked for totality, and its parameter and state slots are
     counted into the caller's. Two invocations share nothing."""
     _cache = {} if _cache is None else _cache
-    with open(model_path, encoding='utf-8') as f:
-        model = json.load(f)
+    try:
+        model = model_mod.load(model_path)
+    except model_mod.ModelError as e:
+        return {'errors': [f"[V1] {e}"], 'stats': {}, 'ports': {'inputs': {}, 'outputs': {}},
+                'instance_keys': {}}
     errors = []
     stats = {}
     merged = Counter()
@@ -320,9 +324,15 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             env = dict(zip(names, combo))
             for site_name, site in comp['occurrences'].items():
                 # A guarded site that does not fire is not an occurrence. D1
-                # applies the same rule, so both commands see one graph.
-                if 'when' in site and not model_condition(site['when'], quantities, env):
-                    continue
+                # applies the same rule, so both commands see one graph. A
+                # guard that cannot be decided is a refusal, never false.
+                if 'when' in site:
+                    truth = model_condition(site['when'], quantities, env)
+                    if truth is UNRESOLVED:
+                        fail('V10', f"{comp_name}.{site_name}{env}: `when` does not resolve")
+                        continue
+                    if not truth:
+                        continue
                 sites[('gen', comp_name, site_name, tuple(sorted(env.items())))] = site
     stats['occurrences'] = len(sites)
 
@@ -370,11 +380,23 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 definition['ports'] = instance_ports(sub['ports'])
         resolved[key] = (name, definition, args)
 
-    def loop_envs(binding):
-        if 'for_each' not in binding:
-            return [{}]
-        names, ranges = index_grid(binding['for_each'], quantities)
-        return [dict(zip(names, combo)) for combo in itertools.product(*ranges)]
+    def loop_envs(binding, label=''):
+        """The index environments a rule fires in: its `for_each` grid, kept
+        where its `when` holds. An undecidable guard is a V10 refusal."""
+        envs = [{}]
+        if 'for_each' in binding:
+            names, ranges = index_grid(binding['for_each'], quantities)
+            envs = [dict(zip(names, combo)) for combo in itertools.product(*ranges)]
+        if 'when' not in binding:
+            return envs
+        kept = []
+        for env in envs:
+            truth = model_condition(binding['when'], quantities, env)
+            if truth is UNRESOLVED:
+                fail('V10', f"{label}{env}: `when` does not resolve")
+            elif truth:
+                kept.append(env)
+        return kept
 
     def select(sel, env):
         if sel['kind'] == 'root':
@@ -387,7 +409,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     edges = []
     edge_count = 0
     for bid, binding in model['bindings']['values'].items():
-        for env in loop_envs(binding):
+        for env in loop_envs(binding, bid):
             edge_count += 1
             src_key = select(binding['from']['occurrence'], env)
             dst_key = select(binding['to']['occurrence'], env)
@@ -518,12 +540,14 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     # --- V7/V9: parameters -------------------------------------------------
     slots = {}
     ties = 0
+    tensor_identities = 0
 
     def shape_identity(shape, args):
         return tuple((a['axis'], contract_value(a['extent'], args)) for a in shape['axes'])
 
     for tid, binding in model['bindings']['parameters'].items():
-        for env in loop_envs(binding):
+        for env in loop_envs(binding, tid):
+            tensor_identities += 1
             signatures = []
             for member in binding['members']:
                 key = select(member['occurrence'], env)
@@ -561,7 +585,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             if (key, param_name) not in slots:
                 fail('V7', f"unbound parameter slot: {name}@{key}.{param_name}")
     stats['parameter_slots'] = len(slots)
-    stats['tensors'] = len(model['bindings']['parameters'])
+    stats['tensors'] = tensor_identities
     stats['shared'] = ties
 
     # --- V3p: precision admissibility (catalog gives a set, model a value) -
@@ -590,7 +614,10 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     checked = 0
     for tid, binding in model['bindings']['parameters'].items():
         member = binding['members'][0]
-        key = select(member['occurrence'], loop_envs(binding)[0])
+        envs = loop_envs(binding, tid)
+        if not envs:
+            continue
+        key = select(member['occurrence'], envs[0])
         if key not in resolved:
             continue
         name, definition, _ = resolved[key]
@@ -635,7 +662,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     state_identities = 0
     instance_keys = {}
     for sid, binding in model['bindings']['states'].items():
-        binding_envs = loop_envs(binding)
+        binding_envs = loop_envs(binding, sid)
         state_identities += len(binding_envs)
         for env in binding_envs:
             for member in binding['members']:

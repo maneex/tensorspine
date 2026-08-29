@@ -375,6 +375,20 @@ These rules are normative:
    unresolved references are rejected (I1).
 4. **Order:** a composition emits occurrences in its defined order, identically on every reading.
 5. **Multiple trunks:** several trunks may coexist (O3.3), and a trunk may carry no state.
+6. **Guards:** a site or a binding may carry a `when` condition over the document's quantities and
+   the indices in scope; it is evaluated at every index, and a site or rule whose guard is false is
+   not emitted. A guard that cannot be decided is a rejection (V10), never false: an undecidable
+   guard would otherwise drop occurrences silently (I7). Guards are how a periodic layer pattern is
+   written as one composition — a site present when `layer mod 4 = 3`, an edge present when
+   `layer ≥ 1` — instead of one site per case.
+7. **Scoped bindings:** a composition may carry bindings written against its own sites. Each such
+   rule `R` of composition `C` denotes exactly the top-level rule `C.R` whose `for_each` is `C`'s
+   index ranges and whose site endpoints select the generated occurrence at the current indices,
+   overridden index by index where the endpoint says so; a scoped parameter or state rule without a
+   declared identity names it `C.R`, indexed by `C`'s indices. Nothing is expressible in the scoped
+   form that is not expressible at the top level; the scoped form only removes the repetition of the
+   composition's ranges and selectors, and every reading expands it before any other rule applies.
+   A scoped rule whose expanded name collides with a top-level rule is rejected (V1).
 
 The concrete representations use three related but non-interchangeable condition fields:
 

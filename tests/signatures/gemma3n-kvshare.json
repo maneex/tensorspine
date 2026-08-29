@@ -1,0 +1,30 @@
+{
+ "nodes": 455,
+ "edges": 634,
+ "per_contract": {
+  "attention.dense": 30,
+  "conditioning.layer_select": 30,
+  "conditioning.multiplicative": 30,
+  "embedding.token_auxiliary": 1,
+  "ffn.gated": 30,
+  "lm_head": 1,
+  "norm.rms": 121,
+  "residual.altup_correct": 30,
+  "residual.altup_predict": 30,
+  "residual.combine": 90,
+  "residual.laurel": 30,
+  "residual.stream_collapse": 1,
+  "residual.stream_expand": 1,
+  "residual.stream_inject": 30
+ },
+ "wl": "eaa04fcb1236141d",
+ "parameter_slots": 638,
+ "tensors": 637,
+ "shared": 1,
+ "state_slots": 30,
+ "state_identities": 20,
+ "instance_keys": {
+  "instance.session\u00d7instance.branch": 2,
+  "layer\u00d7instance.session\u00d7instance.branch": 18
+ }
+}

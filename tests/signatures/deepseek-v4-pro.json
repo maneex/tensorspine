@@ -1,0 +1,22 @@
+{
+ "nodes": 370,
+ "edges": 491,
+ "per_contract": {
+  "attention.latent_compressed": 61,
+  "embed": 1,
+  "lm_head": 1,
+  "mix.collapse": 1,
+  "mix.doubly_stochastic": 122,
+  "moe": 61,
+  "norm.rms": 123
+ },
+ "wl": "d98e53d8409038fe",
+ "parameter_slots": 1681,
+ "tensors": 1681,
+ "shared": 0,
+ "state_slots": 243,
+ "state_identities": 243,
+ "instance_keys": {
+  "layer\u00d7instance.session\u00d7instance.branch": 243
+ }
+}

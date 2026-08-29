@@ -1,0 +1,21 @@
+{
+ "nodes": 291,
+ "edges": 386,
+ "per_contract": {
+  "attention.dense": 48,
+  "embed": 1,
+  "lm_head": 1,
+  "moe": 48,
+  "norm.rms": 97,
+  "residual.add": 96
+ },
+ "wl": "9014c5f83622e9f7",
+ "parameter_slots": 435,
+ "tensors": 435,
+ "shared": 0,
+ "state_slots": 48,
+ "state_identities": 48,
+ "instance_keys": {
+  "layer\u00d7instance.session\u00d7instance.branch": 48
+ }
+}

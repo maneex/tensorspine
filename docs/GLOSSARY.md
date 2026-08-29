@@ -52,10 +52,11 @@ roles, and versioned contracts; it has no single global version. See
 
 ### Composition
 
-A named, finite, indexed family of occurrence sites. Expansion turns those sites into
-ordinary occurrences with deterministic identifiers. It is authoring shorthand, not a runtime node
-or a nested model. See [Specification
-§5.1](SPECIFICATION.md#51--the-expanded-graph-is-authoritative) and [Model guide
+A named, finite, indexed family of occurrence sites, with the bindings among those sites. A site
+may be guarded by `when`, so one composition over a flat layer index expresses a periodic pattern.
+Expansion turns sites into ordinary occurrences with deterministic identifiers and scoped bindings
+into top-level rules. It is authoring shorthand, not a runtime node or a nested model. See
+[Specification §5.1](SPECIFICATION.md#51--the-expanded-graph-is-authoritative) and [Model guide
 §2.4](ARMATURE-MODEL_JSON.md#24--compositions-and-deterministic-expansion).
 
 ### Communication

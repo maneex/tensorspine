@@ -17,6 +17,7 @@ import os
 from collections import defaultdict, deque
 
 import catalog as catalog_mod
+import model as model_mod
 from expr import (UNRESOLVED, contract_value, index_grid, missing_assignment,
                   model_condition, model_value, resolve_quantities, static_argument)
 
@@ -30,8 +31,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     template contract receives its own from the arguments of the occurrence
     that invokes it.
     """
-    with open(model_path, encoding='utf-8') as f:
-        model = json.load(f)
+    model = model_mod.load(model_path)
     assignment = assignment or {}
     quantities = resolve_quantities(model, assignment)
 
@@ -61,8 +61,12 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
             for site_name, site in sorted(comp['occurrences'].items()):
                 # `when` is evaluated against the quantities and the current
                 # indices; a site that does not fire is not an occurrence.
-                if 'when' in site and not model_condition(site['when'], quantities, env):
-                    continue
+                if 'when' in site:
+                    truth = model_condition(site['when'], quantities, env)
+                    if truth is UNRESOLVED:
+                        raise ValueError(f"{comp_name}.{site_name}{env}: `when` does not resolve")
+                    if not truth:
+                        continue
                 keys[('gen', comp_name, site_name, tuple(sorted(env.items())))] = site
 
     edges = []
@@ -112,11 +116,21 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
             "families": families}
 
     # --- unroll the edges ---------------------------------------------------
-    def loop_envs(binding):
-        if 'for_each' not in binding:
-            return [{}]
-        names, ranges = index_grid(binding['for_each'], quantities)
-        return [dict(zip(names, combo)) for combo in itertools.product(*ranges)]
+    def loop_envs(binding, label=''):
+        envs = [{}]
+        if 'for_each' in binding:
+            names, ranges = index_grid(binding['for_each'], quantities)
+            envs = [dict(zip(names, combo)) for combo in itertools.product(*ranges)]
+        if 'when' not in binding:
+            return envs
+        kept = []
+        for env in envs:
+            truth = model_condition(binding['when'], quantities, env)
+            if truth is UNRESOLVED:
+                raise ValueError(f"{label}{env}: `when` does not resolve")
+            if truth:
+                kept.append(env)
+        return kept
 
     def select(sel, env):
         if sel['kind'] == 'root':
@@ -131,7 +145,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         return _prefix + identity(key), port
 
     for bid, binding in model['bindings']['values'].items():
-        for env in loop_envs(binding):
+        for env in loop_envs(binding, bid):
             src_node, src_port = endpoint(binding['from']['occurrence'],
                                           binding['from']['port'], env)
             dst_node, dst_port = endpoint(binding['to']['occurrence'],

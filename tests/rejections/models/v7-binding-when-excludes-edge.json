@@ -1,190 +1,159 @@
 {
   "schema": "armature/2.0",
-  "model": "decoder_causal_yarn",
-  "version": "1.0.0",
+  "model": "rejection-v7-binding-when-excludes-edge",
   "catalog": [
     {
       "base": "catalog/"
     }
   ],
   "quantities": {
-    "width": {
-      "regime": "model_variable",
+    "d": {
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "width"
+        "kind": "literal",
+        "value": 4096
       }
     },
-    "layers": {
-      "regime": "model_variable",
+    "ffn": {
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "layers"
+        "kind": "literal",
+        "value": 14336
       }
     },
     "heads": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "heads"
+        "kind": "literal",
+        "value": 32
       }
     },
     "kv_heads": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "kv_heads"
+        "kind": "literal",
+        "value": 8
       }
     },
     "head_dim": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "head_dim"
+        "kind": "literal",
+        "value": 128
       }
     },
-    "inner": {
-      "regime": "model_variable",
+    "layers": {
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
+      "source": {
+        "kind": "literal",
+        "value": 32
+      }
+    },
+    "vocab": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
       },
       "source": {
-        "kind": "external",
-        "name": "inner"
+        "kind": "literal",
+        "value": 128256
       }
     },
     "eps": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "real"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 0
-          },
-          "inclusive": false
-        },
-        "upper": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": false
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "eps"
+        "kind": "literal",
+        "value": 1e-05
       }
     },
     "precision": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "enum",
         "values": [
-          "bf16",
-          "f16",
-          "f32"
-        ]
-      },
-      "domain": {
-        "kind": "set",
-        "values": [
-          "bf16",
-          "f16",
-          "f32"
+          "bf16"
         ]
       },
       "source": {
-        "kind": "external",
-        "name": "precision"
+        "kind": "literal",
+        "value": "bf16"
       }
     }
   },
   "constants": {},
   "occurrences": {
-    "entry": {
+    "embed": {
       "contract": {
-        "name": "identity",
+        "name": "embed",
         "version": "1.0.0"
       },
       "arguments": {
         "width": {
-          "quantity": "width"
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
         }
       },
       "families": [
-        "seam"
+        "input",
+        "embedding"
+      ]
+    },
+    "final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ]
+    },
+    "lm_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "output",
+        "head"
       ]
     }
   },
@@ -196,7 +165,7 @@
             "literal": 0
           },
           "stop": {
-            "quantity": "layers"
+            "literal": 32
           },
           "step": {
             "literal": 1
@@ -214,7 +183,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d"
             },
             "eps": {
               "quantity": "eps"
@@ -231,7 +200,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d"
             },
             "heads": {
               "quantity": "heads"
@@ -248,26 +217,10 @@
             "rope": {
               "record": {
                 "theta": {
-                  "literal": 1000000
+                  "literal": 500000
                 },
-                "scaling": {
-                  "record": {
-                    "kind": {
-                      "literal": "yarn"
-                    },
-                    "factor": {
-                      "literal": 16
-                    },
-                    "beta_fast": {
-                      "literal": 32
-                    },
-                    "beta_slow": {
-                      "literal": 1
-                    },
-                    "orig_ctx": {
-                      "literal": 16384
-                    }
-                  }
+                "layout": {
+                  "literal": "split"
                 }
               }
             }
@@ -283,7 +236,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d"
             }
           },
           "families": [
@@ -297,7 +250,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d"
             },
             "eps": {
               "quantity": "eps"
@@ -314,10 +267,10 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d"
             },
             "inner": {
-              "quantity": "inner"
+              "quantity": "ffn"
             },
             "activation": {
               "literal": "silu"
@@ -334,7 +287,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d"
             }
           },
           "families": [
@@ -420,6 +373,17 @@
             "to": {
               "site": "attn",
               "port": "input"
+            },
+            "when": {
+              "compare": {
+                "operator": "not_equal",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 5
+                }
+              }
             }
           },
           "attn_r.b": {
@@ -560,7 +524,7 @@
         "from": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "entry"
+            "occurrence": "embed"
           },
           "port": "output"
         },
@@ -582,7 +546,7 @@
         "from": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "entry"
+            "occurrence": "embed"
           },
           "port": "output"
         },
@@ -599,30 +563,8 @@
           },
           "port": "a"
         }
-      }
-    },
-    "parameters": {},
-    "constants": {},
-    "states": {}
-  },
-  "interfaces": {
-    "inputs": {
-      "hidden": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "entry"
-          },
-          "port": "input"
-        },
-        "domain": {
-          "kind": "token",
-          "source": "self"
-        }
-      }
-    },
-    "outputs": {
-      "hidden_out": {
+      },
+      "final_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
@@ -644,11 +586,117 @@
           },
           "port": "output"
         },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
+        }
+      },
+      "lm_head.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "embed.weight": {
+        "tensor": {
+          "name": "embed.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "final_n.weight": {
+        "tensor": {
+          "name": "final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "lm_head.weight": {
+        "tensor": {
+          "name": "lm_head.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "lm_head"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      }
+    },
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "tokens": {
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "tokens"
+        },
         "domain": {
           "kind": "token",
           "source": "self"
+        }
+      }
+    },
+    "outputs": {
+      "logits": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "logits"
         },
-        "generative": false
+        "domain": {
+          "kind": "token",
+          "source": "tokens"
+        },
+        "generative": true
       }
     }
   }

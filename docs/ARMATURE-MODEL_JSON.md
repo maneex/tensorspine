@@ -141,13 +141,51 @@ A composition is a named finite family of occurrence sites. It declares:
 - at least one family name;
 - one or more occurrence sites.
 
-Ranges must resolve to finite integer sequences. Bindings refer to generated nodes through a
-selector containing the composition name, local occurrence name and index assignment. The canonical
-D1 identifier is `<composition>/<occurrence>[<index>=<value>,…]`.
+Ranges must resolve to finite integer sequences; several ranges form a grid. A site may carry a
+`when` condition over the indices and quantities, and an argument may be an `if`/`then`/`else`
+expression over them, so a periodic or piecewise layer pattern is one composition over a flat layer
+index rather than one site per case:
 
-Compositions are syntactic sugar. Every validity rule applies after expansion, and expansion must
-produce the same unique identifiers, nodes and edges on every run. Reusable parameterized submodels
-are represented separately through template contracts, not nested composition syntax.
+```json
+"decoder": {
+  "indices": { "layer": { "start": {"literal": 0}, "stop": {"quantity": "layers"}, "step": {"literal": 1} } },
+  "families": ["decoder"],
+  "occurrences": {
+    "attn":  { "contract": {"name": "attention.dense", "version": "1.0.0"}, "arguments": { … },
+               "families": ["sequence_operator"],
+               "when": { "compare": { "operator": "equal",
+                         "left": { "op": "modulo", "args": [ {"index": "layer"}, {"literal": 4} ] },
+                         "right": {"literal": 3} } } },
+    "gdn":   { …, "when": { "compare": { "operator": "not_equal", … } } },
+    …
+  },
+  "bindings": {
+    "values": {
+      "attn.norm_in": { "from": {"site": "attn_n", "port": "output"}, "to": {"site": "attn", "port": "input"},
+                        "when": { … layer mod 4 = 3 … } },
+      "attn_n.carry": { "from": {"site": "ffn_r", "port": "output",
+                                 "indices": { "layer": { "op": "subtract", "args": [ {"index": "layer"}, {"literal": 1} ] } } },
+                        "to":   {"site": "attn_n", "port": "input"},
+                        "when": { "compare": { "operator": "greater_or_equal", "left": {"index": "layer"}, "right": {"literal": 1} } } }
+    },
+    "parameters": { "attn.qkv": { "members": [ {"site": "attn", "parameter": "qkv"} ], "when": { … } } },
+    "states":     { "attn.kv":  { "members": [ {"site": "attn", "state": "kv"} ], "when": { … } } }
+  }
+}
+```
+
+A composition's own `bindings` are written against its sites and are sugar for top-level rules:
+`decoder.attn.norm_in` with `for_each` = the composition's ranges, and each `site` endpoint the
+generated occurrence at the current indices — overridden where `indices` says so, as in the carry
+edge. A scoped parameter or state rule without a `tensor` / `identity` names it
+`<composition>.<rule>`, indexed by the composition's indices. The canonical D1 identifier of a
+generated occurrence is `<composition>/<occurrence>[<index>=<value>,…]`.
+
+A `when` that cannot be decided — over an index that does not exist, or a quantity with no value —
+is a rejection (V10), never false. Compositions are syntactic sugar: every validity rule applies
+after expansion, and expansion must produce the same identifiers, nodes and edges on every run.
+Reusable parameterized submodels are represented separately through template contracts, not nested
+composition syntax.
 
 ### 2.5 — Bindings
 
@@ -160,9 +198,9 @@ are represented separately through template contracts, not nested composition sy
 | `constants` | A top-level constant and the contract constant slots that consume it. |
 | `states` | A persistent-storage identity and every state port that shares it. |
 
-Bindings may use `for_each` and model-level `when` to describe regular families. Root and generated
-occurrence selectors are explicit; flow is never inferred from ordering or mutation of a named
-residual.
+Top-level bindings may use `for_each` and `when` to describe regular families, and a composition
+carries the bindings among its own sites (§2.4). Root and generated occurrence selectors are
+explicit; flow is never inferred from ordering or mutation of a named residual.
 
 A state binding carries the graph-level facts that no primitive can derive, and only those:
 

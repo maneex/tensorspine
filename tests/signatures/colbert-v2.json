@@ -1,0 +1,19 @@
+{
+ "nodes": 74,
+ "edges": 97,
+ "per_contract": {
+  "attention.dense": 12,
+  "embedding.token_position_type": 1,
+  "ffn.dense": 12,
+  "norm.layer": 24,
+  "pooler": 1,
+  "residual.add": 24
+ },
+ "wl": "a4c37d95514d7e2a",
+ "parameter_slots": 174,
+ "tensors": 174,
+ "shared": 0,
+ "state_slots": 0,
+ "state_identities": 0,
+ "instance_keys": {}
+}

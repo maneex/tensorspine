@@ -144,6 +144,36 @@
       "expect": "V3",
       "match": "'window' is present but inapplicable",
       "note": "A sliding window on a chunked mask is a meaningless combination (V8)."
+    },
+    {
+      "document": "models/v10-site-when-unresolved.json",
+      "expect": "V10",
+      "match": "decoder.attn{'layer': 0}: `when` does not resolve",
+      "note": "A site guard over an index that does not exist cannot be decided: refused, never false (I7)."
+    },
+    {
+      "document": "models/v10-binding-when-unresolved.json",
+      "expect": "V10",
+      "match": "decoder.attn.norm_in{'layer': 0}: `when` does not resolve",
+      "note": "A binding guard over an undeclared quantity."
+    },
+    {
+      "document": "models/v7-binding-when-excludes-edge.json",
+      "expect": "V7",
+      "match": "input port with no producer: attention.dense@('gen', 'decoder', 'attn', (('layer', 5),)).input",
+      "note": "A binding `when` that excludes one index leaves that port unfed: the guard is read, not ignored (mutation test, §10.2)."
+    },
+    {
+      "document": "models/v1-scoped-rule-collision.json",
+      "expect": "V1",
+      "match": "binding 'decoder.attn.norm_in' is declared both in composition 'decoder' and at the top level",
+      "note": "A scoped rule and a top-level rule with the same expanded name."
+    },
+    {
+      "document": "models/v1-scoped-unknown-site.json",
+      "expect": "V1",
+      "match": "no site named 'attention'",
+      "note": "A scoped endpoint naming no site of its composition."
     }
   ]
 }

@@ -17,6 +17,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import catalog as catalog_mod          # noqa: E402
+import model as model_mod              # noqa: E402
 import validate                        # noqa: E402
 
 MODELS = os.path.join(ROOT, 'data', 'models')
@@ -43,8 +44,7 @@ def main():
                 and r['stats']['state_identities'] == 20, str(r['stats']))
     ok &= check("gemma3n: exactly the two shared identities have no layer index",
                 sorted(shared) == ['shared.full.kv', 'shared.sliding.kv'], str(shared))
-    with open(os.path.join(MODELS, 'voxtral-realtime.json'), encoding='utf-8') as f:
-        vox = json.load(f)
+    vox = model_mod.load(os.path.join(MODELS, 'voxtral-realtime.json'))
     boundaries = {sid: b['invocation_boundary'] for sid, b in vox['bindings']['states'].items()
                   if 'invocation_boundary' in b}
     ok &= check("voxtral: one state keeps an invocation boundary over the audio fragment domain",

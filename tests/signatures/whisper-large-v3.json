@@ -1,0 +1,22 @@
+{
+ "nodes": 485,
+ "edges": 675,
+ "per_contract": {
+  "attention.dense": 96,
+  "conv_frontend": 1,
+  "embedding.token_position": 1,
+  "ffn.dense": 64,
+  "lm_head": 1,
+  "norm.layer": 162,
+  "residual.add": 160
+ },
+ "wl": "5b1e05b6e2a322bc",
+ "parameter_slots": 1068,
+ "tensors": 1067,
+ "shared": 1,
+ "state_slots": 64,
+ "state_identities": 64,
+ "instance_keys": {
+  "layer\u00d7instance.session\u00d7instance.branch": 64
+ }
+}

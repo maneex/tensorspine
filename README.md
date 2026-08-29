@@ -152,11 +152,16 @@ ports or states creates a new version beside the old one; there is no global cat
 
 The corpus shows the compression achieved by declaration:
 
-- `llama3-8b`: 3 root occurrences, 1 composition and 9 quantities expand to 195 occurrences, 258
-  value edges, 195 parameter slots grouped into 9 tensor identities, and 32 state identities.
-- `deepseek-v4-pro`: 4 root occurrences and 3 compositions expand to 370 occurrences and 1,681
-  parameter slots.
-- `gemma3n-kvshare`: 30 state slots resolve to 20 identities, making KV sharing machine-readable.
+- `llama3-8b`: 3 root occurrences, 1 composition of 6 sites and 9 quantities expand to 195
+  occurrences, 258 value edges, 195 parameter slots under 9 tensor families, and 32 state identities.
+- `deepseek-v4-pro`: 4 root occurrences and 3 compositions (7 + 6 + 6 sites) expand to 370
+  occurrences and 1,681 parameter slots.
+- `gemma3n-kvshare`: one composition of 17 sites over 30 layers — full attention when
+  `layer mod 5 = 4`, sparse FFN below layer 10 — expands to 455 occurrences; 30 state slots resolve
+  to 20 identities, making KV sharing machine-readable.
+
+Periodic layer patterns are written once, guarded by `when`, and the bindings among a composition's
+sites are written inside it; the whole corpus is 498 KB of JSON for 12 documents.
 
 Six products are specified: **D1** expanded graph, **D2** values and value liveness at cuts, **D3**
 parameter tensors, **D4** complete states, **D5** logical costs, and **D6** semantic cuts and
@@ -273,6 +278,8 @@ python3 tools/armature --view data/models/llama3-8b.json -o /path/out.html
 python3 tests/run_rejections.py                         # §10.2 rejection cases
 python3 tests/run_templates.py                          # template parity, defaults, assignments
 python3 tests/run_states.py                             # derived instance keys, sharing, boundaries
+python3 tests/run_expressions.py                        # conditionals, guards, scoped-binding expansion
+python3 tests/run_signatures.py                         # every model still denotes its recorded graph
 python3 tools/armature --document catalog -o docs/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
 # Templates require external quantity assignments.

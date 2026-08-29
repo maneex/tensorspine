@@ -1259,6 +1259,9 @@
           "additionalProperties": {
             "$ref": "#/$defs/occurrence_definition"
           }
+        },
+        "bindings": {
+          "$ref": "#/$defs/scoped_bindings"
         }
       }
     },
@@ -1623,6 +1626,254 @@
           }
         }
       }
+    },
+    "site_endpoint": {
+      "type": "object",
+      "required": [
+        "site"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "site": {
+          "$ref": "#/$defs/identifier"
+        },
+        "indices": {
+          "$ref": "#/$defs/index_assignment"
+        }
+      },
+      "description": "A site of the enclosing composition, at the current indices unless `indices` overrides some of them (§5.2)."
+    },
+    "scoped_value_endpoint": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "site",
+            "port"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "site": {
+              "$ref": "#/$defs/identifier"
+            },
+            "indices": {
+              "$ref": "#/$defs/index_assignment"
+            },
+            "port": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        {
+          "$ref": "#/$defs/value_endpoint"
+        }
+      ]
+    },
+    "scoped_value_binding": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "from": {
+          "$ref": "#/$defs/scoped_value_endpoint"
+        },
+        "to": {
+          "$ref": "#/$defs/scoped_value_endpoint"
+        }
+      }
+    },
+    "scoped_parameter_binding": {
+      "type": "object",
+      "required": [
+        "members"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "tensor": {
+          "$ref": "#/$defs/symbol_instance"
+        },
+        "dtype": {
+          "$ref": "#/$defs/dtype_expression"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "site",
+                  "parameter"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "site": {
+                    "$ref": "#/$defs/identifier"
+                  },
+                  "indices": {
+                    "$ref": "#/$defs/index_assignment"
+                  },
+                  "parameter": {
+                    "$ref": "#/$defs/identifier"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/parameter_endpoint"
+              }
+            ]
+          }
+        }
+      },
+      "description": "Without `tensor`, the identity is `<composition>.<rule>` indexed by the composition's indices."
+    },
+    "scoped_state_binding": {
+      "type": "object",
+      "required": [
+        "members"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "identity": {
+          "$ref": "#/$defs/symbol_instance"
+        },
+        "invocation_boundary": {
+          "$ref": "#/$defs/invocation_boundary"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "site",
+                  "state"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "site": {
+                    "$ref": "#/$defs/identifier"
+                  },
+                  "indices": {
+                    "$ref": "#/$defs/index_assignment"
+                  },
+                  "state": {
+                    "$ref": "#/$defs/identifier"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/state_endpoint"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "scoped_constant_binding": {
+      "type": "object",
+      "required": [
+        "constant",
+        "members"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "constant": {
+          "$ref": "#/$defs/identifier"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "site",
+                  "constant"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "site": {
+                    "$ref": "#/$defs/identifier"
+                  },
+                  "indices": {
+                    "$ref": "#/$defs/index_assignment"
+                  },
+                  "constant": {
+                    "$ref": "#/$defs/identifier"
+                  }
+                }
+              },
+              {
+                "$ref": "#/$defs/constant_endpoint"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "scoped_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "values": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/scoped_value_binding"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/scoped_parameter_binding"
+          }
+        },
+        "constants": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/scoped_constant_binding"
+          }
+        },
+        "states": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/qualified_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/scoped_state_binding"
+          }
+        }
+      },
+      "description": "Bindings written against the sites of this composition. Sugar with a normative expansion (§5.2): each rule is the top-level rule `<composition>.<rule>` whose `for_each` is the composition's indices and whose site endpoints select the generated occurrence at the current indices."
     }
   }
 }

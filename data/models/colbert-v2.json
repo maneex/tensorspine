@@ -155,12 +155,12 @@
   "compositions": {
     "enc": {
       "indices": {
-        "blk": {
+        "layer": {
           "start": {
             "literal": 0
           },
           "stop": {
-            "quantity": "layers"
+            "literal": 12
           },
           "step": {
             "literal": 1
@@ -297,355 +297,299 @@
             "residual"
           ]
         }
+      },
+      "bindings": {
+        "values": {
+          "attn.carry": {
+            "from": {
+              "site": "ffn_n",
+              "indices": {
+                "layer": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "layer"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "attn",
+              "port": "input"
+            },
+            "when": {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          },
+          "attn_r.a_carry": {
+            "from": {
+              "site": "ffn_n",
+              "indices": {
+                "layer": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "layer"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_r",
+              "port": "a"
+            },
+            "when": {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          },
+          "attn_r.b": {
+            "from": {
+              "site": "attn",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_r",
+              "port": "b"
+            }
+          },
+          "attn_n.in": {
+            "from": {
+              "site": "attn_r",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_n",
+              "port": "input"
+            }
+          },
+          "ffn.in": {
+            "from": {
+              "site": "attn_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn",
+              "port": "input"
+            }
+          },
+          "ffn_r.a": {
+            "from": {
+              "site": "attn_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_r",
+              "port": "a"
+            }
+          },
+          "ffn_r.b": {
+            "from": {
+              "site": "ffn",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_r",
+              "port": "b"
+            }
+          },
+          "ffn_n.in": {
+            "from": {
+              "site": "ffn_r",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_n",
+              "port": "input"
+            }
+          }
+        },
+        "parameters": {
+          "attn_n.weight": {
+            "members": [
+              {
+                "site": "attn_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn_n.bias": {
+            "members": [
+              {
+                "site": "attn_n",
+                "parameter": "bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.qkv": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "qkv"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.out": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.q_bias": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "q_bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k_bias": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k_bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.v_bias": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "v_bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.out_bias": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "out_bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_n.weight": {
+            "members": [
+              {
+                "site": "ffn_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_n.bias": {
+            "members": [
+              {
+                "site": "ffn_n",
+                "parameter": "bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn.in": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "in"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn.out": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn.in_bias": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "in_bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn.out_bias": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "out_bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          }
+        }
       }
     }
   },
   "bindings": {
     "values": {
-      "enc.attn.carry": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn_n",
-            "indices": {
-              "blk": {
-                "op": "subtract",
-                "args": [
-                  {
-                    "index": "i"
-                  },
-                  {
-                    "literal": 1
-                  }
-                ]
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 1
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "enc.attn_r.a_carry": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn_n",
-            "indices": {
-              "blk": {
-                "op": "subtract",
-                "args": [
-                  {
-                    "index": "i"
-                  },
-                  {
-                    "literal": 1
-                  }
-                ]
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "a"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 1
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "enc.attn_r.b": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "b"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "enc.attn_n.in": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "enc.ffn.in": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "enc.ffn_r.a": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "attn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "a"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "enc.ffn_r.b": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "b"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "enc.ffn_n.in": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "enc",
-            "occurrence": "ffn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
       "enc.entry": {
         "from": {
           "occurrence": {
@@ -660,7 +604,7 @@
             "composition": "enc",
             "occurrence": "attn",
             "indices": {
-              "blk": {
+              "layer": {
                 "literal": 0
               }
             }
@@ -682,7 +626,7 @@
             "composition": "enc",
             "occurrence": "attn_r",
             "indices": {
-              "blk": {
+              "layer": {
                 "literal": 0
               }
             }
@@ -697,7 +641,7 @@
             "composition": "enc",
             "occurrence": "ffn_n",
             "indices": {
-              "blk": {
+              "layer": {
                 "op": "subtract",
                 "args": [
                   {
@@ -820,580 +764,6 @@
             "parameter": "weight"
           }
         ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn_n.weight": {
-        "tensor": {
-          "name": "enc.attn_n.weight",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn_n",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "weight"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn_n.bias": {
-        "tensor": {
-          "name": "enc.attn_n.bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn_n",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn.qkv": {
-        "tensor": {
-          "name": "enc.attn.qkv",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "qkv"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn.out": {
-        "tensor": {
-          "name": "enc.attn.out",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn.q_bias": {
-        "tensor": {
-          "name": "enc.attn.q_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "q_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn.k_bias": {
-        "tensor": {
-          "name": "enc.attn.k_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "k_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn.v_bias": {
-        "tensor": {
-          "name": "enc.attn.v_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "v_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.attn.out_bias": {
-        "tensor": {
-          "name": "enc.attn.out_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.ffn_n.weight": {
-        "tensor": {
-          "name": "enc.ffn_n.weight",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "ffn_n",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "weight"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.ffn_n.bias": {
-        "tensor": {
-          "name": "enc.ffn_n.bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "ffn_n",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.ffn.in": {
-        "tensor": {
-          "name": "enc.ffn.in",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "ffn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "in"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.ffn.out": {
-        "tensor": {
-          "name": "enc.ffn.out",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "ffn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.ffn.in_bias": {
-        "tensor": {
-          "name": "enc.ffn.in_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "ffn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "in_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "enc.ffn.out_bias": {
-        "tensor": {
-          "name": "enc.ffn.out_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "enc",
-              "occurrence": "ffn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
         "dtype": {
           "quantity": "precision"
         }

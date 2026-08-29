@@ -1,0 +1,23 @@
+{
+ "nodes": 308,
+ "edges": 407,
+ "per_contract": {
+  "attention.dense": 50,
+  "embed": 1,
+  "ffn.gated": 50,
+  "identity": 1,
+  "lm_head": 1,
+  "norm.rms": 102,
+  "patch_embed": 1,
+  "projector.patch_merge_bottleneck": 1,
+  "residual.add": 100,
+  "splice": 1
+ },
+ "wl": "8ff225706bfb324a",
+ "parameter_slots": 309,
+ "tensors": 308,
+ "shared": 1,
+ "state_slots": 26,
+ "state_identities": 26,
+ "instance_keys": {}
+}

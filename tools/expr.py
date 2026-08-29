@@ -76,6 +76,8 @@ def contract_value(e, args):
         a = [contract_value(x, args) for x in e['args']]
         if any(v is None or v is UNRESOLVED for v in a): return UNRESOLVED
         return _apply(e['op'], a)
+    if 'if' in e:
+        return contract_value(e['then'] if contract_condition(e['if'], args) else e['else'], args)
     return UNRESOLVED
 
 
@@ -140,20 +142,33 @@ def model_value(e, quantities, env=None):
         a = [model_value(x, quantities, env) for x in e['args']]
         if UNRESOLVED in a: return UNRESOLVED
         return _apply(e['op'], a)
+    if 'if' in e:
+        truth = model_condition(e['if'], quantities, env)
+        if truth is UNRESOLVED: return UNRESOLVED
+        return model_value(e['then'] if truth else e['else'], quantities, env)
     return UNRESOLVED
 
 
 def model_condition(c, quantities, env=None):
-    """Truth of a model condition — the `when` guard of a generated site."""
+    """Truth of a model condition — a `when` guard on a site or a binding, or
+    the test of a conditional expression. UNRESOLVED when it cannot be decided:
+    a guard that does not resolve is a rejection (V10), never false (I7)."""
     if 'boolean' in c: return c['boolean']
-    if 'not' in c: return not model_condition(c['not'], quantities, env)
-    if 'all' in c: return all(model_condition(x, quantities, env) for x in c['all'])
-    if 'any' in c: return any(model_condition(x, quantities, env) for x in c['any'])
+    if 'not' in c:
+        v = model_condition(c['not'], quantities, env)
+        return UNRESOLVED if v is UNRESOLVED else not v
+    if 'all' in c or 'any' in c:
+        parts = [model_condition(x, quantities, env) for x in c.get('all', c.get('any'))]
+        if UNRESOLVED in parts: return UNRESOLVED
+        return all(parts) if 'all' in c else any(parts)
     cp = c['compare']
     l = model_value(cp['left'], quantities, env)
     r = model_value(cp['right'], quantities, env)
-    if l is UNRESOLVED or r is UNRESOLVED: return False
-    return _COMPARISONS[cp['operator']](l, r)
+    if l is UNRESOLVED or r is UNRESOLVED: return UNRESOLVED
+    try:
+        return _COMPARISONS[cp['operator']](l, r)
+    except TypeError:
+        return UNRESOLVED
 
 
 def static_argument(v, quantities, env=None):

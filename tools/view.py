@@ -23,6 +23,7 @@ Assumptions made (v1 of this tool):
 """
 import html
 import json
+import model as model_mod
 import math
 import pathlib
 import shutil
@@ -919,7 +920,7 @@ def run(model_paths, output=None):
     failed = 0
     for path in model_paths:
         src = pathlib.Path(path)
-        data = json.loads(src.read_text(encoding='utf-8'))
+        data = model_mod.normalise(json.loads(src.read_text(encoding='utf-8')))
         if data.get('schema') != 'armature/2.0':
             print(f"  {src.name}: warning: schema '{data.get('schema')}' "
                   f"!= 'armature/2.0' \u2014 this viewer assumes that format", file=sys.stderr)
