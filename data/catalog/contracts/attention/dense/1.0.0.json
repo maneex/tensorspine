@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
-    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.",
+    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.\n\nThe projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).",
     "tags": [
       "sequence-operator"
     ],
@@ -478,7 +478,7 @@
           "literal": false
         },
         "note": "per-head gate projection, distinct from Q",
-        "description": "Per-head sigmoid gate on the attention output, computed from `input` by the `q_gate` projection."
+        "description": "Per-head sigmoid gate on the attention output, computed from `input` by the gate rows of the gated query projection `q_gated`."
       },
       "qk_norm_weight": {
         "type": {
@@ -491,6 +491,17 @@
         },
         "note": "Q/K RMSNorm has a learned scale",
         "description": "The Q/K normalization has a learned per-channel scale: declares the `q_norm` and `k_norm` slots."
+      },
+      "qk_norm_zero_centered": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": false,
+        "default": {
+          "literal": false
+        },
+        "description": "The learned Q/K normalization scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor; without `qk_norm_weight` it has no effect."
       }
     },
     "ports": {
@@ -578,7 +589,7 @@
       }
     },
     "parameters": {
-      "qkv": {
+      "q": {
         "role": "attention.qkv_projection",
         "sharing": {
           "kind": "exclusive"
@@ -586,36 +597,38 @@
         "shape": {
           "axes": [
             {
-              "name": "qkv_flat",
-              "axis": "attention.qkv_flat",
+              "name": "heads_flat",
+              "axis": "attention.heads",
               "nature": "projection",
               "extent": {
                 "op": "multiply",
                 "args": [
                   {
-                    "op": "add",
-                    "args": [
-                      {
-                        "argument": "heads"
-                      },
-                      {
-                        "op": "multiply",
-                        "args": [
-                          {
-                            "literal": 2
-                          },
-                          {
-                            "argument": "kv_heads"
-                          }
-                        ]
-                      }
-                    ]
+                    "argument": "heads"
                   },
                   {
                     "argument": "head_dim"
                   }
                 ]
-              }
+              },
+              "factors": [
+                {
+                  "name": "heads",
+                  "axis": "attention.heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
             },
             {
               "name": "feature",
@@ -627,8 +640,199 @@
             }
           ]
         },
-        "note": "usual fused shape; under GQA this is not an exact product, hence no factors",
-        "description": "Fused query, key and value projection: `heads + 2*kv_heads` blocks of `head_dim` rows."
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "output_gate"
+            },
+            "right": {
+              "literal": false
+            }
+          }
+        },
+        "description": "Query projection: `heads` heads of `head_dim` rows, stored as the reference implementation stores it."
+      },
+      "q_gated": {
+        "role": "attention.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "gated_flat",
+              "axis": "attention.heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "heads"
+                  },
+                  {
+                    "literal": 2
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              },
+              "factors": [
+                {
+                  "name": "heads",
+                  "axis": "attention.heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "heads"
+                  }
+                },
+                {
+                  "name": "part",
+                  "axis": "attention.query_gate",
+                  "nature": "projection",
+                  "extent": {
+                    "literal": 2
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "output_gate"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Gated query projection: per head, `head_dim` query rows then `head_dim` gate rows, as the reference implementation stores them; the gate rows are applied through a sigmoid to the attention output."
+      },
+      "k": {
+        "role": "attention.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "kv_heads_flat",
+              "axis": "attention.kv_heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "kv_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              },
+              "factors": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Key projection: `kv_heads` heads of `head_dim` rows."
+      },
+      "v": {
+        "role": "attention.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "kv_heads_flat",
+              "axis": "attention.kv_heads",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "kv_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              },
+              "factors": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Value projection: `kv_heads` heads of `head_dim` rows."
       },
       "out": {
         "role": "attention.output_projection",
@@ -659,7 +863,25 @@
                     "argument": "head_dim"
                   }
                 ]
-              }
+              },
+              "factors": [
+                {
+                  "name": "heads",
+                  "axis": "attention.heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
             }
           ]
         },
@@ -686,7 +908,25 @@
                     "argument": "head_dim"
                   }
                 ]
-              }
+              },
+              "factors": [
+                {
+                  "name": "heads",
+                  "axis": "attention.heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
             }
           ]
         },
@@ -724,7 +964,25 @@
                     "argument": "head_dim"
                   }
                 ]
-              }
+              },
+              "factors": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
             }
           ]
         },
@@ -762,7 +1020,25 @@
                     "argument": "head_dim"
                   }
                 ]
-              }
+              },
+              "factors": [
+                {
+                  "name": "kv_heads",
+                  "axis": "attention.kv_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "kv_heads"
+                  }
+                },
+                {
+                  "name": "head_dim",
+                  "axis": "attention.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
             }
           ]
         },
@@ -808,52 +1084,6 @@
           }
         },
         "description": "Bias of the output projection."
-      },
-      "q_gate": {
-        "role": "attention.output_gate",
-        "sharing": {
-          "kind": "exclusive"
-        },
-        "shape": {
-          "axes": [
-            {
-              "name": "heads_flat",
-              "axis": "attention.heads",
-              "nature": "projection",
-              "extent": {
-                "op": "multiply",
-                "args": [
-                  {
-                    "argument": "heads"
-                  },
-                  {
-                    "argument": "head_dim"
-                  }
-                ]
-              }
-            },
-            {
-              "name": "feature",
-              "axis": "model.width",
-              "nature": "feature",
-              "extent": {
-                "argument": "width"
-              }
-            }
-          ]
-        },
-        "present_when": {
-          "compare": {
-            "operator": "equal",
-            "left": {
-              "argument": "output_gate"
-            },
-            "right": {
-              "literal": true
-            }
-          }
-        },
-        "description": "Gate projection: one value per query channel, applied through a sigmoid to the attention output."
       },
       "q_norm": {
         "role": "norm.scale",
