@@ -36,6 +36,7 @@ import schema as schema_mod
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_SCHEMAS = os.path.join(os.path.dirname(HERE), 'schemas')
+DEFAULT_MODELS = os.path.join(os.path.dirname(HERE), 'data', 'models')
 
 UNIT_SCHEMA = "armature-catalog-unit/2.0"
 SECTIONS = (('contracts', 'contract'), ('axes', 'axis'), ('precision', 'precision_role'))
@@ -80,12 +81,14 @@ def _units(base, unit_schema=None, registry=None):
             yield section, name, version, definition, path
 
 
-def load(*bases, schema_dir=DEFAULT_SCHEMAS):
+def load(*bases, schema_dir=DEFAULT_SCHEMAS, models_base=DEFAULT_MODELS):
     """Catalog gathered from the given bases, in order; first to answer wins.
 
     `schema_dir` holds the catalog-unit schema every exploded unit is read
     against; None skips the structural stage (a monolithic base is never
-    checked that way, its units carry no file of their own)."""
+    checked that way, its units carry no file of their own). `models_base` is
+    where the templates of template contracts are resolved (§4.6): a template
+    is a model document and lives alongside the models."""
     axes, precision, by_id, origin = {}, {}, {}, {}
     unit_schema = registry = None
     if schema_dir is not None:
@@ -119,14 +122,42 @@ def load(*bases, schema_dir=DEFAULT_SCHEMAS):
         current = contracts.get(name)
         if current is None or _semver(version) > _semver(current['version']):
             contracts[name] = d
-    cat = {"contracts": contracts, "axes": axes, "precision": precision, "by_id": by_id}
+    cat = {"contracts": contracts, "axes": axes, "precision": precision, "by_id": by_id,
+           "models_base": models_base, "templates": {}}
+    model_schema = schema_mod.locate(schema_dir, 'model') if schema_dir is not None else None
     for (name, version), d in sorted(by_id.items()):
         where = origin.get(('contracts', name, version), f"{name}@{version}")
         problems = contract_references(d, cat)
         if problems:
             raise CatalogError(f"{where}: unresolved reference(s)\n"
                                + "\n".join("    " + m for m in problems))
+        if 'template' in d:
+            cat['templates'][(name, version)] = _pinned_template(d, where, models_base,
+                                                                  model_schema, registry)
     return cat
+
+
+def _pinned_template(d, where, models_base, model_schema, registry):
+    """The template file a template contract pins, once it is known to exist,
+    to be a model document, and to carry the pinned version (§4.6)."""
+    ref = d['template']
+    path = os.path.join(models_base, ref['name'] + '.json')
+    if not os.path.isfile(path):
+        raise CatalogError(f"{where}: template '{ref['name']}' is not in {models_base}/")
+    if model_schema is not None:
+        problems = schema_mod.deepest(schema_mod.check(model_schema, path, registry))
+        if problems:
+            lines = "\n".join("    " + schema_mod.format_error(e) for e in problems[:8])
+            raise CatalogError(f"{where}: template {path} is off the model schema\n{lines}")
+    with open(path, encoding='utf-8') as f:
+        template = json.load(f)
+    if template.get('version') != ref['version']:
+        raise CatalogError(f"{where}: pins template '{ref['name']}' at {ref['version']}, "
+                           f"but {path} carries version {template.get('version')!r}")
+    if template.get('model') != ref['id']:
+        raise CatalogError(f"{where}: template '{ref['name']}' declares model id "
+                           f"{template.get('model')!r}, the contract says {ref['id']!r}")
+    return path
 
 
 # --- cross-references: what the schema cannot see -------------------------
@@ -317,13 +348,10 @@ def template_contracts(cat):
     return {name for name, d in cat['contracts'].items() if 'template' in d}
 
 
-def template_path(model_path, contract_definition):
-    """Where the template of a template contract is looked for.
-
-    Only the last dotted segment of the URI is used, as a file name, in the
-    directory of the model that invokes it. The leading segments are ignored,
-    so the template must sit beside its caller.
-    """
-    base_dir = os.path.dirname(os.path.abspath(model_path))
-    uri = contract_definition['template']['name']
-    return os.path.join(base_dir, uri.split('.')[-1] + '.json')
+def template_path(cat, contract_definition):
+    """The template file of a template contract, as pinned and checked at load."""
+    ref = contract_definition['template']
+    for (name, version), path in cat['templates'].items():
+        if cat['by_id'][(name, version)] is contract_definition:
+            return path
+    return os.path.join(cat['models_base'], ref['name'] + '.json')

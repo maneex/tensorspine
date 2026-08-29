@@ -22,6 +22,10 @@
     "model": {
       "$ref": "#/$defs/model_id"
     },
+    "version": {
+      "$ref": "#/$defs/semantic_version",
+      "description": "Version of this document as a representation. Required of a template: the contract that pins it names this version (§4.6)."
+    },
     "catalog": {
       "$ref": "#/$defs/catalog_reference"
     },
@@ -925,6 +929,10 @@
         },
         "name": {
           "$ref": "#/$defs/qualified_name"
+        },
+        "default": {
+          "$ref": "#/$defs/scalar_expression",
+          "description": "Value taken when no assignment supplies this quantity: an expression over literals and other external quantities, acyclic (§4.6). A declared default is not a silent default."
         }
       }
     },

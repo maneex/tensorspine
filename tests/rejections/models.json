@@ -1,5 +1,5 @@
 {
-  "purpose": "Required rejection cases of \u00a710.2, one document per case. Each is llama3-8b with one mutation; the runner expects the named code and message.",
+  "purpose": "Required rejection cases of \u00a710.2, one document per case. Each is llama3-8b (or, for template cases, shieldstral-3b-composite) with one mutation; the runner expects the named code and message.",
   "cases": [
     {
       "document": "models/structural-unknown-field.json",
@@ -96,6 +96,24 @@
       "expect": "V3",
       "match": "'rope.scaling.beta_fast' is present but inapplicable",
       "note": "A field whose present_when is false is forbidden, not ignored (I2)."
+    },
+    {
+      "document": "models/v3-template-domain-interval.json",
+      "expect": "V3",
+      "match": "'layers' = 0 is below the domain bound 1",
+      "note": "A template argument outside the interval its external quantity declares (\u00a74.6 admissibility)."
+    },
+    {
+      "document": "models/v3-template-domain-set.json",
+      "expect": "V3",
+      "match": "'precision' = 'fp4' is not among",
+      "note": "A template argument outside the set its external quantity declares: the enum type refuses it before the domain does."
+    },
+    {
+      "document": "models/v2-template-missing-argument.json",
+      "expect": "V2",
+      "match": "required argument missing 'eps'",
+      "note": "An external quantity without default, left unassigned at the call site."
     }
   ]
 }

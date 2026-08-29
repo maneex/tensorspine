@@ -15,10 +15,9 @@ adds nothing the catalog does not say. Two sources feed the page:
     else (§10.2): --validate and --d1 never read them.
 
 A unit's page says what the unit declares, and nothing about who uses it:
-there is no "cited by" index. Model documents are read for one purpose only,
-finding the template of a template contract, which lives beside the models that
-invoke it (catalog.template_path); the PATHs of the command line say where to
-look.
+there is no "cited by" index. The template of a template contract is read from
+the models base the catalog was loaded with (catalog.template_path); the PATHs
+of the command line are not read.
 
 The generator never invents prose. A unit without a summary is rendered
 without one and counted in the coverage appendix; it is not summarised from
@@ -409,23 +408,14 @@ def load_units(bases):
     return manifests, units
 
 
-def find_template(definition, model_paths):
-    """The template of a template contract: `<last URI segment>.json`, looked for
-    in the directories of the given model documents (catalog.template_path
-    resolves it beside the invoking model, which a catalog page does not
-    have). Returns (path, model) or None."""
-    segment = definition['template']['name'].split('.')[-1]
-    dirs = []
-    for p in model_paths:
-        d = os.path.dirname(os.path.abspath(p))
-        if d not in dirs:
-            dirs.append(d)
-    for d in dirs:
-        candidate = os.path.join(d, segment + '.json')
-        if os.path.isfile(candidate):
-            with open(candidate, encoding='utf-8') as f:
-                return candidate, json.load(f)
-    return None
+def find_template(cat, definition):
+    """The template of a template contract, as the catalog pinned it (§4.6).
+    Returns (path, model) or None."""
+    path = catalog_mod.template_path(cat, definition)
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding='utf-8') as f:
+        return path, json.load(f)
 
 
 # --- vocabulary in use -----------------------------------------------------------
@@ -1085,11 +1075,10 @@ class Renderer:
                    + (f", template version `{m['version']}`" if m.get('version') else ''))
         if m.get('note'):
             out.append(f"- *Note: {m['note']}*")
-        found = find_template(d, self.model_paths)
+        found = find_template(self.cat, d)
         if found is None:
-            out.append(f"- Template not found beside the model documents given "
-                       f"(`{m['name'].split('.')[-1]}.json`).")
-            self.report.find(where, "template not found beside the model documents given")
+            out.append(f"- Template `{m['name']}.json` not found in the models base.")
+            self.report.find(where, "template not found in the models base")
             return out + ['']
         path, model = found
         declared_id = model.get('model', '?')
@@ -1142,7 +1131,7 @@ class Renderer:
             seen.add(ref)
             d = self.cat['contracts'].get(ref[0])
             if d is not None and 'template' in d:
-                found = find_template(d, self.model_paths)
+                found = find_template(self.cat, d)
                 if found is not None:
                     self.closure(found[1], seen)
         return seen
@@ -1266,14 +1255,14 @@ class Renderer:
 
 # --- entry point --------------------------------------------------------------------------
 
-def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None):
+def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None,
+        models_base=catalog_mod.DEFAULT_MODELS):
     """Render the catalog of the given bases to Markdown. Returns the exit status:
     0 written, 1 refused (malformed documentation, unreadable catalog), with the
-    causes on stderr. `model_paths` only say where templates are looked
-    for."""
+    causes on stderr. Templates are resolved against `models_base`."""
     status = sys.stderr if output is None else sys.stdout
     try:
-        cat = catalog_mod.load(*catalog_bases)
+        cat = catalog_mod.load(*catalog_bases, models_base=models_base)
         manifests, units = load_units(catalog_bases)
     except (ValueError, OSError, KeyError) as e:
         print(f"  catalog not readable: {e}", file=sys.stderr)

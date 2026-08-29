@@ -22,7 +22,7 @@ permutations.
 import itertools
 import json
 import os
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 
 import catalog as catalog_mod
 import schema as schema_mod
@@ -31,6 +31,94 @@ from expr import (UNRESOLVED, contract_condition, contract_value, index_grid,
                   resolve_quantities, static_argument)
 
 MAX_CONTRACT_DEPTH = 8
+
+
+# --- template contracts: the interface a template exposes (§4.6) -----------
+
+def _to_contract_expression(e, externals, template):
+    """A template default, written over quantities, as a contract expression
+    over arguments. None when it reads something a caller cannot supply."""
+    if 'literal' in e:
+        return e
+    if 'quantity' in e:
+        q = template['quantities'].get(e['quantity'])
+        if q is None:
+            return None
+        if q['source']['kind'] == 'external':
+            return {"argument": q['source']['name']}
+        if q['source']['kind'] == 'literal':
+            return {"literal": q['source']['value']}
+        return None
+    if 'op' in e:
+        args = [_to_contract_expression(x, externals, template) for x in e['args']]
+        if any(a is None for a in args):
+            return None
+        return {"op": e['op'], "args": args}
+    return None
+
+
+def template_interface(definition, template):
+    """The contract a template contract presents to a caller: one argument per
+    external quantity of the template, with its type, domain and declared
+    default; the template's public ports, shapes to be filled by expansion."""
+    externals = {k: q for k, q in template['quantities'].items()
+                 if q['source']['kind'] == 'external'}
+    arguments = {}
+    for q in externals.values():
+        src = q['source']
+        decl = {"type": q['type'], "required": True, "structural": True}
+        if 'domain' in q:
+            decl['domain'] = q['domain']
+        if 'default' in src:
+            default = _to_contract_expression(src['default'], externals, template)
+            if default is not None:
+                decl['default'] = default
+                decl['required'] = False
+        arguments[src['name']] = decl
+    ports = {}
+    for side in ('inputs', 'outputs'):
+        ports[side] = {k: {"role": "activation.hidden",
+                           "domain": {"kind": v['domain']['kind'], "from": {"self": True}}}
+                       for k, v in template['interfaces'][side].items()}
+    return {"version": definition['version'], "arguments": arguments, "ports": ports,
+            "parameters": {}, "constants": {}, "state_ports": {}, "partitions": []}
+
+
+def instance_ports(exposed):
+    """Contract ports of one instance, carrying the shapes the expanded
+    template resolved, so that V4 and V5 apply across the boundary."""
+    ports = {}
+    for side, entries in exposed.items():
+        ports[side] = {}
+        for pname, entry in entries.items():
+            port = {"role": "activation.hidden",
+                    "domain": {"kind": entry['domain'], "from": {"self": True}}}
+            if entry['shape'] is not None:
+                port['shape'] = {"axes": [{"name": axis.split('.')[-1], "axis": axis,
+                                           "nature": "feature", "extent": {"literal": extent}}
+                                          for axis, extent in entry['shape']]}
+            ports[side][pname] = port
+    return ports
+
+
+def _check_domain(v, domain, label, problems):
+    """A value against a declared domain (§4.6: admissibility at the call site)."""
+    if domain['kind'] == 'set':
+        if v not in domain['values']:
+            problems.append(('V3', f"argument '{label}' = {v!r} is outside the set {domain['values']}"))
+        return
+    for edge, op in (('lower', 'below'), ('upper', 'above')):
+        bound = domain.get(edge)
+        if bound is None:
+            continue
+        limit = model_value(bound['value'], {})
+        if limit is UNRESOLVED:
+            continue
+        inside = (v >= limit if edge == 'lower' else v <= limit) if bound['inclusive'] \
+            else (v > limit if edge == 'lower' else v < limit)
+        if not inside:
+            problems.append(('V3', f"argument '{label}' = {v!r} is {op} the domain bound "
+                                   f"{limit!r} ({'inclusive' if bound['inclusive'] else 'exclusive'})"))
 
 
 # --- V2/V3: arguments against their declarations --------------------------
@@ -78,6 +166,8 @@ def _resolve_record(declared, given, evaluate, root, path, problems, into=None):
             continue
         before = len(problems)
         _check_type(values[arg_name], decl['type'], label, evaluate, root, problems, values)
+        if len(problems) == before and 'domain' in decl and values[arg_name] is not UNRESOLVED:
+            _check_domain(values[arg_name], decl['domain'], label, problems)
         if len(problems) > before and decl['type']['kind'] != 'record':
             # Refused once, with its reason; nothing downstream reads it as a value.
             values[arg_name] = UNRESOLVED
@@ -144,10 +234,24 @@ def structural(model_path, schema_dir, role='model'):
 
 def semantic(model_path, cat, assignment=None):
     """Stage 2. Returns (errors, stats)."""
+    result = analyse(model_path, cat, assignment)
+    return result['errors'], result['stats']
+
+
+def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
+    """Stage 2, in full: errors, stats, and the shapes and domains of the
+    public interface ports — what a template contract exposes to its caller.
+
+    A template contract is expanded here at every call site (§4.6): the
+    template is analysed under the assignment the arguments make, its own
+    bindings are checked for totality, and its parameter and state slots are
+    counted into the caller's. Two invocations share nothing."""
+    _cache = {} if _cache is None else _cache
     with open(model_path, encoding='utf-8') as f:
         model = json.load(f)
     errors = []
     stats = {}
+    merged = Counter()
 
     def fail(code, message):
         errors.append(f"[{code}] {message}")
@@ -162,7 +266,7 @@ def semantic(model_path, cat, assignment=None):
 
     # --- V13: the contract graph is acyclic and of bounded depth ----------
     def template_of(definition):
-        return catalog_mod.template_path(model_path, definition)
+        return catalog_mod.template_path(cat, definition)
 
     def contract_dependencies(path):
         try:
@@ -230,27 +334,14 @@ def semantic(model_path, cat, assignment=None):
         if definition is None:
             fail('V1', f"contract absent from catalog: {name}")
             continue
+        template_file = None
         if 'template' in definition:
-            # A template contract is synthesised from its template's interface.
-            # §4.6 requires tensors, state ports, cost and partitions to be
-            # DERIVED from the expanded template; this stage does not descend, so
-            # it reports none of them. Known shortfall, not a decision.
-            with open(template_of(definition), encoding='utf-8') as f:
+            # A template contract: its arguments are the template's external
+            # quantities, with their types, domains and declared defaults.
+            template_file = template_of(definition)
+            with open(template_file, encoding='utf-8') as f:
                 template = json.load(f)
-            definition = {
-                "version": definition['version'],
-                "arguments": {q['source']['name']: {"type": q['type'], "required": True,
-                                                    "structural": True}
-                              for q in template['quantities'].values()
-                              if q['source']['kind'] == 'external'},
-                "ports": {
-                    "inputs": {k: {"role": "activation.hidden",
-                                   "domain": {"kind": v['domain']['kind'], "from": {"self": True}}}
-                               for k, v in template['interfaces']['inputs'].items()},
-                    "outputs": {k: {"role": "activation.hidden",
-                                    "domain": {"kind": v['domain']['kind'], "from": {"self": True}}}
-                                for k, v in template['interfaces']['outputs'].items()}},
-                "parameters": {}, "constants": {}, "state_ports": {}, "partitions": []}
+            definition = template_interface(definition, template)
         if definition['version'] != o['contract']['version']:
             fail('V1', f"{name}: version {o['contract']['version']} "
                        f"!= catalog {definition['version']}")
@@ -259,6 +350,24 @@ def semantic(model_path, cat, assignment=None):
                                            lambda v: static(v, env))
         for code, message in problems:
             fail(code, f"{name} @{key}: {message}")
+        if template_file is not None and not problems:
+            # Expansion at the call site: the template under this assignment.
+            if _depth + 1 > MAX_CONTRACT_DEPTH:
+                fail('V13', f"{name} @{key}: contract nesting deeper than {MAX_CONTRACT_DEPTH}")
+            else:
+                sub_assignment = {k: v for k, v in args.items() if v is not UNRESOLVED}
+                cache_key = (template_file, json.dumps(sub_assignment, sort_keys=True, default=str))
+                if cache_key not in _cache:
+                    _cache[cache_key] = analyse(template_file, cat, sub_assignment,
+                                                _depth + 1, _cache)
+                sub = _cache[cache_key]
+                for line in sub['errors']:
+                    errors.append(f"{line}  (in instance {name} @{key})")
+                for k, v in sub['stats'].items():
+                    if isinstance(v, int) and not isinstance(v, bool):
+                        merged[k] += v
+                definition = dict(definition)
+                definition['ports'] = instance_ports(sub['ports'])
         resolved[key] = (name, definition, args)
 
     def loop_envs(binding):
@@ -570,17 +679,51 @@ def semantic(model_path, cat, assignment=None):
     stats['state_slots'] = len(state_slots)
     stats['state_identities'] = state_identities
 
-    return errors, stats
+    # What this document exposes to a caller: its interface ports, resolved.
+    ports = {'inputs': {}, 'outputs': {}}
+    for side, sel_key, port_side in (('inputs', 'to', 'inputs'), ('outputs', 'from', 'outputs')):
+        for pname, decl in model['interfaces'][side].items():
+            key = select(decl[sel_key]['occurrence'], {})
+            entry = {'domain': decl['domain']['kind'], 'shape': None}
+            if key in resolved:
+                _n, definition, args = resolved[key]
+                port = definition['ports'][port_side].get(decl[sel_key]['port'])
+                if port and 'shape' in port:
+                    entry['shape'] = shape_identity(port['shape'], args)
+            ports[side][pname] = entry
+
+    # Slots and states of expanded templates count with the caller's (§4.6).
+    for k, v in merged.items():
+        if k in stats and isinstance(stats[k], int) and not isinstance(stats[k], bool):
+            stats[k] += v
+    return {'errors': errors, 'stats': stats, 'ports': ports}
 
 
-def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20):
+def check_assignment(model, assignment):
+    """An assignment against the external quantities it supplies: types and
+    domains, as at any call site (§4.6). Returns error lines."""
+    problems = []
+    for q in model['quantities'].values():
+        src = q['source']
+        if src['kind'] != 'external' or src['name'] not in (assignment or {}):
+            continue
+        v = assignment[src['name']]
+        before = len(problems)
+        _check_type(v, q['type'], src['name'], lambda x: x, {}, problems, {})
+        if len(problems) == before and 'domain' in q:
+            _check_domain(v, q['domain'], src['name'], problems)
+    return [f"[{code}] assignment: {message}" for code, message in problems]
+
+
+def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20,
+        models_base=catalog_mod.DEFAULT_MODELS):
     """Both stages over several documents. Returns (failed, skipped).
 
     A template with no assignment is skipped, not failed: it is a family
     of graphs, and refusing it would report a defect where there is none. The
     skip is printed, never silent (I7).
     """
-    cat = catalog_mod.load(*catalog_bases)
+    cat = catalog_mod.load(*catalog_bases, schema_dir=schema_dir, models_base=models_base)
     failed = 0
     skipped = 0
     for path in model_paths:
@@ -596,12 +739,17 @@ def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20):
                 print(f"      … {len(problems) - max_errors} more")
             continue                       # meaning assumes grammar; stop here
         with open(path, encoding='utf-8') as f:
-            unset = missing_assignment(json.load(f), assignment)
+            document = json.load(f)
+        unset = missing_assignment(document, assignment)
         if unset:
             skipped += 1
             print(f"  {name:34s} schema ok; semantic needs --assign for {unset}")
             continue
-        errors, stats = semantic(path, cat, assignment)
+        errors = check_assignment(document, assignment)
+        if not errors:
+            errors, stats = semantic(path, cat, assignment)
+        else:
+            stats = {}
         summary = " | ".join(f"{k}={v}" for k, v in stats.items())
         if errors:
             failed += 1

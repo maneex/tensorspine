@@ -149,13 +149,10 @@ python3 tools/armature --document catalog                                 # to s
 python3 tools/armature --document catalog --catalog other/catalog -o out/  # writes out/catalog.md
 ```
 
-- **Inputs.** The catalog bases (`--catalog`, default `data/catalog/`) and the documentation schema
-  (`--schemas`, default `schemas/`). The model documents given as `PATH`s — every document of
-  `data/models/` by default, as for the other commands — serve one purpose: their directories are
-  where the template of a template contract is looked for (`<last URI segment>.json`), since
-`catalog.template_path` resolves a template beside the model that invokes it and a catalog page has
-no
-  invoking model.
+- **Inputs.** The catalog bases (`--catalog`, default `data/catalog/`), the documentation schema
+  (`--schemas`, default `schemas/`) and the models base (`--models`, default `data/models/`),
+  where the template of a template contract is resolved and its pinned version checked when the
+  catalog is loaded. The model documents given as `PATH`s are not read by this command.
 - **Output.** `-o FILE`, `-o DIR` (writes `DIR/catalog.md`), or stdout when `-o` is omitted; the
   status line then goes to stderr so the page can be piped. The output is **deterministic**: the
   same catalog gives the same bytes at the same location, with no timestamp, so the file can be

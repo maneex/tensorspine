@@ -4,7 +4,7 @@
     {
       "base": "catalog/state-law-typo",
       "match": "'apend' is not one of ['append', 'window', 'fixed']",
-      "note": "A state law outside the closed vocabulary (\u00a74.3)."
+      "note": "A state law outside the closed vocabulary (§4.3)."
     },
     {
       "base": "catalog/state-access-unknown",
@@ -49,12 +49,27 @@
     {
       "base": "catalog/version-path-mismatch",
       "match": "version '1.0.1', path says '1.0.0'",
-      "note": "The file name is the version; the two must agree (\u00a78.2)."
+      "note": "The file name is the version; the two must agree (§8.2)."
     },
     {
       "base": "catalog/precision-sensitivity-unknown",
       "match": "'whatever' is not one of",
       "note": "A sensitivity outside the closed set."
+    },
+    {
+      "base": "catalog/template-version-unpinned",
+      "match": "pins template 'decoder-causal-yarn' at 9.9.9, but",
+      "note": "A contract pinning a template version the template does not carry (§4.6)."
+    },
+    {
+      "base": "catalog/template-missing",
+      "match": "template 'decoder-nowhere' is not in",
+      "note": "A contract naming a template the models base does not hold."
+    },
+    {
+      "base": "catalog/template-id-mismatch",
+      "match": "declares model id 'decoder_causal_yarn', the contract says 'something_else'",
+      "note": "The template's model id and the contract's disagree."
     }
   ]
 }

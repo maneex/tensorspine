@@ -1,202 +1,345 @@
 {
   "schema": "armature/2.0",
-  "model": "decoder_causal_yarn",
-  "version": "1.0.0",
+  "model": "rejection-v3-template-domain-interval",
   "catalog": [
     {
       "base": "catalog/"
     }
   ],
   "quantities": {
-    "width": {
-      "regime": "model_variable",
+    "d": {
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "width"
+        "kind": "literal",
+        "value": 3072
       }
     },
     "layers": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "layers"
+        "kind": "literal",
+        "value": 0
       }
     },
     "heads": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "heads"
+        "kind": "literal",
+        "value": 32
       }
     },
     "kv_heads": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "kv_heads"
+        "kind": "literal",
+        "value": 8
       }
     },
-    "head_dim": {
-      "regime": "model_variable",
+    "hd": {
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "head_dim"
+        "kind": "literal",
+        "value": 128
       }
     },
-    "inner": {
-      "regime": "model_variable",
+    "ffn": {
+      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": true
-        }
+      "source": {
+        "kind": "literal",
+        "value": 9216
+      }
+    },
+    "vocab": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
       },
       "source": {
-        "kind": "external",
-        "name": "inner"
+        "kind": "literal",
+        "value": 131072
+      }
+    },
+    "vit_layers": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 24
+      }
+    },
+    "d_vis": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1024
+      }
+    },
+    "vit_heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 16
+      }
+    },
+    "vit_hd": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 64
+      }
+    },
+    "vit_ffn": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 4096
+      }
+    },
+    "patch": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 14
       }
     },
     "eps": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "real"
       },
-      "domain": {
-        "kind": "interval",
-        "lower": {
-          "value": {
-            "literal": 0
-          },
-          "inclusive": false
-        },
-        "upper": {
-          "value": {
-            "literal": 1
-          },
-          "inclusive": false
-        }
-      },
       "source": {
-        "kind": "external",
-        "name": "eps"
+        "kind": "literal",
+        "value": 1e-05
       }
     },
     "precision": {
-      "regime": "model_variable",
+      "regime": "model_constant",
       "type": {
         "kind": "enum",
         "values": [
-          "bf16",
-          "f16",
-          "f32"
-        ]
-      },
-      "domain": {
-        "kind": "set",
-        "values": [
-          "bf16",
-          "f16",
-          "f32"
+          "bf16"
         ]
       },
       "source": {
-        "kind": "external",
-        "name": "precision"
+        "kind": "literal",
+        "value": "bf16"
       }
     }
   },
   "constants": {},
   "occurrences": {
-    "entry": {
+    "patch_embed": {
       "contract": {
-        "name": "identity",
+        "name": "patch_embed",
         "version": "1.0.0"
       },
       "arguments": {
         "width": {
-          "quantity": "width"
+          "quantity": "d_vis"
+        },
+        "patch": {
+          "quantity": "patch"
+        },
+        "channels": {
+          "literal": 3
         }
       },
       "families": [
-        "seam"
+        "input",
+        "vision"
+      ]
+    },
+    "embed": {
+      "contract": {
+        "name": "embed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "input",
+        "embedding"
+      ]
+    },
+    "splice": {
+      "contract": {
+        "name": "splice",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        }
+      },
+      "families": [
+        "input",
+        "fusion"
+      ]
+    },
+    "text": {
+      "contract": {
+        "name": "decoder.causal_yarn",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "layers": {
+          "quantity": "layers"
+        },
+        "heads": {
+          "quantity": "heads"
+        },
+        "kv_heads": {
+          "quantity": "kv_heads"
+        },
+        "head_dim": {
+          "quantity": "hd"
+        },
+        "inner": {
+          "quantity": "ffn"
+        },
+        "eps": {
+          "quantity": "eps"
+        },
+        "precision": {
+          "quantity": "precision"
+        }
+      },
+      "families": [
+        "decoder",
+        "instance"
+      ]
+    },
+    "final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ]
+    },
+    "lm_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "output",
+        "head"
+      ]
+    },
+    "vision_pre_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d_vis"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "vision",
+        "normalization"
+      ]
+    },
+    "vision_projector": {
+      "contract": {
+        "name": "projector.patch_merge_bottleneck",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "source_width": {
+          "quantity": "d_vis"
+        },
+        "merge_count": {
+          "literal": 4
+        },
+        "source": {
+          "literal": "vision"
+        }
+      },
+      "families": [
+        "input",
+        "projection"
       ]
     }
   },
   "compositions": {
-    "decoder": {
+    "vision": {
       "indices": {
         "blk": {
           "start": {
             "literal": 0
           },
           "stop": {
-            "quantity": "layers"
+            "quantity": "vit_layers"
           },
           "step": {
             "literal": 1
@@ -204,7 +347,7 @@
         }
       },
       "families": [
-        "decoder"
+        "vision"
       ],
       "occurrences": {
         "attn_n": {
@@ -214,7 +357,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d_vis"
             },
             "eps": {
               "quantity": "eps"
@@ -231,43 +374,27 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d_vis"
             },
             "heads": {
-              "quantity": "heads"
+              "quantity": "vit_heads"
             },
             "kv_heads": {
-              "quantity": "kv_heads"
+              "quantity": "vit_heads"
             },
             "head_dim": {
-              "quantity": "head_dim"
+              "quantity": "vit_hd"
             },
             "mask": {
-              "literal": "causal"
+              "literal": "none"
             },
             "rope": {
               "record": {
                 "theta": {
-                  "literal": 1000000
+                  "literal": 10000
                 },
-                "scaling": {
-                  "record": {
-                    "kind": {
-                      "literal": "yarn"
-                    },
-                    "factor": {
-                      "literal": 16
-                    },
-                    "beta_fast": {
-                      "literal": 32
-                    },
-                    "beta_slow": {
-                      "literal": 1
-                    },
-                    "orig_ctx": {
-                      "literal": 16384
-                    }
-                  }
+                "layout": {
+                  "literal": "2d"
                 }
               }
             }
@@ -283,7 +410,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d_vis"
             }
           },
           "families": [
@@ -297,7 +424,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d_vis"
             },
             "eps": {
               "quantity": "eps"
@@ -314,10 +441,10 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d_vis"
             },
             "inner": {
-              "quantity": "inner"
+              "quantity": "vit_ffn"
             },
             "activation": {
               "literal": "silu"
@@ -334,7 +461,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "width"
+              "quantity": "d_vis"
             }
           },
           "families": [
@@ -346,11 +473,11 @@
   },
   "bindings": {
     "values": {
-      "decoder.attn_n.carry": {
+      "vision.attn_n.carry": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn_r",
             "indices": {
               "blk": {
@@ -371,7 +498,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_n",
             "indices": {
               "blk": {
@@ -387,7 +514,7 @@
               "literal": 1
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -395,11 +522,11 @@
           }
         }
       },
-      "decoder.attn_r.a_carry": {
+      "vision.attn_r.a_carry": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn_r",
             "indices": {
               "blk": {
@@ -420,7 +547,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_r",
             "indices": {
               "blk": {
@@ -436,7 +563,7 @@
               "literal": 1
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -444,11 +571,11 @@
           }
         }
       },
-      "decoder.attn.norm_in": {
+      "vision.attn.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_n",
             "indices": {
               "blk": {
@@ -461,7 +588,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn",
             "indices": {
               "blk": {
@@ -477,7 +604,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -485,11 +612,11 @@
           }
         }
       },
-      "decoder.attn_r.b": {
+      "vision.attn_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn",
             "indices": {
               "blk": {
@@ -502,7 +629,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_r",
             "indices": {
               "blk": {
@@ -518,7 +645,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -526,11 +653,11 @@
           }
         }
       },
-      "decoder.ffn_n.in": {
+      "vision.ffn_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_r",
             "indices": {
               "blk": {
@@ -543,7 +670,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn_n",
             "indices": {
               "blk": {
@@ -559,7 +686,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -567,11 +694,11 @@
           }
         }
       },
-      "decoder.ffn_r.a": {
+      "vision.ffn_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_r",
             "indices": {
               "blk": {
@@ -584,7 +711,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn_r",
             "indices": {
               "blk": {
@@ -600,7 +727,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -608,11 +735,11 @@
           }
         }
       },
-      "decoder.ffn.norm_in": {
+      "vision.ffn.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn_n",
             "indices": {
               "blk": {
@@ -625,7 +752,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn",
             "indices": {
               "blk": {
@@ -641,7 +768,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -649,11 +776,11 @@
           }
         }
       },
-      "decoder.ffn_r.b": {
+      "vision.ffn_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn",
             "indices": {
               "blk": {
@@ -666,7 +793,7 @@
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "ffn_r",
             "indices": {
               "blk": {
@@ -682,7 +809,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -690,18 +817,18 @@
           }
         }
       },
-      "decoder.entry": {
+      "vision.entry": {
         "from": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "entry"
+            "occurrence": "vision_pre_n"
           },
           "port": "output"
         },
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_n",
             "indices": {
               "blk": {
@@ -712,18 +839,18 @@
           "port": "input"
         }
       },
-      "decoder.entry.a": {
+      "vision.entry.a": {
         "from": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "entry"
+            "occurrence": "vision_pre_n"
           },
           "port": "output"
         },
         "to": {
           "occurrence": {
             "kind": "generated",
-            "composition": "decoder",
+            "composition": "vision",
             "occurrence": "attn_r",
             "indices": {
               "blk": {
@@ -732,13 +859,258 @@
             }
           },
           "port": "a"
+        }
+      },
+      "splice.text": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "splice"
+          },
+          "port": "text"
+        }
+      },
+      "splice.source": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "vision",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "vit_layers"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_projector"
+          },
+          "port": "input"
+        }
+      },
+      "text.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "splice"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "text"
+          },
+          "port": "hidden"
+        }
+      },
+      "final_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "text"
+          },
+          "port": "hidden_out"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
+        }
+      },
+      "lm_head.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "input"
+        }
+      },
+      "patch_embed.vision_pre_n": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "patch_embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_pre_n"
+          },
+          "port": "input"
+        }
+      },
+      "vision_projector.splice": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "vision_projector"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "splice"
+          },
+          "port": "source"
         }
       }
     },
     "parameters": {
-      "decoder.attn_n.weight": {
+      "patch_embed.weight": {
         "tensor": {
-          "name": "decoder.attn_n.weight",
+          "name": "patch_embed.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "patch_embed"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "final_n.weight": {
+        "tensor": {
+          "name": "final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_pre_n.weight": {
+        "tensor": {
+          "name": "vision_pre_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_pre_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.norm": {
+        "tensor": {
+          "name": "vision_projector.norm"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "norm"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.merger": {
+        "tensor": {
+          "name": "vision_projector.merger"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "merger"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.linear_in": {
+        "tensor": {
+          "name": "vision_projector.linear_in"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "linear_in"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision_projector.linear_out": {
+        "tensor": {
+          "name": "vision_projector.linear_out"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "vision_projector"
+            },
+            "parameter": "linear_out"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.attn_n.weight": {
+        "tensor": {
+          "name": "vision.attn_n.weight",
           "indices": {
             "blk": {
               "index": "blk"
@@ -749,7 +1121,7 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "decoder",
+              "composition": "vision",
               "occurrence": "attn_n",
               "indices": {
                 "blk": {
@@ -766,7 +1138,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -777,9 +1149,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.attn.qkv": {
+      "vision.attn.qkv": {
         "tensor": {
-          "name": "decoder.attn.qkv",
+          "name": "vision.attn.qkv",
           "indices": {
             "blk": {
               "index": "blk"
@@ -790,7 +1162,7 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "decoder",
+              "composition": "vision",
               "occurrence": "attn",
               "indices": {
                 "blk": {
@@ -807,7 +1179,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -818,9 +1190,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.attn.out": {
+      "vision.attn.out": {
         "tensor": {
-          "name": "decoder.attn.out",
+          "name": "vision.attn.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -831,7 +1203,7 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "decoder",
+              "composition": "vision",
               "occurrence": "attn",
               "indices": {
                 "blk": {
@@ -848,7 +1220,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -859,9 +1231,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.ffn_n.weight": {
+      "vision.ffn_n.weight": {
         "tensor": {
-          "name": "decoder.ffn_n.weight",
+          "name": "vision.ffn_n.weight",
           "indices": {
             "blk": {
               "index": "blk"
@@ -872,7 +1244,7 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "decoder",
+              "composition": "vision",
               "occurrence": "ffn_n",
               "indices": {
                 "blk": {
@@ -889,7 +1261,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -900,9 +1272,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.ffn.in": {
+      "vision.ffn.in": {
         "tensor": {
-          "name": "decoder.ffn.in",
+          "name": "vision.ffn.in",
           "indices": {
             "blk": {
               "index": "blk"
@@ -913,7 +1285,7 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "decoder",
+              "composition": "vision",
               "occurrence": "ffn",
               "indices": {
                 "blk": {
@@ -930,7 +1302,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -941,9 +1313,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.ffn.out": {
+      "vision.ffn.out": {
         "tensor": {
-          "name": "decoder.ffn.out",
+          "name": "vision.ffn.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -954,7 +1326,7 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "decoder",
+              "composition": "vision",
               "occurrence": "ffn",
               "indices": {
                 "blk": {
@@ -971,7 +1343,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "layers"
+              "quantity": "vit_layers"
             },
             "step": {
               "literal": 1
@@ -981,140 +1353,57 @@
         "dtype": {
           "quantity": "precision"
         }
-      }
-    },
-    "constants": {},
-    "states": {
-      "decoder.attn.kv": {
-        "identity": {
-          "name": "decoder.attn.kv",
-          "indices": {
-            "layer": {
-              "index": "i"
-            }
-          }
+      },
+      "tied_embeddings": {
+        "tensor": {
+          "name": "tied_embeddings"
         },
         "members": [
           {
             "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "i"
-                }
-              }
+              "kind": "root",
+              "occurrence": "embed"
             },
-            "state": "kv"
-          }
-        ],
-        "keys": {
-          "axes": [
-            {
-              "name": "layer",
-              "source": {
-                "occurrence_index": "i"
-              }
-            },
-            {
-              "name": "session",
-              "source": {
-                "context": "request.session"
-              }
-            },
-            {
-              "name": "branch",
-              "source": {
-                "context": "request.branch"
-              }
-            }
-          ],
-          "sharing": {
-            "equal_on": [
-              "layer",
-              "session",
-              "branch"
-            ]
-          }
-        },
-        "liveness": {
-          "classes_by": [
-            "layer",
-            "session",
-            "branch"
-          ],
-          "max_active_classes": {
-            "expression": {
-              "op": "multiply",
-              "args": [
-                {
-                  "quantity": "layers"
-                },
-                {
-                  "context": "analysis.max_active_sessions"
-                },
-                {
-                  "context": "analysis.max_branches_per_session"
-                }
-              ]
-            },
-            "status": "upper_bound",
-            "provenance": [
-              {
-                "quantity": "layers"
-              },
-              {
-                "context": "analysis.max_active_sessions"
-              },
-              {
-                "context": "analysis.max_branches_per_session"
-              }
-            ]
-          }
-        },
-        "visits": [
+            "parameter": "weight"
+          },
           {
-            "unit": "request",
-            "phase": "generation",
-            "upper_bound": {
-              "expression": {
-                "context": "request.max_tokens"
-              },
-              "status": "upper_bound",
-              "provenance": [
-                {
-                  "context": "request.max_tokens"
-                }
-              ]
-            }
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "lm_head"
+            },
+            "parameter": "weight"
           }
         ],
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
+        "dtype": {
+          "quantity": "precision"
         }
       }
-    }
+    },
+    "constants": {},
+    "states": {}
   },
   "interfaces": {
     "inputs": {
-      "hidden": {
+      "pixels": {
         "to": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "entry"
+            "occurrence": "patch_embed"
           },
-          "port": "input"
+          "port": "pixels"
+        },
+        "domain": {
+          "kind": "patch",
+          "source": "self"
+        }
+      },
+      "tokens": {
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "tokens"
         },
         "domain": {
           "kind": "token",
@@ -1123,33 +1412,19 @@
       }
     },
     "outputs": {
-      "hidden_out": {
+      "verdict": {
         "from": {
           "occurrence": {
-            "kind": "generated",
-            "composition": "decoder",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "op": "subtract",
-                "args": [
-                  {
-                    "quantity": "layers"
-                  },
-                  {
-                    "literal": 1
-                  }
-                ]
-              }
-            }
+            "kind": "root",
+            "occurrence": "lm_head"
           },
-          "port": "output"
+          "port": "logits"
         },
         "domain": {
           "kind": "token",
-          "source": "self"
+          "source": "tokens"
         },
-        "generative": false
+        "generative": true
       }
     }
   }

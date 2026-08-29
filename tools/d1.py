@@ -84,7 +84,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
             v = static(arg_value)
             if v is not UNRESOLVED:
                 sub_assignment[arg_name] = v
-        sub = emit(catalog_mod.template_path(model_path, definition), cat, sub_assignment,
+        sub = emit(catalog_mod.template_path(cat, definition), cat, sub_assignment,
                    instance + "/", _depth + 1, _stack + (contract_name,))
         nodes.update(sub['nodes'])
         edges.extend(sub['edges'])
@@ -183,13 +183,14 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     return out
 
 
-def run(model_paths, catalog_bases, output=None, assignment=None):
+def run(model_paths, catalog_bases, output=None, assignment=None,
+        models_base=catalog_mod.DEFAULT_MODELS):
     """Emit D1 for each model. Returns (failed, skipped).
 
     A template with no assignment has no single D1 — it has one per
     admissible assignment — so it is skipped rather than failed.
     """
-    cat = catalog_mod.load(*catalog_bases)
+    cat = catalog_mod.load(*catalog_bases, models_base=models_base)
     failed = 0
     skipped = 0
     for path in model_paths:

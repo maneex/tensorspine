@@ -89,6 +89,9 @@ def build_parser():
     parser.add_argument('--catalog', metavar='DIR', action='append',
                         help=f'a catalog base, repeatable. Bases are consulted in order '
                              f'(default: {os.path.relpath(DEFAULT_CATALOG, ROOT)}/)')
+    parser.add_argument('--models', metavar='DIR', default=DEFAULT_MODELS,
+                        help=f'the models base: where the templates of template contracts are '
+                             f'resolved (default: {os.path.relpath(DEFAULT_MODELS, ROOT)}/)')
     parser.add_argument('--schemas', metavar='DIR', default=DEFAULT_SCHEMAS,
                         help=f'directory holding the JSON Schemas; they are indexed by '
                              f'their own $id (default: {os.path.relpath(DEFAULT_SCHEMAS, ROOT)}/)')
@@ -141,7 +144,8 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.validate:
         import validate
         print(f"validate  {len(documents)} document(s)")
-        failed, skipped = validate.run(documents, args.schemas, bases, assignment)
+        failed, skipped = validate.run(documents, args.schemas, bases, assignment,
+                                       models_base=args.models)
         print(f"  {len(documents) - failed - skipped}/{len(documents)} pass"
               + (f", {skipped} need an assignment" if skipped else "")
               + (f", {failed} fail" if failed else ""))
@@ -150,12 +154,13 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.lint:
         import lint
         print(f"lint  {len(documents)} document(s)")
-        return lint.run(documents, bases, relative_to=ROOT)
+        return lint.run(documents, bases, relative_to=ROOT, models_base=args.models)
 
     if args.d1:
         import d1
         print(f"d1  {len(documents)} document(s)")
-        failed, skipped = d1.run(documents, bases, args.output, assignment)
+        failed, skipped = d1.run(documents, bases, args.output, assignment,
+                                 models_base=args.models)
         return 1 if failed else 0
 
     if args.view:
@@ -169,7 +174,8 @@ def dispatch(args, documents, bases, assignment, parser):
         # The page goes to stdout when no -o is given; the status line must not.
         print(f"document  {args.document}",
               file=sys.stderr if args.output is None else sys.stdout)
-        return document.run(documents, bases, args.schemas, args.output, relative_to=ROOT)
+        return document.run(documents, bases, args.schemas, args.output, relative_to=ROOT,
+                            models_base=args.models)
 
     parser.print_help()
     return 2

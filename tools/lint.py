@@ -34,7 +34,7 @@ def _called_contracts(model_path, cat, seen=None):
         seen.add(name)
         definition = cat['contracts'].get(name)
         if definition is not None and 'template' in definition:
-            _called_contracts(catalog_mod.template_path(model_path, definition), cat, seen)
+            _called_contracts(catalog_mod.template_path(cat, definition), cat, seen)
     return seen
 
 
@@ -110,38 +110,13 @@ def unreferenced_vocabulary(cat):
     return findings
 
 
-def template_name_prefix(cat, model_paths):
-    """A template contract names its template by a name, but resolution
-    keeps only the last segment and looks beside the calling model. When the
-    leading segments do not match where the template actually is, the URI reads
-    like a path and is not one."""
-    findings = []
-    for path in model_paths:
-        for name in sorted(_called_contracts(path, cat)):
-            definition = cat['contracts'].get(name)
-            if definition is None or 'template' not in definition:
-                continue
-            uri = definition['template']['name']
-            prefix = '.'.join(uri.split('.')[:-1])
-            if not prefix:
-                continue
-            actual = os.path.basename(os.path.dirname(
-                os.path.abspath(catalog_mod.template_path(path, definition))))
-            if prefix != actual:
-                findings.append(
-                    ("catalog", f"contract '{name}' points at '{uri}' but its template is "
-                                f"resolved in '{actual}/'; the prefix is ignored"))
-    return findings
-
-
-def run(model_paths, catalog_bases, relative_to=None):
+def run(model_paths, catalog_bases, relative_to=None, models_base=catalog_mod.DEFAULT_MODELS):
     """Every rule, over the given models. Always returns 0 — advisory only."""
-    cat = catalog_mod.load(*catalog_bases)
+    cat = catalog_mod.load(*catalog_bases, models_base=models_base)
     findings = []
     findings += declared_base_mismatch(model_paths, catalog_bases, relative_to)
     findings += uncalled_contracts(cat, model_paths)
     findings += unreferenced_vocabulary(cat)
-    findings += template_name_prefix(cat, model_paths)
 
     seen = set()
     for scope, message in findings:

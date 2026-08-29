@@ -764,7 +764,7 @@ No partition axis is declared: partitioning this primitive preserves no meaning 
 
 **Pre-norm causal decoder stack with grouped-query attention, RoPE with YaRN scaling and a gated FFN, as a template.**
 
-A template contract: its meaning is the family of graphs its template `decoder-causal-yarn.json` denotes, one per assignment of `width`, `layers`, `heads`, `kv_heads`, `head_dim`, `inner`, `eps` and `precision`. Invoking it costs a consumer nothing beyond the primitives the body cites (§8.1); parameters, state and costs are derived from the expanded template (§4.6).
+A template contract: its meaning is the family of graphs its template `decoder-causal-yarn.json` denotes, one per assignment of `width`, `layers`, `heads`, `kv_heads`, `head_dim`, `inner`, `eps` and `precision`. Invoking it costs a consumer nothing beyond the primitives the template cites (§8.1); parameters, state and costs are derived from the expanded template (§4.6).
 
 > **Note (maintainers).** Pre-norm causal decoder with grouped attention, RoPE/YARN and a gated FFN.
 
@@ -774,8 +774,8 @@ External documentation:
 
 ##### Template
 
-- URI `decoder-causal-yarn`, model id `decoder_causal_yarn`
-- *Note: template: models/decoder-causal-yarn.json*
+- URI `decoder-causal-yarn`, model id `decoder_causal_yarn`, template version `1.0.0`
+- *Note: template: models/decoder-causal-yarn.json, resolved against the models base*
 - Resolved to `data/models/decoder-causal-yarn.json`
 
 Arguments — the external quantities of the template (§4.6), supplied by an assignment at the call site:

@@ -1622,7 +1622,8 @@
               "description": "File name of the template, without extension, resolved against the models base."
             },
             "version": {
-              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version",
+              "description": "The template version pinned by this contract; the template document must carry the same one (\u00a74.6)."
             },
             "id": {
               "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
@@ -1633,6 +1634,7 @@
           },
           "required": [
             "name",
+            "version",
             "id"
           ]
         }

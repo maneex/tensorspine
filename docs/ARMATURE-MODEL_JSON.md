@@ -33,7 +33,8 @@ glossary.
 
 ## §2 — The Armature 2.0 model document
 
-The schema requires exactly nine top-level fields. Fixed-shape objects use
+The schema requires nine top-level fields, plus an optional `version` — the document's version as a
+representation, which a template must carry (§4.6). Fixed-shape objects use
 `additionalProperties: false`, so unknown fields are rejected rather than ignored; maps such as
 `quantities` and `occurrences` deliberately accept user-named entries that match their value schema.
 

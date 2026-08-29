@@ -108,12 +108,26 @@ def resolve_quantities(model, assignment=None):
     and every expression that reads it evaluates to UNRESOLVED."""
     assignment = assignment or {}
     q = {}
+    pending = []
     for name, decl in model['quantities'].items():
         src = decl['source']
         if src['kind'] == 'literal':
             q[name] = src['value']
         elif src['kind'] == 'external' and src['name'] in assignment:
             q[name] = assignment[src['name']]
+        elif src['kind'] == 'external' and 'default' in src:
+            pending.append((name, src['default']))
+    # Declared defaults may read other quantities, in any order, acyclically (§4.6).
+    while pending:
+        progress = False
+        for name, default in list(pending):
+            v = model_value(default, q)
+            if v is not UNRESOLVED:
+                q[name] = v
+                pending.remove((name, default))
+                progress = True
+        if not progress:
+            break
     return q
 
 
@@ -152,15 +166,17 @@ def static_argument(v, quantities, env=None):
     return model_value(v, quantities, env)
 
 
-def external_names(model):
-    """External quantity names the document expects an assignment to supply."""
+def external_names(model, with_defaults=True):
+    """External quantity names the document expects an assignment to supply;
+    `with_defaults=False` leaves out those a declared default can stand for."""
     return {q['source']['name'] for q in model['quantities'].values()
-            if q['source']['kind'] == 'external'}
+            if q['source']['kind'] == 'external'
+            and (with_defaults or 'default' not in q['source'])}
 
 
 def missing_assignment(model, assignment=None):
     """External names the assignment leaves unset, in order."""
-    return sorted(external_names(model) - set(assignment or {}))
+    return sorted(external_names(model, with_defaults=False) - set(assignment or {}))
 
 
 def index_grid(indices, quantities):

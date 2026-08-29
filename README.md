@@ -228,7 +228,11 @@ audio (`whisper-large-v3`, `voxtral-realtime`), retrieval (`colbert-v2`), shared
 `decoder-causal-yarn.json` template.
 
 The template has `external` quantities that must be assigned during validation; the other eleven
-documents validate as written.
+documents validate as written. A template is a model document like any other and lives alongside
+the models; the contract that pins it (`decoder.causal_yarn`) names it and its `version`, and the
+catalog refuses to load if the two disagree. `shieldstral-3b-composite` instantiates it: the
+validator expands the template at the call site, so the composite derives the same 309 parameter
+slots and 26 states as the flat `shieldstral-3b`.
 
 After expanding compositions, evaluating model-level `when` conditions, and resolving contract-level
 `present_when` guards, `bindings` must be **total and unique**: every slot has exactly one binding,
@@ -237,8 +241,9 @@ condition. The [glossary distinguishes these condition fields](docs/GLOSSARY.md#
 
 ### Schema
 
-`schemas/armature.schema.json` permits exactly nine top-level sections: `schema`, `model`,
-`catalog`, `quantities`, `constants`, `occurrences`, `compositions`, `bindings` and `interfaces`.
+`schemas/armature.schema.json` permits nine top-level sections — `schema`, `model`, `catalog`,
+`quantities`, `constants`, `occurrences`, `compositions`, `bindings` and `interfaces` — plus an
+optional `version`, required of a template.
 
 Expressions are tagged unions (`{"literal": …}`, `{"quantity": …}`, `{"index": …}` or
 `{"op": …, "args": […]}`), never ambiguous strings. Every quantity has a `regime` and `source`,
@@ -266,6 +271,7 @@ python3 tools/armature --lint                           # advisory hygiene check
 python3 tools/armature --d1   data/models/llama3-8b.json -o /path/out.d1.json
 python3 tools/armature --view data/models/llama3-8b.json -o /path/out.html
 python3 tests/run_rejections.py                         # §10.2 rejection cases
+python3 tests/run_templates.py                          # template parity, defaults, assignments
 python3 tools/armature --document catalog -o docs/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
 # Templates require external quantity assignments.
@@ -276,12 +282,15 @@ python3 tools/armature --validate data/models/decoder-causal-yarn.json \
 
 - `--validate` checks grammar, catalog resolution, arguments and their types (records
   recursively, contract defaults applied first), shapes, domains, bindings and acyclicity; it
-  stops at the first error and exits 1.
+  stops at the first error and exits 1. A template contract is expanded at every call site: the
+  template is validated under that assignment — types and declared domains of its external
+  quantities included — and its slots and states are counted with the caller's.
+- `--models DIR` names the models base where templates are resolved (default `data/models/`);
+  `--catalog DIR` a catalog base, repeatable.
 - `--lint` reports optional authoring advice and always exits 0.
 - `--d1` unrolls loops, evaluates indices and expands template contracts. Canonical IDs use
   `<composition>/<site>[<i>=<v>,…]`.
 - `--view` produces a self-contained HTML inspector.
 - `--document catalog` renders every unit of the catalog bases — definitions and documentation
-  fields — into one Markdown file. The model documents given (default: `data/models/`) only say
-  where the templates of template contracts are looked for. Malformed documentation is a refusal
-  (exit 1); a unit without documentation is rendered from its definition alone.
+  fields — into one Markdown file. Malformed documentation is a refusal (exit 1); a unit without
+  documentation is rendered from its definition alone.
