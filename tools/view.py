@@ -97,8 +97,6 @@ def expr_str(e, quantities):
         return str(v) if v is not None else e['quantity']
     if 'index' in e:
         return e['index']
-    if 'context' in e:
-        return e['context']
     if 'op' in e:
         args = [expr_str(a, quantities) for a in e.get('args', [])]
         if e['op'] == 'negate':
@@ -470,7 +468,6 @@ function exprStr(e) {
   if ('literal' in e) return typeof e.literal === 'string' ? JSON.stringify(e.literal) : String(e.literal);
   if ('quantity' in e) { const v = litValue(e.quantity); return v !== undefined ? String(v) : e.quantity; }
   if ('index' in e) return e.index;
-  if ('context' in e) return e.context;
   if ('op' in e) {
     const a = (e.args || []).map(exprStr);
     if (e.op === 'negate') return `\u2212${a[0]}`;
@@ -682,15 +679,15 @@ function compositionBody(name, c) {
 
 function stateBody(sid, b, bare) {
   const membersHtml = bare ? `<div class="field"><span class="k">members</span><span class="v">${esc(b.members.map(m => `${occSelLabel(m.occurrence)}.${m.state}`).join(', '))}</span></div>` : '';
-  const sharing = b.keys.sharing.equal_on.join(', ');
-  const liveness = `${exprStr(b.liveness.max_active_classes.expression)} (${b.liveness.max_active_classes.status})`;
-  const visits = (b.visits || []).map(v => `${v.unit}/${v.phase} \u2264 ${exprStr(v.upper_bound.expression)}`).join('; ');
+  const indices = Object.keys((b.identity && b.identity.indices) || {});
+  const key = [...indices, 'session', 'branch'].join(' \u00d7 ');
+  const boundary = b.invocation_boundary ? `retains ${Array.isArray(b.invocation_boundary.retains) ? b.invocation_boundary.retains.join(', ') : b.invocation_boundary.retains} across ${b.invocation_boundary.domain.kind} (${b.invocation_boundary.domain.source})` : '\u2014';
   return `${bare ? '' : `<h4 class="insp">state \u00b7 ${esc(sid)}</h4>`}
     ${membersHtml}
     <div class="state-box">
-      <b>sharing</b> \u2014 equal on ${esc(sharing)}<br>
-      <b>liveness</b> \u2264 ${esc(liveness)}<br>
-      <b>visits</b> \u2014 ${esc(visits) || '\u2014'}
+      <b>instance key</b> \u2014 ${esc(key)} (derived)<br>
+      <b>members</b> \u2014 ${b.members.length}<br>
+      <b>invocation boundary</b> \u2014 ${esc(boundary)}
     </div>`;
 }
 

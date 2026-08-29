@@ -56,7 +56,7 @@ GRAMMAR = {
                  'effects', 'logical_cost', 'partitions', 'constraints', 'note',
                  'domain_transforms'},
     'template': {'version', 'model', 'note'},
-    'argument': {'type', 'required', 'structural', 'default', 'note'},
+    'argument': {'type', 'required', 'structural', 'default', 'present_when', 'note'},
     'port': {'shape', 'domain', 'multiplicity', 'present_when', 'optional', 'note', 'role'},
     'parameter': {'role', 'shape', 'present_when', 'multiplicity', 'note', 'views', 'sharing'},
     'constant': {'shape', 'present_when', 'note', 'role'},
@@ -780,6 +780,8 @@ class Renderer:
                 sup = f" Use `{dep['superseded_by']}` instead." if dep.get('superseded_by') else ''
                 desc = f"**Deprecated.** {dep['reason']}{sup}" + (f"<br>{desc}" if desc else '')
             indent = '&nbsp;&nbsp;&nbsp;&nbsp;' * depth
+            if 'present_when' in a:
+                desc = (desc + '<br>' if desc else '') + f"*Applicable when {cond(a['present_when'])}.*"
             rows.append([f"{indent}`{full}`", tdesc, 'yes' if a.get('required') else 'no',
                          default, 'yes' if a.get('structural') else 'no', desc])
             if kind == 'enum' and 'value_descriptions' in adocs:

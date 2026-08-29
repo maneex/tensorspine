@@ -237,13 +237,6 @@
             "qk_norm": {
               "literal": "rms"
             },
-            "window": {
-              "record": {
-                "span": {
-                  "quantity": "chunk"
-                }
-              }
-            },
             "rope": {
               "record": {
                 "theta": {
@@ -267,6 +260,13 @@
                       "literal": 8192
                     }
                   }
+                }
+              }
+            },
+            "chunk": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
                 }
               }
             }
@@ -393,13 +393,6 @@
             "qk_norm": {
               "literal": "rms"
             },
-            "window": {
-              "record": {
-                "span": {
-                  "quantity": "chunk"
-                }
-              }
-            },
             "rope": {
               "record": {
                 "theta": {
@@ -423,6 +416,13 @@
                       "literal": 8192
                     }
                   }
+                }
+              }
+            },
+            "chunk": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
                 }
               }
             }
@@ -549,13 +549,6 @@
             "qk_norm": {
               "literal": "rms"
             },
-            "window": {
-              "record": {
-                "span": {
-                  "quantity": "chunk"
-                }
-              }
-            },
             "rope": {
               "record": {
                 "theta": {
@@ -579,6 +572,13 @@
                       "literal": 8192
                     }
                   }
+                }
+              }
+            },
+            "chunk": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
                 }
               }
             }
@@ -3776,84 +3776,6 @@
             "state": "kv"
           }
         ],
-        "keys": {
-          "axes": [
-            {
-              "name": "layer",
-              "source": {
-                "occurrence_index": "i"
-              }
-            },
-            {
-              "name": "session",
-              "source": {
-                "context": "request.session"
-              }
-            },
-            {
-              "name": "branch",
-              "source": {
-                "context": "request.branch"
-              }
-            }
-          ],
-          "sharing": {
-            "equal_on": [
-              "layer",
-              "session",
-              "branch"
-            ]
-          }
-        },
-        "liveness": {
-          "classes_by": [
-            "layer",
-            "session",
-            "branch"
-          ],
-          "max_active_classes": {
-            "expression": {
-              "op": "multiply",
-              "args": [
-                {
-                  "literal": 12
-                },
-                {
-                  "context": "analysis.max_active_sessions"
-                },
-                {
-                  "context": "analysis.max_branches_per_session"
-                }
-              ]
-            },
-            "status": "upper_bound",
-            "provenance": [
-              {
-                "context": "analysis.max_active_sessions"
-              },
-              {
-                "context": "analysis.max_branches_per_session"
-              }
-            ]
-          }
-        },
-        "visits": [
-          {
-            "unit": "request",
-            "phase": "generation",
-            "upper_bound": {
-              "expression": {
-                "context": "request.max_tokens"
-              },
-              "status": "upper_bound",
-              "provenance": [
-                {
-                  "context": "request.max_tokens"
-                }
-              ]
-            }
-          }
-        ],
         "for_each": {
           "i": {
             "start": {
@@ -3890,84 +3812,6 @@
               }
             },
             "state": "kv"
-          }
-        ],
-        "keys": {
-          "axes": [
-            {
-              "name": "layer",
-              "source": {
-                "occurrence_index": "i"
-              }
-            },
-            {
-              "name": "session",
-              "source": {
-                "context": "request.session"
-              }
-            },
-            {
-              "name": "branch",
-              "source": {
-                "context": "request.branch"
-              }
-            }
-          ],
-          "sharing": {
-            "equal_on": [
-              "layer",
-              "session",
-              "branch"
-            ]
-          }
-        },
-        "liveness": {
-          "classes_by": [
-            "layer",
-            "session",
-            "branch"
-          ],
-          "max_active_classes": {
-            "expression": {
-              "op": "multiply",
-              "args": [
-                {
-                  "literal": 12
-                },
-                {
-                  "context": "analysis.max_active_sessions"
-                },
-                {
-                  "context": "analysis.max_branches_per_session"
-                }
-              ]
-            },
-            "status": "upper_bound",
-            "provenance": [
-              {
-                "context": "analysis.max_active_sessions"
-              },
-              {
-                "context": "analysis.max_branches_per_session"
-              }
-            ]
-          }
-        },
-        "visits": [
-          {
-            "unit": "request",
-            "phase": "generation",
-            "upper_bound": {
-              "expression": {
-                "context": "request.max_tokens"
-              },
-              "status": "upper_bound",
-              "provenance": [
-                {
-                  "context": "request.max_tokens"
-                }
-              ]
-            }
           }
         ],
         "for_each": {
@@ -4008,84 +3852,6 @@
             "state": "kv"
           }
         ],
-        "keys": {
-          "axes": [
-            {
-              "name": "layer",
-              "source": {
-                "occurrence_index": "i"
-              }
-            },
-            {
-              "name": "session",
-              "source": {
-                "context": "request.session"
-              }
-            },
-            {
-              "name": "branch",
-              "source": {
-                "context": "request.branch"
-              }
-            }
-          ],
-          "sharing": {
-            "equal_on": [
-              "layer",
-              "session",
-              "branch"
-            ]
-          }
-        },
-        "liveness": {
-          "classes_by": [
-            "layer",
-            "session",
-            "branch"
-          ],
-          "max_active_classes": {
-            "expression": {
-              "op": "multiply",
-              "args": [
-                {
-                  "literal": 12
-                },
-                {
-                  "context": "analysis.max_active_sessions"
-                },
-                {
-                  "context": "analysis.max_branches_per_session"
-                }
-              ]
-            },
-            "status": "upper_bound",
-            "provenance": [
-              {
-                "context": "analysis.max_active_sessions"
-              },
-              {
-                "context": "analysis.max_branches_per_session"
-              }
-            ]
-          }
-        },
-        "visits": [
-          {
-            "unit": "request",
-            "phase": "generation",
-            "upper_bound": {
-              "expression": {
-                "context": "request.max_tokens"
-              },
-              "status": "upper_bound",
-              "provenance": [
-                {
-                  "context": "request.max_tokens"
-                }
-              ]
-            }
-          }
-        ],
         "for_each": {
           "i": {
             "start": {
@@ -4122,84 +3888,6 @@
               }
             },
             "state": "kv"
-          }
-        ],
-        "keys": {
-          "axes": [
-            {
-              "name": "layer",
-              "source": {
-                "occurrence_index": "i"
-              }
-            },
-            {
-              "name": "session",
-              "source": {
-                "context": "request.session"
-              }
-            },
-            {
-              "name": "branch",
-              "source": {
-                "context": "request.branch"
-              }
-            }
-          ],
-          "sharing": {
-            "equal_on": [
-              "layer",
-              "session",
-              "branch"
-            ]
-          }
-        },
-        "liveness": {
-          "classes_by": [
-            "layer",
-            "session",
-            "branch"
-          ],
-          "max_active_classes": {
-            "expression": {
-              "op": "multiply",
-              "args": [
-                {
-                  "literal": 12
-                },
-                {
-                  "context": "analysis.max_active_sessions"
-                },
-                {
-                  "context": "analysis.max_branches_per_session"
-                }
-              ]
-            },
-            "status": "upper_bound",
-            "provenance": [
-              {
-                "context": "analysis.max_active_sessions"
-              },
-              {
-                "context": "analysis.max_branches_per_session"
-              }
-            ]
-          }
-        },
-        "visits": [
-          {
-            "unit": "request",
-            "phase": "generation",
-            "upper_bound": {
-              "expression": {
-                "context": "request.max_tokens"
-              },
-              "status": "upper_bound",
-              "provenance": [
-                {
-                  "context": "request.max_tokens"
-                }
-              ]
-            }
           }
         ],
         "for_each": {

@@ -249,7 +249,7 @@ syntax. See [Specification §5](SPECIFICATION.md#5--denotation).
 
 **Decision.** A contract derives what one state port means: presence, payload, evolution, indexing,
 access geometry, sharing capability, and permitted operations. The expanded graph declares how many
-ports exist, which ports share one identity, their keys, state liveness, visit bounds, and what
+ports exist, which ports share one identity, and what
 survives an invocation boundary.
 
 **Why.** A primitive can know that a KV cache is indexed by a source sequence; it cannot know which

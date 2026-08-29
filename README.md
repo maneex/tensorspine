@@ -272,6 +272,7 @@ python3 tools/armature --d1   data/models/llama3-8b.json -o /path/out.d1.json
 python3 tools/armature --view data/models/llama3-8b.json -o /path/out.html
 python3 tests/run_rejections.py                         # §10.2 rejection cases
 python3 tests/run_templates.py                          # template parity, defaults, assignments
+python3 tests/run_states.py                             # derived instance keys, sharing, boundaries
 python3 tools/armature --document catalog -o docs/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
 # Templates require external quantity assignments.

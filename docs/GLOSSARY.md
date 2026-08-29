@@ -174,19 +174,16 @@ value-graph cycle. See
 
 ### Liveness
 
-Armature uses two related, deliberately qualified notions:
+The word is qualified by what is live:
 
 - **Value liveness** identifies graph values live across a cut and therefore the cut's logical
-  payload.
-- **State liveness** is the exact or upper-bounded number of distinct state-allocation equivalence
-  classes that may be active simultaneously. It sizes state memory.
+  payload (D2).
+- **State liveness** is the number of distinct state-allocation equivalence classes active at once.
+  It is derived: one class per distinct instance key, the key being the identity's indices times the
+  contract's `key_axes`. The count of active classes is deployment intent, not a model fact.
 
-The JSON field `bindings.states.*.liveness` is state liveness. It is not a visit count: visits size
-computation, while state liveness sizes simultaneous memory. See
-[Specification §4.4](SPECIFICATION.md#44--information-supplied-by-the-graph) and
-[Model guide §2.5](ARMATURE-MODEL_JSON.md#25--bindings).
-
-## M
+State liveness sizes simultaneous memory; visits size computation. See
+[Specification §4.4](SPECIFICATION.md#44--information-supplied-by-the-graph).
 
 ### Model document
 
@@ -308,7 +305,7 @@ in the README, model guide, and glossary is explanatory. See
 
 Logical storage exposed through a state port and preserved across token invocations. The contract
 derives its payload, evolution, access geometry, and permitted operations; model state bindings
-declare identity, keys, sharing, liveness, visits, and any invocation boundary. See
+declare identity, members and any invocation boundary; keys, liveness and visits are derived. See
 [Specification §§4.3–4.4](SPECIFICATION.md#43--state-derivation).
 
 ### State identity
@@ -350,13 +347,12 @@ information. See [Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o
 
 ### Visits
 
-Exact or upper-bounded counts of how often a state is visited for an execution unit and phase.
-Visits size computation; state liveness sizes simultaneously active memory. See [Specification
-§4.4](SPECIFICATION.md#44--information-supplied-by-the-graph).
-
-## W
-
-<a id="conditions"></a>
+How often a state is visited per indexing domain and phase — once per token for a decoder cache,
+once per source for a frozen cross-attention cache, once per fragment for a streaming encoder. The
+rate is derived from the value graph, the generative outputs and the invocation boundaries; the
+counts (tokens per request, fragments per stream) are deployment intent. Visits size computation;
+state liveness sizes memory. See
+[Specification §4.4](SPECIFICATION.md#44--information-supplied-by-the-graph).
 
 ### `when` and `present_when`
 

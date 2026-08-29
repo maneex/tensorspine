@@ -1,5 +1,5 @@
 {
-  "purpose": "Required rejection cases of \u00a710.2, one document per case. Each is llama3-8b (or, for template cases, shieldstral-3b-composite) with one mutation; the runner expects the named code and message.",
+  "purpose": "Required rejection cases of §10.2, one document per case. Each is llama3-8b (or, for template cases, shieldstral-3b-composite) with one mutation; the runner expects the named code and message.",
   "cases": [
     {
       "document": "models/structural-unknown-field.json",
@@ -23,7 +23,7 @@
       "document": "models/v2-unknown-argument.json",
       "expect": "V2",
       "match": "unknown argument 'kernel_hint'",
-      "note": "An argument the contract does not declare is refused (\u00a78.1)."
+      "note": "An argument the contract does not declare is refused (§8.1)."
     },
     {
       "document": "models/v2-missing-required.json",
@@ -41,7 +41,7 @@
       "document": "models/v3-enum-out-of-set.json",
       "expect": "V3",
       "match": "'sideways' is not among ['causal', 'chunked', 'none']",
-      "note": "An enum value outside its declared set (\u00a76 V3)."
+      "note": "An enum value outside its declared set (§6 V3)."
     },
     {
       "document": "models/v3-cardinality-string.json",
@@ -83,7 +83,7 @@
       "document": "models/v3-record-unknown-field.json",
       "expect": "V2",
       "match": "unknown argument 'rope.thetta'",
-      "note": "A misspelled record field is unknown, not ignored: the mutation test of \u00a710.2."
+      "note": "A misspelled record field is unknown, not ignored: the mutation test of §10.2."
     },
     {
       "document": "models/v3-nested-enum.json",
@@ -101,7 +101,7 @@
       "document": "models/v3-template-domain-interval.json",
       "expect": "V3",
       "match": "'layers' = 0 is below the domain bound 1",
-      "note": "A template argument outside the interval its external quantity declares (\u00a74.6 admissibility)."
+      "note": "A template argument outside the interval its external quantity declares (§4.6 admissibility)."
     },
     {
       "document": "models/v3-template-domain-set.json",
@@ -114,6 +114,36 @@
       "expect": "V2",
       "match": "required argument missing 'eps'",
       "note": "An external quantity without default, left unassigned at the call site."
+    },
+    {
+      "document": "models/structural-context-expression.json",
+      "expect": "schema",
+      "match": "context",
+      "note": "There is no context namespace: a document references only its own quantities, indices and arguments (V1)."
+    },
+    {
+      "document": "models/structural-state-liveness-declared.json",
+      "expect": "schema",
+      "match": "'liveness' was unexpected",
+      "note": "Liveness is derived, never declared (§4.4)."
+    },
+    {
+      "document": "models/v2-chunked-without-chunk.json",
+      "expect": "V2",
+      "match": "required argument missing 'chunk'",
+      "note": "mask: chunked requires its span."
+    },
+    {
+      "document": "models/v3-chunk-with-causal.json",
+      "expect": "V3",
+      "match": "'chunk' is present but inapplicable",
+      "note": "A chunk span with a mask that is not chunked is forbidden, not ignored (I2, V8)."
+    },
+    {
+      "document": "models/v3-window-with-chunked.json",
+      "expect": "V3",
+      "match": "'window' is present but inapplicable",
+      "note": "A sliding window on a chunked mask is a meaningless combination (V8)."
     }
   ]
 }

@@ -14,8 +14,8 @@ is legal but questionable belongs to `--lint`, which never blocks.
 Coverage of the semantic stage: V1 resolution, V2 arguments, V3 argument
 types (records recursively, defaults applied first), V3p precision
 admissibility, V4 shape unification, V5 index domains, V6 acyclicity, V7
-totality and uniqueness of bindings, V9 member compatibility, V13 contract
-graph, V15 key references. This is not yet the complete validator of §15:
+totality and uniqueness of bindings, V9 member compatibility and one instance
+key per identity, V13 contract graph. This is not yet the complete validator of §15:
 shapes are unified by axis identity and extent only, with no declared views or
 permutations.
 """
@@ -630,9 +630,10 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 checked += 1
     stats['precisions_checked'] = checked
 
-    # --- V7/V9/V15: states -------------------------------------------------
+    # --- V7/V9: states -------------------------------------------------
     state_slots = {}
     state_identities = 0
+    instance_keys = {}
     for sid, binding in model['bindings']['states'].items():
         binding_envs = loop_envs(binding)
         state_identities += len(binding_envs)
@@ -661,13 +662,25 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 elif len(applicable) > 1:
                     fail('V9', f"state {sid}: {len(applicable)} applicable rules "
                                f"— the law is ambiguous")
-        declared_axes = {a['name'] for a in binding['keys']['axes']}
-        for n in binding['keys']['sharing']['equal_on']:
-            if n not in declared_axes:
-                fail('V15', f"{sid}: equal_on '{n}' is unknown")
-        for n in binding['liveness']['classes_by']:
-            if n not in declared_axes:
-                fail('V15', f"{sid}: classes_by '{n}' is unknown")
+            # V9: one identity, one instance key. The key is derived (§4.4):
+            # the identity's indices × the contract's key axes of its members,
+            # which must therefore agree.
+            key_axes = None
+            for member in binding['members']:
+                mkey = select(member['occurrence'], env)
+                if mkey not in resolved:
+                    continue
+                port = resolved[mkey][1]['state_ports'].get(member['state'])
+                if port is None:
+                    continue
+                if key_axes is None:
+                    key_axes = tuple(port['key_axes'])
+                elif tuple(port['key_axes']) != key_axes:
+                    fail('V9', f"state {sid}: members keyed on {list(key_axes)} and "
+                               f"{port['key_axes']} cannot share one allocation")
+            if key_axes is not None:
+                instance_keys[sid + (f"{env}" if env else "")] = (
+                    tuple(binding['identity'].get('indices', {})) + key_axes)
     for key, (name, definition, args) in resolved.items():
         for state_name, port in definition['state_ports'].items():
             if not contract_condition(port['present_when'], args):
@@ -696,7 +709,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     for k, v in merged.items():
         if k in stats and isinstance(stats[k], int) and not isinstance(stats[k], bool):
             stats[k] += v
-    return {'errors': errors, 'stats': stats, 'ports': ports}
+    return {'errors': errors, 'stats': stats, 'ports': ports, 'instance_keys': instance_keys}
 
 
 def check_assignment(model, assignment):

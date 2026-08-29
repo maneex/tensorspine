@@ -45,7 +45,7 @@ Bases consulted, in order: `data/catalog`. 36 contracts, 37 axes, 54 precision r
 
 Every unit is rendered from its definition first, then from its documentation. Facts — types, defaults, shapes, laws — come from the definition and cannot disagree with it; prose comes from `summary` and `description` fields (../schemas/armature-documentation.schema.json), and a maintainer's `note` is quoted as written. Nothing is inferred: a unit without a summary has none.
 
-- **Expressions** are contract arguments by name; `a.b` is a field of a record argument. Operators: `+ - * /`, `mod`, `ceil(a / b)`, `floor(a / b)`, `min`, `max`, `abs`. `context(x)` is an analysis-time quantity the consumer supplies. Strings are quoted.
+- **Expressions** are contract arguments by name; `a.b` is a field of a record argument. Operators: `+ - * /`, `mod`, `ceil(a / b)`, `floor(a / b)`, `min`, `max`, `abs`. Strings are quoted.
 - **Conditions** read as prose: `x present` / `x absent` test an optional argument; comparisons use `= != < <= > >=`; `always` and `never` are the constant conditions.
 - **Shapes** list axes in declaration order as `[local name: extent]`; `= a × b` spells out the declared factors of a flattened axis (O5.10); `scalar` is rank 0. The *Axes* column gives each axis's catalog identity and nature; shapes unify by axis identity and extent (V4), never by position alone.
 - **Structural** marks an argument with `structural`: it decides which slots, ports or states exist or what shape they have. A non-structural argument changes only the computation.
@@ -59,7 +59,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 
 | Contract | Summary | Shape |
 |---|---|---|
-| [attention.dense@1.0.0](#contract-attention.dense-1.0.0) | Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm. | 17 args · 2→1 ports · 9 params · state `kv` |
+| [attention.dense@1.0.0](#contract-attention.dense-1.0.0) | Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm. | 18 args · 2→1 ports · 9 params · state `kv` |
 | [attention.latent_compressed@1.0.0](#contract-attention.latent_compressed-1.0.0) | Latent attention: low-rank query and output projections, one compressed latent KV, optional sparse index. | 11 args · 1→1 ports · 16 params · state `kv`, `sliding`, `compressor`, `index`, `index_compressor` |
 | [conditioning.layer_select@1.0.0](#contract-conditioning.layer_select-1.0.0) | Selects, from the per-layer auxiliary vectors, the slice that belongs to one layer. | 3 args · 1→1 ports · 0 params |
 | [conditioning.multiplicative@1.0.0](#contract-conditioning.multiplicative-1.0.0) | Per-layer conditioning: gates the input, multiplies by the condition, projects back and normalizes. | 3 args · 2→1 ports · 3 params |
@@ -239,7 +239,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 17 (4 required, 14 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | — |
+| 18 (5 required, 15 structural) | 2 | 1 | 9 | 0 | `kv` (append, window) | 4 | — |
 
 ##### Arguments
 
@@ -250,8 +250,10 @@ External documentation:
 | `head_dim` | cardinality | yes |  | yes | Dimension of one head; queries, keys and values share it. |
 | `kv_heads` | cardinality | no | `heads` | yes | Number of key/value heads. Fewer than `heads` is grouped-query attention; one is multi-query attention.<br>*Note: without GQA, as many KV heads as Q heads: a fact of the primitive, hence a contract default* |
 | `mask` | enum: `"causal"`, `"chunked"`, `"none"` | yes |  | yes | Which positions a query may attend to. |
-| `window` | record of 1 field(s) | no |  | yes | Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span. |
+| `window` | record of 1 field(s) | no |  | yes | Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span. Inapplicable with `mask: chunked`, whose span is `chunk.span`.<br>*Applicable when mask != "chunked".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;`window.span` | physical (tokens) | yes |  | yes | Window span, in tokens. |
+| `chunk` | record of 1 field(s) | yes |  | yes | Chunked attention: the positions a query may attend to are its own chunk of `chunk.span` tokens. Required with `mask: chunked`, forbidden otherwise; the cache is a ring of one chunk.<br>*Applicable when mask = "chunked".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;`chunk.span` | physical (tokens) | yes |  | yes | Chunk span, in tokens: a query attends within its own chunk of `span` positions. |
 | `source` | port_reference | no |  | yes | Cross-attention: the port whose indexing domain supplies keys and values. Their values arrive on `source_values`; absent, keys and values come from `input`.<br>*Note: port K and V come from; absent = self-attention* |
 | `streaming` | boolean | no |  | yes | The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`. |
 | `rope` | record of 5 field(s) | no |  | no | Rotary position encoding: base, layout, rotated fraction, multimodal sections and context-extension scaling. Changes the computation, not a tensor or a state. |
@@ -266,10 +268,10 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.kind` | enum: `"yarn"`, `"llama3"`, `"linear"` | yes |  | no | Context-extension method applied to the rotary frequencies. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.factor` | real | yes |  | no | Ratio between the served context and `orig_ctx`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.orig_ctx` | cardinality | yes |  | no | Context length the frequencies were trained at. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
 | `qk_norm` | enum: `"rms"`, `"layer"` | no |  | no | Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`. |
 | `temperature` | record of 2 field(s) | no |  | no | Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`temperature.floor` | cardinality | yes |  | no | Positions per temperature step: the scale grows once per `floor` positions. |
@@ -284,7 +286,7 @@ External documentation:
 Values of `mask`:
 
 - `"causal"` — Each position attends to itself and to earlier positions; the cache grows with the sequence.
-- `"chunked"` — Causal within fixed chunks whose span is the analysis quantity `analysis.chunk_span`; the cache is a ring over that span.
+- `"chunked"` — Causal within fixed chunks of `chunk.span` positions; the cache is a ring of one chunk.
 - `"none"` — Every position attends to every other. Stateless unless `streaming` or `source` says otherwise.
 
 Values of `rope.layout`:
@@ -362,8 +364,8 @@ Derivation rules, in order — the first whose condition holds applies:
 |---|---|---|---|---|---|---|---|---|
 | 1 | mask = "none" and streaming = true and source absent and window absent | append | logical_position | by_position | self | — | carried across fragment | Bidirectional streaming encoder: fragments accumulate, and the cache is carried across fragments. |
 | 2 | source present | append | logical_position | by_source | argument source | — | frozen after source complete | Cross-attention: indexed by the source, frozen once the source is complete. |
-| 3 | window present and source absent | window | ring | within_span | self | span window.span | — | Sliding window: a ring of `window.span` positions. |
-| 4 | mask = "chunked" and source absent and window absent | window | ring | within_span | self | span context(analysis.chunk_span) | — | Chunked mask: a ring over the analysis chunk span. |
+| 3 | mask = "chunked" and source absent | window | ring | within_span | self | span chunk.span | — | Ring of one chunk: `chunk.span` positions. |
+| 4 | window present and source absent | window | ring | within_span | self | span window.span | — | Sliding window: a ring of `window.span` positions. |
 | 5 | source absent and window absent and not (mask = "none" and streaming = true) and not (mask = "chunked") | append | logical_position | by_position | self | — | — | Plain causal decoding: append per position. |
 
 ##### Effects
@@ -441,10 +443,10 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.kind` | enum: `"yarn"`, `"llama3"`, `"linear"` | yes |  | no | Context-extension method applied to the rotary frequencies. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.factor` | real | yes |  | no | Ratio between the served context and `orig_ctx`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.orig_ctx` | cardinality | yes |  | no | Context length the frequencies were trained at. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor. |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
 
 Values of `mask`:
 
@@ -3235,7 +3237,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 36 | 36 | 100% |
-| argument | 189 | 189 | 100% |
+| argument | 191 | 191 | 100% |
 | port | 81 | 81 | 100% |
 | parameter | 115 | 115 | 100% |
 | state | 8 | 8 | 100% |
@@ -3255,12 +3257,4 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 
 Legal, and worth knowing. None of these blocks generation.
 
-- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.beta_fast: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
-- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.beta_slow: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
-- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.low: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
-- data/catalog/contracts/attention/dense/1.0.0.json argument rope.scaling.high: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
-- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.beta_fast: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
-- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.beta_slow: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
-- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.low: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
-- data/catalog/contracts/attention/latent_compressed/1.0.0.json argument rope.scaling.high: key 'present_when' is neither grammar this generator knows nor documentation; not rendered
 - data/catalog/contracts/decoder/causal_yarn/1.0.0.json: key 'template' is neither grammar this generator knows nor documentation; not rendered

@@ -89,7 +89,7 @@ quantity is an input to graph construction, not a runtime load variable such as 
 
 Expressions are tagged unions, never ambiguous strings. A scalar expression is one of:
 
-- `{"literal": ...}`, `{"quantity": ...}`, `{"index": ...}` or `{"context": ...}`;
+- `{"literal": ...}`, `{"quantity": ...}` or `{"index": ...}`;
 - a unary, binary or n-ary operation with `op` and `args`;
 - a conditional with `if`, `then` and `else`;
 - a normative interface call with a pinned contract, result status and provenance.
@@ -99,8 +99,7 @@ and floor division, modulo, minimum, maximum, negation and absolute value. Condi
 boolean composition and comparisons.
 
 Every derivation carries an epistemic `status` (`exact`, `upper_bound`, `lower_bound` or `estimate`)
-and a non-empty `provenance` list. Bounds used for state liveness and visit counts may be exact or
-upper bounds only.
+and a non-empty `provenance` list.
 
 ### 2.2 — External constants
 
@@ -165,17 +164,21 @@ Bindings may use `for_each` and model-level `when` to describe regular families.
 occurrence selectors are explicit; flow is never inferred from ordering or mutation of a named
 residual.
 
-A state binding carries graph-level facts that no primitive can derive:
+A state binding carries the graph-level facts that no primitive can derive, and only those:
 
-- its member state ports;
-- key axes and the equality relation that defines sharing;
-- liveness classes and an exact or upper-bounded maximum number of active classes;
-- visit bounds by execution unit and phase;
+- its identity, whose indices say which repetition indices distinguish allocations;
+- its member state ports — several members under one identity is sharing;
 - optionally, what survives an invocation boundary and in which domain.
 
+The instance key of an allocation is derived: the identity's indices times the contract's
+`key_axes` (session, branch). Liveness is one class per distinct key; how many classes are active
+at once, and how often a state is visited per request, are deployment intent (§10.3) supplied to
+the derived products, never written in the model. A document references only its own quantities,
+indices and arguments: there is no `context` namespace.
+
 These fields do not duplicate the contract's state descriptor. The contract defines payload,
-conditional presence, growth law, access geometry and permitted operations; the binding defines
-identity, graph topology and lifetime.
+conditional presence, growth law, access geometry, key axes and permitted operations; the binding
+defines identity, sharing and lifetime.
 
 After composition expansion, evaluation of model `when` conditions, and resolution of contract
 `present_when` guards, bindings must be total and unique. Every required input, parameter slot,
@@ -270,7 +273,7 @@ expanded logical graph.
 | Cache pages, block tables and other runtime data structures | Runtime implementation |
 
 The model **does** declare logical dtypes where the schema permits them, explicit value flow,
-parameter and state identities, state liveness, invocation boundaries and public indexing domains.
+parameter and state identities, invocation boundaries and public indexing domains.
 Those are model-specific facts, not consequences of a primitive in isolation.
 
 ---
@@ -312,7 +315,7 @@ The language defines six derived products:
 | **D1** | Expanded occurrences, value edges and families | Emitted by `--d1` |
 | **D2** | Values, shapes and value liveness at graph cuts | Specified, not yet emitted |
 | **D3** | Parameter tensors, roles, shapes and sharing | Specified; validation resolves slots and identities |
-| **D4** | Complete state descriptors, instances, keys, state liveness and operations | Specified; validation resolves slots and identities |
+| **D4** | Complete state descriptors, instances, derived keys, state liveness and operations | Specified; validation resolves slots and identities |
 | **D5** | Logical costs and cut traffic | Specified, not yet emitted |
 | **D6** | Legal cuts and semantic partition axes | Specified, not yet emitted |
 

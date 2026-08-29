@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
-    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `source` makes it **cross-attention**: keys and values come from the `source_values` port, in the indexing domain the argument names, and the cache is frozen once that source is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` are opaque: they change the computation, never a tensor or a state, which is why they carry no template effect. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.",
+    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `source` makes it **cross-attention**: keys and values come from the `source_values` port, in the indexing domain the argument names, and the cache is frozen once that source is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.",
     "tags": [
       "sequence-operator"
     ],
@@ -38,7 +38,7 @@
         "url": "https://arxiv.org/abs/2104.09864",
         "title": "RoFormer: Enhanced Transformer with Rotary Position Embedding (Su et al., 2021)",
         "kind": "paper",
-        "description": "Rotary position encoding, the usual content of the opaque `rope` argument."
+        "description": "Rotary position encoding, what the `rope` argument declares."
       }
     ],
     "arguments": {
@@ -92,7 +92,7 @@
         "description": "Which positions a query may attend to.",
         "value_descriptions": {
           "causal": "Each position attends to itself and to earlier positions; the cache grows with the sequence.",
-          "chunked": "Causal within fixed chunks whose span is the analysis quantity `analysis.chunk_span`; the cache is a ring over that span.",
+          "chunked": "Causal within fixed chunks of `chunk.span` positions; the cache is a ring of one chunk.",
           "none": "Every position attends to every other. Stateless unless `streaming` or `source` says otherwise."
         }
       },
@@ -113,7 +113,48 @@
         },
         "required": false,
         "structural": true,
-        "description": "Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span."
+        "description": "Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span. Inapplicable with `mask: chunked`, whose span is `chunk.span`.",
+        "present_when": {
+          "compare": {
+            "operator": "not_equal",
+            "left": {
+              "argument": "mask"
+            },
+            "right": {
+              "literal": "chunked"
+            }
+          }
+        }
+      },
+      "chunk": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "span": {
+              "type": {
+                "kind": "physical",
+                "unit": "tokens"
+              },
+              "required": true,
+              "structural": true,
+              "description": "Chunk span, in tokens: a query attends within its own chunk of `span` positions."
+            }
+          }
+        },
+        "required": true,
+        "structural": true,
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "mask"
+            },
+            "right": {
+              "literal": "chunked"
+            }
+          }
+        },
+        "description": "Chunked attention: the positions a query may attend to are its own chunk of `chunk.span` tokens. Required with `mask: chunked`, forbidden otherwise; the cache is a ring of one chunk."
       },
       "source": {
         "type": {
@@ -1027,6 +1068,38 @@
             "when": {
               "all": [
                 {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "argument": "mask"
+                    },
+                    "right": {
+                      "literal": "chunked"
+                    }
+                  }
+                },
+                {
+                  "not": {
+                    "present": "source"
+                  }
+                }
+              ]
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "argument": "chunk.span"
+            },
+            "description": "Ring of one chunk: `chunk.span` positions."
+          },
+          {
+            "when": {
+              "all": [
+                {
                   "present": "window"
                 },
                 {
@@ -1046,43 +1119,6 @@
               "argument": "window.span"
             },
             "description": "Sliding window: a ring of `window.span` positions."
-          },
-          {
-            "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "equal",
-                    "left": {
-                      "argument": "mask"
-                    },
-                    "right": {
-                      "literal": "chunked"
-                    }
-                  }
-                },
-                {
-                  "not": {
-                    "present": "source"
-                  }
-                },
-                {
-                  "not": {
-                    "present": "window"
-                  }
-                }
-              ]
-            },
-            "law": "window",
-            "access": "ring",
-            "sharing": "within_span",
-            "indexed_by": {
-              "self": true
-            },
-            "span": {
-              "context": "analysis.chunk_span"
-            },
-            "description": "Chunked mask: a ring over the analysis chunk span."
           },
           {
             "when": {

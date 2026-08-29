@@ -1,6 +1,6 @@
 {
   "schema": "armature/2.0",
-  "model": "rejection-structural-unknown-field",
+  "model": "rejection-v3-chunk-with-causal",
   "catalog": [
     {
       "base": "catalog/"
@@ -221,6 +221,13 @@
                 },
                 "layout": {
                   "literal": "split"
+                }
+              }
+            },
+            "chunk": {
+              "record": {
+                "span": {
+                  "literal": 4096
                 }
               }
             }
@@ -1107,6 +1114,5 @@
         "generative": true
       }
     }
-  },
-  "kernels": {}
+  }
 }

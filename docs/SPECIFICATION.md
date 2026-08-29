@@ -266,7 +266,12 @@ loss**, never present non-partitionability as a known fact.
 
 > `instantiated states = contract(primitive, arguments) × graph occurrences × state identities`
 
-A contract supplies the descriptor; the graph supplies instance count and relationships.
+A contract supplies the descriptor; the graph supplies instance count and relationships. The model
+declares only what no derivation can produce: which state ports name the same storage (a state
+identity with several members), which repetition indices distinguish allocations (the identity's
+indices), and what survives an invocation boundary (§5.3). Everything else about instances is a
+consequence, computed by the same rule for every document; a field the author could only fill by
+copying that rule is not a declaration (§1.2, §10.2).
 
 **State liveness** is the number of distinct state-allocation equivalence classes that may be active
 at once. It sizes simultaneous state memory. This is distinct from **value liveness**, which records
@@ -274,10 +279,14 @@ the graph values live across a cut and determines that cut's logical payload.
 
 | Element | Reference | Authority |
 |---|---|---|
-| **Instance key** | O5.5 | The graph: a tuple of site or sharing group, session, branch, and frame, plus a sharing relation identifying keys that name the same allocation. |
-| **Liveness law** | O5.5 | The graph: cardinality of active key **equivalence classes**, never the raw product of dimensions. |
-| **Visit bounds** | O3.2 | The graph: per execution unit and phase. Visits size computation; liveness sizes memory. |
+| **Instance key** | O5.5 | **Derived:** the identity's indices × the contract's `key_axes` (session, branch). Sharing is declared by listing several members under one identity, never by a relation over keys. |
+| **Liveness law** | O5.5 | **Derived:** one class per distinct instance key. How many classes are active at once is deployment intent (§10.3): the model fixes the class structure, never the count, and never the raw product of dimensions. |
+| **Visit rate** | O3.2 | **Derived** per indexing domain and phase, from the value graph, the generative outputs (§2.3) and the invocation boundaries (§5.3). Visits size computation; liveness sizes memory. Counts — tokens per request, fragments per stream — are deployment intent. |
 | **Cardinality** | O5.7 | The model: any finite number of states with distinct natures, with no language-defined upper bound. |
+
+A model document therefore never references a deployment or request fact: there is no open
+`context` namespace. Every reference in a document resolves to one of its own quantities, indices
+or arguments (V1); a derived product such as D4 takes deployment intent as a separate input.
 
 ### 4.5 — Structured sparsity *(O6.6)*
 

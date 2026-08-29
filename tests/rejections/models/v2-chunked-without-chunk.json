@@ -1,6 +1,6 @@
 {
   "schema": "armature/2.0",
-  "model": "qwen3_8_27b",
+  "model": "rejection-v2-chunked-without-chunk",
   "catalog": [
     {
       "base": "catalog/"
@@ -17,6 +17,36 @@
         "value": 5120
       }
     },
+    "heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 40
+      }
+    },
+    "kv_heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "hd": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128
+      }
+    },
     "vocab": {
       "regime": "model_constant",
       "type": {
@@ -24,7 +54,47 @@
       },
       "source": {
         "kind": "literal",
-        "value": 248320
+        "value": 202048
+      }
+    },
+    "experts": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 16
+      }
+    },
+    "ffn_expert": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8192
+      }
+    },
+    "ffn_shared": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8192
+      }
+    },
+    "chunk": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8192
       }
     },
     "eps": {
@@ -34,7 +104,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 1e-06
+        "value": 1e-05
       }
     },
     "precision": {
@@ -49,190 +119,10 @@
         "kind": "literal",
         "value": "bf16"
       }
-    },
-    "d_vis": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 1152
-      }
-    },
-    "vit_layers": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 27
-      }
-    },
-    "vit_heads": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 16
-      }
-    },
-    "vit_hd": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 72
-      }
-    },
-    "vit_ffn": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 4304
-      }
-    },
-    "patch": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 16
-      }
-    },
-    "vit_pos": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 2304
-      }
-    },
-    "gdn_k": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 16
-      }
-    },
-    "gdn_v": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 48
-      }
-    },
-    "gdn_hd": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 128
-      }
-    },
-    "gdn_conv": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 10240
-      }
-    },
-    "attn_q": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 24
-      }
-    },
-    "attn_kv": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 4
-      }
-    },
-    "attn_hd": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 256
-      }
-    },
-    "inner": {
-      "regime": "model_constant",
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 17408
-      }
     }
   },
   "constants": {},
   "occurrences": {
-    "patch_embed": {
-      "contract": {
-        "name": "patch_embed",
-        "version": "1.0.0"
-      },
-      "arguments": {
-        "width": {
-          "quantity": "d_vis"
-        },
-        "patch": {
-          "quantity": "patch"
-        },
-        "channels": {
-          "literal": 3
-        },
-        "temporal_patch": {
-          "literal": 2
-        },
-        "pos": {
-          "quantity": "vit_pos"
-        },
-        "bias": {
-          "literal": true
-        }
-      },
-      "families": [
-        "input",
-        "vision"
-      ]
-    },
     "embed": {
       "contract": {
         "name": "embed",
@@ -249,21 +139,6 @@
       "families": [
         "input",
         "embedding"
-      ]
-    },
-    "splice": {
-      "contract": {
-        "name": "splice",
-        "version": "1.0.0"
-      },
-      "arguments": {
-        "width": {
-          "quantity": "d"
-        }
-      },
-      "families": [
-        "input",
-        "fusion"
       ]
     },
     "final_n": {
@@ -300,179 +175,9 @@
         "output",
         "head"
       ]
-    },
-    "vision_projector": {
-      "contract": {
-        "name": "projector.patch_merge_mlp",
-        "version": "1.0.0"
-      },
-      "arguments": {
-        "width": {
-          "quantity": "d"
-        },
-        "source_width": {
-          "quantity": "d_vis"
-        },
-        "merge_count": {
-          "literal": 4
-        },
-        "source": {
-          "literal": "vision"
-        }
-      },
-      "families": [
-        "input",
-        "projection"
-      ]
     }
   },
   "compositions": {
-    "vision": {
-      "indices": {
-        "blk": {
-          "start": {
-            "literal": 0
-          },
-          "stop": {
-            "quantity": "vit_layers"
-          },
-          "step": {
-            "literal": 1
-          }
-        }
-      },
-      "families": [
-        "vision"
-      ],
-      "occurrences": {
-        "attn_n": {
-          "contract": {
-            "name": "norm.layer",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d_vis"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "attn": {
-          "contract": {
-            "name": "attention.dense",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d_vis"
-            },
-            "heads": {
-              "quantity": "vit_heads"
-            },
-            "kv_heads": {
-              "quantity": "vit_heads"
-            },
-            "head_dim": {
-              "quantity": "vit_hd"
-            },
-            "mask": {
-              "literal": "none"
-            },
-            "q_bias": {
-              "literal": true
-            },
-            "k_bias": {
-              "literal": true
-            },
-            "v_bias": {
-              "literal": true
-            },
-            "out_bias": {
-              "literal": true
-            }
-          },
-          "families": [
-            "sequence_operator"
-          ]
-        },
-        "attn_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d_vis"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        },
-        "ffn_n": {
-          "contract": {
-            "name": "norm.layer",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d_vis"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "ffn": {
-          "contract": {
-            "name": "ffn.dense",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d_vis"
-            },
-            "inner": {
-              "quantity": "vit_ffn"
-            },
-            "activation": {
-              "literal": "gelu_tanh"
-            },
-            "in_bias": {
-              "literal": true
-            },
-            "out_bias": {
-              "literal": true
-            }
-          },
-          "families": [
-            "feed_forward"
-          ]
-        },
-        "ffn_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d_vis"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        }
-      }
-    },
     "decoder": {
       "indices": {
         "blk": {
@@ -480,7 +185,7 @@
             "literal": 0
           },
           "stop": {
-            "literal": 16
+            "literal": 12
           },
           "step": {
             "literal": 1
@@ -491,7 +196,7 @@
         "decoder"
       ],
       "occurrences": {
-        "d0_gdn_n": {
+        "l0_attn_n": {
           "contract": {
             "name": "norm.rms",
             "version": "1.0.0"
@@ -508,370 +213,7 @@
             "norm"
           ]
         },
-        "d0_gdn": {
-          "contract": {
-            "name": "sequence.gated_delta",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "key_heads": {
-              "quantity": "gdn_k"
-            },
-            "value_heads": {
-              "quantity": "gdn_v"
-            },
-            "head_dim": {
-              "quantity": "gdn_hd"
-            },
-            "conv": {
-              "record": {
-                "width": {
-                  "quantity": "gdn_conv"
-                },
-                "kernel": {
-                  "literal": 4
-                },
-                "history": {
-                  "literal": 3
-                }
-              }
-            },
-            "out_gate": {
-              "literal": "silu"
-            }
-          },
-          "families": [
-            "linear_attention"
-          ]
-        },
-        "d0_gdn_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        },
-        "d0_mlp_n": {
-          "contract": {
-            "name": "norm.rms",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "d0_mlp": {
-          "contract": {
-            "name": "ffn.gated",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "activation": {
-              "literal": "silu"
-            },
-            "inner": {
-              "quantity": "inner"
-            }
-          },
-          "families": [
-            "feed_forward"
-          ]
-        },
-        "d0_mlp_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        },
-        "d1_gdn_n": {
-          "contract": {
-            "name": "norm.rms",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "d1_gdn": {
-          "contract": {
-            "name": "sequence.gated_delta",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "key_heads": {
-              "quantity": "gdn_k"
-            },
-            "value_heads": {
-              "quantity": "gdn_v"
-            },
-            "head_dim": {
-              "quantity": "gdn_hd"
-            },
-            "conv": {
-              "record": {
-                "width": {
-                  "quantity": "gdn_conv"
-                },
-                "kernel": {
-                  "literal": 4
-                },
-                "history": {
-                  "literal": 3
-                }
-              }
-            },
-            "out_gate": {
-              "literal": "silu"
-            }
-          },
-          "families": [
-            "linear_attention"
-          ]
-        },
-        "d1_gdn_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        },
-        "d1_mlp_n": {
-          "contract": {
-            "name": "norm.rms",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "d1_mlp": {
-          "contract": {
-            "name": "ffn.gated",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "activation": {
-              "literal": "silu"
-            },
-            "inner": {
-              "quantity": "inner"
-            }
-          },
-          "families": [
-            "feed_forward"
-          ]
-        },
-        "d1_mlp_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        },
-        "d2_gdn_n": {
-          "contract": {
-            "name": "norm.rms",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "d2_gdn": {
-          "contract": {
-            "name": "sequence.gated_delta",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "key_heads": {
-              "quantity": "gdn_k"
-            },
-            "value_heads": {
-              "quantity": "gdn_v"
-            },
-            "head_dim": {
-              "quantity": "gdn_hd"
-            },
-            "conv": {
-              "record": {
-                "width": {
-                  "quantity": "gdn_conv"
-                },
-                "kernel": {
-                  "literal": 4
-                },
-                "history": {
-                  "literal": 3
-                }
-              }
-            },
-            "out_gate": {
-              "literal": "silu"
-            }
-          },
-          "families": [
-            "linear_attention"
-          ]
-        },
-        "d2_gdn_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        },
-        "d2_mlp_n": {
-          "contract": {
-            "name": "norm.rms",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "d2_mlp": {
-          "contract": {
-            "name": "ffn.gated",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "activation": {
-              "literal": "silu"
-            },
-            "inner": {
-              "quantity": "inner"
-            }
-          },
-          "families": [
-            "feed_forward"
-          ]
-        },
-        "d2_mlp_r": {
-          "contract": {
-            "name": "residual.add",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            }
-          },
-          "families": [
-            "residual"
-          ]
-        },
-        "a_attn_n": {
-          "contract": {
-            "name": "norm.rms",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "eps": {
-              "quantity": "eps"
-            }
-          },
-          "families": [
-            "norm"
-          ]
-        },
-        "a_attn": {
+        "l0_attn": {
           "contract": {
             "name": "attention.dense",
             "version": "1.0.0"
@@ -881,52 +223,52 @@
               "quantity": "d"
             },
             "heads": {
-              "quantity": "attn_q"
+              "quantity": "heads"
             },
             "kv_heads": {
-              "quantity": "attn_kv"
+              "quantity": "kv_heads"
             },
             "head_dim": {
-              "quantity": "attn_hd"
+              "quantity": "hd"
             },
             "mask": {
-              "literal": "causal"
+              "literal": "chunked"
+            },
+            "qk_norm": {
+              "literal": "rms"
             },
             "rope": {
               "record": {
                 "theta": {
-                  "literal": 10000000
+                  "literal": 500000
                 },
-                "partial": {
-                  "literal": 0.25
-                },
-                "mrope": {
+                "scaling": {
                   "record": {
-                    "t": {
-                      "literal": 11
+                    "kind": {
+                      "literal": "llama3"
                     },
-                    "h": {
-                      "literal": 11
+                    "factor": {
+                      "literal": 16
                     },
-                    "w": {
-                      "literal": 10
+                    "low": {
+                      "literal": 1
+                    },
+                    "high": {
+                      "literal": 1
+                    },
+                    "orig_ctx": {
+                      "literal": 8192
                     }
                   }
                 }
               }
-            },
-            "output_gate": {
-              "literal": true
-            },
-            "qk_norm_weight": {
-              "literal": true
             }
           },
           "families": [
-            "full_attention"
+            "local_attention"
           ]
         },
-        "a_attn_r": {
+        "l0_attn_r": {
           "contract": {
             "name": "residual.add",
             "version": "1.0.0"
@@ -940,7 +282,7 @@
             "residual"
           ]
         },
-        "a_mlp_n": {
+        "l0_moe_n": {
           "contract": {
             "name": "norm.rms",
             "version": "1.0.0"
@@ -957,27 +299,484 @@
             "norm"
           ]
         },
-        "a_mlp": {
+        "l0_moe": {
           "contract": {
-            "name": "ffn.gated",
+            "name": "moe",
             "version": "1.0.0"
           },
           "arguments": {
             "width": {
               "quantity": "d"
             },
-            "activation": {
-              "literal": "silu"
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
             },
             "inner": {
-              "quantity": "inner"
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
             }
           },
           "families": [
-            "feed_forward"
+            "mixture"
           ]
         },
-        "a_mlp_r": {
+        "l0_moe_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l1_attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l1_attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "chunked"
+            },
+            "qk_norm": {
+              "literal": "rms"
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 500000
+                },
+                "scaling": {
+                  "record": {
+                    "kind": {
+                      "literal": "llama3"
+                    },
+                    "factor": {
+                      "literal": 16
+                    },
+                    "low": {
+                      "literal": 1
+                    },
+                    "high": {
+                      "literal": 1
+                    },
+                    "orig_ctx": {
+                      "literal": 8192
+                    }
+                  }
+                }
+              }
+            },
+            "chunk": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
+                }
+              }
+            }
+          },
+          "families": [
+            "local_attention"
+          ]
+        },
+        "l1_attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l1_moe_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l1_moe": {
+          "contract": {
+            "name": "moe",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
+            },
+            "inner": {
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
+            }
+          },
+          "families": [
+            "mixture"
+          ]
+        },
+        "l1_moe_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l2_attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l2_attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "chunked"
+            },
+            "qk_norm": {
+              "literal": "rms"
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 500000
+                },
+                "scaling": {
+                  "record": {
+                    "kind": {
+                      "literal": "llama3"
+                    },
+                    "factor": {
+                      "literal": 16
+                    },
+                    "low": {
+                      "literal": 1
+                    },
+                    "high": {
+                      "literal": 1
+                    },
+                    "orig_ctx": {
+                      "literal": 8192
+                    }
+                  }
+                }
+              }
+            },
+            "chunk": {
+              "record": {
+                "span": {
+                  "quantity": "chunk"
+                }
+              }
+            }
+          },
+          "families": [
+            "local_attention"
+          ]
+        },
+        "l2_attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "l2_moe_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "l2_moe": {
+          "contract": {
+            "name": "moe",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
+            },
+            "inner": {
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
+            }
+          },
+          "families": [
+            "mixture"
+          ]
+        },
+        "l2_moe_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "g_attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "g_attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "causal"
+            },
+            "qk_norm": {
+              "literal": "rms"
+            },
+            "temperature": {
+              "record": {
+                "scale": {
+                  "literal": 0.1
+                },
+                "floor": {
+                  "quantity": "chunk"
+                }
+              }
+            }
+          },
+          "families": [
+            "global_attention"
+          ]
+        },
+        "g_attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "g_moe_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "g_moe": {
+          "contract": {
+            "name": "moe",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "experts": {
+              "quantity": "experts"
+            },
+            "top_k": {
+              "literal": 1
+            },
+            "inner": {
+              "quantity": "ffn_expert"
+            },
+            "shared": {
+              "literal": 1
+            },
+            "shared_inner": {
+              "quantity": "ffn_shared"
+            },
+            "routing": {
+              "literal": "learned"
+            }
+          },
+          "families": [
+            "mixture"
+          ]
+        },
+        "g_moe_r": {
           "contract": {
             "name": "residual.add",
             "version": "1.0.0"
@@ -996,446 +795,12 @@
   },
   "bindings": {
     "values": {
-      "vision.attn_n.carry": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "op": "subtract",
-                "args": [
-                  {
-                    "index": "i"
-                  },
-                  {
-                    "literal": 1
-                  }
-                ]
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 1
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.attn_r.a_carry": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "op": "subtract",
-                "args": [
-                  {
-                    "index": "i"
-                  },
-                  {
-                    "literal": 1
-                  }
-                ]
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "a"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 1
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.attn.norm_in": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.attn_r.b": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "b"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.ffn_n.in": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.ffn_r.a": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "a"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.ffn.norm_in": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn_n",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "input"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.ffn_r.b": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "index": "i"
-              }
-            }
-          },
-          "port": "b"
-        },
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "vision.entry": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "patch_embed"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_n",
-            "indices": {
-              "blk": {
-                "literal": 0
-              }
-            }
-          },
-          "port": "input"
-        }
-      },
-      "vision.entry.a": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "patch_embed"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "attn_r",
-            "indices": {
-              "blk": {
-                "literal": 0
-              }
-            }
-          },
-          "port": "a"
-        }
-      },
-      "splice.text": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "splice"
-          },
-          "port": "text"
-        }
-      },
-      "splice.source": {
-        "from": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "vision",
-            "occurrence": "ffn_r",
-            "indices": {
-              "blk": {
-                "op": "subtract",
-                "args": [
-                  {
-                    "quantity": "vit_layers"
-                  },
-                  {
-                    "literal": 1
-                  }
-                ]
-              }
-            }
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "vision_projector"
-          },
-          "port": "input"
-        }
-      },
-      "decoder.d0_gdn_n.carry": {
+      "decoder.l0_attn_n.carry": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp_r",
+            "occurrence": "g_moe_r",
             "indices": {
               "blk": {
                 "op": "subtract",
@@ -1456,7 +821,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_n",
+            "occurrence": "l0_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1471,7 +836,7 @@
               "literal": 1
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1479,12 +844,12 @@
           }
         }
       },
-      "decoder.d0_gdn_r.a_carry": {
+      "decoder.l0_attn_r.a_carry": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp_r",
+            "occurrence": "g_moe_r",
             "indices": {
               "blk": {
                 "op": "subtract",
@@ -1505,7 +870,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_r",
+            "occurrence": "l0_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1520,7 +885,7 @@
               "literal": 1
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1528,12 +893,12 @@
           }
         }
       },
-      "decoder.d0_gdn.norm_in": {
+      "decoder.l0_attn.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_n",
+            "occurrence": "l0_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1546,7 +911,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn",
+            "occurrence": "l0_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1561,7 +926,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1569,12 +934,12 @@
           }
         }
       },
-      "decoder.d0_gdn_r.b": {
+      "decoder.l0_attn_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn",
+            "occurrence": "l0_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1587,7 +952,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_r",
+            "occurrence": "l0_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1602,7 +967,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1610,12 +975,12 @@
           }
         }
       },
-      "decoder.d0_mlp_n.in": {
+      "decoder.l0_moe_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_r",
+            "occurrence": "l0_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1628,7 +993,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp_n",
+            "occurrence": "l0_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1643,7 +1008,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1651,12 +1016,12 @@
           }
         }
       },
-      "decoder.d0_mlp_r.a": {
+      "decoder.l0_moe_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_r",
+            "occurrence": "l0_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1669,7 +1034,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp_r",
+            "occurrence": "l0_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1684,7 +1049,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1692,12 +1057,12 @@
           }
         }
       },
-      "decoder.d0_mlp.norm_in": {
+      "decoder.l0_moe.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp_n",
+            "occurrence": "l0_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1710,7 +1075,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp",
+            "occurrence": "l0_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1725,7 +1090,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1733,12 +1098,12 @@
           }
         }
       },
-      "decoder.d0_mlp_r.b": {
+      "decoder.l0_moe_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp",
+            "occurrence": "l0_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1751,7 +1116,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp_r",
+            "occurrence": "l0_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1766,7 +1131,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1774,12 +1139,12 @@
           }
         }
       },
-      "decoder.d1_gdn_n.in": {
+      "decoder.l1_attn_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp_r",
+            "occurrence": "l0_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1792,7 +1157,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn_n",
+            "occurrence": "l1_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1807,7 +1172,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1815,12 +1180,12 @@
           }
         }
       },
-      "decoder.d1_gdn_r.a": {
+      "decoder.l1_attn_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_mlp_r",
+            "occurrence": "l0_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1833,7 +1198,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn_r",
+            "occurrence": "l1_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1848,7 +1213,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1856,12 +1221,12 @@
           }
         }
       },
-      "decoder.d1_gdn.norm_in": {
+      "decoder.l1_attn.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn_n",
+            "occurrence": "l1_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1874,7 +1239,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn",
+            "occurrence": "l1_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1889,7 +1254,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1897,12 +1262,12 @@
           }
         }
       },
-      "decoder.d1_gdn_r.b": {
+      "decoder.l1_attn_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn",
+            "occurrence": "l1_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1915,7 +1280,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn_r",
+            "occurrence": "l1_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1930,7 +1295,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1938,12 +1303,12 @@
           }
         }
       },
-      "decoder.d1_mlp_n.in": {
+      "decoder.l1_moe_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn_r",
+            "occurrence": "l1_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1956,7 +1321,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp_n",
+            "occurrence": "l1_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1971,7 +1336,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -1979,12 +1344,12 @@
           }
         }
       },
-      "decoder.d1_mlp_r.a": {
+      "decoder.l1_moe_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_gdn_r",
+            "occurrence": "l1_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -1997,7 +1362,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp_r",
+            "occurrence": "l1_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2012,7 +1377,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2020,12 +1385,12 @@
           }
         }
       },
-      "decoder.d1_mlp.norm_in": {
+      "decoder.l1_moe.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp_n",
+            "occurrence": "l1_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2038,7 +1403,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp",
+            "occurrence": "l1_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2053,7 +1418,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2061,12 +1426,12 @@
           }
         }
       },
-      "decoder.d1_mlp_r.b": {
+      "decoder.l1_moe_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp",
+            "occurrence": "l1_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2079,7 +1444,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp_r",
+            "occurrence": "l1_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2094,7 +1459,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2102,12 +1467,12 @@
           }
         }
       },
-      "decoder.d2_gdn_n.in": {
+      "decoder.l2_attn_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp_r",
+            "occurrence": "l1_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2120,7 +1485,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn_n",
+            "occurrence": "l2_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2135,7 +1500,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2143,12 +1508,12 @@
           }
         }
       },
-      "decoder.d2_gdn_r.a": {
+      "decoder.l2_attn_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d1_mlp_r",
+            "occurrence": "l1_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2161,7 +1526,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn_r",
+            "occurrence": "l2_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2176,7 +1541,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2184,12 +1549,12 @@
           }
         }
       },
-      "decoder.d2_gdn.norm_in": {
+      "decoder.l2_attn.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn_n",
+            "occurrence": "l2_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2202,7 +1567,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn",
+            "occurrence": "l2_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2217,7 +1582,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2225,12 +1590,12 @@
           }
         }
       },
-      "decoder.d2_gdn_r.b": {
+      "decoder.l2_attn_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn",
+            "occurrence": "l2_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2243,7 +1608,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn_r",
+            "occurrence": "l2_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2258,7 +1623,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2266,12 +1631,12 @@
           }
         }
       },
-      "decoder.d2_mlp_n.in": {
+      "decoder.l2_moe_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn_r",
+            "occurrence": "l2_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2284,7 +1649,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp_n",
+            "occurrence": "l2_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2299,7 +1664,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2307,12 +1672,12 @@
           }
         }
       },
-      "decoder.d2_mlp_r.a": {
+      "decoder.l2_moe_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_gdn_r",
+            "occurrence": "l2_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2325,7 +1690,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp_r",
+            "occurrence": "l2_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2340,7 +1705,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2348,12 +1713,12 @@
           }
         }
       },
-      "decoder.d2_mlp.norm_in": {
+      "decoder.l2_moe.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp_n",
+            "occurrence": "l2_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2366,7 +1731,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp",
+            "occurrence": "l2_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2381,7 +1746,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2389,12 +1754,12 @@
           }
         }
       },
-      "decoder.d2_mlp_r.b": {
+      "decoder.l2_moe_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp",
+            "occurrence": "l2_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2407,7 +1772,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp_r",
+            "occurrence": "l2_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2422,7 +1787,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2430,12 +1795,12 @@
           }
         }
       },
-      "decoder.a_attn_n.in": {
+      "decoder.g_attn_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp_r",
+            "occurrence": "l2_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2448,7 +1813,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn_n",
+            "occurrence": "g_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2463,7 +1828,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2471,12 +1836,12 @@
           }
         }
       },
-      "decoder.a_attn_r.a": {
+      "decoder.g_attn_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d2_mlp_r",
+            "occurrence": "l2_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2489,7 +1854,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn_r",
+            "occurrence": "g_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2504,7 +1869,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2512,12 +1877,12 @@
           }
         }
       },
-      "decoder.a_attn.norm_in": {
+      "decoder.g_attn.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn_n",
+            "occurrence": "g_attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2530,7 +1895,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn",
+            "occurrence": "g_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2545,7 +1910,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2553,12 +1918,12 @@
           }
         }
       },
-      "decoder.a_attn_r.b": {
+      "decoder.g_attn_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn",
+            "occurrence": "g_attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2571,7 +1936,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn_r",
+            "occurrence": "g_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2586,7 +1951,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2594,12 +1959,12 @@
           }
         }
       },
-      "decoder.a_mlp_n.in": {
+      "decoder.g_moe_n.in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn_r",
+            "occurrence": "g_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2612,7 +1977,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp_n",
+            "occurrence": "g_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2627,7 +1992,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2635,12 +2000,12 @@
           }
         }
       },
-      "decoder.a_mlp_r.a": {
+      "decoder.g_moe_r.a": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_attn_r",
+            "occurrence": "g_attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2653,7 +2018,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp_r",
+            "occurrence": "g_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2668,7 +2033,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2676,12 +2041,12 @@
           }
         }
       },
-      "decoder.a_mlp.norm_in": {
+      "decoder.g_moe.norm_in": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp_n",
+            "occurrence": "g_moe_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2694,7 +2059,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp",
+            "occurrence": "g_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2709,7 +2074,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2717,12 +2082,12 @@
           }
         }
       },
-      "decoder.a_mlp_r.b": {
+      "decoder.g_moe_r.b": {
         "from": {
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp",
+            "occurrence": "g_moe",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2735,7 +2100,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp_r",
+            "occurrence": "g_moe_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -2750,7 +2115,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -2762,7 +2127,7 @@
         "from": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "splice"
+            "occurrence": "embed"
           },
           "port": "output"
         },
@@ -2770,7 +2135,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_n",
+            "occurrence": "l0_attn_n",
             "indices": {
               "blk": {
                 "literal": 0
@@ -2784,7 +2149,7 @@
         "from": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "splice"
+            "occurrence": "embed"
           },
           "port": "output"
         },
@@ -2792,7 +2157,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "d0_gdn_r",
+            "occurrence": "l0_attn_r",
             "indices": {
               "blk": {
                 "literal": 0
@@ -2807,13 +2172,13 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "a_mlp_r",
+            "occurrence": "g_moe_r",
             "indices": {
               "blk": {
                 "op": "subtract",
                 "args": [
                   {
-                    "literal": 16
+                    "literal": 12
                   },
                   {
                     "literal": 1
@@ -2847,76 +2212,9 @@
           },
           "port": "input"
         }
-      },
-      "vision_projector.splice": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "vision_projector"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "splice"
-          },
-          "port": "source"
-        }
       }
     },
     "parameters": {
-      "patch_embed.weight": {
-        "tensor": {
-          "name": "patch_embed.weight"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "patch_embed"
-            },
-            "parameter": "weight"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "patch_embed.bias": {
-        "tensor": {
-          "name": "patch_embed.bias"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "patch_embed"
-            },
-            "parameter": "bias"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "patch_embed.position": {
-        "tensor": {
-          "name": "patch_embed.position"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "patch_embed"
-            },
-            "parameter": "position"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
       "embed.weight": {
         "tensor": {
           "name": "embed.weight"
@@ -2968,111 +2266,9 @@
           "quantity": "precision"
         }
       },
-      "vision_projector.norm": {
+      "decoder.l0_attn_n.weight": {
         "tensor": {
-          "name": "vision_projector.norm"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "vision_projector"
-            },
-            "parameter": "norm"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision_projector.norm_bias": {
-        "tensor": {
-          "name": "vision_projector.norm_bias"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "vision_projector"
-            },
-            "parameter": "norm_bias"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision_projector.hidden": {
-        "tensor": {
-          "name": "vision_projector.hidden"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "vision_projector"
-            },
-            "parameter": "hidden"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision_projector.hidden_bias": {
-        "tensor": {
-          "name": "vision_projector.hidden_bias"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "vision_projector"
-            },
-            "parameter": "hidden_bias"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision_projector.output": {
-        "tensor": {
-          "name": "vision_projector.output"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "vision_projector"
-            },
-            "parameter": "output"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision_projector.output_bias": {
-        "tensor": {
-          "name": "vision_projector.output_bias"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "vision_projector"
-            },
-            "parameter": "output_bias"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision.attn_n.weight": {
-        "tensor": {
-          "name": "vision.attn_n.weight",
+          "name": "decoder.l0_attn_n.weight",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3083,8 +2279,8 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn_n",
+              "composition": "decoder",
+              "occurrence": "l0_attn_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3100,7 +2296,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "vit_layers"
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3111,9 +2307,9 @@
           "quantity": "precision"
         }
       },
-      "vision.attn_n.bias": {
+      "decoder.l0_attn.qkv": {
         "tensor": {
-          "name": "vision.attn_n.bias",
+          "name": "decoder.l0_attn.qkv",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3124,49 +2320,8 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn_n",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision.attn.qkv": {
-        "tensor": {
-          "name": "vision.attn.qkv",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn",
+              "composition": "decoder",
+              "occurrence": "l0_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3182,7 +2337,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "vit_layers"
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3193,9 +2348,9 @@
           "quantity": "precision"
         }
       },
-      "vision.attn.out": {
+      "decoder.l0_attn.out": {
         "tensor": {
-          "name": "vision.attn.out",
+          "name": "decoder.l0_attn.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3206,8 +2361,8 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn",
+              "composition": "decoder",
+              "occurrence": "l0_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3223,7 +2378,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "vit_layers"
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3234,9 +2389,9 @@
           "quantity": "precision"
         }
       },
-      "vision.attn.q_bias": {
+      "decoder.l0_moe_n.weight": {
         "tensor": {
-          "name": "vision.attn.q_bias",
+          "name": "decoder.l0_moe_n.weight",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3247,172 +2402,8 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "q_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision.attn.k_bias": {
-        "tensor": {
-          "name": "vision.attn.k_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "k_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision.attn.v_bias": {
-        "tensor": {
-          "name": "vision.attn.v_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "v_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision.attn.out_bias": {
-        "tensor": {
-          "name": "vision.attn.out_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "vision",
-              "occurrence": "attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision.ffn_n.weight": {
-        "tensor": {
-          "name": "vision.ffn_n.weight",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "vision",
-              "occurrence": "ffn_n",
+              "composition": "decoder",
+              "occurrence": "l0_moe_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3428,7 +2419,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "vit_layers"
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3439,9 +2430,9 @@
           "quantity": "precision"
         }
       },
-      "vision.ffn_n.bias": {
+      "decoder.l0_moe.router": {
         "tensor": {
-          "name": "vision.ffn_n.bias",
+          "name": "decoder.l0_moe.router",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3452,15 +2443,15 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "vision",
-              "occurrence": "ffn_n",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
                 }
               }
             },
-            "parameter": "bias"
+            "parameter": "router"
           }
         ],
         "for_each": {
@@ -3469,7 +2460,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "vit_layers"
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3480,9 +2471,9 @@
           "quantity": "precision"
         }
       },
-      "vision.ffn.in": {
+      "decoder.l0_moe.in": {
         "tensor": {
-          "name": "vision.ffn.in",
+          "name": "decoder.l0_moe.in",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3493,8 +2484,8 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "vision",
-              "occurrence": "ffn",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3510,7 +2501,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "vit_layers"
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3521,9 +2512,9 @@
           "quantity": "precision"
         }
       },
-      "vision.ffn.out": {
+      "decoder.l0_moe.out": {
         "tensor": {
-          "name": "vision.ffn.out",
+          "name": "decoder.l0_moe.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3534,8 +2525,8 @@
           {
             "occurrence": {
               "kind": "generated",
-              "composition": "vision",
-              "occurrence": "ffn",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3551,7 +2542,7 @@
               "literal": 0
             },
             "stop": {
-              "quantity": "vit_layers"
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3562,91 +2553,9 @@
           "quantity": "precision"
         }
       },
-      "vision.ffn.in_bias": {
+      "decoder.l0_moe.shared_in": {
         "tensor": {
-          "name": "vision.ffn.in_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "vision",
-              "occurrence": "ffn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "in_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "vision.ffn.out_bias": {
-        "tensor": {
-          "name": "vision.ffn.out_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "vision",
-              "occurrence": "ffn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "quantity": "vit_layers"
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d0_gdn_n.weight": {
-        "tensor": {
-          "name": "decoder.d0_gdn_n.weight",
+          "name": "decoder.l0_moe.shared_in",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3658,7 +2567,89 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_gdn_n",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe.shared_out": {
+        "tensor": {
+          "name": "decoder.l0_moe.shared_out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_attn_n.weight": {
+        "tensor": {
+          "name": "decoder.l1_attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_attn_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3674,7 +2665,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3685,9 +2676,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d0_gdn.qkv": {
+      "decoder.l1_attn.qkv": {
         "tensor": {
-          "name": "decoder.d0_gdn.qkv",
+          "name": "decoder.l1_attn.qkv",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3699,7 +2690,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_gdn",
+              "occurrence": "l1_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -3715,7 +2706,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -3726,9 +2717,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d0_gdn.z": {
+      "decoder.l1_attn.out": {
         "tensor": {
-          "name": "decoder.d0_gdn.z",
+          "name": "decoder.l1_attn.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3740,292 +2731,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "z"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d0_gdn.b": {
-        "tensor": {
-          "name": "decoder.d0_gdn.b",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d0_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "b"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d0_gdn.a": {
-        "tensor": {
-          "name": "decoder.d0_gdn.a",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d0_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "a"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d0_gdn.conv_weight": {
-        "tensor": {
-          "name": "decoder.d0_gdn.conv_weight",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d0_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "conv_weight"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d0_gdn.dt_bias": {
-        "tensor": {
-          "name": "decoder.d0_gdn.dt_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d0_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "dt_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d0_gdn.A_log": {
-        "tensor": {
-          "name": "decoder.d0_gdn.A_log",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d0_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "A_log"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": "f32"
-      },
-      "decoder.d0_gdn.norm": {
-        "tensor": {
-          "name": "decoder.d0_gdn.norm",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d0_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "norm"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d0_gdn.out": {
-        "tensor": {
-          "name": "decoder.d0_gdn.out",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d0_gdn",
+              "occurrence": "l1_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4041,7 +2747,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4052,9 +2758,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d0_mlp_n.weight": {
+      "decoder.l1_moe_n.weight": {
         "tensor": {
-          "name": "decoder.d0_mlp_n.weight",
+          "name": "decoder.l1_moe_n.weight",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4066,7 +2772,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_mlp_n",
+              "occurrence": "l1_moe_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4082,7 +2788,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4093,9 +2799,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d0_mlp.in": {
+      "decoder.l1_moe.router": {
         "tensor": {
-          "name": "decoder.d0_mlp.in",
+          "name": "decoder.l1_moe.router",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4107,7 +2813,48 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_mlp",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "router"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.in": {
+        "tensor": {
+          "name": "decoder.l1_moe.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4123,7 +2870,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4134,9 +2881,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d0_mlp.out": {
+      "decoder.l1_moe.out": {
         "tensor": {
-          "name": "decoder.d0_mlp.out",
+          "name": "decoder.l1_moe.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4148,7 +2895,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_mlp",
+              "occurrence": "l1_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4164,7 +2911,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4175,9 +2922,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d1_gdn_n.weight": {
+      "decoder.l1_moe.shared_in": {
         "tensor": {
-          "name": "decoder.d1_gdn_n.weight",
+          "name": "decoder.l1_moe.shared_in",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4189,7 +2936,89 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d1_gdn_n",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.shared_out": {
+        "tensor": {
+          "name": "decoder.l1_moe.shared_out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_attn_n.weight": {
+        "tensor": {
+          "name": "decoder.l2_attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_attn_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4205,7 +3034,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4216,9 +3045,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d1_gdn.qkv": {
+      "decoder.l2_attn.qkv": {
         "tensor": {
-          "name": "decoder.d1_gdn.qkv",
+          "name": "decoder.l2_attn.qkv",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4230,7 +3059,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d1_gdn",
+              "occurrence": "l2_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4246,7 +3075,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4257,9 +3086,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d1_gdn.z": {
+      "decoder.l2_attn.out": {
         "tensor": {
-          "name": "decoder.d1_gdn.z",
+          "name": "decoder.l2_attn.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4271,292 +3100,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "z"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d1_gdn.b": {
-        "tensor": {
-          "name": "decoder.d1_gdn.b",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "b"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d1_gdn.a": {
-        "tensor": {
-          "name": "decoder.d1_gdn.a",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "a"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d1_gdn.conv_weight": {
-        "tensor": {
-          "name": "decoder.d1_gdn.conv_weight",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "conv_weight"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d1_gdn.dt_bias": {
-        "tensor": {
-          "name": "decoder.d1_gdn.dt_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "dt_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d1_gdn.A_log": {
-        "tensor": {
-          "name": "decoder.d1_gdn.A_log",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "A_log"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": "f32"
-      },
-      "decoder.d1_gdn.norm": {
-        "tensor": {
-          "name": "decoder.d1_gdn.norm",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "norm"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d1_gdn.out": {
-        "tensor": {
-          "name": "decoder.d1_gdn.out",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
+              "occurrence": "l2_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4572,7 +3116,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4583,9 +3127,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d1_mlp_n.weight": {
+      "decoder.l2_moe_n.weight": {
         "tensor": {
-          "name": "decoder.d1_mlp_n.weight",
+          "name": "decoder.l2_moe_n.weight",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4597,7 +3141,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d1_mlp_n",
+              "occurrence": "l2_moe_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4613,7 +3157,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4624,9 +3168,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d1_mlp.in": {
+      "decoder.l2_moe.router": {
         "tensor": {
-          "name": "decoder.d1_mlp.in",
+          "name": "decoder.l2_moe.router",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4638,7 +3182,48 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d1_mlp",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "router"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.in": {
+        "tensor": {
+          "name": "decoder.l2_moe.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4654,7 +3239,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4665,9 +3250,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d1_mlp.out": {
+      "decoder.l2_moe.out": {
         "tensor": {
-          "name": "decoder.d1_mlp.out",
+          "name": "decoder.l2_moe.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4679,7 +3264,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d1_mlp",
+              "occurrence": "l2_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4695,7 +3280,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4706,9 +3291,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d2_gdn_n.weight": {
+      "decoder.l2_moe.shared_in": {
         "tensor": {
-          "name": "decoder.d2_gdn_n.weight",
+          "name": "decoder.l2_moe.shared_in",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4720,7 +3305,89 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d2_gdn_n",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.shared_out": {
+        "tensor": {
+          "name": "decoder.l2_moe.shared_out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_attn_n.weight": {
+        "tensor": {
+          "name": "decoder.g_attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_attn_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4736,7 +3403,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4747,9 +3414,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d2_gdn.qkv": {
+      "decoder.g_attn.qkv": {
         "tensor": {
-          "name": "decoder.d2_gdn.qkv",
+          "name": "decoder.g_attn.qkv",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4761,7 +3428,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d2_gdn",
+              "occurrence": "g_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -4777,7 +3444,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -4788,9 +3455,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d2_gdn.z": {
+      "decoder.g_attn.out": {
         "tensor": {
-          "name": "decoder.d2_gdn.z",
+          "name": "decoder.g_attn.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -4802,292 +3469,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "z"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d2_gdn.b": {
-        "tensor": {
-          "name": "decoder.d2_gdn.b",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "b"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d2_gdn.a": {
-        "tensor": {
-          "name": "decoder.d2_gdn.a",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "a"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d2_gdn.conv_weight": {
-        "tensor": {
-          "name": "decoder.d2_gdn.conv_weight",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "conv_weight"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d2_gdn.dt_bias": {
-        "tensor": {
-          "name": "decoder.d2_gdn.dt_bias",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "dt_bias"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d2_gdn.A_log": {
-        "tensor": {
-          "name": "decoder.d2_gdn.A_log",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "A_log"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": "f32"
-      },
-      "decoder.d2_gdn.norm": {
-        "tensor": {
-          "name": "decoder.d2_gdn.norm",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "norm"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.d2_gdn.out": {
-        "tensor": {
-          "name": "decoder.d2_gdn.out",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
+              "occurrence": "g_attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -5103,7 +3485,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5114,9 +3496,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d2_mlp_n.weight": {
+      "decoder.g_moe_n.weight": {
         "tensor": {
-          "name": "decoder.d2_mlp_n.weight",
+          "name": "decoder.g_moe_n.weight",
           "indices": {
             "blk": {
               "index": "blk"
@@ -5128,7 +3510,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d2_mlp_n",
+              "occurrence": "g_moe_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -5144,7 +3526,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5155,9 +3537,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d2_mlp.in": {
+      "decoder.g_moe.router": {
         "tensor": {
-          "name": "decoder.d2_mlp.in",
+          "name": "decoder.g_moe.router",
           "indices": {
             "blk": {
               "index": "blk"
@@ -5169,7 +3551,48 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d2_mlp",
+              "occurrence": "g_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "router"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe.in": {
+        "tensor": {
+          "name": "decoder.g_moe.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -5185,7 +3608,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5196,9 +3619,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.d2_mlp.out": {
+      "decoder.g_moe.out": {
         "tensor": {
-          "name": "decoder.d2_mlp.out",
+          "name": "decoder.g_moe.out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -5210,7 +3633,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d2_mlp",
+              "occurrence": "g_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -5226,7 +3649,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5237,9 +3660,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.a_attn_n.weight": {
+      "decoder.g_moe.shared_in": {
         "tensor": {
-          "name": "decoder.a_attn_n.weight",
+          "name": "decoder.g_moe.shared_in",
           "indices": {
             "blk": {
               "index": "blk"
@@ -5251,14 +3674,14 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "a_attn_n",
+              "occurrence": "g_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
                 }
               }
             },
-            "parameter": "weight"
+            "parameter": "shared_in"
           }
         ],
         "for_each": {
@@ -5267,7 +3690,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5278,9 +3701,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.a_attn.qkv": {
+      "decoder.g_moe.shared_out": {
         "tensor": {
-          "name": "decoder.a_attn.qkv",
+          "name": "decoder.g_moe.shared_out",
           "indices": {
             "blk": {
               "index": "blk"
@@ -5292,14 +3715,14 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "a_attn",
+              "occurrence": "g_moe",
               "indices": {
                 "blk": {
                   "index": "blk"
                 }
               }
             },
-            "parameter": "qkv"
+            "parameter": "shared_out"
           }
         ],
         "for_each": {
@@ -5308,294 +3731,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.a_attn.out": {
-        "tensor": {
-          "name": "decoder.a_attn.out",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "a_attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.a_attn.q_gate": {
-        "tensor": {
-          "name": "decoder.a_attn.q_gate",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "a_attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "q_gate"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.a_attn.q_norm": {
-        "tensor": {
-          "name": "decoder.a_attn.q_norm",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "a_attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "q_norm"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.a_attn.k_norm": {
-        "tensor": {
-          "name": "decoder.a_attn.k_norm",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "a_attn",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "k_norm"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.a_mlp_n.weight": {
-        "tensor": {
-          "name": "decoder.a_mlp_n.weight",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "a_mlp_n",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "weight"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.a_mlp.in": {
-        "tensor": {
-          "name": "decoder.a_mlp.in",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "a_mlp",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "in"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        },
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "decoder.a_mlp.out": {
-        "tensor": {
-          "name": "decoder.a_mlp.out",
-          "indices": {
-            "blk": {
-              "index": "blk"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "a_mlp",
-              "indices": {
-                "blk": {
-                  "index": "blk"
-                }
-              }
-            },
-            "parameter": "out"
-          }
-        ],
-        "for_each": {
-          "blk": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5609,9 +3745,9 @@
     },
     "constants": {},
     "states": {
-      "decoder.a_attn.kv": {
+      "decoder.g_attn.kv": {
         "identity": {
-          "name": "decoder.a_attn.kv",
+          "name": "decoder.g_attn.kv",
           "indices": {
             "layer": {
               "index": "i"
@@ -5623,7 +3759,7 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "a_attn",
+              "occurrence": "g_attn",
               "indices": {
                 "blk": {
                   "index": "i"
@@ -5639,7 +3775,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5647,9 +3783,9 @@
           }
         }
       },
-      "decoder.d0_gdn.recurrent": {
+      "decoder.l0_attn.kv": {
         "identity": {
-          "name": "decoder.d0_gdn.recurrent",
+          "name": "decoder.l0_attn.kv",
           "indices": {
             "layer": {
               "index": "i"
@@ -5661,14 +3797,14 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_gdn",
+              "occurrence": "l0_attn",
               "indices": {
                 "blk": {
                   "index": "i"
                 }
               }
             },
-            "state": "recurrent"
+            "state": "kv"
           }
         ],
         "for_each": {
@@ -5677,7 +3813,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5685,9 +3821,9 @@
           }
         }
       },
-      "decoder.d0_gdn.conv": {
+      "decoder.l1_attn.kv": {
         "identity": {
-          "name": "decoder.d0_gdn.conv",
+          "name": "decoder.l1_attn.kv",
           "indices": {
             "layer": {
               "index": "i"
@@ -5699,14 +3835,14 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d0_gdn",
+              "occurrence": "l1_attn",
               "indices": {
                 "blk": {
                   "index": "i"
                 }
               }
             },
-            "state": "conv"
+            "state": "kv"
           }
         ],
         "for_each": {
@@ -5715,7 +3851,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5723,9 +3859,9 @@
           }
         }
       },
-      "decoder.d1_gdn.recurrent": {
+      "decoder.l2_attn.kv": {
         "identity": {
-          "name": "decoder.d1_gdn.recurrent",
+          "name": "decoder.l2_attn.kv",
           "indices": {
             "layer": {
               "index": "i"
@@ -5737,14 +3873,14 @@
             "occurrence": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "d1_gdn",
+              "occurrence": "l2_attn",
               "indices": {
                 "blk": {
                   "index": "i"
                 }
               }
             },
-            "state": "recurrent"
+            "state": "kv"
           }
         ],
         "for_each": {
@@ -5753,121 +3889,7 @@
               "literal": 0
             },
             "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "decoder.d1_gdn.conv": {
-        "identity": {
-          "name": "decoder.d1_gdn.conv",
-          "indices": {
-            "layer": {
-              "index": "i"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d1_gdn",
-              "indices": {
-                "blk": {
-                  "index": "i"
-                }
-              }
-            },
-            "state": "conv"
-          }
-        ],
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "decoder.d2_gdn.recurrent": {
-        "identity": {
-          "name": "decoder.d2_gdn.recurrent",
-          "indices": {
-            "layer": {
-              "index": "i"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "i"
-                }
-              }
-            },
-            "state": "recurrent"
-          }
-        ],
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
-            },
-            "step": {
-              "literal": 1
-            }
-          }
-        }
-      },
-      "decoder.d2_gdn.conv": {
-        "identity": {
-          "name": "decoder.d2_gdn.conv",
-          "indices": {
-            "layer": {
-              "index": "i"
-            }
-          }
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "generated",
-              "composition": "decoder",
-              "occurrence": "d2_gdn",
-              "indices": {
-                "blk": {
-                  "index": "i"
-                }
-              }
-            },
-            "state": "conv"
-          }
-        ],
-        "for_each": {
-          "i": {
-            "start": {
-              "literal": 0
-            },
-            "stop": {
-              "literal": 16
+              "literal": 12
             },
             "step": {
               "literal": 1
@@ -5879,19 +3901,6 @@
   },
   "interfaces": {
     "inputs": {
-      "pixels": {
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "patch_embed"
-          },
-          "port": "pixels"
-        },
-        "domain": {
-          "kind": "patch",
-          "source": "self"
-        }
-      },
       "tokens": {
         "to": {
           "occurrence": {

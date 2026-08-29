@@ -1,6 +1,6 @@
 {
   "schema": "armature/2.0",
-  "model": "rejection-structural-unknown-field",
+  "model": "rejection-structural-context-expression",
   "catalog": [
     {
       "base": "catalog/"
@@ -203,7 +203,7 @@
               "quantity": "d"
             },
             "heads": {
-              "quantity": "heads"
+              "context": "analysis.heads"
             },
             "kv_heads": {
               "quantity": "kv_heads"
@@ -1107,6 +1107,5 @@
         "generative": true
       }
     }
-  },
-  "kernels": {}
+  }
 }

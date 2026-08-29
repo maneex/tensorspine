@@ -1,6 +1,6 @@
 {
   "schema": "armature/2.0",
-  "model": "rejection-structural-unknown-field",
+  "model": "rejection-structural-state-liveness-declared",
   "catalog": [
     {
       "base": "catalog/"
@@ -1071,6 +1071,11 @@
               "literal": 1
             }
           }
+        },
+        "liveness": {
+          "classes_by": [
+            "layer"
+          ]
         }
       }
     }
@@ -1107,6 +1112,5 @@
         "generative": true
       }
     }
-  },
-  "kernels": {}
+  }
 }

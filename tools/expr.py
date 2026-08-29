@@ -8,8 +8,8 @@ There are two evaluators here, and they do not read the same thing:
   * `model_value` / `model_condition` evaluate a MODEL expression against the
     document's quantities and the composition indices currently in scope.
 
-`UNRESOLVED` marks a value that cannot be decided statically: a context
-quantity, or an external one that no assignment supplies. It is not an error
+`UNRESOLVED` marks a value that cannot be decided statically: an external
+quantity that no assignment supplies, or an operand that was refused. It is not an error
 by itself — each caller decides whether an unresolved value is acceptable at
 that point. What is forbidden is deciding silently, so the sentinel is
 propagated rather than replaced by a guess (I7).
@@ -66,7 +66,6 @@ def _apply_raw(op, a):
 def contract_value(e, args):
     """Value of a contract expression against resolved arguments."""
     if 'literal' in e: return e['literal']
-    if 'context' in e: return UNRESOLVED
     if 'argument' in e:
         cur = args
         for part in e['argument'].split('.'):
@@ -137,7 +136,6 @@ def model_value(e, quantities, env=None):
     if 'literal' in e: return e['literal']
     if 'quantity' in e: return quantities.get(e['quantity'], UNRESOLVED)
     if 'index' in e: return env.get(e['index'], UNRESOLVED)
-    if 'context' in e: return UNRESOLVED
     if 'op' in e:
         a = [model_value(x, quantities, env) for x in e['args']]
         if UNRESOLVED in a: return UNRESOLVED

@@ -70,6 +70,11 @@
       "base": "catalog/template-id-mismatch",
       "match": "declares model id 'decoder_causal_yarn', the contract says 'something_else'",
       "note": "The template's model id and the contract's disagree."
+    },
+    {
+      "base": "catalog/context-in-contract",
+      "match": "definition/state_ports/kv/rules",
+      "note": "A contract reading an undeclared analysis fact: there is no context namespace; a span is an argument (§4.4)."
     }
   ]
 }
