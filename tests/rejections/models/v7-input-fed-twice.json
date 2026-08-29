@@ -459,11 +459,33 @@
               "quantity": "precision"
             }
           },
-          "attn.qkv": {
+          "attn.q": {
             "members": [
               {
                 "site": "attn",
-                "parameter": "qkv"
+                "parameter": "q"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.v": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "v"
               }
             ],
             "dtype": {
@@ -492,11 +514,22 @@
               "quantity": "precision"
             }
           },
-          "ffn.in": {
+          "ffn.gate": {
             "members": [
               {
                 "site": "ffn",
-                "parameter": "in"
+                "parameter": "gate"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn.up": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "up"
               }
             ],
             "dtype": {

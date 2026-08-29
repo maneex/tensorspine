@@ -837,9 +837,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.attn.qkv": {
+      "decoder.attn.q": {
         "tensor": {
-          "name": "decoder.attn.qkv",
+          "name": "decoder.attn.q",
           "indices": {
             "blk": {
               "index": "blk"
@@ -858,7 +858,89 @@
                 }
               }
             },
-            "parameter": "qkv"
+            "parameter": "q"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.attn.k": {
+        "tensor": {
+          "name": "decoder.attn.k",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "k"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.attn.v": {
+        "tensor": {
+          "name": "decoder.attn.v",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "v"
           }
         ],
         "for_each": {
@@ -960,9 +1042,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.ffn.in": {
+      "decoder.ffn.gate": {
         "tensor": {
-          "name": "decoder.ffn.in",
+          "name": "decoder.ffn.gate",
           "indices": {
             "blk": {
               "index": "blk"
@@ -981,7 +1063,48 @@
                 }
               }
             },
-            "parameter": "in"
+            "parameter": "gate"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.ffn.up": {
+        "tensor": {
+          "name": "decoder.ffn.up",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "ffn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "up"
           }
         ],
         "for_each": {

@@ -2321,9 +2321,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.l0_attn.qkv": {
+      "decoder.l0_attn.q": {
         "tensor": {
-          "name": "decoder.l0_attn.qkv",
+          "name": "decoder.l0_attn.q",
           "indices": {
             "blk": {
               "index": "blk"
@@ -2342,7 +2342,89 @@
                 }
               }
             },
-            "parameter": "qkv"
+            "parameter": "q"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_attn.k": {
+        "tensor": {
+          "name": "decoder.l0_attn.k",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "k"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_attn.v": {
+        "tensor": {
+          "name": "decoder.l0_attn.v",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "v"
           }
         ],
         "for_each": {
@@ -2567,9 +2649,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.l0_moe.shared_in": {
+      "decoder.l0_moe.shared_gate": {
         "tensor": {
-          "name": "decoder.l0_moe.shared_in",
+          "name": "decoder.l0_moe.shared_gate",
           "indices": {
             "blk": {
               "index": "blk"
@@ -2588,7 +2670,48 @@
                 }
               }
             },
-            "parameter": "shared_in"
+            "parameter": "shared_gate"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l0_moe.shared_up": {
+        "tensor": {
+          "name": "decoder.l0_moe.shared_up",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l0_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_up"
           }
         ],
         "for_each": {
@@ -2690,9 +2813,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.l1_attn.qkv": {
+      "decoder.l1_attn.q": {
         "tensor": {
-          "name": "decoder.l1_attn.qkv",
+          "name": "decoder.l1_attn.q",
           "indices": {
             "blk": {
               "index": "blk"
@@ -2711,7 +2834,89 @@
                 }
               }
             },
-            "parameter": "qkv"
+            "parameter": "q"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_attn.k": {
+        "tensor": {
+          "name": "decoder.l1_attn.k",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "k"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_attn.v": {
+        "tensor": {
+          "name": "decoder.l1_attn.v",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "v"
           }
         ],
         "for_each": {
@@ -2936,9 +3141,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.l1_moe.shared_in": {
+      "decoder.l1_moe.shared_gate": {
         "tensor": {
-          "name": "decoder.l1_moe.shared_in",
+          "name": "decoder.l1_moe.shared_gate",
           "indices": {
             "blk": {
               "index": "blk"
@@ -2957,7 +3162,48 @@
                 }
               }
             },
-            "parameter": "shared_in"
+            "parameter": "shared_gate"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l1_moe.shared_up": {
+        "tensor": {
+          "name": "decoder.l1_moe.shared_up",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l1_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_up"
           }
         ],
         "for_each": {
@@ -3059,9 +3305,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.l2_attn.qkv": {
+      "decoder.l2_attn.q": {
         "tensor": {
-          "name": "decoder.l2_attn.qkv",
+          "name": "decoder.l2_attn.q",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3080,7 +3326,89 @@
                 }
               }
             },
-            "parameter": "qkv"
+            "parameter": "q"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_attn.k": {
+        "tensor": {
+          "name": "decoder.l2_attn.k",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "k"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_attn.v": {
+        "tensor": {
+          "name": "decoder.l2_attn.v",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "v"
           }
         ],
         "for_each": {
@@ -3305,9 +3633,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.l2_moe.shared_in": {
+      "decoder.l2_moe.shared_gate": {
         "tensor": {
-          "name": "decoder.l2_moe.shared_in",
+          "name": "decoder.l2_moe.shared_gate",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3326,7 +3654,48 @@
                 }
               }
             },
-            "parameter": "shared_in"
+            "parameter": "shared_gate"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.l2_moe.shared_up": {
+        "tensor": {
+          "name": "decoder.l2_moe.shared_up",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "l2_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_up"
           }
         ],
         "for_each": {
@@ -3428,9 +3797,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.g_attn.qkv": {
+      "decoder.g_attn.q": {
         "tensor": {
-          "name": "decoder.g_attn.qkv",
+          "name": "decoder.g_attn.q",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3449,7 +3818,89 @@
                 }
               }
             },
-            "parameter": "qkv"
+            "parameter": "q"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_attn.k": {
+        "tensor": {
+          "name": "decoder.g_attn.k",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "k"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_attn.v": {
+        "tensor": {
+          "name": "decoder.g_attn.v",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "v"
           }
         ],
         "for_each": {
@@ -3674,9 +4125,9 @@
           "quantity": "precision"
         }
       },
-      "decoder.g_moe.shared_in": {
+      "decoder.g_moe.shared_gate": {
         "tensor": {
-          "name": "decoder.g_moe.shared_in",
+          "name": "decoder.g_moe.shared_gate",
           "indices": {
             "blk": {
               "index": "blk"
@@ -3695,7 +4146,48 @@
                 }
               }
             },
-            "parameter": "shared_in"
+            "parameter": "shared_gate"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "literal": 12
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.g_moe.shared_up": {
+        "tensor": {
+          "name": "decoder.g_moe.shared_up",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "g_moe",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "shared_up"
           }
         ],
         "for_each": {

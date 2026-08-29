@@ -1146,9 +1146,9 @@
           "quantity": "precision"
         }
       },
-      "vision.attn.qkv": {
+      "vision.attn.q": {
         "tensor": {
-          "name": "vision.attn.qkv",
+          "name": "vision.attn.q",
           "indices": {
             "blk": {
               "index": "blk"
@@ -1167,7 +1167,89 @@
                 }
               }
             },
-            "parameter": "qkv"
+            "parameter": "q"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.attn.k": {
+        "tensor": {
+          "name": "vision.attn.k",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "k"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.attn.v": {
+        "tensor": {
+          "name": "vision.attn.v",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "v"
           }
         ],
         "for_each": {
@@ -1269,9 +1351,9 @@
           "quantity": "precision"
         }
       },
-      "vision.ffn.in": {
+      "vision.ffn.gate": {
         "tensor": {
-          "name": "vision.ffn.in",
+          "name": "vision.ffn.gate",
           "indices": {
             "blk": {
               "index": "blk"
@@ -1290,7 +1372,48 @@
                 }
               }
             },
-            "parameter": "in"
+            "parameter": "gate"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "vit_layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "vision.ffn.up": {
+        "tensor": {
+          "name": "vision.ffn.up",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "vision",
+              "occurrence": "ffn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "up"
           }
         ],
         "for_each": {
