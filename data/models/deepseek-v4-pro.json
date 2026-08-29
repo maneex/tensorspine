@@ -1331,11 +1331,20 @@
             ],
             "dtype": "fp4"
           },
-          "moe.shared_in": {
+          "moe.shared_gate": {
             "members": [
               {
                 "site": "moe",
-                "parameter": "shared_in"
+                "parameter": "shared_gate"
+              }
+            ],
+            "dtype": "f8e4m3"
+          },
+          "moe.shared_up": {
+            "members": [
+              {
+                "site": "moe",
+                "parameter": "shared_up"
               }
             ],
             "dtype": "f8e4m3"
@@ -2099,11 +2108,20 @@
             ],
             "dtype": "fp4"
           },
-          "hca_moe.shared_in": {
+          "hca_moe.shared_gate": {
             "members": [
               {
                 "site": "hca_moe",
-                "parameter": "shared_in"
+                "parameter": "shared_gate"
+              }
+            ],
+            "dtype": "f8e4m3"
+          },
+          "hca_moe.shared_up": {
+            "members": [
+              {
+                "site": "hca_moe",
+                "parameter": "shared_up"
               }
             ],
             "dtype": "f8e4m3"
@@ -2676,11 +2694,20 @@
             ],
             "dtype": "fp4"
           },
-          "csa_moe.shared_in": {
+          "csa_moe.shared_gate": {
             "members": [
               {
                 "site": "csa_moe",
-                "parameter": "shared_in"
+                "parameter": "shared_gate"
+              }
+            ],
+            "dtype": "f8e4m3"
+          },
+          "csa_moe.shared_up": {
+            "members": [
+              {
+                "site": "csa_moe",
+                "parameter": "shared_up"
               }
             ],
             "dtype": "f8e4m3"
@@ -3678,9 +3705,9 @@
         ],
         "dtype": "fp4"
       },
-      "mtp.moe.shared_in": {
+      "mtp.moe.shared_gate": {
         "tensor": {
-          "name": "mtp.moe.shared_in"
+          "name": "mtp.moe.shared_gate"
         },
         "members": [
           {
@@ -3688,7 +3715,22 @@
               "kind": "root",
               "occurrence": "mtp_moe"
             },
-            "parameter": "shared_in"
+            "parameter": "shared_gate"
+          }
+        ],
+        "dtype": "f8e4m3"
+      },
+      "mtp.moe.shared_up": {
+        "tensor": {
+          "name": "mtp.moe.shared_up"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "mtp_moe"
+            },
+            "parameter": "shared_up"
           }
         ],
         "dtype": "f8e4m3"

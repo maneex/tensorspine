@@ -317,6 +317,9 @@
         },
         "eps": {
           "quantity": "eps"
+        },
+        "zero_centered": {
+          "literal": true
         }
       },
       "families": [
@@ -393,6 +396,9 @@
             },
             "eps": {
               "quantity": "eps"
+            },
+            "zero_centered": {
+              "literal": true
             }
           },
           "families": [
@@ -565,6 +571,9 @@
             },
             "eps": {
               "quantity": "eps"
+            },
+            "zero_centered": {
+              "literal": true
             }
           },
           "families": [
@@ -616,6 +625,9 @@
             },
             "eps": {
               "quantity": "eps"
+            },
+            "zero_centered": {
+              "literal": true
             }
           },
           "families": [
@@ -704,6 +716,9 @@
               "literal": true
             },
             "qk_norm_weight": {
+              "literal": true
+            },
+            "qk_norm_zero_centered": {
               "literal": true
             }
           },
@@ -1207,11 +1222,22 @@
               "quantity": "precision"
             }
           },
-          "mlp.in": {
+          "mlp.gate": {
             "members": [
               {
                 "site": "mlp",
-                "parameter": "in"
+                "parameter": "gate"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "mlp.up": {
+            "members": [
+              {
+                "site": "mlp",
+                "parameter": "up"
               }
             ],
             "dtype": {
@@ -1240,11 +1266,33 @@
               "quantity": "precision"
             }
           },
-          "attn.qkv": {
+          "attn.q_gated": {
             "members": [
               {
                 "site": "attn",
-                "parameter": "qkv"
+                "parameter": "q_gated"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.v": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "v"
               }
             ],
             "dtype": {
@@ -1256,17 +1304,6 @@
               {
                 "site": "attn",
                 "parameter": "out"
-              }
-            ],
-            "dtype": {
-              "quantity": "precision"
-            }
-          },
-          "attn.q_gate": {
-            "members": [
-              {
-                "site": "attn",
-                "parameter": "q_gate"
               }
             ],
             "dtype": {
@@ -1623,11 +1660,33 @@
               "quantity": "precision"
             }
           },
-          "attn.qkv": {
+          "attn.q": {
             "members": [
               {
                 "site": "attn",
-                "parameter": "qkv"
+                "parameter": "q"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.v": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "v"
               }
             ],
             "dtype": {

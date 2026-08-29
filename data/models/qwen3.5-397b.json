@@ -347,6 +347,9 @@
         },
         "eps": {
           "quantity": "eps"
+        },
+        "zero_centered": {
+          "literal": true
         }
       },
       "families": [
@@ -423,6 +426,9 @@
             },
             "eps": {
               "quantity": "eps"
+            },
+            "zero_centered": {
+              "literal": true
             }
           },
           "families": [
@@ -595,6 +601,9 @@
             },
             "eps": {
               "quantity": "eps"
+            },
+            "zero_centered": {
+              "literal": true
             }
           },
           "families": [
@@ -628,7 +637,7 @@
             "routing": {
               "literal": "learned"
             },
-            "shared_gate": {
+            "shared_output_gate": {
               "literal": true
             }
           },
@@ -661,6 +670,9 @@
             },
             "eps": {
               "quantity": "eps"
+            },
+            "zero_centered": {
+              "literal": true
             }
           },
           "families": [
@@ -749,6 +761,9 @@
               "literal": true
             },
             "qk_norm_weight": {
+              "literal": true
+            },
+            "qk_norm_zero_centered": {
               "literal": true
             }
           },
@@ -1285,11 +1300,22 @@
               "quantity": "precision"
             }
           },
-          "mlp.shared_in": {
+          "mlp.shared_gate": {
             "members": [
               {
                 "site": "mlp",
-                "parameter": "shared_in"
+                "parameter": "shared_gate"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "mlp.shared_up": {
+            "members": [
+              {
+                "site": "mlp",
+                "parameter": "shared_up"
               }
             ],
             "dtype": {
@@ -1307,11 +1333,11 @@
               "quantity": "precision"
             }
           },
-          "mlp.shared_gate": {
+          "mlp.shared_output_gate": {
             "members": [
               {
                 "site": "mlp",
-                "parameter": "shared_gate"
+                "parameter": "shared_output_gate"
               }
             ],
             "dtype": {
@@ -1329,11 +1355,33 @@
               "quantity": "precision"
             }
           },
-          "attn.qkv": {
+          "attn.q_gated": {
             "members": [
               {
                 "site": "attn",
-                "parameter": "qkv"
+                "parameter": "q_gated"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.v": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "v"
               }
             ],
             "dtype": {
@@ -1345,17 +1393,6 @@
               {
                 "site": "attn",
                 "parameter": "out"
-              }
-            ],
-            "dtype": {
-              "quantity": "precision"
-            }
-          },
-          "attn.q_gate": {
-            "members": [
-              {
-                "site": "attn",
-                "parameter": "q_gate"
               }
             ],
             "dtype": {
@@ -1712,11 +1749,33 @@
               "quantity": "precision"
             }
           },
-          "attn.qkv": {
+          "attn.q": {
             "members": [
               {
                 "site": "attn",
-                "parameter": "qkv"
+                "parameter": "q"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.v": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "v"
               }
             ],
             "dtype": {
