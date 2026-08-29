@@ -50,9 +50,11 @@ def defaults():
     then omits `eps` at the call site and must pass."""
     tmp = tempfile.mkdtemp(prefix='tensorspine-templates-')
     try:
-        for name in ('decoder-causal-yarn.json', 'shieldstral-3b-composite.json'):
-            shutil.copy(os.path.join(MODELS, name), tmp)
-        path = os.path.join(tmp, 'decoder-causal-yarn.json')
+        os.makedirs(os.path.join(tmp, 'decoder-causal-yarn'))
+        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json'),
+                    os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json'))
+        shutil.copy(os.path.join(MODELS, 'shieldstral-3b-composite.json'), tmp)
+        path = os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json')
         with open(path, encoding='utf-8') as f:
             template = json.load(f)
         template['quantities']['eps']['source']['default'] = {"literal": 0.00001}
@@ -76,7 +78,7 @@ def defaults():
 
 
 def assignment(cat):
-    path = os.path.join(MODELS, 'decoder-causal-yarn.json')
+    path = os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json')
     with open(path, encoding='utf-8') as f:
         template = json.load(f)
     errors = validate.check_assignment(template, ASSIGNMENT)

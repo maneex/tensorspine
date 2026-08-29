@@ -19,7 +19,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import catalog as catalog_mod          # noqa: E402
-from signature import signature        # noqa: E402
+from signature import corpus, name_of, signature   # noqa: E402
 
 STORE = os.path.join(HERE, 'signatures')
 
@@ -27,8 +27,8 @@ STORE = os.path.join(HERE, 'signatures')
 def main(record=False):
     cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
     failed = 0
-    for path in sorted(glob.glob(os.path.join(ROOT, 'data', 'models', '*.json'))):
-        name = os.path.basename(path)[:-5]
+    for path in corpus():
+        name = name_of(path)
         target = os.path.join(STORE, name + '.json')
         current = signature(path, cat)
         if record:

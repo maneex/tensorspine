@@ -4,7 +4,8 @@
   1. llama3-8b: 32 identities, each keyed (layer, session, branch).
   2. gemma3n-kvshare: 20 identities from 30 slots; the two shared identities carry
      no layer index — sharing is several members under one identity, nothing else.
-  3. voxtral-realtime: the encoder state keeps its invocation boundary.
+  3. voxtral-realtime: the encoder state is carried across the fragments of `audio` — derived
+     from the contract's carrying condition and the input's fragmentation, declared nowhere.
 
     python3 tests/run_states.py
 """
@@ -44,12 +45,11 @@ def main():
                 and r['stats']['state_identities'] == 20, str(r['stats']))
     ok &= check("gemma3n: exactly the two shared identities have no layer index",
                 sorted(shared) == ['shared.full.kv', 'shared.sliding.kv'], str(shared))
-    vox = model_mod.load(os.path.join(MODELS, 'voxtral-realtime.json'))
-    boundaries = {sid: b['invocation_boundary'] for sid, b in vox['bindings']['states'].items()
-                  if 'invocation_boundary' in b}
-    ok &= check("voxtral: one state keeps an invocation boundary over the audio fragment domain",
-                len(boundaries) == 1 and list(boundaries.values())[0]['domain'] == {'kind': 'fragment', 'source': 'audio'},
-                str(boundaries))
+    r = validate.analyse(os.path.join(MODELS, 'voxtral-realtime.json'), cat)
+    ok &= check("voxtral: the encoder attention state is carried across the fragments of `audio`",
+                r['carried'] == {'encoder.attn.kv': ('position', 'audio')}, str(r['carried']))
+    ok &= check("voxtral: nothing else is carried, and no advisory: the decoder stream is not fragmented",
+                not r['advisories'], str(r['advisories']))
     print("states: all good" if ok else "states: FAILED")
     return 0 if ok else 1
 

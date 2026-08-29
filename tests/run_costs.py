@@ -4,8 +4,9 @@ parameter inventory — two per weight element consumed — scaled by the
 activated fraction of a sparse unit, plus the corrections a contract declares.
 
   1. llama3-8b: dense, no state corrections beyond attention's sequence term:
-     ops per token = 2 × parameter elements; the per-position term is
-     4·heads·head_dim per attention layer.
+     ops per element = 2 × (parameter elements − the embedding table) + one
+     embedding row, a lookup being the limiting case of a sparsity unit; the
+     per-cached-position term is 4·heads·head_dim per attention layer.
   2. llama4-scout: MoE — the routed experts count at top_k / experts; the
      independent oracle is the closed formula the catalog used to declare.
   3. shieldstral-3b and its composite derive the same figures.
@@ -41,10 +42,15 @@ def main():
     cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
     ok = True
     s = stats(cat, 'llama3-8b')
-    ok &= check("llama3-8b: ops per token = 2 × parameter elements",
-                s['ops_per_token'] == 2 * s['parameter_elements'], str((s['ops_per_token'], s['parameter_elements'])))
-    ok &= check("llama3-8b: per-position term = 32 layers × 4·32·128",
-                s['ops_per_token_per_position'] == 32 * 4 * 32 * 128, str(s['ops_per_token_per_position']))
+    with open(os.path.join(MODELS, 'llama3-8b.json'), encoding='utf-8') as f:
+        l3 = json.load(f)
+    lit = lambda name: l3['quantities'][name]['source']['value']
+    table = lit('vocab') * lit('d')
+    ok &= check("llama3-8b: ops per element = 2 × (elements − embedding table) + one embedding row",
+                s['ops_per_element'] == 2 * (s['parameter_elements'] - table) + 2 * lit('d'),
+                str((s['ops_per_element'], s['parameter_elements'], table)))
+    ok &= check("llama3-8b: per-cached-position term = 32 layers × 4·32·128",
+                s['ops_per_cached_position'] == 32 * 4 * 32 * 128, str(s['ops_per_cached_position']))
 
     with open(os.path.join(MODELS, 'llama4-scout.json'), encoding='utf-8') as f:
         l4 = json.load(f)
@@ -56,16 +62,17 @@ def main():
     layers = 48
     s = stats(cat, 'llama4-scout')
     routed_elements = layers * experts * 3 * width * inner            # in (2·inner × width) + out (width × inner)
-    dense_part = 2 * (s['parameter_elements'] - routed_elements)
+    emb = l4['occurrences']['embed']['arguments']
+    table = val(emb['vocabulary']) * val(emb['width'])                # the embedding lookup: one row per element
+    dense_part = 2 * (s['parameter_elements'] - routed_elements - table) + 2 * val(emb['width'])
     expected = dense_part + layers * 6 * width * inner * top_k        # the formula the catalog used to declare
-    seq_ops = sum(cost for cost in [0])
     ok &= check(f"llama4-scout: routed experts count at top_k/experts = {top_k}/{experts}",
-                abs(s['ops_per_token'] - expected) <= 1, f"derived {s['ops_per_token']} vs oracle {expected}")
-    ok &= check("llama4-scout: sparse ops < dense ops", s['ops_per_token'] < 2 * s['parameter_elements'])
+                abs(s['ops_per_element'] - expected) <= 1, f"derived {s['ops_per_element']} vs oracle {expected}")
+    ok &= check("llama4-scout: sparse ops < dense ops", s['ops_per_element'] < 2 * s['parameter_elements'])
 
     a = stats(cat, 'shieldstral-3b')
     b = stats(cat, 'shieldstral-3b-composite')
-    for k in ('parameter_elements', 'ops_per_token', 'ops_per_token_per_position'):
+    for k in ('parameter_elements', 'ops_per_element', 'ops_per_cached_position'):
         ok &= check(f"template parity: {k} {a[k]} == {b[k]}", a[k] == b[k])
     print("costs: all good" if ok else "costs: FAILED")
     return 0 if ok else 1

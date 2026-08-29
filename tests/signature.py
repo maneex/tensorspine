@@ -12,6 +12,7 @@ identifiers: node names change with the writing, the graph does not.
   * parameter slots, tensor identities and ties; state slots, identities and
     the multiset of derived instance keys.
 """
+import glob
 import hashlib
 import json
 import os
@@ -27,9 +28,27 @@ import d1                              # noqa: E402
 import validate                        # noqa: E402
 
 ASSIGNMENTS = {
-    'decoder-causal-yarn': {"width": 3072, "layers": 26, "heads": 32, "kv_heads": 8, "head_dim": 128,
-                            "inner": 9216, "eps": 0.00001, "precision": "bf16"},
+    'decoder-causal-yarn@1.0.0': {"width": 3072, "layers": 26, "heads": 32, "kv_heads": 8,
+                                  "head_dim": 128, "inner": 9216, "eps": 0.00001,
+                                  "precision": "bf16"},
 }
+MODELS = os.path.join(ROOT, 'data', 'models')
+
+
+def corpus():
+    """Every document of the corpus: the models at the top level, the templates
+    one directory down, one file per version (§4.6)."""
+    return (sorted(glob.glob(os.path.join(MODELS, '*.json')))
+            + sorted(glob.glob(os.path.join(MODELS, '*', '*.json'))))
+
+
+def name_of(path):
+    """`llama3-8b` for a model, `decoder-causal-yarn@1.0.0` for a template."""
+    rel = os.path.relpath(path, MODELS)
+    if os.sep in rel:
+        directory, version = rel.split(os.sep)
+        return f"{directory}@{version[:-5]}"
+    return rel[:-5]
 
 
 def _h(x):
@@ -53,7 +72,7 @@ def wl_hash(document, rounds=4):
 
 def signature(model_path, cat=None):
     cat = cat or catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
-    name = os.path.basename(model_path)[:-5]
+    name = name_of(model_path)
     assignment = ASSIGNMENTS.get(name)
     document = d1.emit(model_path, cat, assignment)
     result = validate.analyse(model_path, cat, assignment)
