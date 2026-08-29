@@ -447,6 +447,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".input_layernorm.weight"
+              ]
             }
           },
           "attn.q": {
@@ -458,6 +467,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.q_proj.weight"
+              ]
             }
           },
           "attn.k": {
@@ -469,6 +487,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.k_proj.weight"
+              ]
             }
           },
           "attn.v": {
@@ -480,6 +507,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.v_proj.weight"
+              ]
             }
           },
           "attn.out": {
@@ -491,6 +527,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.o_proj.weight"
+              ]
             }
           },
           "ffn_n.weight": {
@@ -502,6 +547,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".post_attention_layernorm.weight"
+              ]
             }
           },
           "ffn.gate": {
@@ -513,6 +567,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.gate_proj.weight"
+              ]
             }
           },
           "ffn.up": {
@@ -524,6 +587,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.up_proj.weight"
+              ]
             }
           },
           "ffn.out": {
@@ -535,6 +607,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.down_proj.weight"
+              ]
             }
           }
         },
@@ -660,6 +741,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.embed_tokens.weight"
+          ]
         }
       },
       "final_n.weight": {
@@ -677,6 +763,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "model.norm.weight"
+          ]
         }
       },
       "lm_head.weight": {
@@ -694,6 +785,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "lm_head.weight"
+          ]
         }
       }
     },
