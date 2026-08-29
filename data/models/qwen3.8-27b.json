@@ -34,7 +34,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 0.000001
+        "value": 1e-06
       }
     },
     "precision": {
@@ -206,7 +206,7 @@
     "patch_embed": {
       "contract": {
         "name": "patch_embed",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -254,7 +254,7 @@
     "splice": {
       "contract": {
         "name": "splice",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -434,7 +434,7 @@
         "ffn": {
           "contract": {
             "name": "ffn.dense",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -511,7 +511,7 @@
         "d0_gdn": {
           "contract": {
             "name": "sequence.gated_delta",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -581,7 +581,7 @@
         "d0_mlp": {
           "contract": {
             "name": "ffn.gated",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -632,7 +632,7 @@
         "d1_gdn": {
           "contract": {
             "name": "sequence.gated_delta",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -702,7 +702,7 @@
         "d1_mlp": {
           "contract": {
             "name": "ffn.gated",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -753,7 +753,7 @@
         "d2_gdn": {
           "contract": {
             "name": "sequence.gated_delta",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -823,7 +823,7 @@
         "d2_mlp": {
           "contract": {
             "name": "ffn.gated",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -960,7 +960,7 @@
         "a_mlp": {
           "contract": {
             "name": "ffn.gated",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

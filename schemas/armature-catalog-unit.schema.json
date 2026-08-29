@@ -1,0 +1,1644 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://armature.dev/schema/2.0/catalog-unit.json",
+  "title": "Armature catalog unit",
+  "description": "One logical vocabulary unit of a catalog base: a primitive contract, a named axis, a precision role, or the base itself. The file path reproduces the unit's identity; a contract's file name is its version (\u00a78.2). Every enumeration here is the closed vocabulary a consumer may implement in advance (\u00a74.3, O0.6); a unit outside it is refused at load time, never read with a guess (I7).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "name",
+    "definition"
+  ],
+  "properties": {
+    "schema": {
+      "const": "armature-catalog-unit/2.0"
+    },
+    "kind": {
+      "enum": [
+        "contract",
+        "axis",
+        "precision_role",
+        "base"
+      ]
+    },
+    "name": {
+      "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+    },
+    "definition": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "contract"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/contract_definition"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "axis"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/axis_definition"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "precision_role"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/precision_role_definition"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "base"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/base_definition"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "argument_path": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*$",
+      "description": "A declared argument, or a field of a record argument, dotted."
+    },
+    "argument_expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "argument": {
+          "$ref": "#/$defs/argument_path"
+        }
+      },
+      "required": [
+        "argument"
+      ]
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/literal_expression"
+        },
+        {
+          "$ref": "#/$defs/argument_expression"
+        },
+        {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/context_expression"
+        },
+        {
+          "$ref": "#/$defs/unary_operation"
+        },
+        {
+          "$ref": "#/$defs/binary_operation"
+        },
+        {
+          "$ref": "#/$defs/nary_operation"
+        }
+      ],
+      "description": "Closed scalar algebra over literals and resolved arguments (O0.1). `context` is admitted for facts the analysis supplies."
+    },
+    "unary_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "negate",
+            "absolute"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        }
+      },
+      "required": [
+        "op",
+        "args"
+      ]
+    },
+    "binary_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "subtract",
+            "divide",
+            "ceil_divide",
+            "floor_divide",
+            "modulo"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "op",
+        "args"
+      ]
+    },
+    "nary_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "add",
+            "multiply",
+            "min",
+            "max"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          },
+          "minItems": 2
+        }
+      },
+      "required": [
+        "op",
+        "args"
+      ]
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/boolean_condition"
+        },
+        {
+          "$ref": "#/$defs/not_condition"
+        },
+        {
+          "$ref": "#/$defs/all_condition"
+        },
+        {
+          "$ref": "#/$defs/any_condition"
+        },
+        {
+          "$ref": "#/$defs/present_condition"
+        },
+        {
+          "$ref": "#/$defs/comparison_condition"
+        }
+      ]
+    },
+    "boolean_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "boolean": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "boolean"
+      ]
+    },
+    "not_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "$ref": "#/$defs/condition"
+        }
+      },
+      "required": [
+        "not"
+      ]
+    },
+    "all_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "all"
+      ]
+    },
+    "any_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "any"
+      ]
+    },
+    "present_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "$ref": "#/$defs/argument_path"
+        }
+      },
+      "required": [
+        "present"
+      ]
+    },
+    "comparison_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compare": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "operator": {
+              "enum": [
+                "equal",
+                "not_equal",
+                "less",
+                "less_or_equal",
+                "greater",
+                "greater_or_equal"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/expression"
+            },
+            "right": {
+              "$ref": "#/$defs/expression"
+            }
+          },
+          "required": [
+            "operator",
+            "left",
+            "right"
+          ]
+        }
+      },
+      "required": [
+        "compare"
+      ]
+    },
+    "argument_type": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "cardinality",
+            "real",
+            "physical",
+            "boolean",
+            "enum",
+            "record",
+            "port_reference"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "cardinality"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/cardinality_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "real"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/real_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "physical"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/physical_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "boolean"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/boolean_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "enum"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/enum_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "record"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/record_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "port_reference"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/port_reference_type"
+          }
+        }
+      ],
+      "description": "The closed set of argument types. There is no opaque type: a value the contract cannot type cannot be refused, and \u00a78.1 requires refusal."
+    },
+    "port_reference_type": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "port_reference"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "record_type": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "record"
+        },
+        "fields": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/field_declaration"
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "kind",
+        "fields"
+      ],
+      "minProperties": 2
+    },
+    "field_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/argument_type"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "affects_template": {
+          "type": "boolean"
+        },
+        "default": {
+          "$ref": "#/$defs/expression"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "value_descriptions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "One line per enum value; keys are the enum values."
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "required",
+        "affects_template"
+      ]
+    },
+    "argument_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/argument_type"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "affects_template": {
+          "type": "boolean"
+        },
+        "default": {
+          "$ref": "#/$defs/expression"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "value_descriptions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "One line per enum value; keys are the enum values."
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "required",
+        "affects_template"
+      ]
+    },
+    "axis_nature": {
+      "enum": [
+        "feature",
+        "structural",
+        "projection"
+      ]
+    },
+    "shape_factor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+        },
+        "axis": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+        },
+        "nature": {
+          "$ref": "#/$defs/axis_nature"
+        },
+        "extent": {
+          "$ref": "#/$defs/expression"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "axis",
+        "nature",
+        "extent"
+      ]
+    },
+    "shape_axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+        },
+        "axis": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+        },
+        "nature": {
+          "$ref": "#/$defs/axis_nature"
+        },
+        "extent": {
+          "$ref": "#/$defs/expression"
+        },
+        "factors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shape_factor"
+          },
+          "minItems": 1
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "axis",
+        "nature",
+        "extent"
+      ]
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "axes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shape_axis"
+          }
+        }
+      },
+      "required": [
+        "axes"
+      ]
+    },
+    "port_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "inherit",
+            "sequence",
+            "token",
+            "position",
+            "patch",
+            "fragment"
+          ]
+        },
+        "from": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "self": {
+                  "const": true
+                }
+              },
+              "required": [
+                "self"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "argument": {
+                  "$ref": "#/$defs/argument_path"
+                }
+              },
+              "required": [
+                "argument"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "domain": {
+          "$ref": "#/$defs/port_domain"
+        },
+        "role": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "domain",
+        "role"
+      ]
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/port"
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/port"
+          }
+        }
+      },
+      "required": [
+        "inputs",
+        "outputs"
+      ]
+    },
+    "sharing_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "exclusive",
+            "shareable"
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+          },
+          "minItems": 1
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+        },
+        "sharing": {
+          "$ref": "#/$defs/sharing_rule"
+        },
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "multiplicity": {
+          "$ref": "#/$defs/expression"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "sharing",
+        "shape"
+      ]
+    },
+    "constant_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+        },
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "multiplicity": {
+          "$ref": "#/$defs/expression"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "shape"
+      ]
+    },
+    "state_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "role": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape",
+        "role"
+      ]
+    },
+    "state_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "enum": [
+            "read",
+            "append",
+            "evict",
+            "write"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect"
+      ]
+    },
+    "indexing_source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "self": {
+              "const": true
+            }
+          },
+          "required": [
+            "self"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "argument": {
+              "$ref": "#/$defs/argument_path"
+            }
+          },
+          "required": [
+            "argument"
+          ]
+        }
+      ]
+    },
+    "state_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "law": {
+          "enum": [
+            "append",
+            "window",
+            "fixed"
+          ]
+        },
+        "access": {
+          "enum": [
+            "logical_position",
+            "ring",
+            "aggregate"
+          ]
+        },
+        "sharing": {
+          "enum": [
+            "by_position",
+            "by_source",
+            "within_span",
+            "at_fork_point"
+          ]
+        },
+        "indexed_by": {
+          "$ref": "#/$defs/indexing_source"
+        },
+        "span": {
+          "$ref": "#/$defs/expression"
+        },
+        "stride": {
+          "$ref": "#/$defs/expression"
+        },
+        "carried_across": {
+          "enum": [
+            "fragment"
+          ]
+        },
+        "frozen_after": {
+          "enum": [
+            "source_complete"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "when",
+        "law",
+        "access",
+        "sharing",
+        "indexed_by"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "law": {
+                "const": "window"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "span"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "law": {
+                "enum": [
+                  "append",
+                  "fixed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "span"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "state_port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "payload": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state_component"
+          },
+          "minProperties": 1
+        },
+        "key_axes": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+          },
+          "minItems": 1
+        },
+        "operations": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state_operation"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/state_rule"
+          },
+          "minItems": 1
+        },
+        "internal": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "present_when",
+        "payload",
+        "key_axes",
+        "operations",
+        "rules"
+      ]
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reads": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          }
+        }
+      },
+      "required": [
+        "reads",
+        "writes"
+      ]
+    },
+    "partition_target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "argument_axis": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+            }
+          },
+          "required": [
+            "argument_axis"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instance_key_axis": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+            }
+          },
+          "required": [
+            "instance_key_axis"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "payload_axis": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+                },
+                "component": {
+                  "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+                },
+                "axis": {
+                  "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+                }
+              },
+              "required": [
+                "state",
+                "component",
+                "axis"
+              ]
+            }
+          },
+          "required": [
+            "payload_axis"
+          ]
+        }
+      ]
+    },
+    "partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/partition_target"
+        },
+        "semantics": {
+          "enum": [
+            "preserved"
+          ]
+        },
+        "communication": {
+          "enum": [
+            "none",
+            "all_reduce",
+            "all_gather",
+            "all_to_all"
+          ]
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "semantics",
+        "communication"
+      ]
+    },
+    "domain_transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from_port": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+        },
+        "to_port": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+        },
+        "relation": {
+          "enum": [
+            "merge",
+            "align"
+          ]
+        },
+        "factor": {
+          "$ref": "#/$defs/expression"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_port",
+        "to_port",
+        "relation"
+      ]
+    },
+    "cost_derivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expression": {
+          "$ref": "#/$defs/expression"
+        },
+        "status": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/epistemic_status"
+        },
+        "per": {
+          "enum": [
+            "token",
+            "sequence",
+            "invocation"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expression",
+        "status",
+        "per"
+      ]
+    },
+    "logical_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operations": {
+          "$ref": "#/$defs/cost_derivation"
+        },
+        "bytes_read": {
+          "$ref": "#/$defs/cost_derivation"
+        },
+        "bytes_written": {
+          "$ref": "#/$defs/cost_derivation"
+        }
+      }
+    },
+    "external_doc": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "paper",
+            "specification",
+            "documentation"
+          ]
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "title",
+        "kind"
+      ]
+    },
+    "tag_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "primitive_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
+        },
+        "arguments": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/argument_declaration"
+          }
+        },
+        "ports": {
+          "$ref": "#/$defs/ports"
+        },
+        "parameters": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "constants": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/constant_slot"
+          }
+        },
+        "state_ports": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state_port"
+          }
+        },
+        "effects": {
+          "$ref": "#/$defs/effects"
+        },
+        "partitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/partition"
+          }
+        },
+        "domain_transforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/domain_transform"
+          }
+        },
+        "logical_cost": {
+          "$ref": "#/$defs/logical_cost"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          }
+        },
+        "external_docs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/external_doc"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "arguments",
+        "ports",
+        "parameters",
+        "constants",
+        "state_ports",
+        "effects",
+        "partitions"
+      ]
+    },
+    "delegated_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "uri": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/qualified_name"
+            },
+            "version": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/semantic_version"
+            },
+            "id": {
+              "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "uri",
+            "id"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/identifier"
+          }
+        },
+        "external_docs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/external_doc"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "model"
+      ],
+      "description": "A contract whose body is a parameterized model document (\u00a74.6)."
+    },
+    "contract_definition": {
+      "type": "object",
+      "if": {
+        "required": [
+          "model"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/delegated_contract"
+      },
+      "else": {
+        "$ref": "#/$defs/primitive_contract"
+      },
+      "description": "A primitive contract, or \u2014 when it names a `model` \u2014 a delegated-body contract (\u00a74.6)."
+    },
+    "axis_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "space": {
+          "enum": [
+            "value",
+            "instance"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "space"
+      ]
+    },
+    "precision_role_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "admissible": {
+          "type": "array",
+          "items": {
+            "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/dtype"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "default": {
+          "$ref": "https://armature.dev/schema/2.0/model.json#/$defs/dtype"
+        },
+        "sensitivity": {
+          "enum": [
+            "quantizable",
+            "reduced",
+            "full_precision"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "admissible",
+        "default",
+        "sensitivity"
+      ]
+    },
+    "base_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "catalog": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(/[A-Za-z0-9_-]+)*$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "external_docs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/external_doc"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag_definition"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "catalog",
+        "title"
+      ]
+    }
+  }
+}

@@ -127,8 +127,10 @@ controls whether the site exists after expansion. It never contains code, a kern
 parameter inventory, state descriptors or port connections. Model `when`, contract `present_when`,
 and contract-rule `when` have distinct contexts; see [Conditions](GLOSSARY.md#conditions).
 
-Contract arguments may be scalar expressions or recursively tagged records. Inline numeric tensors
-are deliberately excluded: structural metadata belongs in arguments, while learned and non-learned
+Contract arguments may be scalar expressions or recursively tagged records, and every one has a
+declared type in the contract — there is no opaque argument: a variant of a primitive that the
+contract does not name is added under a new contract version (§7), never passed through unread.
+Inline numeric tensors are deliberately excluded: structural metadata belongs in arguments, while learned and non-learned
 numeric tensors have explicit identities and bindings.
 
 ### 2.4 — Compositions and deterministic expansion
@@ -283,8 +285,12 @@ python3 tools/armature --d1 data/models/llama3-8b.json -o /tmp/llama3-8b.d1.json
 ```
 
 `--validate` checks the model schema and then performs semantic validation: catalog resolution,
-arguments and defaults, types, shapes, domains, total bindings and value-graph acyclicity. A
-validation failure is a reasoned refusal. `--lint` reports advisory findings and deliberately exits
+arguments and defaults, types (V3: enums, cardinalities, reals, booleans and records, recursively,
+after contract defaults are applied; an inapplicable field is refused, not ignored), shapes,
+domains, total bindings and value-graph acyclicity. The catalog itself is read against
+`schemas/armature-catalog-unit.schema.json` when loaded, so its vocabulary is closed by grammar,
+not by convention; `tests/run_rejections.py` holds one document or catalog base per required
+rejection case. A validation failure is a reasoned refusal. `--lint` reports advisory findings and deliberately exits
 successfully.
 
 The parameterized template needs an assignment when validated on its own:

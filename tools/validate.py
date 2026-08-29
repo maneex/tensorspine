@@ -11,7 +11,8 @@ Everything reported here is a refusal with its cause, never advice: §8.1 makes
 explicit refusal the normative obligation, and I7 forbids silent defaults. What
 is legal but questionable belongs to `--lint`, which never blocks.
 
-Coverage of the semantic stage: V1 resolution, V2 arguments, V3p precision
+Coverage of the semantic stage: V1 resolution, V2 arguments, V3 argument
+types (records recursively, defaults applied first), V3p precision
 admissibility, V4 shape unification, V5 index domains, V6 acyclicity, V7
 totality and uniqueness of bindings, V9 member compatibility, V13 contract
 graph, V15 key references. This is not yet the complete validator of §15:
@@ -25,11 +26,111 @@ from collections import defaultdict, deque
 
 import catalog as catalog_mod
 import schema as schema_mod
-from expr import (contract_condition, contract_value, index_grid,
+from expr import (UNRESOLVED, contract_condition, contract_value, index_grid,
                   missing_assignment, model_condition, model_value,
                   resolve_quantities, static_argument)
 
 MAX_CONTRACT_DEPTH = 8
+
+
+# --- V2/V3: arguments against their declarations --------------------------
+
+def _resolve_record(declared, given, evaluate, root, path, problems, into=None):
+    """Resolve one map of values against one map of declarations: the top
+    level of an occurrence, or the fields of a record. Unknown names are V2,
+    everything about a value's type is V3. Defaults are applied before any
+    check (V2), and an inapplicable field is forbidden, not ignored (I2)."""
+    values = {} if into is None else into
+    if root is None:                      # the top level: the record is the scope
+        root = values
+    for arg_name, arg_value in given.items():
+        if arg_name not in declared:
+            problems.append(('V2', f"unknown argument '{path}{arg_name}'"))
+        else:
+            values[arg_name] = evaluate(arg_value)
+    # Defaults may read other arguments, in any order, acyclically (§4.6).
+    pending = [n for n, d in declared.items() if n not in values and 'default' in d]
+    while pending:
+        progress = False
+        for arg_name in list(pending):
+            # Paths are absolute (`rope.scaling.kind`): the scope is the whole map.
+            v = contract_value(declared[arg_name]['default'], root)
+            if v is not None and v is not UNRESOLVED:
+                values[arg_name] = v
+                pending.remove(arg_name)
+                progress = True
+        if not progress:
+            for arg_name in pending:
+                problems.append(('V2', f"default of '{path}{arg_name}' does not resolve"))
+            break
+    for arg_name, decl in declared.items():
+        label = f"{path}{arg_name}"
+        applicable = True
+        if 'present_when' in decl:
+            applicable = contract_condition(decl['present_when'], root)
+        if arg_name not in values:
+            if decl['required'] and applicable:
+                problems.append(('V2', f"required argument missing '{label}'"))
+            continue
+        if not applicable:
+            problems.append(('V3', f"argument '{label}' is present but inapplicable "
+                                   f"for these arguments"))
+            continue
+        before = len(problems)
+        _check_type(values[arg_name], decl['type'], label, evaluate, root, problems, values)
+        if len(problems) > before and decl['type']['kind'] != 'record':
+            # Refused once, with its reason; nothing downstream reads it as a value.
+            values[arg_name] = UNRESOLVED
+    return values
+
+
+def _check_type(v, t, label, evaluate, root, problems, siblings):
+    kind = t['kind']
+    if v is UNRESOLVED:
+        problems.append(('V3', f"argument '{label}' does not resolve to a value"))
+        return
+    if kind == 'record':
+        if not isinstance(v, dict):
+            problems.append(('V3', f"argument '{label}' = {v!r} is not a record"))
+            return
+        # Records are evaluated already: their fields are values, not expressions.
+        # `v` is the very dict held under `root`, so it is filled in place and
+        # a condition written as an absolute path sees it.
+        given = dict(v)
+        v.clear()
+        _resolve_record(t['fields'], given, lambda x: x, root, label + '.', problems, into=v)
+        return
+    if isinstance(v, bool):
+        if kind != 'boolean':
+            problems.append(('V3', f"argument '{label}' = {v!r} is a boolean, not {kind}"))
+        return
+    if kind == 'boolean':
+        problems.append(('V3', f"argument '{label}' = {v!r} is not a boolean"))
+    elif kind == 'cardinality':
+        if not isinstance(v, int) or v < 0:
+            problems.append(('V3', f"argument '{label}' = {v!r} is not a cardinality "
+                                   f"(non-negative integer)"))
+    elif kind in ('real', 'physical'):
+        if not isinstance(v, (int, float)):
+            problems.append(('V3', f"argument '{label}' = {v!r} is not a number"
+                                   + (f" of {t['unit']}" if kind == 'physical' else "")))
+    elif kind == 'enum':
+        if v not in t['values']:
+            problems.append(('V3', f"argument '{label}' = {v!r} is not among {t['values']}"))
+    elif kind == 'port_reference':
+        if not isinstance(v, str) or not v:
+            problems.append(('V3', f"argument '{label}' = {v!r} is not a port name"))
+    else:
+        problems.append(('V3', f"argument '{label}': type '{kind}' is unknown to this validator"))
+
+
+def resolve_arguments(definition, given, evaluate):
+    """The complete, typed argument map of one occurrence, and the (code,
+    message) problems found on the way. Every declared default is applied,
+    every value is checked against its declared type, records recursively."""
+    problems = []
+    values = _resolve_record(definition['arguments'], given, evaluate, None, '', problems)
+    return values, problems
 
 
 def structural(model_path, schema_dir, role='model'):
@@ -138,7 +239,8 @@ def semantic(model_path, cat, assignment=None):
                 body = json.load(f)
             definition = {
                 "version": definition['version'],
-                "arguments": {q['source']['name']: {"required": True, "affects_template": True}
+                "arguments": {q['source']['name']: {"type": q['type'], "required": True,
+                                                    "affects_template": True}
                               for q in body['quantities'].values()
                               if q['source']['kind'] == 'external'},
                 "ports": {
@@ -152,19 +254,11 @@ def semantic(model_path, cat, assignment=None):
         if definition['version'] != o['contract']['version']:
             fail('V1', f"{name}: version {o['contract']['version']} "
                        f"!= catalog {definition['version']}")
-        args = {}
-        for arg_name, arg_value in o['arguments'].items():
-            if arg_name not in definition['arguments']:
-                fail('V2', f"{name}: unknown argument '{arg_name}'")
-            else:
-                args[arg_name] = static(arg_value)
-        for arg_name, decl in definition['arguments'].items():
-            if arg_name in args:
-                continue
-            if 'default' in decl:
-                args[arg_name] = contract_value(decl['default'], args)
-            elif decl['required']:
-                fail('V2', f"{name} @{key}: required argument missing '{arg_name}'")
+        env = dict(key[3]) if key[0] == 'gen' else {}
+        args, problems = resolve_arguments(definition, o['arguments'],
+                                           lambda v: static(v, env))
+        for code, message in problems:
+            fail(code, f"{name} @{key}: {message}")
         resolved[key] = (name, definition, args)
 
     def loop_envs(binding):

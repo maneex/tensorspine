@@ -15,6 +15,7 @@ import json
 import os
 
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import best_match
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
@@ -65,3 +66,19 @@ def format_error(e):
     """One error as a single line: where, then what."""
     where = '/'.join(str(p) for p in e.absolute_path) or '<root>'
     return f"{where}: {e.message}"
+
+
+def deepest(errors):
+    """The most specific errors behind a list of top-level ones.
+
+    A `oneOf` or `if/then` failure is reported at the branch point, with the
+    whole subtree as its instance; the cause sits several levels down. For
+    each top-level error the best-matching leaf is kept: what a reader can
+    act on, not the branch that noticed it."""
+    leaves = []
+    for e in errors:
+        leaf = best_match([e])
+        while leaf.context:
+            leaf = best_match(leaf.context)
+        leaves.append(leaf)
+    return sorted(leaves, key=lambda e: list(e.absolute_path))

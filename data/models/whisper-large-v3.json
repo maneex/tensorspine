@@ -94,7 +94,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 0.00001
+        "value": 1e-05
       }
     },
     "precision": {
@@ -116,7 +116,7 @@
     "conv_frontend": {
       "contract": {
         "name": "conv_frontend",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -325,7 +325,7 @@
         "ffn": {
           "contract": {
             "name": "ffn.dense",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -543,7 +543,7 @@
         "ffn": {
           "contract": {
             "name": "ffn.dense",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

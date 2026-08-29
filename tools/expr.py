@@ -34,6 +34,16 @@ _COMPARISONS = {
 
 
 def _apply(op, a):
+    """One operator over evaluated operands. An operand of the wrong kind, or
+    a division by zero, yields UNRESOLVED: the value it would have fed is not
+    decidable, and the argument that caused it has been refused already (V3)."""
+    try:
+        return _apply_raw(op, a)
+    except (TypeError, ZeroDivisionError):
+        return UNRESOLVED
+
+
+def _apply_raw(op, a):
     if op == 'add': return sum(a)
     if op == 'multiply':
         r = 1

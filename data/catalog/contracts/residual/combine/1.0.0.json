@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Weighted combination of two branches: `left*left_scale + right*right_scale`, times `output_scale`.",
-    "description": "The scales are opaque scalars: they change the computation, not a tensor. Used where a model averages two branches or scales a residual.",
+    "description": "The scales change the computation, not a tensor. Used where a model averages two branches or scales a residual.",
     "arguments": {
       "width": {
         "type": {
@@ -17,27 +17,36 @@
       },
       "left_scale": {
         "type": {
-          "kind": "opaque"
+          "kind": "real"
         },
         "required": false,
         "affects_template": false,
-        "description": "Factor applied to `left`. Opaque."
+        "default": {
+          "literal": 1
+        },
+        "description": "Factor applied to `left`."
       },
       "right_scale": {
         "type": {
-          "kind": "opaque"
+          "kind": "real"
         },
         "required": false,
         "affects_template": false,
-        "description": "Factor applied to `right`. Opaque."
+        "default": {
+          "literal": 1
+        },
+        "description": "Factor applied to `right`."
       },
       "output_scale": {
         "type": {
-          "kind": "opaque"
+          "kind": "real"
         },
         "required": false,
         "affects_template": false,
-        "description": "Factor applied to the sum. Opaque."
+        "default": {
+          "literal": 1
+        },
+        "description": "Factor applied to the sum."
       }
     },
     "ports": {

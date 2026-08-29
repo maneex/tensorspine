@@ -84,7 +84,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 0.00001
+        "value": 1e-05
       }
     },
     "precision": {
@@ -263,7 +263,7 @@
         "ffn": {
           "contract": {
             "name": "ffn.gated",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

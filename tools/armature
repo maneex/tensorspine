@@ -125,6 +125,19 @@ def main(argv=None):
             print("--assign expects a JSON object", file=sys.stderr)
             return 2
 
+    try:
+        return dispatch(args, documents, bases, assignment, parser)
+    except catalog_error() as e:
+        print(f"catalog refused: {e}", file=sys.stderr)
+        return 1
+
+
+def catalog_error():
+    import catalog
+    return catalog.CatalogError
+
+
+def dispatch(args, documents, bases, assignment, parser):
     if args.validate:
         import validate
         print(f"validate  {len(documents)} document(s)")

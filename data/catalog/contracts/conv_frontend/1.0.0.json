@@ -1,26 +1,20 @@
 {
   "schema": "armature-catalog-unit/2.0",
   "kind": "contract",
-  "name": "patch_embed",
+  "name": "conv_frontend",
   "definition": {
-    "version": "2.0.0",
-    "summary": "Patch embedding: projects each image or video patch to `width`.",
-    "description": "A patch is `channels × temporal_patch × patch × patch` pixels; `weight` is their projection (a convolution whose stride is the patch), `bias` is optional, and `position` an optional learned table over `pos` patch positions. Output positions are in the `patch` domain.",
+    "version": "1.0.0",
+    "summary": "Audio front end: two temporal convolutions over mel frames, the second strided, plus optional learned positions.",
+    "description": "`frames` carries `mels` features per frame; `conv1_weight` maps them to `width` with a kernel of `kernel` frames, and `conv2_weight` applies a second convolution with stride `stride`, which sets the ratio between input frames and output positions. `position` adds a learned position table when the encoder does not use rotary positions. Output positions are in the `position` domain of the audio stream.",
     "tags": [
       "multimodal"
     ],
     "external_docs": [
       {
-        "url": "https://arxiv.org/abs/2010.11929",
-        "title": "An Image is Worth 16x16 Words (Dosovitskiy et al., 2020)",
+        "url": "https://arxiv.org/abs/2212.04356",
+        "title": "Robust Speech Recognition via Large-Scale Weak Supervision (Radford et al., 2022)",
         "kind": "paper",
-        "description": "Patch embedding of a vision transformer."
-      },
-      {
-        "url": "https://arxiv.org/abs/2409.12191",
-        "title": "Qwen2-VL (Wang et al., 2024)",
-        "kind": "paper",
-        "description": "Temporal patches: a 3D patch embedding shared by images and video."
+        "description": "The Whisper encoder stem: two convolutions, the second with stride two."
       }
     ],
     "arguments": {
@@ -30,42 +24,34 @@
         },
         "required": true,
         "affects_template": true,
-        "description": "Feature width of the vision tower."
+        "description": "Feature width of the encoder."
       },
-      "patch": {
+      "mels": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
         "affects_template": true,
-        "description": "Spatial patch side, in pixels."
+        "description": "Mel bins per frame."
       },
-      "channels": {
+      "stride": {
         "type": {
           "kind": "cardinality"
         },
         "required": true,
         "affects_template": true,
-        "description": "Image channels."
+        "description": "Stride of the second convolution: input frames per output position."
       },
-      "temporal_patch": {
+      "kernel": {
         "type": {
           "kind": "cardinality"
         },
         "required": false,
         "affects_template": true,
         "default": {
-          "literal": 1
+          "literal": 3
         },
-        "description": "Frames per patch, for video; one for images."
-      },
-      "pos": {
-        "type": {
-          "kind": "cardinality"
-        },
-        "required": false,
-        "affects_template": true,
-        "description": "Number of learned patch positions; absent when positions are rotary or computed."
+        "description": "Kernel support of both convolutions, in frames."
       },
       "bias": {
         "type": {
@@ -74,58 +60,43 @@
         "required": false,
         "affects_template": true,
         "default": {
-          "literal": false
+          "literal": true
         },
-        "description": "The projection carries a learned bias."
+        "description": "The convolutions carry a learned bias."
+      },
+      "position": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": false,
+        "affects_template": true,
+        "note": "number of learned positions; absent for RoPE",
+        "description": "Number of learned positions; absent when positions are rotary."
       }
     },
     "ports": {
       "inputs": {
-        "pixels": {
+        "frames": {
           "shape": {
             "axes": [
               {
-                "name": "channels",
-                "axis": "vision.channels",
+                "name": "mels",
+                "axis": "audio.mels",
                 "nature": "feature",
                 "extent": {
-                  "argument": "channels"
-                }
-              },
-              {
-                "name": "temporal",
-                "axis": "sequence.position",
-                "nature": "structural",
-                "extent": {
-                  "argument": "temporal_patch"
-                }
-              },
-              {
-                "name": "patch_h",
-                "axis": "vision.patch",
-                "nature": "structural",
-                "extent": {
-                  "argument": "patch"
-                }
-              },
-              {
-                "name": "patch_w",
-                "axis": "vision.patch",
-                "nature": "structural",
-                "extent": {
-                  "argument": "patch"
+                  "argument": "mels"
                 }
               }
             ]
           },
           "domain": {
-            "kind": "patch",
+            "kind": "position",
             "from": {
               "self": true
             }
           },
-          "role": "activation.pixels",
-          "description": "One patch of pixels."
+          "role": "activation.audio_frames",
+          "description": "Mel-spectrogram frames."
         }
       },
       "outputs": {
@@ -143,19 +114,19 @@
             ]
           },
           "domain": {
-            "kind": "patch",
+            "kind": "position",
             "from": {
               "self": true
             }
           },
           "role": "activation.hidden",
-          "description": "The embedded patch."
+          "description": "Encoder input: one vector per output position."
         }
       }
     },
     "parameters": {
-      "weight": {
-        "role": "embedding.projection",
+      "conv1_weight": {
+        "role": "frontend.convolution",
         "sharing": {
           "kind": "exclusive"
         },
@@ -170,43 +141,27 @@
               }
             },
             {
-              "name": "channels",
-              "axis": "vision.channels",
+              "name": "mels",
+              "axis": "audio.mels",
               "nature": "feature",
               "extent": {
-                "argument": "channels"
+                "argument": "mels"
               }
             },
             {
-              "name": "temporal",
-              "axis": "sequence.position",
+              "name": "kernel",
+              "axis": "audio.kernel",
               "nature": "structural",
               "extent": {
-                "argument": "temporal_patch"
-              }
-            },
-            {
-              "name": "patch_h",
-              "axis": "vision.patch",
-              "nature": "structural",
-              "extent": {
-                "argument": "patch"
-              }
-            },
-            {
-              "name": "patch_w",
-              "axis": "vision.patch",
-              "nature": "structural",
-              "extent": {
-                "argument": "patch"
+                "argument": "kernel"
               }
             }
           ]
         },
-        "description": "Patch projection."
+        "description": "First convolution, `mels → width`."
       },
-      "bias": {
-        "role": "embedding.bias",
+      "conv1_bias": {
+        "role": "frontend.bias",
         "sharing": {
           "kind": "exclusive"
         },
@@ -233,7 +188,72 @@
             }
           }
         },
-        "description": "Bias of the projection."
+        "description": "Bias of the first convolution."
+      },
+      "conv2_weight": {
+        "role": "frontend.convolution",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "kernel",
+              "axis": "audio.kernel",
+              "nature": "structural",
+              "extent": {
+                "argument": "kernel"
+              }
+            }
+          ]
+        },
+        "description": "Second convolution, `width → width`, strided."
+      },
+      "conv2_bias": {
+        "role": "frontend.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the second convolution."
       },
       "position": {
         "role": "embedding.position",
@@ -247,7 +267,7 @@
               "axis": "sequence.position",
               "nature": "structural",
               "extent": {
-                "argument": "pos"
+                "argument": "position"
               }
             },
             {
@@ -261,7 +281,7 @@
           ]
         },
         "present_when": {
-          "present": "pos"
+          "present": "position"
         },
         "description": "Learned position table."
       }
@@ -270,7 +290,7 @@
     "state_ports": {},
     "effects": {
       "reads": [
-        "pixels"
+        "frames"
       ],
       "writes": [
         "output"

@@ -1,0 +1,101 @@
+{
+  "purpose": "Required rejection cases of \u00a710.2, one document per case. Each is llama3-8b with one mutation; the runner expects the named code and message.",
+  "cases": [
+    {
+      "document": "models/structural-unknown-field.json",
+      "expect": "schema",
+      "match": "'kernels' was unexpected",
+      "note": "An unknown top-level field is refused by the grammar, not ignored (I2)."
+    },
+    {
+      "document": "models/v1-unknown-contract.json",
+      "expect": "V1",
+      "match": "contract absent from catalog: norm.rmz",
+      "note": "Unresolved contract reference."
+    },
+    {
+      "document": "models/v1-unpinned-version.json",
+      "expect": "V1",
+      "match": "version 9.9.9 != catalog",
+      "note": "A version the catalog does not hold."
+    },
+    {
+      "document": "models/v2-unknown-argument.json",
+      "expect": "V2",
+      "match": "unknown argument 'kernel_hint'",
+      "note": "An argument the contract does not declare is refused (\u00a78.1)."
+    },
+    {
+      "document": "models/v2-missing-required.json",
+      "expect": "V2",
+      "match": "required argument missing 'mask'",
+      "note": "A required argument without a declared default."
+    },
+    {
+      "document": "models/v2-missing-required-field.json",
+      "expect": "V2",
+      "match": "required argument missing 'rope.scaling.factor'",
+      "note": "A required field of a record argument."
+    },
+    {
+      "document": "models/v3-enum-out-of-set.json",
+      "expect": "V3",
+      "match": "'sideways' is not among ['causal', 'chunked', 'none']",
+      "note": "An enum value outside its declared set (\u00a76 V3)."
+    },
+    {
+      "document": "models/v3-cardinality-string.json",
+      "expect": "V3",
+      "match": "'heads' = 'thirty-two' is not a cardinality",
+      "note": "A cardinality given as text."
+    },
+    {
+      "document": "models/v3-cardinality-negative.json",
+      "expect": "V3",
+      "match": "'kv_heads' = -8 is not a cardinality",
+      "note": "A cardinality below zero."
+    },
+    {
+      "document": "models/v3-cardinality-boolean.json",
+      "expect": "V3",
+      "match": "'head_dim' = True is a boolean, not cardinality",
+      "note": "A boolean where an integer is declared: not coerced."
+    },
+    {
+      "document": "models/v3-real-string.json",
+      "expect": "V3",
+      "match": "'rope.theta' = 'banana' is not a number",
+      "note": "A real given as text, inside a record."
+    },
+    {
+      "document": "models/v3-boolean-string.json",
+      "expect": "V3",
+      "match": "'q_bias' = 'yes' is not a boolean",
+      "note": "A boolean given as text."
+    },
+    {
+      "document": "models/v3-record-scalar.json",
+      "expect": "V3",
+      "match": "'temperature' = 0.1 is not a record",
+      "note": "A scalar where a record is declared."
+    },
+    {
+      "document": "models/v3-record-unknown-field.json",
+      "expect": "V2",
+      "match": "unknown argument 'rope.thetta'",
+      "note": "A misspelled record field is unknown, not ignored: the mutation test of \u00a710.2."
+    },
+    {
+      "document": "models/v3-nested-enum.json",
+      "expect": "V3",
+      "match": "'rope.scaling.kind' = 'nonsense_v9' is not among",
+      "note": "An enum two records deep."
+    },
+    {
+      "document": "models/v3-inapplicable-field.json",
+      "expect": "V3",
+      "match": "'rope.scaling.beta_fast' is present but inapplicable",
+      "note": "A field whose present_when is false is forbidden, not ignored (I2)."
+    }
+  ]
+}

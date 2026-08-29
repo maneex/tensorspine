@@ -3,7 +3,7 @@
   "kind": "contract",
   "name": "mix.doubly_stochastic",
   "definition": {
-    "version": "2.0.0",
+    "version": "1.0.0",
     "summary": "Hyper-connections: a learned mix of `multiplicity` residual streams in place of the residual addition.",
     "description": "Both inputs are read as `multiplicity` streams of `width`. `fn` and `base` hold the mixing coefficients — `(2 + multiplicity) × multiplicity` per stream: how each stream is read into the layer, and how the layer's output and the streams are written back — projected onto doubly stochastic matrices by `iterations` Sinkhorn iterations with tolerance `eps`; `scale` holds three learned coefficients. An occurrence with two input ports, not a step annotation: it replaces `residual.add`.",
     "tags": [

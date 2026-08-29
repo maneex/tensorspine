@@ -3,7 +3,7 @@
   "kind": "contract",
   "name": "sequence.gated_delta",
   "definition": {
-    "version": "2.0.0",
+    "version": "1.0.0",
     "summary": "Gated DeltaNet layer: a per-head matrix state updated by the delta rule, behind a short causal convolution.",
     "description": "A linear-attention substitute for a sequence operator. Each position produces queries and keys for `key_heads` heads and values for `value_heads` heads (`qkv`), an output gate (`z`) and per-head decay controls (`a`, `b`, `dt_bias`, `A_log`); after the causal convolution `conv` over the last `conv.history` positions, the `recurrent` state — one `head_dim × head_dim` matrix per value head — is decayed and updated by the delta rule, read to produce the output, normalized (`norm`), gated by `out_gate` and projected back to `width` (`out`).\n\nThe state has a fixed size: it does not grow with the sequence, cannot be addressed by position, and can be shared between sessions only at a fork point. For a runtime that is the whole difference from a KV cache: zero bytes per token, nothing to page.",
     "tags": [

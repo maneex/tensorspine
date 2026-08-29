@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Selects, from the per-layer auxiliary vectors, the slice that belongs to one layer.",
-    "description": "The input carries one `width` vector per layer (`layers × width`); the opaque `layer` names which one this occurrence forwards. No parameter, no computation beyond the selection.",
+    "description": "The input carries one `width` vector per layer (`layers × width`); `layer` names which one this occurrence forwards. No parameter, no computation beyond the selection.",
     "arguments": {
       "layers": {
         "type": {
@@ -25,11 +25,11 @@
       },
       "layer": {
         "type": {
-          "kind": "opaque"
+          "kind": "cardinality"
         },
         "required": true,
         "affects_template": false,
-        "description": "Which layer's slice to select. Opaque."
+        "description": "Which layer's slice to forward: an index into the `layers` slices of the input."
       }
     },
     "ports": {

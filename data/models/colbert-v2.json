@@ -260,7 +260,7 @@
         "ffn": {
           "contract": {
             "name": "ffn.dense",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

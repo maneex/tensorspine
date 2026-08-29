@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Latent attention: low-rank query and output projections, one compressed latent KV, optional sparse index.",
-    "description": "Keys and values are not stored per head: `kv` projects each position to one `head_dim` latent vector, normalized by `kv_norm`, and the heads attend to that latent directly — there is no per-head key or value tensor, and the cache holds `head_dim` values per position whatever `heads` is. Queries go through a rank-`q_rank` bottleneck (`q_a`, `q_a_norm`, `q_b`) and the output projection through `o_groups` groups of rank `o_rank` (`o_a`, `o_b`). Learned `sinks` give each head a logit that absorbs attention mass without reading a position.\n\n`compress` folds `compress.ratio` consecutive positions into one cached latent: the `kv` cache grows by one entry every `compress.ratio` positions (its stride), and the open group is kept in the `compressor` state — a ring of `compress.overlap * compress.ratio` positions — with its own position table (`compressor_ape`), key/value-and-gate projection (`compressor_kv_gate`) and normalization. `window` adds a `sliding` cache of the last `window.span` uncompressed latents. `index`, when present, adds a sparse selector: `index.heads` small heads of `index.head_dim` score every cached key (`index_q`, `index_weights`; keys kept in the `index` state and compressed the same way) and keep the `index.topk` best positions for the full attention.\n\n`rope` is opaque: it changes the computation, not a tensor or a state. The main state ports are declared in every configuration: this primitive is stateful whatever `mask` says.",
+    "description": "Keys and values are not stored per head: `kv` projects each position to one `head_dim` latent vector, normalized by `kv_norm`, and the heads attend to that latent directly — there is no per-head key or value tensor, and the cache holds `head_dim` values per position whatever `heads` is. Queries go through a rank-`q_rank` bottleneck (`q_a`, `q_a_norm`, `q_b`) and the output projection through `o_groups` groups of rank `o_rank` (`o_a`, `o_b`). Learned `sinks` give each head a logit that absorbs attention mass without reading a position.\n\n`compress` folds `compress.ratio` consecutive positions into one cached latent: the `kv` cache grows by one entry every `compress.ratio` positions (its stride), and the open group is kept in the `compressor` state — a ring of `compress.overlap * compress.ratio` positions — with its own position table (`compressor_ape`), key/value-and-gate projection (`compressor_kv_gate`) and normalization. `window` adds a `sliding` cache of the last `window.span` uncompressed latents. `index`, when present, adds a sparse selector: `index.heads` small heads of `index.head_dim` score every cached key (`index_q`, `index_weights`; keys kept in the `index` state and compressed the same way) and keep the `index.topk` best positions for the full attention.\n\n`rope` changes the computation, not a tensor or a state; it is a closed record, so an unnamed variant is refused. The main state ports are declared in every configuration: this primitive is stateful whatever `mask` says.",
     "tags": [
       "sequence-operator"
     ],
@@ -173,11 +173,157 @@
       },
       "rope": {
         "type": {
-          "kind": "opaque"
+          "kind": "record",
+          "fields": {
+            "theta": {
+              "type": {
+                "kind": "real"
+              },
+              "required": true,
+              "affects_template": false,
+              "description": "Base of the rotary frequencies of the decoupled key."
+            },
+            "compress_theta": {
+              "type": {
+                "kind": "real"
+              },
+              "required": false,
+              "affects_template": false,
+              "description": "Base of the rotary frequencies applied inside the compressor; absent, `theta`."
+            },
+            "partial_dims": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": false,
+              "affects_template": false,
+              "description": "Channels of `head_dim` that carry the decoupled rotary key; absent, the whole head is rotated."
+            },
+            "scaling": {
+              "type": {
+                "kind": "record",
+                "fields": {
+                  "kind": {
+                    "type": {
+                      "kind": "enum",
+                      "values": [
+                        "yarn",
+                        "llama3",
+                        "linear"
+                      ]
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Context-extension method applied to the rotary frequencies.",
+                    "value_descriptions": {
+                      "yarn": "YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.",
+                      "llama3": "Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.",
+                      "linear": "Position interpolation: every position is divided by `factor`."
+                    }
+                  },
+                  "factor": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Ratio between the served context and `orig_ctx`."
+                  },
+                  "orig_ctx": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Context length the frequencies were trained at."
+                  },
+                  "beta_fast": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "yarn"
+                        }
+                      }
+                    },
+                    "description": "YaRN: number of rotations above which a frequency is left unscaled."
+                  },
+                  "beta_slow": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "yarn"
+                        }
+                      }
+                    },
+                    "description": "YaRN: number of rotations below which a frequency is fully interpolated."
+                  },
+                  "low": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "llama3"
+                        }
+                      }
+                    },
+                    "description": "Llama 3: low-frequency factor."
+                  },
+                  "high": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "llama3"
+                        }
+                      }
+                    },
+                    "description": "Llama 3: high-frequency factor."
+                  }
+                }
+              },
+              "required": false,
+              "affects_template": false,
+              "description": "Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained."
+            }
+          }
         },
         "required": true,
         "affects_template": false,
-        "description": "Rotary position encoding configuration. Opaque: it changes the computation, not a tensor or a state."
+        "description": "Rotary position encoding of the decoupled key: base, compressor base, rotated channels and context-extension scaling. Changes the computation, not a tensor or a state."
       }
     },
     "ports": {

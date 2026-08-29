@@ -104,7 +104,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 0.00001
+        "value": 1e-05
       }
     },
     "precision": {
@@ -309,7 +309,7 @@
         "l0_moe": {
           "contract": {
             "name": "moe",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -465,7 +465,7 @@
         "l1_moe": {
           "contract": {
             "name": "moe",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -621,7 +621,7 @@
         "l2_moe": {
           "contract": {
             "name": "moe",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -754,7 +754,7 @@
         "g_moe": {
           "contract": {
             "name": "moe",
-            "version": "1.1.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

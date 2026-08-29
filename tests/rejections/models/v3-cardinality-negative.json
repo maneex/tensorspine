@@ -1,0 +1,1192 @@
+{
+  "schema": "armature/2.0",
+  "model": "rejection-v3-cardinality-negative",
+  "catalog": [
+    {
+      "base": "catalog/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 4096
+      }
+    },
+    "ffn": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 14336
+      }
+    },
+    "heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 32
+      }
+    },
+    "kv_heads": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "head_dim": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128
+      }
+    },
+    "layers": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 32
+      }
+    },
+    "vocab": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128256
+      }
+    },
+    "eps": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-05
+      }
+    },
+    "precision": {
+      "regime": "model_constant",
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {},
+  "occurrences": {
+    "embed": {
+      "contract": {
+        "name": "embed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "input",
+        "embedding"
+      ]
+    },
+    "final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ]
+    },
+    "lm_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        }
+      },
+      "families": [
+        "output",
+        "head"
+      ]
+    }
+  },
+  "compositions": {
+    "decoder": {
+      "indices": {
+        "blk": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "quantity": "layers"
+          },
+          "step": {
+            "literal": 1
+          }
+        }
+      },
+      "families": [
+        "decoder"
+      ],
+      "occurrences": {
+        "attn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "literal": -8
+            },
+            "head_dim": {
+              "quantity": "head_dim"
+            },
+            "mask": {
+              "literal": "causal"
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 500000
+                },
+                "layout": {
+                  "literal": "split"
+                }
+              }
+            }
+          },
+          "families": [
+            "sequence_operator"
+          ]
+        },
+        "attn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        },
+        "ffn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        },
+        "ffn": {
+          "contract": {
+            "name": "ffn.gated",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "inner": {
+              "quantity": "ffn"
+            },
+            "activation": {
+              "literal": "silu"
+            }
+          },
+          "families": [
+            "feed_forward"
+          ]
+        },
+        "ffn_r": {
+          "contract": {
+            "name": "residual.add",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            }
+          },
+          "families": [
+            "residual"
+          ]
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "decoder.attn_n.carry": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "index": "i"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 1
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.attn_r.a_carry": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "index": "i"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 1
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.attn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.attn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.ffn_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.ffn_r.a": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "a"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.ffn.norm_in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_n",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.ffn_r.b": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "b"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      },
+      "decoder.entry": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_n",
+            "indices": {
+              "blk": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "decoder.entry.a": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "attn_r",
+            "indices": {
+              "blk": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "a"
+        }
+      },
+      "final_n.in": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "ffn_r",
+            "indices": {
+              "blk": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "layers"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
+        }
+      },
+      "lm_head.in": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "embed.weight": {
+        "tensor": {
+          "name": "embed.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "final_n.weight": {
+        "tensor": {
+          "name": "final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "lm_head.weight": {
+        "tensor": {
+          "name": "lm_head.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "lm_head"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.attn_n.weight": {
+        "tensor": {
+          "name": "decoder.attn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.attn.qkv": {
+        "tensor": {
+          "name": "decoder.attn.qkv",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "qkv"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.attn.out": {
+        "tensor": {
+          "name": "decoder.attn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.ffn_n.weight": {
+        "tensor": {
+          "name": "decoder.ffn_n.weight",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "ffn_n",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.ffn.in": {
+        "tensor": {
+          "name": "decoder.ffn.in",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "ffn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "in"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "decoder.ffn.out": {
+        "tensor": {
+          "name": "decoder.ffn.out",
+          "indices": {
+            "blk": {
+              "index": "blk"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "ffn",
+              "indices": {
+                "blk": {
+                  "index": "blk"
+                }
+              }
+            },
+            "parameter": "out"
+          }
+        ],
+        "for_each": {
+          "blk": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        },
+        "dtype": {
+          "quantity": "precision"
+        }
+      }
+    },
+    "constants": {},
+    "states": {
+      "decoder.attn.kv": {
+        "identity": {
+          "name": "decoder.attn.kv",
+          "indices": {
+            "layer": {
+              "index": "i"
+            }
+          }
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "blk": {
+                  "index": "i"
+                }
+              }
+            },
+            "state": "kv"
+          }
+        ],
+        "keys": {
+          "axes": [
+            {
+              "name": "layer",
+              "source": {
+                "occurrence_index": "i"
+              }
+            },
+            {
+              "name": "session",
+              "source": {
+                "context": "request.session"
+              }
+            },
+            {
+              "name": "branch",
+              "source": {
+                "context": "request.branch"
+              }
+            }
+          ],
+          "sharing": {
+            "equal_on": [
+              "layer",
+              "session",
+              "branch"
+            ]
+          }
+        },
+        "liveness": {
+          "classes_by": [
+            "layer",
+            "session",
+            "branch"
+          ],
+          "max_active_classes": {
+            "expression": {
+              "op": "multiply",
+              "args": [
+                {
+                  "quantity": "layers"
+                },
+                {
+                  "context": "analysis.max_active_sessions"
+                },
+                {
+                  "context": "analysis.max_branches_per_session"
+                }
+              ]
+            },
+            "status": "upper_bound",
+            "provenance": [
+              {
+                "quantity": "layers"
+              },
+              {
+                "context": "analysis.max_active_sessions"
+              },
+              {
+                "context": "analysis.max_branches_per_session"
+              }
+            ]
+          }
+        },
+        "visits": [
+          {
+            "unit": "request",
+            "phase": "generation",
+            "upper_bound": {
+              "expression": {
+                "context": "request.max_tokens"
+              },
+              "status": "upper_bound",
+              "provenance": [
+                {
+                  "context": "request.max_tokens"
+                }
+              ]
+            }
+          }
+        ],
+        "for_each": {
+          "i": {
+            "start": {
+              "literal": 0
+            },
+            "stop": {
+              "quantity": "layers"
+            },
+            "step": {
+              "literal": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  "interfaces": {
+    "inputs": {
+      "tokens": {
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "tokens"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "self"
+        }
+      }
+    },
+    "outputs": {
+      "logits": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "logits"
+        },
+        "domain": {
+          "kind": "token",
+          "source": "tokens"
+        },
+        "generative": true
+      }
+    }
+  }
+}

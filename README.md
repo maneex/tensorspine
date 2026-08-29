@@ -244,8 +244,14 @@ Expressions are tagged unions (`{"literal": …}`, `{"quantity": …}`, `{"index
 `{"op": …, "args": […]}`), never ambiguous strings. Every quantity has a `regime` and `source`,
 distinguishing values read from configuration from values supplied later.
 
-Schemas are indexed by their `$id` under `https://armature.dev/schema/2.0/`, not by filename. Only
-the model schema is currently in the live tree; catalog-unit and D1 schemas are not yet present.
+Schemas are indexed by their `$id` under `https://armature.dev/schema/2.0/`, not by filename. The
+model schema and the catalog-unit schema are in the tree; the D1 schema is not yet present.
+
+`armature-catalog-unit.schema.json` closes the catalog vocabulary: argument types (there is no
+opaque type), state laws, access geometries, sharing granularities, partition communications and
+precision sensitivities are enumerations. Every unit is read against it when a catalog is loaded,
+and the references a unit makes — axes, precision roles, ports, argument paths in conditions — are
+resolved; a unit outside the vocabulary is a load error naming the file.
 
 ### Tools
 
@@ -259,6 +265,7 @@ python3 tools/armature --validate data/models/llama3-8b.json
 python3 tools/armature --lint                           # advisory hygiene checks
 python3 tools/armature --d1   data/models/llama3-8b.json -o /path/out.d1.json
 python3 tools/armature --view data/models/llama3-8b.json -o /path/out.html
+python3 tests/run_rejections.py                         # §10.2 rejection cases
 python3 tools/armature --document catalog -o docs/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
 # Templates require external quantity assignments.
@@ -267,8 +274,9 @@ python3 tools/armature --validate data/models/decoder-causal-yarn.json \
              "inner":9216,"eps":0.00001,"precision":"bf16"}'
 ```
 
-- `--validate` checks grammar, catalog resolution, arguments, shapes, domains, bindings and
-  acyclicity; it stops at the first error and exits 1.
+- `--validate` checks grammar, catalog resolution, arguments and their types (records
+  recursively, contract defaults applied first), shapes, domains, bindings and acyclicity; it
+  stops at the first error and exits 1.
 - `--lint` reports optional authoring advice and always exits 0.
 - `--d1` unrolls loops, evaluates indices and expands delegated contracts. Canonical IDs use
   `<composition>/<site>[<i>=<v>,…]`.

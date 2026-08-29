@@ -3,7 +3,7 @@
   "kind": "contract",
   "name": "ffn.dense",
   "definition": {
-    "version": "1.1.0",
+    "version": "1.0.0",
     "summary": "Dense feed-forward network: an up projection, a non-linearity, then a down projection.",
     "description": "`in` projects to `inner`, the activation is applied, `out` projects back to `width`. The same conditioning and sparsity options as `ffn.gated`, without the gate half.",
     "external_docs": [
@@ -85,20 +85,26 @@
       },
       "condition": {
         "type": {
-          "kind": "opaque"
+          "kind": "enum",
+          "values": [
+            "time"
+          ]
         },
         "required": false,
         "affects_template": false,
-        "description": "How the conditioning signal is applied. Opaque."
+        "description": "How the conditioning signal is applied.",
+        "value_descriptions": {
+          "time": "A temporal condition modulates the inner activation through the `condition_in`/`condition_out` projector."
+        }
       },
       "activation_sparsity": {
         "type": {
-          "kind": "opaque"
+          "kind": "real"
         },
         "required": false,
         "affects_template": false,
-        "note": "structural fraction of activations zeroed after selection",
-        "description": "Fraction of activations zeroed after selection. Opaque."
+        "description": "Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none.",
+        "note": "structural fraction of activations zeroed after selection"
       }
     },
     "ports": {

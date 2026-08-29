@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
-    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `source` makes it **cross-attention**: keys and values come from the `source_values` port, in the indexing domain the argument names, and the cache is frozen once that source is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` are opaque: they change the computation, never a tensor or a state, which is why they carry no template effect. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.",
+    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `source` makes it **cross-attention**: keys and values come from the `source_values` port, in the indexing domain the argument names, and the cache is frozen once that source is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they carry no template effect; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or a named source. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `source`) is stateless.",
     "tags": [
       "sequence-operator"
     ],
@@ -38,7 +38,7 @@
         "url": "https://arxiv.org/abs/2104.09864",
         "title": "RoFormer: Enhanced Transformer with Rotary Position Embedding (Su et al., 2021)",
         "kind": "paper",
-        "description": "Rotary position encoding, the usual content of the opaque `rope` argument."
+        "description": "Rotary position encoding, what the `rope` argument declares."
       }
     ],
     "arguments": {
@@ -134,27 +134,246 @@
       },
       "rope": {
         "type": {
-          "kind": "opaque"
+          "kind": "record",
+          "fields": {
+            "theta": {
+              "type": {
+                "kind": "real"
+              },
+              "required": true,
+              "affects_template": false,
+              "description": "Base of the rotary frequencies."
+            },
+            "layout": {
+              "type": {
+                "kind": "enum",
+                "values": [
+                  "split",
+                  "interleaved",
+                  "2d"
+                ]
+              },
+              "required": false,
+              "affects_template": false,
+              "default": {
+                "literal": "split"
+              },
+              "description": "How the rotated pairs are laid out along `head_dim`.",
+              "value_descriptions": {
+                "split": "Pair `i` with `i + head_dim/2` (the Llama layout).",
+                "interleaved": "Pair `2i` with `2i+1` (the GPT-NeoX layout).",
+                "2d": "Two-dimensional rotation over patch rows and columns (vision)."
+              }
+            },
+            "partial": {
+              "type": {
+                "kind": "real"
+              },
+              "required": false,
+              "affects_template": false,
+              "description": "Fraction of `head_dim` that is rotated; the rest is left as is. Absent, the whole head is rotated."
+            },
+            "mrope": {
+              "type": {
+                "kind": "record",
+                "fields": {
+                  "t": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Channels of the temporal section."
+                  },
+                  "h": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Channels of the height section."
+                  },
+                  "w": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Channels of the width section."
+                  }
+                }
+              },
+              "required": false,
+              "affects_template": false,
+              "description": "Multimodal rotary: the rotated channels are split into temporal, height and width sections, each driven by its own position index."
+            },
+            "scaling": {
+              "type": {
+                "kind": "record",
+                "fields": {
+                  "kind": {
+                    "type": {
+                      "kind": "enum",
+                      "values": [
+                        "yarn",
+                        "llama3",
+                        "linear"
+                      ]
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Context-extension method applied to the rotary frequencies.",
+                    "value_descriptions": {
+                      "yarn": "YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.",
+                      "llama3": "Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.",
+                      "linear": "Position interpolation: every position is divided by `factor`."
+                    }
+                  },
+                  "factor": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Ratio between the served context and `orig_ctx`."
+                  },
+                  "orig_ctx": {
+                    "type": {
+                      "kind": "cardinality"
+                    },
+                    "required": true,
+                    "affects_template": false,
+                    "description": "Context length the frequencies were trained at."
+                  },
+                  "beta_fast": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "yarn"
+                        }
+                      }
+                    },
+                    "description": "YaRN: number of rotations above which a frequency is left unscaled."
+                  },
+                  "beta_slow": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "yarn"
+                        }
+                      }
+                    },
+                    "description": "YaRN: number of rotations below which a frequency is fully interpolated."
+                  },
+                  "low": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "llama3"
+                        }
+                      }
+                    },
+                    "description": "Llama 3: low-frequency factor."
+                  },
+                  "high": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": false,
+                    "affects_template": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "llama3"
+                        }
+                      }
+                    },
+                    "description": "Llama 3: high-frequency factor."
+                  }
+                }
+              },
+              "required": false,
+              "affects_template": false,
+              "description": "Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained."
+            }
+          }
         },
         "required": false,
         "affects_template": false,
-        "description": "Rotary position encoding configuration: base, scaling, layout. Opaque: it changes the computation, not a tensor or a state."
+        "description": "Rotary position encoding: base, layout, rotated fraction, multimodal sections and context-extension scaling. Changes the computation, not a tensor or a state."
       },
       "qk_norm": {
         "type": {
-          "kind": "opaque"
+          "kind": "enum",
+          "values": [
+            "rms",
+            "layer"
+          ]
         },
         "required": false,
         "affects_template": false,
-        "description": "Normalization applied to queries and keys before the dot product (`rms` in the corpus). Opaque; the learned scale is declared separately by `qk_norm_weight`."
+        "description": "Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`.",
+        "value_descriptions": {
+          "rms": "RMS normalization.",
+          "layer": "Layer normalization."
+        }
       },
       "temperature": {
         "type": {
-          "kind": "opaque"
+          "kind": "record",
+          "fields": {
+            "floor": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "affects_template": false,
+              "description": "Positions per temperature step: the scale grows once per `floor` positions."
+            },
+            "scale": {
+              "type": {
+                "kind": "real"
+              },
+              "required": true,
+              "affects_template": false,
+              "description": "Growth of the logit scale per step."
+            }
+          }
         },
         "required": false,
         "affects_template": false,
-        "description": "Attention temperature scaling configuration. Opaque."
+        "description": "Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`."
       },
       "q_bias": {
         "type": {
@@ -310,11 +529,6 @@
         "sharing": {
           "kind": "exclusive"
         },
-        "present_when": {
-          "not": {
-            "present": "q_rank"
-          }
-        },
         "shape": {
           "axes": [
             {
@@ -366,11 +580,6 @@
         "role": "attention.output_projection",
         "sharing": {
           "kind": "exclusive"
-        },
-        "present_when": {
-          "not": {
-            "present": "o_rank"
-          }
         },
         "shape": {
           "axes": [

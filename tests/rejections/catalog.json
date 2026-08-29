@@ -1,0 +1,60 @@
+{
+  "purpose": "Catalog units that must be refused at load time: off-schema, or citing what the catalog does not hold. Each base holds one broken unit and is loaded in front of the reference base.",
+  "cases": [
+    {
+      "base": "catalog/state-law-typo",
+      "match": "'apend' is not one of ['append', 'window', 'fixed']",
+      "note": "A state law outside the closed vocabulary (\u00a74.3)."
+    },
+    {
+      "base": "catalog/state-access-unknown",
+      "match": "'paged_blocks' is not one of",
+      "note": "An access geometry naming a runtime data structure (N8)."
+    },
+    {
+      "base": "catalog/opaque-argument",
+      "match": "'opaque'",
+      "note": "The opaque type is gone: a value the contract cannot type cannot be rejected."
+    },
+    {
+      "base": "catalog/window-without-span",
+      "match": "'span' is a required property",
+      "note": "A window law must declare its span."
+    },
+    {
+      "base": "catalog/unknown-axis",
+      "match": "axis 'attention.qkv_flatt' is not in the catalog",
+      "note": "A shape citing an axis the catalog does not hold."
+    },
+    {
+      "base": "catalog/unknown-precision-role",
+      "match": "role 'attention.output_projektion' has no precision rule",
+      "note": "A parameter role with no precision rule."
+    },
+    {
+      "base": "catalog/guard-on-undeclared-argument",
+      "match": "present_when tests undeclared argument 'o_rank'",
+      "note": "A guard on an argument the contract never declares: a dead guard, the case found in attention.dense before this schema."
+    },
+    {
+      "base": "catalog/enum-default-out-of-set",
+      "match": "default 'bidirectional' is not among",
+      "note": "A default the enum does not admit."
+    },
+    {
+      "base": "catalog/effect-on-unknown-port",
+      "match": "effects.reads: 'keys' is not an input port",
+      "note": "An effect naming no port."
+    },
+    {
+      "base": "catalog/version-path-mismatch",
+      "match": "version '1.0.1', path says '1.0.0'",
+      "note": "The file name is the version; the two must agree (\u00a78.2)."
+    },
+    {
+      "base": "catalog/precision-sensitivity-unknown",
+      "match": "'whatever' is not one of",
+      "note": "A sensitivity outside the closed set."
+    }
+  ]
+}
