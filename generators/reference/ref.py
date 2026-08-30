@@ -290,6 +290,18 @@ def cmd_run(args):
     ids = [int(x) for x in args.ids.split(',')] if args.ids else [1]
     dump = {} if args.dump else None
     t0 = time.time()
+    if g.generative is None:                      # an encoder: one invocation, the exposed outputs, nothing to decode
+        out = session.run({g.token_input: torch.as_tensor(ids, device=args.device, dtype=torch.long)}, dump)
+        for oname, t in out.items():
+            print(f"  {oname}: {list(t.shape)}, mean norm {float(t.float().norm(dim=-1).mean()):.6f} ({time.time() - t0:.1f}s)")
+        if args.dump:
+            for oname, o in g.interfaces['outputs'].items():
+                dump[f"value/{o['node']}.{o['port']}"] = out[oname].detach().to('cpu', torch.float32).clone()
+            write_dump(args.dump, dump, {'model': g.model, 'ids': ids, 'tokens': [], 'capacity': args.capacity,
+                                         'compute': str(dtype), 'random_seed': args.seed if args.random else None,
+                                         'cuts': [c['cut'] for c in g.layer_cuts()]})
+            print(f"  dumped {len(dump)} tensors -> {args.dump}")
+        return 0
     out = session.prefill(ids, dump)
     first_logits = out[g.generative[0]]
     nxt = greedy(out, g)

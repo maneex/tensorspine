@@ -6,8 +6,8 @@ against the official implementation at every layer boundary, and a small chat. N
 system. Its plan, and the location plan whose weight locations it loads by, are working notes
 outside the tree.
 
-**Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Four models run from their documents
-and the checkpoints they name, with no per-model code, and agree with `transformers` (a fifth
+**Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Five models run from their documents
+and the checkpoints they name, with no per-model code, and agree with `transformers` (a sixth
 document, the multimodal `qwen3.8-27b`, runs on text and gives `qwen3.8-27b-text`'s logits bit for
 bit — below):
 
@@ -30,9 +30,16 @@ bit — below):
   a moderation fine-tune's verdict. On *"The capital of France is"* the model's first token is a tie
   in bf16 ("no" and "yes" both at 28.25) that fp32 breaks the other way: a tolerance question, not a
   kernel's, and the reason the prompt is a different one.
+- `colbert-v2` (BERT-base, post-LN, **stateless**: `embedding.token_position_type`, `norm.layer`,
+  `ffn.dense`, bidirectional `attention.dense` with biases, `pooler` — one 128-vector per token,
+  L2-normalised; `colbert-ir/colbertv2.0`, fp32, one file): the whole 12-layer model within 3.8e-6 of
+  `transformers` at every layer and on the embeddings of *"[CLS] [Q] what is the capital of france ? [SEP]"*.
+  A document without a generative output is one invocation: `run` prints the exposed outputs, the
+  test compares them, nothing is decoded and no state exists.
 
-Kernels: `embed`, `norm.rms` (zero-centred scales), `attention.dense` (causal, GQA, RoPE full or
-partial, YaRN scaling, gated query, Q/K RMS norms), `residual.add`, `ffn.gated`, `lm_head`,
+Kernels: `embed`, `embedding.token_position_type`, `norm.rms` (zero-centred scales), `norm.layer`,
+`attention.dense` (causal or bidirectional, GQA, biases, RoPE full or partial, YaRN scaling, gated
+query, Q/K RMS norms), `residual.add`, `ffn.gated`, `ffn.dense`, `lm_head`, `pooler`,
 `sequence.gated_delta`. A session-based chat (`ref.py chat`), greedy or sampled, streaming, through
 the checkpoint's own chat template when it has one (Qwen 3.5 4B answers with its thinking block;
 when its template strips earlier thinking from the history, the prefix check rebuilds the session

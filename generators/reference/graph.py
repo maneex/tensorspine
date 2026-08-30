@@ -158,6 +158,10 @@ class Graph:
             for name, stream in self.input_stream.items():
                 if stream == self.generative[1] and 'stream' not in self.interfaces['inputs'][name]:
                     self.feedback_input = name
+        # the input ids are delivered to: the feedback input, else (a document without a generative
+        # output — an encoder) the public input whose value is a token stream
+        self.token_input = self.feedback_input or next(
+            (n for n, v in self.input_values.items() if v.get('domain', {}).get('kind') == 'token'), None)
 
     def layer_cuts(self):
         return [c for c in self.cuts if c['kind'] == 'layer']

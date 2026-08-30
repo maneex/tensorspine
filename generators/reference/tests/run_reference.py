@@ -220,7 +220,7 @@ def fixture_case(check, fixture, document, checkpoint):
     ids = header['ids']
     tmp = tempfile.mkdtemp(prefix='tensorspine-ref-fixture-')
     path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', f'{document}.json'),
-                                  f"decoder.layer={header['layers']}", tmp)
+                                  f"{header.get('composition', 'decoder')}.layer={header['layers']}", tmp)
     g = graph_mod.load(path)
     errors, _, stats = loader.verify(g, checkpoint)
     ok = check(f"{label}: the {header['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
@@ -233,20 +233,28 @@ def fixture_case(check, fixture, document, checkpoint):
     model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
     session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
     ours = {}
-    out = session.prefill(ids, ours)
-    for ident, st in session.states.items():
-        bufs, length = st.read()
-        for c, buf in bufs.items():
-            ours[f"state/{ident}/{c}"] = buf[:length].detach().to('cpu', torch.float32).clone()
-    logits = out[g.generative[0]]
-    ours['logits/last'] = logits[-1].detach().to('cpu', torch.float32).clone()
-    ours['logits/argmax'] = logits.argmax(-1).detach().cpu().clone()
-    nxt = greedy(out, g)
-    tokens = [nxt]
-    for _ in range(len(header['tokens']) - 1):
-        out = session.decode(nxt)
+    encoder = g.generative is None                # no generative output: one invocation, the exposed outputs compared
+    if encoder:
+        out = session.run({g.token_input: torch.as_tensor(ids, dtype=torch.long)}, ours)
+        for oname, o in g.interfaces['outputs'].items():
+            ours[f"value/{o['node']}.{o['port']}"] = out[oname].detach().to('cpu', torch.float32).clone()
+        primary = out[next(iter(g.interfaces['outputs']))]
+        tokens = []
+    else:
+        out = session.prefill(ids, ours)
+        for ident, st in session.states.items():
+            bufs, length = st.read()
+            for c, buf in bufs.items():
+                ours[f"state/{ident}/{c}"] = buf[:length].detach().to('cpu', torch.float32).clone()
+        primary = out[g.generative[0]]
+        ours['logits/last'] = primary[-1].detach().to('cpu', torch.float32).clone()
+        ours['logits/argmax'] = primary.argmax(-1).detach().cpu().clone()
         nxt = greedy(out, g)
-        tokens.append(nxt)
+        tokens = [nxt]
+        for _ in range(len(header['tokens']) - 1):
+            out = session.decode(nxt)
+            nxt = greedy(out, g)
+            tokens.append(nxt)
     rows, failures, _ = compare(ours, theirs, atol=1e-3, rtol=1e-2)
     worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
     # the same fixture in blocks: identical logits and tokens, and the traffic is the model (M4)
@@ -255,16 +263,24 @@ def fixture_case(check, fixture, document, checkpoint):
     blocked = Plan(g, kernels, max_bytes=resident + finest, elements=64, resident_bytes=resident)
     bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.Source(g, checkpoint, 'cpu').materialise)
     bsession = Session(bmodel, capacity=64, device='cpu', dtype=torch.float32)
-    bl = bsession.prefill(ids)[g.generative[0]]
-    bt = [greedy({g.generative[0]: bl}, g)]
-    for _ in range(len(header['tokens']) - 1):
-        bt.append(greedy(bsession.decode(bt[-1]), g))
-    ok &= check(f"{label}: {len(blocked.blocks)} blocks under --max-ram give the same logits and tokens, "
+    if encoder:
+        bl = bsession.run({g.token_input: torch.as_tensor(ids, dtype=torch.long)})[next(iter(g.interfaces['outputs']))]
+        bt = []
+    else:
+        bl = bsession.prefill(ids)[g.generative[0]]
+        bt = [greedy({g.generative[0]: bl}, g)]
+        for _ in range(len(header['tokens']) - 1):
+            bt.append(greedy(bsession.decode(bt[-1]), g))
+    ok &= check(f"{label}: {len(blocked.blocks)} blocks under --max-ram give the same {'outputs' if encoder else 'logits and tokens'}, "
                 f"{blocked.traffic_bytes() / 2**30:.2f} GiB of traffic per invocation",
-                len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
-    ok &= check(f"{label}: {len(rows)} values, states and logits within tolerance of transformers (max |d| {worst:.1e})",
+                len(blocked.blocks) > 1 and torch.equal(bl, primary) and bt == tokens)
+    ok &= check(f"{label}: {len(rows)} values{'' if encoder else ', states'} and {'outputs' if encoder else 'logits'} within tolerance of transformers (max |d| {worst:.1e})",
                 failures == 0, [r for r in rows if 'EXCEEDS' in r[3] or r[1] is None][:2])
-    ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
+    if encoder:
+        exposed = [f"value/{o['node']}.{o['port']}" for o in g.interfaces['outputs'].values()]
+        ok &= check(f"{label}: the exposed output {exposed} is among the compared values", all(k in theirs for k in exposed))
+    else:
+        ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
     return ok
 
 
