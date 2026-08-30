@@ -512,19 +512,11 @@
                   "extent": {
                     "argument": "conv.width"
                   }
-                },
-                {
-                  "name": "history",
-                  "axis": "sequence.position",
-                  "nature": "structural",
-                  "extent": {
-                    "argument": "conv.history"
-                  }
                 }
               ]
             },
             "role": "state.conv",
-            "description": "The last `conv.history` inputs of the convolution."
+            "description": "One past input of the convolution; the ring holds `conv.history` of them."
           }
         },
         "key_axes": [
@@ -558,7 +550,7 @@
             "description": "Ring of `conv.history` positions."
           }
         ],
-        "description": "Input history of the causal convolution."
+        "description": "Input history of the causal convolution: one position per payload, `conv.history` positions in the ring."
       }
     },
     "effects": {
