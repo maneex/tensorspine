@@ -274,8 +274,9 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
-| `qk_norm` | record of 2 field(s) | no |  | yes | Normalization applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding. Its learned scale, when there is one, is declared inside it: a scale cannot be declared without the normalization it belongs to. Absent, queries and keys are not normalized. |
+| `qk_norm` | record of 3 field(s) | no |  | yes | Normalization applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding. Its learned scale, when there is one, is declared inside it: a scale cannot be declared without the normalization it belongs to. Absent, queries and keys are not normalized. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.kind` | enum: `"rms"`, `"layer"` | yes |  | no | Which normalization. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.eps` | real | yes |  | no | Added to the mean square (`rms`) or the variance (`layer`) before the root; changes no tensor. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.scale` | record of 1 field(s) | no |  | yes | The normalization has a learned per-channel scale: present, this record declares the `q_norm` and `k_norm` slots; an empty record is a plain scale. Absent, queries and keys are normalized without a scale.<br>*Note: present: the Q/K norm has learned scales, q_norm and k_norm* |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.scale.zero_centered` | boolean | no | `false` | no | The scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor. |
 | `temperature` | record of 2 field(s) | no |  | no | Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`. |
@@ -3254,7 +3255,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 34 | 34 | 100% |
-| argument | 186 | 186 | 100% |
+| argument | 187 | 187 | 100% |
 | port | 78 | 78 | 100% |
 | parameter | 116 | 116 | 100% |
 | state | 8 | 8 | 100% |
