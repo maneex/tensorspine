@@ -30,16 +30,9 @@ class StateInstance:
             raise Refusal(f"{self.identity}: unknown state law '{self.law}'")
         self.components = {}
         for p in entry['payload']:
-            # An `append` payload is one position; a `window` payload is the whole window, its
-            # position axis (`sequence.position`, of extent `span`) being the ring; a `fixed`
-            # payload is the state. Buffers are element-first: [positions, *per-position axes].
-            axes = p['shape']
-            if self.law == 'window':
-                ring = [i for i, a in enumerate(axes) if a['axis'] == 'sequence.position' and a['extent'] == self.span]
-                if len(ring) != 1:
-                    raise Refusal(f"{self.identity}: a window payload must carry one sequence.position axis of extent {self.span}")
-                axes = [a for i, a in enumerate(axes) if i != ring[0]]
-            shape = [a['extent'] for a in axes]
+            # A payload is one position for `append` and `window`, the state for `fixed` (§4.3).
+            # Buffers are element-first, [positions, *payload]: a window's ring is [span, *payload].
+            shape = [a['extent'] for a in p['shape']]
             full = ([self.capacity] + shape) if self.capacity is not None else shape
             self.components[p['component']] = torch.zeros(full, device=device, dtype=dtype)
         self.length = 0
