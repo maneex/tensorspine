@@ -1,6 +1,6 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "qwen3_5_397b_a17b",
+  "model": "qwen3_5_35b_a3b",
   "catalog": [
     {
       "base": "../catalog/"
@@ -14,7 +14,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 4096
+        "value": 2048
       }
     },
     "vocab": {
@@ -148,7 +148,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 64
+        "value": 32
       }
     },
     "gdn_hd": {
@@ -207,7 +207,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 32
+        "value": 16
       }
     },
     "attn_kv": {
@@ -237,7 +237,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 512
+        "value": 256
       }
     },
     "top_k": {
@@ -247,7 +247,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 10
+        "value": 8
       }
     },
     "moe_ffn": {
@@ -257,7 +257,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 1024
+        "value": 512
       }
     },
     "shared_ffn": {
@@ -267,7 +267,7 @@
       },
       "source": {
         "kind": "literal",
-        "value": 1024
+        "value": 512
       }
     }
   },
@@ -404,7 +404,7 @@
             "literal": 0
           },
           "stop": {
-            "literal": 60
+            "literal": 40
           },
           "step": {
             "literal": 1
@@ -501,7 +501,7 @@
                     "index": "layer"
                   },
                   "right": {
-                    "literal": 59
+                    "literal": 39
                   }
                 }
               }
@@ -549,7 +549,7 @@
                     "index": "layer"
                   },
                   "right": {
-                    "literal": 59
+                    "literal": 39
                   }
                 }
               }
@@ -882,7 +882,7 @@
                           "index": "layer"
                         },
                         "right": {
-                          "literal": 59
+                          "literal": 39
                         }
                       }
                     }
@@ -2318,7 +2318,7 @@
             "occurrence": "mlp_r",
             "indices": {
               "layer": {
-                "literal": 59
+                "literal": 39
               }
             }
           },

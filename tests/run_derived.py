@@ -121,6 +121,12 @@ def main():
                 sh.get('decoder.attn.q[layer=3]') == {'tensor': 'language_model.model.layers.3.self_attn.q_proj.weight'}
                 and sh.get('tied_embeddings') == {'tensor': 'language_model.model.embed_tokens.weight'}
                 and len(sh_names) == 458 and len(set(sh_names)) == 458)
+    q35 = {t['identity']: t for t in docs['qwen3.5-35b-a3b']['d3']['tensors']}
+    ok &= check("qwen3.5-35b-a3b: 1134 tensors located; the fused experts are [256, 2·512, 2048] and [256, 2048, 512] on one physical tensor each",
+                len(q35) == 1134 and all(t.get('location') for t in q35.values())
+                and [a['extent'] for a in q35['decoder.mlp.in[layer=0]']['shape']] == [256, 1024, 2048]
+                and [a['extent'] for a in q35['decoder.mlp.out[layer=0]']['shape']] == [256, 2048, 512]
+                and q35['decoder.mlp.in[layer=0]']['location'] == {'tensor': 'model.language_model.layers.0.mlp.experts.gate_up_proj'})
     cb = {t['identity']: t.get('location') for t in docs['colbert-v2']['d3']['tensors']}
     cb_names = [v['tensor'] for v in cb.values() if v]
     ok &= check("colbert-v2: 198 tensors located one-to-one — enc.attn.q[layer=3] under bert.encoder.layer, the head on linear.weight",
