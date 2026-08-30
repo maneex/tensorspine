@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "reference",
-    "version": "ee61c9d",
+    "version": "b40688f",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-08-30"
   },
@@ -205,6 +205,34 @@
         "vocabulary": "any"
       },
       "states": []
+    },
+    "moe@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "experts": "any",
+        "top_k": "any",
+        "inner": "any",
+        "shared": "any",
+        "shared_inner": "any",
+        "norm_topk": "any",
+        "routing": [
+          "learned"
+        ],
+        "scale": "any",
+        "scoring": [
+          "softmax"
+        ],
+        "swiglu_limit": "absent",
+        "shared_output_gate": "any",
+        "score_bias": [
+          false
+        ],
+        "hash_vocabulary": "absent"
+      },
+      "states": [],
+      "notes": [
+        "an expert's activation is SiLU; one activated expert at a time"
+      ]
     },
     "norm.layer@1.0.0": {
       "arguments": {

@@ -95,7 +95,12 @@ def main(argv=None):
             write_dump(args.out, dump, header)
             print(f"dumped {len(dump)} tensors -> {args.out}")
             return
-        out = model(input_ids=x, use_cache=True)
+        # positions given explicitly, and — for a truncation without full-attention layers — the mask mapping
+        # given empty: no layer consumes a mask, and HF's mask builder would ask an attention cache it does not have
+        pos = torch.arange(len(ids))[None]
+        types = list(getattr(text, 'layer_types', None) or [])
+        no_mask = {t: None for t in set(types)} if types and 'full_attention' not in types else None
+        out = model(input_ids=x, position_ids=pos, cache_position=pos[0], attention_mask=no_mask, use_cache=True)
         cache = out.past_key_values
         logits = out.logits[0].to(torch.float32)
         dump['logits/last'] = logits[-1].cpu().clone()
@@ -123,7 +128,8 @@ def main(argv=None):
         tokens = [nxt]
         print(f"prefill {len(ids)} -> {nxt} ({time.time() - t0:.1f}s)")
         for _ in range(args.steps):
-            out = model(input_ids=torch.tensor([[nxt]]), past_key_values=cache, use_cache=True)
+            p = torch.tensor([len(ids) + len(tokens) - 1])
+            out = model(input_ids=torch.tensor([[nxt]]), position_ids=p[None], cache_position=p, attention_mask=no_mask, past_key_values=cache, use_cache=True)
             cache = out.past_key_values
             nxt = int(out.logits[0, -1].argmax())
             tokens.append(nxt)

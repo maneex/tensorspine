@@ -159,6 +159,7 @@ def main(compile_step=False, full=False):
     for m in (fresh, committed):
         m['generator'] = {k: v for k, v in m['generator'].items() if k not in ('version', 'generated')}
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
+    ok &= moe_random_case(check, tmp)
     ok &= m1(check)
     if full:
         ok &= m1_full(check)
@@ -166,10 +167,57 @@ def main(compile_step=False, full=False):
     return 0 if ok else 1
 
 
+TINY_MOE = {'quantities.d.source.value': 64, 'quantities.attn_q.source.value': 4, 'quantities.attn_kv.source.value': 2,
+            'quantities.attn_hd.source.value': 16, 'quantities.gdn_k.source.value': 2, 'quantities.gdn_v.source.value': 4,
+            'quantities.gdn_hd.source.value': 16, 'quantities.experts.source.value': 8, 'quantities.top_k.source.value': 2,
+            'quantities.moe_ffn.source.value': 32, 'quantities.shared_ffn.source.value': 32, 'quantities.vocab.source.value': 256,
+            'quantities.d_vis.source.value': 64, 'quantities.vit_heads.source.value': 4, 'quantities.vit_hd.source.value': 16,
+            'quantities.vit_ffn.source.value': 128, 'quantities.vit_layers.source.value': 2,
+            'compositions.vision.indices.layer.stop.literal': 2}      # the tower is not evaluated on text, but it is partitioned
+
+
+def moe_random_case(check, tmp):
+    """The Qwen 3.5 MoE document on random weights, four layers (three gated-delta, one attention),
+    eight experts of which two per token, a gated shared expert: the routing, the fused experts and
+    blocks give the one-block logits bit for bit."""
+    ok = True
+    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'qwen3.5-35b-a3b.json'), 'decoder.layer=4', tmp)
+    path, _ = graph_mod.edited(path, TINY_MOE, tmp, 'tiny')
+    g = graph_mod.load(path)
+    kernels = registry.load_kernels()
+    active = Plan(g, kernels).evaluable({g.feedback_input})
+    refused = registry.refusals(g, kernels, active)
+    ok &= check("tiny qwen3.5-moe: every contract the text delivery evaluates has a kernel", not refused, refused[:2])
+    params = loader.random_parameters(g, 'cpu', seed=3)
+    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+    out = session.prefill([1, 2, 3, 4, 5, 6])
+    logits = out[g.generative[0]]
+    tokens = [greedy(out, g)]
+    for _ in range(3):
+        tokens.append(greedy(session.decode(tokens[-1]), g))
+    ok &= check("tiny qwen3.5-moe: prefill and three decodes give finite logits on their D2 shapes",
+                list(logits.shape) == [6, 256] and bool(torch.isfinite(logits).all()))
+    resident = loader.state_bytes(g, 64, torch.float32) + loader.largest_temporary(g, torch.float32)
+    finest = max(b.bytes + b.payload_bytes_per_element * 64 for b in Plan(g, kernels).minimal)
+    blocked = Plan(g, kernels, max_bytes=resident + finest, elements=64, resident_bytes=resident)
+    bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.RandomSource(params).materialise)
+    bsession = Session(bmodel, capacity=64, device='cpu', dtype=torch.float32)
+    bl = bsession.prefill([1, 2, 3, 4, 5, 6])[g.generative[0]]
+    bt = [greedy({g.generative[0]: bl}, g)]
+    for _ in range(3):
+        bt.append(greedy(bsession.decode(bt[-1]), g))
+    ok &= check(f"tiny qwen3.5-moe: {len(blocked.blocks)} blocks give the same logits and tokens",
+                len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
+    return ok
+
+
 def m1(check):
     ok = True
-    for fixture, document, checkpoint in FIXTURES:
-        ok &= fixture_case(check, os.path.join(REF, 'fixtures', fixture), document, os.path.join(CHECKPOINTS, checkpoint))
+    for entry in FIXTURES:
+        fixture, document, checkpoint = entry[:3]
+        ok &= fixture_case(check, os.path.join(REF, 'fixtures', fixture), document, os.path.join(CHECKPOINTS, checkpoint),
+                           tolerance=entry[3] if len(entry) > 3 else (1e-3, 1e-2))
     ok &= text_only_case(check)
     return ok
 
@@ -211,8 +259,10 @@ def text_only_case(check):
     return ok
 
 
-def fixture_case(check, fixture, document, checkpoint):
-    label = document
+def fixture_case(check, fixture, document, checkpoint, tolerance=(1e-3, 1e-2)):
+    atol, rtol = tolerance
+    tag = os.path.basename(fixture).replace('.hf.safetensors', '').rsplit('.', 1)[-1]
+    label = document if tolerance == (1e-3, 1e-2) else f"{document} ({tag}, atol {atol:g} rtol {rtol:g})"
     if not (os.path.isdir(checkpoint) and os.path.exists(fixture)):
         print(f"  skip {label} (checkpoint or fixture not on disk)")
         return True
@@ -255,7 +305,7 @@ def fixture_case(check, fixture, document, checkpoint):
             out = session.decode(nxt)
             nxt = greedy(out, g)
             tokens.append(nxt)
-    rows, failures, _ = compare(ours, theirs, atol=1e-3, rtol=1e-2)
+    rows, failures, _ = compare(ours, theirs, atol=atol, rtol=rtol)
     worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
     # the same fixture in blocks: identical logits and tokens, and the traffic is the model (M4)
     resident = loader.state_bytes(g, 64, torch.float32) + loader.largest_temporary(g, torch.float32)

@@ -6,8 +6,8 @@ against the official implementation at every layer boundary, and a small chat. N
 system. Its plan, and the location plan whose weight locations it loads by, are working notes
 outside the tree.
 
-**Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Five models run from their documents
-and the checkpoints they name, with no per-model code, and agree with `transformers` (a sixth
+**Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Six models run from their documents
+and the checkpoints they name, with no per-model code, and agree with `transformers` (a seventh
 document, the multimodal `qwen3.8-27b`, runs on text and gives `qwen3.8-27b-text`'s logits bit for
 bit — below):
 
@@ -36,10 +36,18 @@ bit — below):
   `transformers` at every layer and on the embeddings of *"[CLS] [Q] what is the capital of france ? [SEP]"*.
   A document without a generative output is one invocation: `run` prints the exposed outputs, the
   test compares them, nothing is decoded and no state exists.
+- `qwen3.5-35b-a3b` (the 397B's structure at its quantities: 40 layers, 256 routed experts of
+  which 8 per token plus a gated shared expert, `moe` in every layer; `Qwen/Qwen3.5-35B-A3B`, 72 GB,
+  every tensor located and — a first — the fused expert layout verified against the shards): on
+  the 2-layer fixture (fp32) within 3.8e-6 of `transformers` at every cut and state; on the 4-layer
+  fixture, which adds the attention layer, `transformers` runs in bf16 (four fp32 layers exceed the
+  memory here) and the fp32 reference is within 8.2e-2 absolute of it, tokens identical — the
+  tolerance recorded beside the fixture; the full model streams 65 GiB per token under `--max-ram`.
 
 Kernels: `embed`, `embedding.token_position_type`, `norm.rms` (zero-centred scales), `norm.layer`,
 `attention.dense` (causal or bidirectional, GQA, biases, RoPE full or partial, YaRN scaling, gated
-query, Q/K RMS norms), `residual.add`, `ffn.gated`, `ffn.dense`, `lm_head`, `pooler`,
+query, Q/K RMS norms), `residual.add`, `ffn.gated`, `ffn.dense`, `moe` (learned softmax routing,
+renormalised or not, fused experts, gated shared experts), `lm_head`, `pooler`,
 `sequence.gated_delta`. A session-based chat (`ref.py chat`), greedy or sampled, streaming, through
 the checkpoint's own chat template when it has one (Qwen 3.5 4B answers with its thinking block;
 when its template strips earlier thinking from the history, the prefix check rebuilds the session
