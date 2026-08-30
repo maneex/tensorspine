@@ -110,6 +110,9 @@ def verify(graph, checkpoint):
     return artifact.check(graph.doc['d3'], headers)
 
 
+FORMS = ('tensor', 'stack', 'concat', 'slice')       # the location forms assemble() handles
+
+
 class Source:
     """One tensor per D3 identity, assembled from its evaluated location: read, stack,
     concatenate, slice, unit axes dropped; shard by shard, straight to the device (R05).

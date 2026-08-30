@@ -41,23 +41,12 @@ from session import Session, greedy  # noqa: E402
 from compare import compare, read_dump  # noqa: E402
 
 CHECKPOINTS = os.path.expanduser('~/work/perso/huggingface')
-FIXTURES = [   # (fixture, model document, checkpoint directory)
-    ('llama3-8b.3layers.hf.safetensors', 'llama3-8b', 'Meta-Llama-3-8B'),
-    ('qwen3.5-4b-text.4layers.hf.safetensors', 'qwen3.5-4b-text', 'Qwen3.5-4B'),
-    ('qwen3.8-27b-text.4layers.hf.safetensors', 'qwen3.8-27b-text', 'Qwen3.8-27B'),
-]
-FULL = [   # (model document, checkpoint directory, prompt ids, the greedy tokens transformers 5.14 produced in bf16, 29 Aug 2026)
-    ('llama3-8b', 'Meta-Llama-3-8B', [128000, 791, 6864, 315, 9822, 374],        # "<|begin_of_text|>The capital of France is"
-     [12366, 13, 1102, 374, 7559, 304, 279, 10411]),                              # " Paris. It is located in the north"
-    ('qwen3.5-4b-text', 'Qwen3.5-4B', [760, 6511, 314, 9338, 369],                # "The capital of France is"
-     [11751, 13, 198, 32, 13, 2912, 198, 33]),                                    # " Paris.\nA. True\nB"
-]
+from verified import FIXTURES, FULL   # noqa: E402
 
 TINY = {'quantities.d.source.value': 64, 'quantities.ffn.source.value': 128, 'quantities.heads.source.value': 4,
         'quantities.kv_heads.source.value': 2, 'quantities.head_dim.source.value': 16,
         'quantities.vocab.source.value': 256, 'quantities.layers.source.value': 3,
         'compositions.decoder.indices.layer.stop.literal': 3}
-
 
 def check(label, ok, detail=''):
     print(f"  {'ok  ' if ok else 'FAIL'} {label}" + (f"\n         {detail}" if detail and not ok else ''))
@@ -132,6 +121,16 @@ def main(compile_step=False, full=False):
             model.static = False
     else:
         print("  skip compile (pass --compile)")
+    # the committed manifest is what the code generates (backends/CAPABILITIES.md)
+    sys.path.insert(0, REF)
+    import ref as ref_cli
+    import json
+    fresh = ref_cli.manifest()
+    with open(os.path.join(REF, 'capabilities.json'), encoding='utf-8') as f:
+        committed = json.load(f)
+    for m in (fresh, committed):
+        m['backend'] = {k: v for k, v in m['backend'].items() if k not in ('version', 'generated')}
+    ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
     ok &= m1(check)
     if full:
         ok &= m1_full(check)

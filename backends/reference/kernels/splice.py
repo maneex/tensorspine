@@ -5,21 +5,21 @@
 | empty `source`             | implemented: the output is `text`                             |
 | non-empty `source`         | refused: the language does not yet say where the elements go  |
 """
-from kernels._common import refuse_unknown
+from kernels._common import refuse_unknown, supports_from
 
 CONTRACT = ("splice", "1.0.0")
-KNOWN = {'width'}
 
 
 class Unplaced(Exception):
     pass
 
 
-def supports(arguments):
-    reasons = []
-    refuse_unknown(arguments, KNOWN, reasons)
-    return reasons
+CAPABILITIES = {"arguments": {"width": "any"}, "states": [], "transforms": ["insert"],
+                "notes": ["source must deliver nothing: the language does not yet say where inserted elements go"]}
 
+
+def supports(arguments):
+    return supports_from(CAPABILITIES, arguments)
 
 def run(ctx, arguments, inputs, params, states):
     source = inputs.get('source')

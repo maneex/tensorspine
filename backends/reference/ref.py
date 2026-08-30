@@ -176,6 +176,52 @@ def cmd_chat(args):
                 args.temperature, args.top_p, args.seed, decode_model=compiled(model, args))
 
 
+def manifest():
+    """The reference backend's capabilities, from its code (backends/CAPABILITIES.md)."""
+    import datetime
+    import subprocess
+    import state as state_mod
+    from graph import DTYPES
+    kernels = registry.load_kernels()
+    try:
+        version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=HERE, text=True).strip()
+    except Exception:  # noqa: BLE001
+        version = 'unknown'
+    contracts = {}
+    for (name, ver), k in sorted(kernels.items()):
+        cap = dict(k.CAPABILITIES)
+        entry = {'arguments': cap['arguments'], 'states': list(cap.get('states', []))}
+        for key in ('excluding', 'transforms', 'notes'):
+            if cap.get(key):
+                entry[key] = list(cap[key])
+        contracts[f"{name}@{ver}"] = entry
+    return {'schema': 'tensorspine-capabilities/1',
+            'backend': {'name': 'reference', 'version': version, 'generator': 'backends/reference/ref.py capabilities',
+                        'generated': datetime.date.today().isoformat()},
+            'devices': ['cpu', 'cuda'],
+            'compute_dtypes': {'cpu': ['f32', 'bf16'], 'cuda': ['bf16', 'f32']},
+            'parameter_dtypes': sorted(DTYPES),
+            'state_laws': list(state_mod.LAWS), 'access': list(state_mod.ACCESS), 'sharing': [], 'partitions': [],
+            'domains': {'kinds': ['sequence', 'token', 'position', 'patch'],
+                        'transforms': sorted({t for k in kernels.values() for t in k.CAPABILITIES.get('transforms', [])}),
+                        'fragmented': True},
+            'sessions_per_invocation': 1,
+            'locations': list(loader.FORMS),
+            'contracts': contracts}
+
+
+def cmd_capabilities(args):
+    m = manifest()
+    with open(args.out, 'w', encoding='utf-8') as f:
+        json.dump(m, f, indent=2)
+        f.write('\n')
+    print(f"{len(m['contracts'])} contracts -> {args.out}")
+    if args.check:
+        import capabilities
+        return capabilities.run(args.out, [])
+    return 0
+
+
 def cmd_verify(args):
     g = open_graph(args)
     errors, advisories, stats = loader.verify(g, args.checkpoint)
@@ -271,6 +317,10 @@ def main(argv=None):
     p.add_argument('ours'); p.add_argument('theirs')
     p.add_argument('--atol', type=float, default=1e-3); p.add_argument('--rtol', type=float, default=1e-2)
     p.set_defaults(fn=cmd_compare)
+    p = sub.add_parser('capabilities')
+    p.add_argument('--out', default=os.path.join(HERE, 'capabilities.json'))
+    p.add_argument('--check', action='store_true', help='also validate the manifest against its schema and the catalog')
+    p.set_defaults(fn=cmd_capabilities)
     p = sub.add_parser('verify'); common(p)
     p.add_argument('--checkpoint', metavar='DIR', required=True)
     p.set_defaults(fn=cmd_verify)

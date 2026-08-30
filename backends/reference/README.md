@@ -30,6 +30,17 @@ and says so) or a plain transcript for a base model; `--compile` for the decode 
 cuts, loading and releasing each block every invocation (M4): the same logits bit for bit, the
 traffic printed. Next: M3 (CUDA).
 
+## Capabilities
+
+`backends/reference/capabilities.json` is the backend's manifest (the format is
+[`backends/CAPABILITIES.md`](../CAPABILITIES.md)): what it can evaluate, in the language's
+vocabulary, generated from the kernels' `CAPABILITIES` tables — the same tables `supports()` is
+computed from, so the manifest cannot drift from the code, and the test regenerates it to prove
+it. Two readers: a runtime asks `tensorspine --capabilities backends/reference/capabilities.json
+MODEL…` whether this backend can run a document for a delivery of inputs, before loading anything;
+a maintainer asks `--coverage` what the catalog and the corpus still need. `ref.py capabilities
+[--check]` regenerates it and validates its names against the catalog.
+
 ## Commands
 
 Every command takes a model document (derived in-process) or a derived document, and the options

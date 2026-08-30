@@ -31,3 +31,17 @@ def chunked_matmul(ctx, x, weight):
     if rows >= weight.shape[0]:
         return x @ weight.to(ctx.dtype).T
     return torch.cat([x @ weight[i:i + rows].to(ctx.dtype).T for i in range(0, weight.shape[0], rows)], dim=-1)
+
+
+# --- capabilities as data ---------------------------------------------------
+# A kernel declares CAPABILITIES = {"arguments": {...}, "excluding": [...], "states": [...],
+# "transforms": [...], "notes": [...]} in the manifest's rule grammar (backends/CAPABILITIES.md);
+# supports() and the manifest both come from it, and the rules are evaluated by the language's
+# reader, tools/capabilities.py — one implementation for every backend.
+import os
+import sys
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if os.path.join(_ROOT, 'tools') not in sys.path:
+    sys.path.insert(0, os.path.join(_ROOT, 'tools'))
+from capabilities import supports as supports_from   # noqa: E402,F401

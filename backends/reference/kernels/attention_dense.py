@@ -29,7 +29,7 @@ by the document and, for a single position stream, both layouts are plain RoPE.
 """
 import math
 import torch
-from kernels._common import present, refuse_unknown, w
+from kernels._common import present, refuse_unknown, supports_from, w
 
 CONTRACT = ("attention.dense", "1.0.0")
 KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'mask', 'window', 'chunk', 'cross', 'streaming', 'rope',
@@ -37,27 +37,22 @@ KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'mask', 'window', 'chunk', 'c
          'qk_norm_zero_centered'}
 
 
-def supports(arguments):
-    reasons = []
-    refuse_unknown(arguments, KNOWN, reasons)
-    if arguments.get('mask') not in ('causal', 'none'):
-        reasons.append(f"mask={arguments.get('mask')}")
-    for flag in ('cross', 'streaming'):
-        if arguments.get(flag):
-            reasons.append(f"{flag}=true")
-    for rec in ('window', 'chunk', 'temperature'):
-        if present(arguments, rec):
-            reasons.append(f"{rec}={arguments[rec]}")
-    if present(arguments, 'qk_norm') and arguments['qk_norm'] != 'rms':
-        reasons.append(f"qk_norm={arguments['qk_norm']}")
-    rope = arguments.get('rope')
-    if rope:
-        if rope.get('layout', 'split') != 'split':
-            reasons.append(f"rope.layout={rope.get('layout')}")
-        if rope.get('scaling') is not None:
-            reasons.append(f"rope.scaling={rope['scaling']}")
-    return reasons
+CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any",
+                              "mask": ["causal", "none"], "window": "absent", "chunk": "absent", "cross": [False],
+                              "streaming": [False], "temperature": "absent",
+                              "rope": {"absent": True, "fields": {"theta": "any", "layout": ["split"], "partial": "any",
+                                       "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
+                                                                              "sections": ["contiguous", "interleaved"]}},
+                                       "scaling": "absent"}},
+                              "qk_norm": {"absent": True, "values": ["rms"]}, "q_bias": "any", "k_bias": "any",
+                              "v_bias": "any", "out_bias": "any", "output_gate": "any", "qk_norm_weight": "any",
+                              "qk_norm_zero_centered": "any"},
+                "states": ["append"],
+                "notes": ["mrope for one position stream only: an image would need the sections to differ"]}
 
+
+def supports(arguments):
+    return supports_from(CAPABILITIES, arguments)
 
 def rope_split(x, positions, theta, partial=None):
     """Rotate-half RoPE over the first `partial · d` channels of each head (all of them when

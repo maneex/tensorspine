@@ -20,21 +20,20 @@ reference; it is exact and slow.
 import math
 import torch
 import torch.nn.functional as F
-from kernels._common import present, refuse_unknown, w
+from kernels._common import present, refuse_unknown, supports_from, w
 
 CONTRACT = ("sequence.gated_delta", "1.0.0")
-KNOWN = {'width', 'key_heads', 'value_heads', 'head_dim', 'out_gate', 'conv'}
+
+
+CAPABILITIES = {"arguments": {"width": "any", "key_heads": "any", "value_heads": "any", "head_dim": "any",
+                              "out_gate": ["silu"],
+                              "conv": {"absent": False, "fields": {"width": "any", "kernel": "any", "history": "any"}}},
+                "states": ["window", "fixed"],
+                "notes": ["the recurrent form, position by position: exact and slow"]}
 
 
 def supports(arguments):
-    reasons = []
-    refuse_unknown(arguments, KNOWN, reasons)
-    if not present(arguments, 'conv'):
-        reasons.append("conv=absent")
-    if arguments.get('out_gate', 'none') != 'silu':
-        reasons.append(f"out_gate={arguments.get('out_gate')}")
-    return reasons
-
+    return supports_from(CAPABILITIES, arguments)
 
 def l2norm(x, eps=1e-6):
     return x * torch.rsqrt(x.pow(2).sum(-1, keepdim=True) + eps)

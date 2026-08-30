@@ -1,16 +1,14 @@
 """embed@1.0.0 — one `width` vector per token identifier."""
-from kernels._common import refuse_unknown
+from kernels._common import refuse_unknown, supports_from
 
 CONTRACT = ("embed", "1.0.0")
-KNOWN = {'width', 'vocabulary'}
+
+
+CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any"}, "states": []}
 
 
 def supports(arguments):
-    """Implemented: the lookup. Refused: any argument this kernel does not know."""
-    reasons = []
-    refuse_unknown(arguments, KNOWN, reasons)
-    return reasons
-
+    return supports_from(CAPABILITIES, arguments)
 
 def run(ctx, arguments, inputs, params, states):
     ids = inputs['tokens']

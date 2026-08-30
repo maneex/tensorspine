@@ -11,6 +11,10 @@ eager or compiled.
 import torch
 
 
+LAWS = ('append', 'window', 'fixed')                 # the state laws implemented below
+ACCESS = ('logical_position', 'ring', 'aggregate')    # the access geometries the laws realise
+
+
 class Refusal(Exception):
     pass
 
@@ -22,7 +26,7 @@ class StateInstance:
         self.access = entry['access']
         self.span = entry.get('span')
         self.capacity = capacity if self.law == 'append' else (self.span if self.law == 'window' else None)
-        if self.law not in ('append', 'window', 'fixed'):
+        if self.law not in LAWS:
             raise Refusal(f"{self.identity}: unknown state law '{self.law}'")
         self.components = {}
         for p in entry['payload']:

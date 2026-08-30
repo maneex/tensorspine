@@ -12,27 +12,21 @@
 """
 import torch
 import torch.nn.functional as F
-from kernels._common import present, refuse_unknown, w
+from kernels._common import present, refuse_unknown, supports_from, w
 
 CONTRACT = ("ffn.gated", "1.0.0")
-KNOWN = {'width', 'inner', 'activation', 'in_bias', 'out_bias', 'condition_dim', 'condition', 'activation_sparsity'}
 ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approximate='tanh'),
        'relu2': lambda x: F.relu(x).pow(2)}
 
 
-def supports(arguments):
-    reasons = []
-    refuse_unknown(arguments, KNOWN, reasons)
-    if arguments.get('activation') not in ACT:
-        reasons.append(f"activation={arguments.get('activation')}")
-    if present(arguments, 'condition_dim'):
-        reasons.append(f"condition_dim={arguments['condition_dim']}")
-    if present(arguments, 'condition'):
-        reasons.append(f"condition={arguments['condition']}")
-    if arguments.get('activation_sparsity'):
-        reasons.append(f"activation_sparsity={arguments['activation_sparsity']}")
-    return reasons
+CAPABILITIES = {"arguments": {"width": "any", "inner": "any", "activation": ["silu", "gelu", "gelu_tanh", "relu2"],
+                              "in_bias": "any", "out_bias": "any", "condition_dim": "absent", "condition": "absent",
+                              "activation_sparsity": {"absent": True, "values": [0, 0.0]}},
+                "states": []}
 
+
+def supports(arguments):
+    return supports_from(CAPABILITIES, arguments)
 
 def run(ctx, arguments, inputs, params, states):
     x = inputs['input']
