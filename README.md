@@ -190,7 +190,7 @@ tensorspine/
 ├── data/
 │   ├── catalog/                  vocabulary, one unit per file
 │   │   ├── catalog.json          `base` unit naming the catalog and its `templates` location
-│   │   ├── axes/                 35 named axes
+│   │   ├── axes/                 36 named axes
 │   │   ├── contracts/            34 versioned contracts
 │   │   └── precision/            54 precision roles
 │   └── models/                   12 model documents, one template (`decoder-causal-yarn/1.0.0.json`)

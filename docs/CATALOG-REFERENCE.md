@@ -108,13 +108,12 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [attention.o_groups](#axis-attention.o_groups) | value | Groups of the low-rank output projection. |
 | [attention.o_rank](#axis-attention.o_rank) | value | Rank of one output group; flattened as `o_groups * o_rank`. |
 | [attention.q_rank](#axis-attention.q_rank) | value | Rank of the query bottleneck of latent attention. |
-| [attention.qkv_flat](#axis-attention.qkv_flat) | value | Fused query/key/value projection width. |
 | [attention.query_gate](#axis-attention.query_gate) | value | Which rows of a gated query projection, per head: the query rows, then the gate rows. |
-| [audio.kernel](#axis-audio.kernel) | value | Support of a temporal convolution, in frames. |
 | [audio.mels](#axis-audio.mels) | value | Mel bins of a spectrogram frame. |
 | [conditioning.feature](#axis-conditioning.feature) | value | Width of a conditioning vector: per-layer inputs and their projections. |
 | [deltanet.conv_width](#axis-deltanet.conv_width) | value | Channels of the causal convolution of a gated-delta layer. |
 | [deltanet.head_dim](#axis-deltanet.head_dim) | value | Dimension of one gated-delta head; the state matrix is `head_dim × head_dim`. |
+| [deltanet.qkv_flat](#axis-deltanet.qkv_flat) | value | Fused query/key/value projection width of a gated-delta layer, `2*key_heads*head_dim + value_heads*head_dim`. |
 | [deltanet.value_dim](#axis-deltanet.value_dim) | value | Flattened value width of a gated-delta layer, `value_heads * head_dim`. |
 | [deltanet.value_heads](#axis-deltanet.value_heads) | value | Value heads of a gated-delta layer; one state matrix each. |
 | [ffn.gate_flat](#axis-ffn.gate_flat) | value | Fused gate and up projection width, `2 * inner`. |
@@ -130,6 +129,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [residual.rank](#axis-residual.rank) | value | Rank of a low-rank residual branch (LAuReL). |
 | [residual.stream](#axis-residual.stream) | value | Parallel residual streams (AltUp, hyper-connections). |
 | [sequence.compression](#axis-sequence.compression) | value | Positions folded into one compressed cache entry. |
+| [sequence.kernel](#axis-sequence.kernel) | value | Support of a convolution along the sequence, in positions. |
 | [sequence.position](#axis-sequence.position) | value | A learned position, or one slot of position history. |
 | [token.type](#axis-token.type) | value | Segment type of an encoder with segment embeddings. |
 | [vision.channels](#axis-vision.channels) | value | Image channels. |
@@ -2386,11 +2386,11 @@ Outputs:
 
 | Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
 |---|---|---|---|---|---|---|
-| `qkv` | [deltanet.qkv_projection](#role-deltanet.qkv_projection) | `[qkv_flat: 2*key_heads*head_dim + value_heads*head_dim] × [feature: width]` | [attention.qkv_flat](#axis-attention.qkv_flat) (projection) × [model.width](#axis-model.width) (feature) | exclusive | always | Fused query, key and value projection: `2*key_heads*head_dim` query/key channels and `value_heads*head_dim` value channels. |
+| `qkv` | [deltanet.qkv_projection](#role-deltanet.qkv_projection) | `[qkv_flat: 2*key_heads*head_dim + value_heads*head_dim] × [feature: width]` | [deltanet.qkv_flat](#axis-deltanet.qkv_flat) (projection) × [model.width](#axis-model.width) (feature) | exclusive | always | Fused query, key and value projection: `2*key_heads*head_dim` query/key channels and `value_heads*head_dim` value channels. |
 | `z` | [deltanet.gate_projection](#role-deltanet.gate_projection) | `[value_flat: value_heads*head_dim] × [feature: width]` | [deltanet.value_dim](#axis-deltanet.value_dim) (projection) × [model.width](#axis-model.width) (feature) | exclusive | always | Output gate projection. |
 | `b` | [deltanet.decay_projection](#role-deltanet.decay_projection) | `[value_heads: value_heads] × [feature: width]` | [deltanet.value_heads](#axis-deltanet.value_heads) (structural) × [model.width](#axis-model.width) (feature) | exclusive | always | Projection of the per-head update strength of the delta rule. |
 | `a` | [deltanet.decay_projection](#role-deltanet.decay_projection) | `[value_heads: value_heads] × [feature: width]` | [deltanet.value_heads](#axis-deltanet.value_heads) (structural) × [model.width](#axis-model.width) (feature) | exclusive | always | Projection of the per-head decay input. |
-| `conv_weight` | [deltanet.convolution](#role-deltanet.convolution) | `[conv_width: conv.width] × [kernel: conv.kernel]` | [deltanet.conv_width](#axis-deltanet.conv_width) (feature) × [audio.kernel](#axis-audio.kernel) (structural) | exclusive | always | Depthwise causal convolution kernel. |
+| `conv_weight` | [deltanet.convolution](#role-deltanet.convolution) | `[conv_width: conv.width] × [kernel: conv.kernel]` | [deltanet.conv_width](#axis-deltanet.conv_width) (feature) × [sequence.kernel](#axis-sequence.kernel) (structural) | exclusive | always | Depthwise causal convolution kernel. |
 | `dt_bias` | [deltanet.scalar](#role-deltanet.scalar) | `[value_heads: value_heads]` | [deltanet.value_heads](#axis-deltanet.value_heads) (structural) | exclusive | always | Per-head bias of the decay time step. |
 | `A_log` | [deltanet.scalar](#role-deltanet.scalar) | `[value_heads: value_heads]` | [deltanet.value_heads](#axis-deltanet.value_heads) (structural) | exclusive | always | Per-head log decay rate. |
 | `norm` | [norm.scale](#role-norm.scale) | `[head_dim: head_dim]` | [deltanet.head_dim](#axis-deltanet.head_dim) (feature) | exclusive | always | Scale of the normalization applied to the read-out, per head channel. |
@@ -2523,9 +2523,9 @@ Outputs:
 
 | Slot | Role | Shape | Axes | Sharing | Presence / multiplicity | Description |
 |---|---|---|---|---|---|---|
-| `conv1_weight` | [frontend.convolution](#role-frontend.convolution) | `[feature: width] × [mels: mels] × [kernel: kernel]` | [model.width](#axis-model.width) (feature) × [audio.mels](#axis-audio.mels) (feature) × [audio.kernel](#axis-audio.kernel) (structural) | exclusive | always | First convolution, `mels → width`. |
+| `conv1_weight` | [frontend.convolution](#role-frontend.convolution) | `[feature: width] × [mels: mels] × [kernel: kernel]` | [model.width](#axis-model.width) (feature) × [audio.mels](#axis-audio.mels) (feature) × [sequence.kernel](#axis-sequence.kernel) (structural) | exclusive | always | First convolution, `mels → width`. |
 | `conv1_bias` | [frontend.bias](#role-frontend.bias) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | bias = true | Bias of the first convolution. |
-| `conv2_weight` | [frontend.convolution](#role-frontend.convolution) | `[feature: width] × [feature: width] × [kernel: kernel]` | [model.width](#axis-model.width) (feature) × [model.width](#axis-model.width) (feature) × [audio.kernel](#axis-audio.kernel) (structural) | exclusive | always | Second convolution, `width → width`, strided. |
+| `conv2_weight` | [frontend.convolution](#role-frontend.convolution) | `[feature: width] × [feature: width] × [kernel: kernel]` | [model.width](#axis-model.width) (feature) × [model.width](#axis-model.width) (feature) × [sequence.kernel](#axis-sequence.kernel) (structural) | exclusive | always | Second convolution, `width → width`, strided. |
 | `conv2_bias` | [frontend.bias](#role-frontend.bias) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | bias = true | Bias of the second convolution. |
 | `position` | [embedding.position](#role-embedding.position) | `[position: position] × [feature: width]` | [sequence.position](#axis-sequence.position) (structural) × [model.width](#axis-model.width) (feature) | exclusive | position present | Learned position table. |
 
@@ -3023,13 +3023,12 @@ An axis names a dimension. Shapes unify by axis identity (V4): the same extent o
 | <a id="axis-attention.o_groups"></a>`attention.o_groups` | value | Groups of the low-rank output projection. |
 | <a id="axis-attention.o_rank"></a>`attention.o_rank` | value | Rank of one output group; flattened as `o_groups * o_rank`. |
 | <a id="axis-attention.q_rank"></a>`attention.q_rank` | value | Rank of the query bottleneck of latent attention. |
-| <a id="axis-attention.qkv_flat"></a>`attention.qkv_flat` | value | Fused query/key/value projection width.<br>*Note: fused QKV width; under GQA this is not an exact product, hence no factors* |
 | <a id="axis-attention.query_gate"></a>`attention.query_gate` | value | Which rows of a gated query projection, per head: the query rows, then the gate rows. |
-| <a id="axis-audio.kernel"></a>`audio.kernel` | value | Support of a temporal convolution, in frames.<br>*Note: support of a temporal convolution* |
 | <a id="axis-audio.mels"></a>`audio.mels` | value | Mel bins of a spectrogram frame. |
 | <a id="axis-conditioning.feature"></a>`conditioning.feature` | value | Width of a conditioning vector: per-layer inputs and their projections. |
 | <a id="axis-deltanet.conv_width"></a>`deltanet.conv_width` | value | Channels of the causal convolution of a gated-delta layer. |
 | <a id="axis-deltanet.head_dim"></a>`deltanet.head_dim` | value | Dimension of one gated-delta head; the state matrix is `head_dim × head_dim`. |
+| <a id="axis-deltanet.qkv_flat"></a>`deltanet.qkv_flat` | value | Fused query/key/value projection width of a gated-delta layer, `2*key_heads*head_dim + value_heads*head_dim`.<br>*Note: fused QKV width of the delta rule; a sum, hence no factors* |
 | <a id="axis-deltanet.value_dim"></a>`deltanet.value_dim` | value | Flattened value width of a gated-delta layer, `value_heads * head_dim`. |
 | <a id="axis-deltanet.value_heads"></a>`deltanet.value_heads` | value | Value heads of a gated-delta layer; one state matrix each. |
 | <a id="axis-ffn.gate_flat"></a>`ffn.gate_flat` | value | Fused gate and up projection width, `2 * inner`.<br>*Note: fused gate and up: exact product projection x inner, hence factors* |
@@ -3045,6 +3044,7 @@ An axis names a dimension. Shapes unify by axis identity (V4): the same extent o
 | <a id="axis-residual.rank"></a>`residual.rank` | value | Rank of a low-rank residual branch (LAuReL). |
 | <a id="axis-residual.stream"></a>`residual.stream` | value | Parallel residual streams (AltUp, hyper-connections). |
 | <a id="axis-sequence.compression"></a>`sequence.compression` | value | Positions folded into one compressed cache entry. |
+| <a id="axis-sequence.kernel"></a>`sequence.kernel` | value | Support of a convolution along the sequence, in positions.<br>*Note: support of a convolution along the sequence: audio frames or delta-rule positions* |
 | <a id="axis-sequence.position"></a>`sequence.position` | value | A learned position, or one slot of position history.<br>*Note: learned position within a sequence* |
 | <a id="axis-token.type"></a>`token.type` | value | Segment type of an encoder with segment embeddings.<br>*Note: segment type of an encoder with segment embeddings* |
 | <a id="axis-vision.channels"></a>`vision.channels` | value | Image channels. |
@@ -3053,9 +3053,9 @@ An axis names a dimension. Shapes unify by axis identity (V4): the same extent o
 
 ### Details
 
-**`attention.qkv_flat`**
+**`deltanet.qkv_flat`**
 
-Under grouped-query attention `(heads + 2*kv_heads) * head_dim` is not a product of declared axes, so the axis carries no factors and the shape alone does not say how to partition it by head (O5.10).
+A sum, not a product of declared axes: the axis carries no factors and the shape alone does not say how to partition it by head (O5.10). The contract's description fixes the order of the channels: query, key, then value.
 
 **`ffn.gate_flat`**
 
@@ -3068,6 +3068,10 @@ An `instance` axis keys state allocations rather than tensor elements: two branc
 **`model.width`**
 
 Every primitive that reads or writes the residual stream declares its `input` and `output` shape on this axis. Shapes unify by axis identity (V4): two ports of extent `width` on `model.width` are compatible, the same extent on another axis is not.
+
+**`sequence.kernel`**
+
+The temporal extent of a kernel that slides along the sequence, whatever the stream: the frames of the audio stem's convolutions and the positions of a gated-delta layer's depthwise causal convolution are the same kind of dimension. Not an axis a shape composes along or a partition targets.
 
 <a id="precision-roles" name="precision-roles"></a>
 
