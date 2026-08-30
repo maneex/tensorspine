@@ -38,6 +38,12 @@
       "note": "A required field of a record argument."
     },
     {
+      "document": "models/v2-yarn-without-attention-factor.json",
+      "expect": "V2",
+      "match": "required argument missing 'rope.scaling.attention_factor'",
+      "note": "A YaRN record without the factor its computation uses: the paper's 0.1·ln(factor)+1 and Ministral 3's 1 are two published readings, so the document states it (finding 10)."
+    },
+    {
       "document": "models/v3-enum-out-of-set.json",
       "expect": "V3",
       "match": "'sideways' is not among ['causal', 'chunked', 'none']",
