@@ -23,6 +23,9 @@ class Session:
             raise state_mod.Refusal(f"public input(s) not supplied: {missing}")
         positions = {}
         for name, t in inputs.items():
+            expect = [a['extent'] for a in self.graph.input_values[name]['shape']]
+            if list(t.shape[1:]) != expect:
+                raise state_mod.Refusal(f"input {name}: D2 says {expect} per element, got {list(t.shape)}")
             stream = self.graph.input_stream[name]
             start = self.consumed.get(stream, 0)
             positions[stream] = torch.arange(start, start + t.shape[0], device=self.device)

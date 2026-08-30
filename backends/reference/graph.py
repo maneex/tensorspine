@@ -107,7 +107,11 @@ class Graph:
             self.consumers.setdefault(vname, []).append((e['to']['node'], e['to']['port']))
         self.values = {v['value']: v for v in doc['d2']['values']}
         self.outputs_of = {}
+        self.input_values = {}     # the values public inputs deliver (D2, named by the input)
         for vname, v in self.values.items():
+            if 'input' in v:
+                self.input_values[v['input']] = v
+                continue
             node, port = vname.rsplit('.', 1)
             self.outputs_of.setdefault(node, {})[port] = v
         self.streams = doc['d2']['streams']
@@ -136,11 +140,8 @@ class Graph:
         self.generative = None     # (output name, stream) — the element fed back at decode
         for name, o in self.interfaces['outputs'].items():
             if o.get('generative'):
-                v = self.values.get(f"{o['node']}.{o['port']}")
-                # Finding: D2 lists the values on edges; a public output feeds no edge and
-                # has no entry, so its stream is that of the producing node's input.
-                stream = (v or {}).get('domain', {}).get('stream') or self.node_stream(o['node'])
-                self.generative = (name, stream)
+                v = self.values[f"{o['node']}.{o['port']}"]       # D2 lists exposed values (finding 2, decided 30 Aug 2026)
+                self.generative = (name, v['domain']['stream'])
         self.feedback_input = None
         if self.generative:
             for name, stream in self.input_stream.items():
