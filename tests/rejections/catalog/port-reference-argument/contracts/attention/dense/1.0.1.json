@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.1",
     "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
-    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.\n\nThe projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).",
+    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; `qk_norm` declares its learned scales inside itself (`qk_norm.scale`), so that a scale cannot be declared without the normalization it belongs to. Each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.\n\nThe projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).",
     "tags": [
       "sequence-operator"
     ],
@@ -398,19 +398,51 @@
       },
       "qk_norm": {
         "type": {
-          "kind": "enum",
-          "values": [
-            "rms",
-            "layer"
-          ]
+          "kind": "record",
+          "fields": {
+            "kind": {
+              "type": {
+                "kind": "enum",
+                "values": [
+                  "rms",
+                  "layer"
+                ]
+              },
+              "required": true,
+              "structural": false,
+              "description": "Which normalization.",
+              "value_descriptions": {
+                "rms": "RMS normalization.",
+                "layer": "Layer normalization."
+              }
+            },
+            "scale": {
+              "type": {
+                "kind": "record",
+                "fields": {
+                  "zero_centered": {
+                    "type": {
+                      "kind": "boolean"
+                    },
+                    "required": false,
+                    "structural": false,
+                    "default": {
+                      "literal": false
+                    },
+                    "description": "The scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor."
+                  }
+                }
+              },
+              "required": false,
+              "structural": true,
+              "note": "present: the Q/K norm has learned scales, q_norm and k_norm",
+              "description": "The normalization has a learned per-channel scale: present, this record declares the `q_norm` and `k_norm` slots; an empty record is a plain scale. Absent, queries and keys are normalized without a scale."
+            }
+          }
         },
         "required": false,
-        "structural": false,
-        "description": "Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`. Applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding.",
-        "value_descriptions": {
-          "rms": "RMS normalization.",
-          "layer": "Layer normalization."
-        }
+        "structural": true,
+        "description": "Normalization applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding. Its learned scale, when there is one, is declared inside it: a scale cannot be declared without the normalization it belongs to. Absent, queries and keys are not normalized."
       },
       "temperature": {
         "type": {
@@ -495,29 +527,6 @@
         },
         "note": "per-head sigmoid gate; its rows live in the gated query projection q_gated",
         "description": "Per-head sigmoid gate on the attention output, computed from `input` by the gate rows of the gated query projection `q_gated`."
-      },
-      "qk_norm_weight": {
-        "type": {
-          "kind": "boolean"
-        },
-        "required": false,
-        "structural": true,
-        "default": {
-          "literal": false
-        },
-        "note": "Q/K RMSNorm has a learned scale",
-        "description": "The Q/K normalization has a learned per-channel scale: declares the `q_norm` and `k_norm` slots."
-      },
-      "qk_norm_zero_centered": {
-        "type": {
-          "kind": "boolean"
-        },
-        "required": false,
-        "structural": false,
-        "default": {
-          "literal": false
-        },
-        "description": "The learned Q/K normalization scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor; without `qk_norm_weight` it has no effect."
       },
       "source": {
         "type": {
@@ -1126,15 +1135,7 @@
           ]
         },
         "present_when": {
-          "compare": {
-            "operator": "equal",
-            "left": {
-              "argument": "qk_norm_weight"
-            },
-            "right": {
-              "literal": true
-            }
-          }
+          "present": "qk_norm.scale"
         },
         "description": "Learned scale of the query normalization."
       },
@@ -1156,15 +1157,7 @@
           ]
         },
         "present_when": {
-          "compare": {
-            "operator": "equal",
-            "left": {
-              "argument": "qk_norm_weight"
-            },
-            "right": {
-              "literal": true
-            }
-          }
+          "present": "qk_norm.scale"
         },
         "description": "Learned scale of the key normalization."
       }
