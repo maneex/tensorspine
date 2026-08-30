@@ -21,10 +21,32 @@ from collections import defaultdict, deque
 import catalog as catalog_mod
 import model as model_mod
 import schema as schema_mod
-from expr import (UNRESOLVED, contract_value, index_grid, missing_assignment,
+from expr import (UNRESOLVED, contract_condition, contract_value, index_grid, missing_assignment,
                   model_condition, model_value, resolve_quantities, static_argument)
 
 MAX_DEPTH = 8
+
+
+def _record_defaults(declared, values, root):
+    """A record field with a declared default, absent from the document and applicable
+    (its `present_when` true), gets the default — recursively, as the validator resolves it
+    (finding 12, 30 Aug 2026): D1 is fully resolved, records included, so no consumer has to
+    know the catalog's defaults. Paths in defaults and conditions are absolute (`rope.scaling.kind`):
+    the scope is the occurrence's whole argument map."""
+    for name, decl in declared.items():
+        t = decl.get('type', {})
+        if t.get('kind') != 'record' or not isinstance(values.get(name), dict):
+            continue
+        record = values[name]
+        for field, fdecl in t['fields'].items():
+            if field in record or 'default' not in fdecl:
+                continue
+            if 'present_when' in fdecl and not contract_condition(fdecl['present_when'], root):
+                continue
+            v = contract_value(fdecl['default'], root)
+            if v is not UNRESOLVED and v is not None:
+                record[field] = v
+        _record_defaults(t['fields'], record, root)
 
 
 def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
@@ -121,6 +143,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         for arg_name, decl in definition['arguments'].items():
             if arg_name not in args and 'default' in decl:
                 args[arg_name] = contract_value(decl['default'], args)
+        _record_defaults(definition['arguments'], args, args)
         families = list(occurrence['families'])
         if key[0] == 'gen':
             families = sorted(set(model['compositions'][key[1]]['families']) | set(families))

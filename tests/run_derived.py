@@ -113,6 +113,8 @@ def main():
     names = [v['tensor'] for v in located.values() if v]
     ok &= check("llama3-8b: 291 tensors located under 291 distinct physical names",
                 len(names) == 291 and len(set(names)) == 291)
+    ok &= check("llama3-8b: D1 carries rope.layout = split although the document omits it — record-field defaults applied (finding 12)",
+                l3['d1']['nodes']['decoder/attn[layer=0]']['arguments']['rope'].get('layout') == 'split')
     sh = {t['identity']: t.get('location') for t in docs['shieldstral-3b']['d3']['tensors']}
     sh_names = [v['tensor'] for v in sh.values() if v]
     ok &= check("shieldstral-3b: 458 tensors located one-to-one — decoder.attn.q[layer=3] under language_model, the tie on embed_tokens",
