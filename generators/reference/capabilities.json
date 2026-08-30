@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "reference",
-    "version": "4767fc8",
+    "version": "ee61c9d",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-08-30"
   },
@@ -138,6 +138,43 @@
       },
       "states": []
     },
+    "embedding.token_position_type@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "vocabulary": "any",
+        "positions": "any",
+        "token_types": "any",
+        "eps": "any"
+      },
+      "states": [],
+      "notes": [
+        "the segment type is 0 for every token, as the contract states for this version"
+      ]
+    },
+    "ffn.dense@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "inner": "any",
+        "activation": [
+          "silu",
+          "gelu",
+          "gelu_tanh",
+          "relu2"
+        ],
+        "in_bias": "any",
+        "out_bias": "any",
+        "condition_dim": "absent",
+        "condition": "absent",
+        "activation_sparsity": {
+          "absent": true,
+          "values": [
+            0,
+            0.0
+          ]
+        }
+      },
+      "states": []
+    },
     "ffn.gated@1.0.0": {
       "arguments": {
         "width": "any",
@@ -169,11 +206,32 @@
       },
       "states": []
     },
+    "norm.layer@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "eps": "any"
+      },
+      "states": []
+    },
     "norm.rms@1.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any",
         "zero_centered": "any"
+      },
+      "states": []
+    },
+    "pooler@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "project_to": "any",
+        "normalize": [
+          "l2",
+          "none"
+        ],
+        "reduce": [
+          "none"
+        ]
       },
       "states": []
     },
