@@ -34,7 +34,7 @@ catalog contracts --------------------+
                      D4 state        D5 logical costs
                               D6 legal cuts
                                       |
-       implementation candidates + artifact format + deployment intent
+       generators + artifact format + deployment intent
                                       |
                                       v
                          compiler or serving runtime
@@ -60,7 +60,7 @@ deployment, or machine belong outside both.
 | **Model document** | Model identity; source quantities; occurrences and compositions; explicit value flow; actual parameter, constant, and state identities and their dtypes; public inputs with their kind, stream and fragmentation, and public outputs. Instance keys, liveness, visit rates and carrying across fragments are derived from these (§4.4, §5.3) |
 | **Primitive contract** | Argument types and declared defaults; ports, shapes and domain transforms; logical parameter, constant, and state slots; state evolution, access geometry and carrying condition; effects; cost corrections and sparsity units; semantic partition axes |
 | **Catalog** | Resolution of independently identified contracts, axes, and precision roles; no global catalog version |
-| **Implementation candidate** | Backend, kernel, algorithm, fusion, workspace, physical layout and traffic, supported physical partitions, and actual collectives |
+| **Generator** | The backend (hardware) targeted, kernel, algorithm, fusion, workspace, physical layout and traffic, supported physical partitions, and actual collectives; its capabilities, advertised in a manifest derived from its code (`generators/CAPABILITIES.md`) |
 | **Location** (in the model document) | The physical tensor each logical tensor is stored as (Specification §3.4, V17); the artifact's encoding — file format, sharding, quantisation containers — stays outside |
 | **Compilation or deployment control** | Hardware topology, placement, resolved sharding, load variables, admission, and scheduling policy |
 
@@ -76,7 +76,7 @@ shareable, but it cannot assert that two particular occurrences actually share i
 ### 3.1. Describe logical structure, not executable computation
 
 **Decision.** A Tensorspine model is a finite graph of primitive occurrences and explicit bindings.
-It does not contain kernels, general tensor programs, Python classes, backend choices, or hardware
+It does not contain kernels, general tensor programs, Python classes, generator or backend choices, or hardware
 placement.
 
 **Why.** Executable reference code entangles logical structure with one implementation. Every
@@ -88,6 +88,18 @@ may be shared. Tensorspine records those logical facts directly.
 **Consequences.** One model declaration can be matched to different implementations and machines.
 The cost is that Tensorspine is not executable by itself: a consumer still needs implementations for
 the primitive contracts, a compatible artifact, and deployment decisions.
+
+This is the boundary the language exists to draw:
+
+> **Tensorspine separates model support from kernel support.** A new model architecture should not
+> require new runtime code unless it introduces genuinely new computational semantics. A runtime
+> should need new code when computation changes, not merely because a model name changes.
+
+The test is mechanical, and §8.1 of the specification already states it: new nodes come from new
+contracts. A model that arranges existing contracts differently — however novel its paper — adds a
+document and nothing else. A model whose state evolves by a law no contract describes, or whose
+operator has no contract, adds a contract and a kernel for it, once, for every model that will ever
+use it. What must never be true is the third case: new code because the name is new.
 
 **Alternatives not chosen.** A reference implementation, an engine-specific architecture class, or
 a compute graph alone is not the semantic authority for Tensorspine. See
@@ -354,7 +366,7 @@ test in [Specification §9.1](SPECIFICATION.md#91--invariants) and
 The architecture leaves several downstream or future designs open:
 
 - the concrete encodings and APIs for D2–D6;
-- how implementation candidates advertise capabilities and physical costs;
+- how generators advertise physical costs (capabilities are advertised: the manifest of `generators/CAPABILITIES.md`);
 - a per-instance location prefix, so that a template instance's tensors can be located (today the flat form is);
 - how a compiler combines semantic partitions with a selected topology and workload;
 - which additional normative interfaces are justified when a derivation cannot fit the closed

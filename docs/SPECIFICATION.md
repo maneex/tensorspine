@@ -277,10 +277,11 @@ A logical-tensor inventory is mandatory: without it, an implementation cannot co
 verify a checkpoint, compute parameter size, or choose a partition unit. Deriving only cache
 semantics is insufficient.
 
-A contract never contains a backend, kernel, memory layout, fusion, workspace, executed-operation
-count, implementation-supported partition, or actual collective. Those belong to an
-**implementation candidate**, which is outside this specification. Multiple correct candidates may
-have different costs without changing the logical graph.
+A contract never contains a generator, a backend, a kernel, a memory layout, a fusion, a workspace,
+an executed-operation count, an implementation-supported partition, or an actual collective. Those
+belong to a **generator** — the implementation that builds and runs the graph over its own primitives,
+on the **backends** (the hardware) it targets — which is outside this specification. Several correct
+generators may have different costs without changing the logical graph.
 
 ### 4.2 — Computation may be delegated; identity may not
 
@@ -673,7 +674,7 @@ this specification.
 | Rule | Exclusion | Reason |
 |---|---|---|
 | **N1** | No tensor algebra: no value expressions, loops, or indexing. | This is the level of an IR; §2.2 shape arithmetic remains allowed. |
-| **N2** | No backend or kernel scheduling. | These belong to implementation candidates. |
+| **N2** | No generator, backend or kernel scheduling. | These belong to generators. |
 | **N3** | No training. | It is a separate problem. |
 | **N4** | No inline numeric tensors. | See §3.3. |
 | **N5** | No resource topology. | It can change without changing the model. |

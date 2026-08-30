@@ -377,8 +377,8 @@ shareable KV payload without knowing which non-adjacent layers actually share on
 
 ### 3.2 — Implementation candidates are outside the model
 
-Backend, guards, memory layout, fusion, workspace, algorithms, physical traffic, supported kernel
-partitions and actual collectives belong to an implementation candidate, not to the model or its
+Generator, backend, guards, memory layout, fusion, workspace, algorithms, physical traffic, supported kernel
+partitions and actual collectives belong to an generator, not to the model or its
 logical contract. Two implementations may have different physical costs while denoting the same
 expanded logical graph.
 
@@ -391,7 +391,7 @@ expanded logical graph.
 | State payload descriptors, evolution laws, access geometry and permitted operations | Primitive contract |
 | Port and logical-slot shapes that follow from primitive arguments | Primitive contract |
 | Logical operation count and logical memory traffic | Primitive contract |
-| Kernel, backend, fusion, workspace, physical layout and executed FLOPs | Implementation candidate |
+| Kernel, generator, backend, fusion, workspace, physical layout and executed FLOPs | Generator |
 | Hardware placement, topology and resolved sharding plan | Compilation or deployment control |
 | Batch size, active sequence count and admission policy | Deployment intent or online control |
 | Cache pages, block tables and other runtime data structures | Runtime implementation |

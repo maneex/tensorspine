@@ -40,6 +40,13 @@ distinct. See [Specification §4.3](SPECIFICATION.md#43--state-derivation).
 
 ## B
 
+### Backend
+
+The hardware a generator executes on — cpu, nvidia, neuron, tpu. Outside the language: a model
+document never names one, and a generator may target several. When a serving application must say
+which, it does so through the opaque parameters it passes to the generator's primitives, of which
+the backend is one optional key (`generators/CAPABILITIES.md`).
+
 ### Binding
 
 A graph declaration that records a model-specific relationship. Value bindings are directed edges
@@ -94,7 +101,7 @@ by a URI and identified by content digest. It is distinct from a quantity whose 
 
 The immutable, versioned semantic definition of a primitive. An occurrence pins a contract by name
 and version; the contract declares arguments and derives ports, logical tensors, state, effects,
-costs, and legal partitions. It describes meaning, not a kernel or backend implementation. See
+costs, and legal partitions. It describes meaning, not a kernel or a generator's implementation. See
 [Specification §4](SPECIFICATION.md#4--primitive-semantic-contracts) and
 [Model guide §3](TENSORSPINE-MODEL_JSON.md#3--catalog-contracts).
 
@@ -182,6 +189,15 @@ element is delivered to the output's stream in the next invocation, so a generat
 §2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42).
 
 ## I
+
+### Generator
+
+The implementation that builds and runs a model's graph — or an extract of it, between legal cuts
+— over its own implementation of the primitives: the reference generator, ZML. What
+[Specification §4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part) keeps outside the
+language. A generator advertises what it can evaluate in a manifest derived from its code
+(`generators/CAPABILITIES.md`). Not to be confused with a *generative* output, which feeds its
+stream back.
 
 ### Identity
 
