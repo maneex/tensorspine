@@ -1,0 +1,614 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "sequence.gated_delta",
+  "definition": {
+    "version": "1.0.1",
+    "summary": "Gated DeltaNet layer: a per-head matrix state updated by the delta rule, behind a short causal convolution.",
+    "description": "A linear-attention substitute for a sequence operator. Each position produces queries and keys for `key_heads` heads and values for `value_heads` heads (`qkv`), an output gate (`z`) and per-head decay controls (`a`, `b`, `dt_bias`, `A_log`); after the causal convolution `conv` over the last `conv.history` positions, the `recurrent` state — one `head_dim × head_dim` matrix per value head — is decayed and updated by the delta rule, read to produce the output, normalized (`norm`), gated by `out_gate` and projected back to `width` (`out`).\n\nThe state has a fixed size: it does not grow with the sequence, cannot be addressed by position, and can be shared between sessions only at a fork point. For a runtime that is the whole difference from a KV cache: zero bytes per token, nothing to page.\n\nWhat the controls compute, as the reference implementation does: the update strength is `beta = sigmoid(b)` and the log decay `g = -exp(A_log) * softplus(a + dt_bias)`, per position and value head; inside the rule the queries and keys are L2-normalised over `head_dim` (epsilon 1e-6) and the query scaled by `head_dim^-1/2`; at each position the state is multiplied by `exp(g)`, then updated by `k (v - S^T k) beta`, and read as `S^T q`; when `value_heads` exceeds `key_heads`, each query and key head serves `value_heads / key_heads` value heads in order. The read-out is RMS-normalised per head, scaled by `norm` (not zero-centred) and gated by `out_gate` applied to `z`.",
+    "tags": [
+      "sequence-operator"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2412.06464",
+        "title": "Gated Delta Networks: Improving Mamba2 with Delta Rule (Yang et al., 2024)",
+        "kind": "paper",
+        "description": "The gated delta rule and its chunked, hardware-efficient form."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of `input` and `output`."
+      },
+      "key_heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of query/key heads."
+      },
+      "value_heads": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of value heads, and of recurrent state matrices."
+      },
+      "head_dim": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Dimension of one head; the state matrix of a value head is `head_dim × head_dim`."
+      },
+      "out_gate": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "silu",
+            "swish",
+            "sigmoid",
+            "none"
+          ]
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": "none"
+        },
+        "description": "Activation applied to the gate `z` before it multiplies the read-out.",
+        "value_descriptions": {
+          "silu": "SiLU gate.",
+          "swish": "Swish gate.",
+          "sigmoid": "Sigmoid gate.",
+          "none": "No gate activation."
+        }
+      },
+      "conv": {
+        "type": {
+          "kind": "record",
+          "fields": {
+            "width": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "structural": true,
+              "description": "Channels of the convolution: the projected query, key and value width."
+            },
+            "kernel": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "structural": true,
+              "description": "Kernel support, in positions."
+            },
+            "history": {
+              "type": {
+                "kind": "cardinality"
+              },
+              "required": true,
+              "structural": true,
+              "description": "Positions of history the `conv` state keeps between invocations."
+            }
+          }
+        },
+        "required": false,
+        "structural": true,
+        "description": "Causal depthwise convolution applied to the projected inputs before the recurrence."
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Residual-stream activation."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Layer output after normalization, gating and the output projection."
+        }
+      }
+    },
+    "parameters": {
+      "qkv": {
+        "role": "deltanet.qkv_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "qkv_flat",
+              "axis": "deltanet.qkv_flat",
+              "nature": "projection",
+              "extent": {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "literal": 2
+                      },
+                      {
+                        "op": "multiply",
+                        "args": [
+                          {
+                            "argument": "key_heads"
+                          },
+                          {
+                            "argument": "head_dim"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "multiply",
+                    "args": [
+                      {
+                        "argument": "value_heads"
+                      },
+                      {
+                        "argument": "head_dim"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Fused query, key and value projection: `2*key_heads*head_dim` query/key channels and `value_heads*head_dim` value channels."
+      },
+      "z": {
+        "role": "deltanet.gate_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_flat",
+              "axis": "deltanet.value_dim",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "value_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Output gate projection."
+      },
+      "b": {
+        "role": "deltanet.decay_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Projection of the per-head update strength of the delta rule."
+      },
+      "a": {
+        "role": "deltanet.decay_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Projection of the per-head decay input."
+      },
+      "conv_weight": {
+        "role": "deltanet.convolution",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "conv_width",
+              "axis": "deltanet.conv_width",
+              "nature": "feature",
+              "extent": {
+                "argument": "conv.width"
+              }
+            },
+            {
+              "name": "kernel",
+              "axis": "sequence.kernel",
+              "nature": "structural",
+              "extent": {
+                "argument": "conv.kernel"
+              }
+            }
+          ]
+        },
+        "description": "Depthwise causal convolution kernel."
+      },
+      "dt_bias": {
+        "role": "deltanet.scalar",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            }
+          ]
+        },
+        "description": "Per-head bias of the decay time step."
+      },
+      "A_log": {
+        "role": "deltanet.scalar",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "value_heads",
+              "axis": "deltanet.value_heads",
+              "nature": "structural",
+              "extent": {
+                "argument": "value_heads"
+              }
+            }
+          ]
+        },
+        "description": "Per-head log decay rate."
+      },
+      "norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "head_dim",
+              "axis": "deltanet.head_dim",
+              "nature": "feature",
+              "extent": {
+                "argument": "head_dim"
+              }
+            }
+          ]
+        },
+        "description": "Scale of the normalization applied to the read-out, per head channel."
+      },
+      "out": {
+        "role": "deltanet.output_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "value_flat",
+              "axis": "deltanet.value_dim",
+              "nature": "projection",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "value_heads"
+                  },
+                  {
+                    "argument": "head_dim"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "description": "Output projection from the value heads back to `width`."
+      }
+    },
+    "constants": {},
+    "state_ports": {
+      "recurrent": {
+        "present_when": {
+          "boolean": true
+        },
+        "payload": {
+          "s": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "value_heads",
+                  "axis": "deltanet.value_heads",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "value_heads"
+                  }
+                },
+                {
+                  "name": "row",
+                  "axis": "deltanet.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                },
+                {
+                  "name": "col",
+                  "axis": "deltanet.head_dim",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "head_dim"
+                  }
+                }
+              ]
+            },
+            "role": "state.recurrent",
+            "description": "The state matrix of one value head."
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "read": {
+            "effect": "read",
+            "description": "Read the state to produce the output."
+          },
+          "write": {
+            "effect": "write",
+            "description": "Overwrite the state after the update."
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "fixed",
+            "access": "aggregate",
+            "sharing": "at_fork_point",
+            "indexed_by": {
+              "self": true
+            },
+            "description": "Fixed size, read as a whole; shareable only at a fork point."
+          }
+        ],
+        "description": "The delta-rule state: one `head_dim × head_dim` matrix per value head, overwritten at every position."
+      },
+      "conv": {
+        "present_when": {
+          "present": "conv"
+        },
+        "payload": {
+          "w": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "conv_width",
+                  "axis": "deltanet.conv_width",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "conv.width"
+                  }
+                },
+                {
+                  "name": "history",
+                  "axis": "sequence.position",
+                  "nature": "structural",
+                  "extent": {
+                    "argument": "conv.history"
+                  }
+                }
+              ]
+            },
+            "role": "state.conv",
+            "description": "One past input of the convolution; the ring holds `conv.history` of them."
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append",
+            "description": "Push the current input."
+          },
+          "read": {
+            "effect": "read",
+            "description": "Read the history for the convolution."
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "self": true
+            },
+            "span": {
+              "argument": "conv.history"
+            },
+            "description": "Ring of `conv.history` positions."
+          }
+        ],
+        "description": "Input history of the causal convolution: one position per payload, `conv.history` positions in the ring."
+      }
+    },
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "deltanet.value_heads"
+        },
+        "communication": "all_reduce",
+        "description": "Partition across value heads; the output projection needs an all-reduce."
+      },
+      {
+        "target": {
+          "instance_key_axis": "instance.session"
+        },
+        "communication": "none",
+        "description": "Instance-key axis: sessions are independent."
+      }
+    ],
+    "note": "Gated-delta recurrent layer with a short causal convolution and a per-head matrix state.",
+    "logical_cost": [
+      {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 2
+            },
+            {
+              "argument": "value_heads"
+            },
+            {
+              "argument": "head_dim"
+            },
+            {
+              "argument": "head_dim"
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "element",
+        "description": "State update and read-out: two `head_dim × head_dim` products per value head and token."
+      }
+    ]
+  }
+}

@@ -438,10 +438,14 @@ def contract_references(d, cat):
         conditions.append((f"{label} present_when", port['present_when'], set()))
         if 'carried_across' in port:
             conditions.append((f"{label} carried_across", port['carried_across']['when'], set()))
+        growing = sorted({rule['law'] for rule in port['rules']} - {'fixed'})
         for cname, comp in port['payload'].items():
             if comp['role'] not in cat['precision']:
                 out.append(f"{label}.{cname}: role '{comp['role']}' has no precision rule")
             out.extend(_shape_problems(comp['shape'], f"{label}.{cname}", cat, paths))
+            if growing and any(a['axis'] == 'sequence.position' for a in comp['shape']['axes']):
+                out.append(f"{label}.{cname}: a sequence.position axis under a {'/'.join(growing)} rule "
+                           f"— a payload is declared per position (§4.3)")
         for ax in port['key_axes']:
             if ax not in cat['axes']:
                 out.append(f"{label}: key axis '{ax}' is not in the catalog")

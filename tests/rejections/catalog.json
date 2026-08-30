@@ -125,6 +125,11 @@
       "base": "catalog/template-no-location",
       "match": "declares no `templates` location",
       "note": "A base carrying a template contract declares where its templates live (§4.6) — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/payload-position-axis",
+      "match": "state 'conv'.w: a sequence.position axis under a window rule",
+      "note": "A state payload is declared per position (§4.3): the positions of a window are the law's span, not an axis of the payload — the fixture unit is version 1.0.1, a new identity beside the reference's."
     }
   ]
 }

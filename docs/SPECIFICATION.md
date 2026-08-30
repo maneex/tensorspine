@@ -300,7 +300,11 @@ For each state port, the contract declares:
   attention has no cache; the same encoder gains one when it attends across the fragments of a
   fragmented stream.
 - **Payload.** Each storage component has a shape, type, and multiplicity. One state may contain
-  several components of different types (O5.1).
+  several components of different types (O5.1). A payload is declared **per position** of the
+  stream the state grows along: one cached position for `append` and `window`, whose extent is the
+  law's and whose span is a modulator; the whole state for `fixed`. A payload therefore carries a
+  `sequence.position` axis only if every rule of its port is `fixed`; a contract that does otherwise
+  is refused when the catalog is loaded.
 - **Derived properties.** These are consequences of arguments and never appear in the model:
 
 | Property | Reference | Meaning |
@@ -720,7 +724,8 @@ identity (V15); and a carried state on a stream that is not fragmented (V16).
 
 A catalog is refused when loaded if a contract compares or computes with an optional argument that
 has no default outside a `present` test of it; if a precision role's default is not admissible; if
-a sparsity policy names an argument or input port the contract does not declare; if a template
+a sparsity policy names an argument or input port the contract does not declare; if a state payload
+carries a `sequence.position` axis under a rule that is not `fixed` (§4.3); if a template
 contract's template is absent from the declared location or carries another name, version or id.
 
 **Mutation test:** for every normative construction, removing a field, breaking its reference, or
