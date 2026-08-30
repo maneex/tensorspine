@@ -6,8 +6,8 @@ against the official implementation at every layer boundary, and a small chat. N
 system. Its plan, and the location plan whose weight locations it loads by, are working notes
 outside the tree.
 
-**Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Three models run from their documents
-and the checkpoints they name, with no per-model code, and agree with `transformers` (a fourth
+**Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Four models run from their documents
+and the checkpoints they name, with no per-model code, and agree with `transformers` (a fifth
 document, the multimodal `qwen3.8-27b`, runs on text and gives `qwen3.8-27b-text`'s logits bit for
 bit — below):
 
@@ -22,9 +22,17 @@ bit — below):
 - `qwen3.8-27b-text` (the same seven contracts, 64 layers, 50.1 GiB — larger than this machine's
   memory): on its 4-layer fixture within 4e-6 of `transformers` at every cut and state; the full
   model runs under `--max-ram 8` in seven blocks (below).
+- `shieldstral-3b` (Llama's six contracts with YaRN rotary scaling and tied embeddings — the text
+  trunk of a Mistral 3 multimodal checkpoint, `mistralai/Shieldstral-1.0-3B`, one `model.safetensors`
+  without an index; its Pixtral tower is located but not evaluated on text): on the 3-layer fixture
+  within 3.9e-6 of `transformers` at every cut and state; on the full 26-layer model the eight greedy
+  tokens after *"Hello! Can you help me plan a birthday party?"* are `transformers`' — *"no</s>no</s>…"*,
+  a moderation fine-tune's verdict. On *"The capital of France is"* the model's first token is a tie
+  in bf16 ("no" and "yes" both at 28.25) that fp32 breaks the other way: a tolerance question, not a
+  kernel's, and the reason the prompt is a different one.
 
 Kernels: `embed`, `norm.rms` (zero-centred scales), `attention.dense` (causal, GQA, RoPE full or
-partial, gated query, Q/K RMS norms), `residual.add`, `ffn.gated`, `lm_head`,
+partial, YaRN scaling, gated query, Q/K RMS norms), `residual.add`, `ffn.gated`, `lm_head`,
 `sequence.gated_delta`. A session-based chat (`ref.py chat`), greedy or sampled, streaming, through
 the checkpoint's own chat template when it has one (Qwen 3.5 4B answers with its thinking block;
 when its template strips earlier thinking from the history, the prefix check rebuilds the session
@@ -157,3 +165,8 @@ order; one sequence, no batch axis; parameters stay at their D3 dtype and are up
 operation (`--compute f32` on CPU, `bf16` on CUDA); `append` states are buffers of `--capacity`
 positions written at a cursor, and a kernel masks beyond the length. Each kernel's docstring lists
 the contract's branches it implements or refuses, and the conventions the contract leaves open.
+
+What no fixture here measures: YaRN's extrapolation regime — positions beyond `orig_ctx` (16384 for
+Shieldstral). The arithmetic is position-independent, so a short prompt already exercises the ramp
+and the attention factor; the regime itself is not measured. The frequencies are checked against
+`transformers`' own YaRN parameters in the test, without a checkpoint.
