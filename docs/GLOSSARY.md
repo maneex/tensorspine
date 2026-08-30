@@ -307,7 +307,9 @@ and the actual collective remain outside the model. See
 
 ### Payload
 
-See [Cut](#cut).
+Of a cut: see [Cut](#cut). Of a state: what one position holds, for `append` and `window`, or the
+whole state, for `fixed`; a window's ring is `span` payloads. See
+[Specification §4.3](SPECIFICATION.md#43--state-derivation).
 
 ### Phase
 

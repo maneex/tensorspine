@@ -130,8 +130,8 @@ One entry per state identity instance.
 | `instance_key` | The identity's indices followed by the contract's key axes (O5.5): one allocation per distinct key. |
 | `carried_across_fragments` | Derived: the contract's carrying condition holds and the stream is a fragmented input (§5.3, V16). |
 | `span`, `stride` | Evaluated modulators (O5.8), when the rule declares them. |
-| `payload` | Per component: `role`, `dtype` (the binding's selection or the role's default), `shape`, `elements`, `bytes`. |
-| `bytes_per_cached_position`, `bytes_bounded` | The payload's bytes; for a `window`, the bytes of a full ring. |
+| `payload` | Per component: `role`, `dtype` (the binding's selection or the role's default), `shape`, `elements`, `bytes` — one position's for `append` and `window`, the whole state's for `fixed` (§4.3). |
+| `bytes_per_cached_position`, `bytes_bounded` | The payload's bytes; for a `window`, `bytes_bounded = span × bytes_per_cached_position`, the bytes of a full ring whose shape is `[span] + shape`. |
 | `operations` | The effects the state admits (O5.4). |
 | `visits` | The rule of §7 in words: when the state is written and read, per element of its stream or of the source stream. |
 | `totals` | `identities`, `by_law`, `append_bytes_per_cached_position` (the "cache bytes per token" of a decoder), `bounded_bytes`, `fixed_bytes`, `carried`. |

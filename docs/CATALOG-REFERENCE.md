@@ -2427,7 +2427,7 @@ Derivation rules, in order — the first whose condition holds applies; a state 
 
 **State port `conv`**
 
-Input history of the causal convolution.
+Input history of the causal convolution: one position per payload, `conv.history` positions in the ring.
 
 - Present when: conv present
 - Instance key axes: [instance.session](#axis-instance.session), [instance.branch](#axis-instance.branch)
@@ -2436,7 +2436,7 @@ Payload, per indexed position:
 
 | Component | Shape | Axes | Role | Presence | Description |
 |---|---|---|---|---|---|
-| `w` | `[conv_width: conv.width] × [history: conv.history]` | [deltanet.conv_width](#axis-deltanet.conv_width) (feature) × [sequence.position](#axis-sequence.position) (structural) | [state.conv](#role-state.conv) | always | The last `conv.history` inputs of the convolution. |
+| `w` | `[conv_width: conv.width]` | [deltanet.conv_width](#axis-deltanet.conv_width) (feature) | [state.conv](#role-state.conv) | always | One past input of the convolution; the ring holds `conv.history` of them. |
 
 Permitted operations:
 
