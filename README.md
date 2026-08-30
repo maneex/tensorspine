@@ -284,7 +284,8 @@ catalog manifest says (`templates`, here `data/models/`), under `<name>/<version
 that pins it (`decoder.causal_yarn`) names it, its `version` and its `id`, and the reference does not
 resolve (V1) if they disagree. `shieldstral-3b-composite` instantiates it: the
 validator expands the template at the call site, so the composite derives the same 459 parameter
-slots and 26 states as the flat `shieldstral-3b`.
+slots and 26 states as the flat `shieldstral-3b` — and the same derived document, value for value
+and cut for cut, under the instance's prefix (`tests/run_templates.py`).
 
 After expanding compositions, evaluating model-level `when` conditions, and resolving contract-level
 `present_when` guards, `bindings` must be **total and unique** (V7): every input port is fed exactly

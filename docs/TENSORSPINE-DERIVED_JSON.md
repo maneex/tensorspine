@@ -95,9 +95,12 @@ it (rule 3); no guard is repeated on a binding.
 
 A cut is legal by construction: the ancestor closure of a set of nodes is downward closed, so
 every crossing edge points out of it. A value is counted once per cut however many consumers it
-has across it — the residual carried to two ports of the next layer is one value. Cuts inside a
-template instance are not enumerated at the caller's level; derive the template itself, under
-the instance's assignment, for those.
+has across it — the residual carried to two ports of the next layer is one value. Template
+instances are expanded before anything is derived (§5.1): a value inside an instance is listed
+under the instance's prefix (`text/decoder/attn[layer=3].output`, §5.2 rule 2), and a cut inside
+one (`text/decoder[layer<=3]`) is the ancestor closure over the whole graph, the caller's
+occurrences included — a model written through a template lists the same values and cuts as the
+same model written flat.
 
 ## 5 — D3, parameter tensors
 
