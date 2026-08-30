@@ -33,6 +33,10 @@ def main(argv=None):
     ap.add_argument('--attn-site', default='attn', help="the D1 site of the attention (its kv state)")
     ap.add_argument('--gdn-site', default='gdn', help="the D1 site of the gated delta net (recurrent, conv states)")
     ap.add_argument('--conv-history', type=int, default=3, help="positions the D4 conv state keeps")
+    ap.add_argument('--encoder', action='store_true', help="a document without a generative output: the base model (AutoModel), "
+                                                       "its encoder layers, one invocation, no cache, no tokens")
+    ap.add_argument('--head', metavar='TENSOR:VALUE', help="with --encoder: a physical tensor applied to the final hidden state and "
+                                                        "L2-normalised — a head transformers has no class for — recorded as the D1 value VALUE")
     ap.add_argument('--out', required=True)
     args = ap.parse_args(argv)
     from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForImageTextToText
@@ -47,15 +51,20 @@ def main(argv=None):
     t0 = time.time()
     # the class the config maps to: causal-LM when transformers lists the type there, else the
     # image-text-to-text wrapper (a multimodal checkpoint run on text; its decoder is `language_model`)
-    cls = AutoModelForCausalLM if config.model_type in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES else AutoModelForImageTextToText
+    if args.encoder:
+        from transformers import AutoModel
+        cls = AutoModel                                # the base model: the encoder and nothing on top
+    else:
+        cls = AutoModelForCausalLM if config.model_type in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES else AutoModelForImageTextToText
     model = cls.from_pretrained(args.model, config=config, dtype=dtype)
     model.eval()
     n_layers = text.num_hidden_layers
     print(f"loaded {args.model}: {n_layers} layers in {dtype} ({time.time() - t0:.0f}s)")
     ids = [int(x) for x in args.ids.split(',')]
     dump, hooks, hook_map = {}, [], {}
-    inner = model.model
-    layers = getattr(inner, 'layers', None) or inner.language_model.layers
+    inner = getattr(model, 'model', model)             # a base model is its own inner model
+    layers = getattr(inner, 'layers', None) or getattr(getattr(inner, 'language_model', None), 'layers', None) \
+        or inner.encoder.layer                          # BERT: encoder.layer
     for i, layer in enumerate(layers):
         key = f"value/{args.composition}/{args.layer_output}[layer={i}].output"
         hook_map[f"model.layers.{i}"] = key
@@ -68,6 +77,24 @@ def main(argv=None):
     with torch.no_grad():
         x = torch.tensor([ids])
         t0 = time.time()
+        if args.encoder:
+            out = model(input_ids=x)
+            tokens = []
+            if args.head:
+                tname, vname = args.head.split(':')
+                W = _read_tensor(args.model, tname).to(torch.float32)
+                h = out.last_hidden_state[0].to(torch.float32)
+                dump[f"value/{vname}"] = torch.nn.functional.normalize(h @ W.T, dim=-1).cpu().clone()
+                hook_map[f"normalize({tname} · last_hidden_state)"] = f"value/{vname}"
+            print(f"encoded {len(ids)} ({time.time() - t0:.1f}s)")
+            for h_ in hooks:
+                h_.remove()
+            header = {'model': args.model, 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids,
+                      'tokens': tokens, 'hook_map': hook_map, 'torch': torch.__version__,
+                      'transformers': __import__('transformers').__version__, **_provenance(args.model)}
+            write_dump(args.out, dump, header)
+            print(f"dumped {len(dump)} tensors -> {args.out}")
+            return
         out = model(input_ids=x, use_cache=True)
         cache = out.past_key_values
         logits = out.logits[0].to(torch.float32)
@@ -103,12 +130,21 @@ def main(argv=None):
         print("tokens:", tokens)
     for h in hooks:
         h.remove()
-    header = {'model': args.model, 'layers': n_layers, 'dtype': args.dtype, 'ids': ids, 'tokens': tokens,
+    header = {'model': args.model, 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids, 'tokens': tokens,
               'hook_map': hook_map, 'torch': torch.__version__,
               'transformers': __import__('transformers').__version__,
               **_provenance(args.model)}
     write_dump(args.out, dump, header)
     print(f"dumped {len(dump)} tensors -> {args.out}")
+
+
+def _read_tensor(model_dir, name):
+    """One physical tensor of the checkpoint, from the shard the index names or the single file."""
+    from safetensors import safe_open
+    index = os.path.join(model_dir, 'model.safetensors.index.json')
+    file = json.load(open(index, encoding='utf-8'))['weight_map'][name] if os.path.exists(index) else 'model.safetensors'
+    with safe_open(os.path.join(model_dir, file), framework='pt') as f:
+        return f.get_tensor(name)
 
 
 def _provenance(model_dir):
