@@ -474,38 +474,23 @@
             "linear_attention"
           ],
           "when": {
-            "all": [
-              {
-                "compare": {
-                  "operator": "not_equal",
-                  "left": {
-                    "op": "modulo",
-                    "args": [
-                      {
-                        "index": "layer"
-                      },
-                      {
-                        "literal": 4
-                      }
-                    ]
-                  },
-                  "right": {
-                    "literal": 3
-                  }
-                }
-              },
-              {
-                "compare": {
-                  "operator": "less",
-                  "left": {
+            "compare": {
+              "operator": "not_equal",
+              "left": {
+                "op": "modulo",
+                "args": [
+                  {
                     "index": "layer"
                   },
-                  "right": {
-                    "literal": 39
+                  {
+                    "literal": 4
                   }
-                }
+                ]
+              },
+              "right": {
+                "literal": 3
               }
-            ]
+            }
           }
         },
         "gdn_r": {
@@ -522,38 +507,23 @@
             "residual"
           ],
           "when": {
-            "all": [
-              {
-                "compare": {
-                  "operator": "not_equal",
-                  "left": {
-                    "op": "modulo",
-                    "args": [
-                      {
-                        "index": "layer"
-                      },
-                      {
-                        "literal": 4
-                      }
-                    ]
-                  },
-                  "right": {
-                    "literal": 3
-                  }
-                }
-              },
-              {
-                "compare": {
-                  "operator": "less",
-                  "left": {
+            "compare": {
+              "operator": "not_equal",
+              "left": {
+                "op": "modulo",
+                "args": [
+                  {
                     "index": "layer"
                   },
-                  "right": {
-                    "literal": 39
+                  {
+                    "literal": 4
                   }
-                }
+                ]
+              },
+              "right": {
+                "literal": 3
               }
-            ]
+            }
           }
         },
         "mlp_n": {
@@ -700,38 +670,23 @@
             "full_attention"
           ],
           "when": {
-            "all": [
-              {
-                "compare": {
-                  "operator": "equal",
-                  "left": {
-                    "op": "modulo",
-                    "args": [
-                      {
-                        "index": "layer"
-                      },
-                      {
-                        "literal": 4
-                      }
-                    ]
-                  },
-                  "right": {
-                    "literal": 3
-                  }
-                }
-              },
-              {
-                "compare": {
-                  "operator": "greater_or_equal",
-                  "left": {
+            "compare": {
+              "operator": "equal",
+              "left": {
+                "op": "modulo",
+                "args": [
+                  {
                     "index": "layer"
                   },
-                  "right": {
-                    "literal": 3
+                  {
+                    "literal": 4
                   }
-                }
+                ]
+              },
+              "right": {
+                "literal": 3
               }
-            ]
+            }
           }
         },
         "attn_r": {
@@ -748,38 +703,23 @@
             "residual"
           ],
           "when": {
-            "all": [
-              {
-                "compare": {
-                  "operator": "equal",
-                  "left": {
-                    "op": "modulo",
-                    "args": [
-                      {
-                        "index": "layer"
-                      },
-                      {
-                        "literal": 4
-                      }
-                    ]
-                  },
-                  "right": {
-                    "literal": 3
-                  }
-                }
-              },
-              {
-                "compare": {
-                  "operator": "greater_or_equal",
-                  "left": {
+            "compare": {
+              "operator": "equal",
+              "left": {
+                "op": "modulo",
+                "args": [
+                  {
                     "index": "layer"
                   },
-                  "right": {
-                    "literal": 3
+                  {
+                    "literal": 4
                   }
-                }
+                ]
+              },
+              "right": {
+                "literal": 3
               }
-            ]
+            }
           }
         }
       },
@@ -863,30 +803,15 @@
                   }
                 },
                 {
-                  "all": [
-                    {
-                      "compare": {
-                        "operator": "greater_or_equal",
-                        "left": {
-                          "index": "layer"
-                        },
-                        "right": {
-                          "literal": 1
-                        }
-                      }
+                  "compare": {
+                    "operator": "greater_or_equal",
+                    "left": {
+                      "index": "layer"
                     },
-                    {
-                      "compare": {
-                        "operator": "less",
-                        "left": {
-                          "index": "layer"
-                        },
-                        "right": {
-                          "literal": 39
-                        }
-                      }
+                    "right": {
+                      "literal": 1
                     }
-                  ]
+                  }
                 }
               ]
             }
