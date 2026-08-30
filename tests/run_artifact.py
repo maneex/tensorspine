@@ -23,6 +23,8 @@ import catalog as catalog_mod          # noqa: E402
 import derive                          # noqa: E402
 
 LLAMA = os.path.join(ROOT, 'data', 'models', 'llama3-8b.json')
+SHIELD_DOC = os.path.join(ROOT, 'data', 'models', 'shieldstral-3b.json')
+SHIELDSTRAL = os.path.expanduser('~/work/perso/huggingface/Shieldstral-1.0-3B')
 CHECKPOINT = os.path.expanduser('~/work/perso/huggingface/Meta-Llama-3-8B')
 
 
@@ -94,6 +96,15 @@ def main():
                     f"{s['unnamed']} unnamed, {len(e)} errors", not e and s['unnamed'] == 0, e[:2])
     else:
         print("  skip Meta-Llama-3-8B (not on disk)")
+    if os.path.isdir(SHIELDSTRAL):
+        with open(SHIELD_DOC, encoding='utf-8') as f:
+            sh = json.load(f)
+        sh_d3 = derive.products(SHIELD_DOC, catalog_mod.load_for(SHIELD_DOC, sh))['d3']
+        e, a, s = artifact.check(sh_d3, artifact.read_headers(SHIELDSTRAL))
+        ok &= check(f"Shieldstral-1.0-3B on disk, one file without an index: {s['located']} located, {s['physical']} physical, "
+                    f"{s['unnamed']} unnamed, {len(e)} errors", not e and s['unnamed'] == 0 and s['located'] == 458, e[:2])
+    else:
+        print("  skip Shieldstral-1.0-3B (not on disk)")
     print("artifact: all good" if ok else "artifact: FAILED")
     return 0 if ok else 1
 

@@ -272,8 +272,8 @@ MoE and multi-state models (`qwen3.5-397b`, `qwen3.8-27b`, `deepseek-v4-pro`
 audio (`whisper-large-v3`, `voxtral-realtime`), retrieval (`colbert-v2`), shared KV
 (`gemma3n-kvshare`), a composite (`shieldstral-3b-composite`), and the
 `decoder-causal-yarn/1.0.0.json` template — one immutable file per version, like a contract.
-`llama3-8b`, `qwen3.5-4b-text`, `qwen3.8-27b` and `qwen3.5-397b` also locate every one of their
-tensors in the Hugging Face checkpoint they wrap (`location`, Specification §3.4): a runtime loads
+`llama3-8b`, `shieldstral-3b`, `qwen3.5-4b-text`, `qwen3.8-27b` and `qwen3.5-397b` also locate every one
+of their tensors in the Hugging Face checkpoint they wrap (`location`, Specification §3.4): a runtime loads
 them from the document and the files, and `--validate --checkpoint DIR` checks the two against each
 other from the file headers alone — which is how the 4B's gated-delta norm scales were found to be
 stored in f32.
