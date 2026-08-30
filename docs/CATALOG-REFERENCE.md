@@ -265,14 +265,15 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.h` | cardinality | yes |  | no | Channels of the height section. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.w` | cardinality | yes |  | no | Channels of the width section. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.mrope.sections` | enum: `"contiguous"`, `"interleaved"` | yes |  | no | How the three sections sit on the rotated frequency axis: `contiguous` — all temporal frequencies, then height, then width (Qwen2-VL, Qwen2.5-VL); `interleaved` — temporal, height and width frequencies alternating (Qwen3-VL, Qwen 3.5, Qwen 3.8). Two published layouts, so no default: a document says which. For a single position stream they compute the same thing; an image tells them apart. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling` | record of 7 field(s) | no |  | no | Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling` | record of 8 field(s) | no |  | no | Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. A kind's fields are all required under it: the published values differ, so none is defaulted. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.kind` | enum: `"yarn"`, `"llama3"`, `"linear"` | yes |  | no | Context-extension method applied to the rotary frequencies. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.factor` | real | yes |  | no | Ratio between the served context and `orig_ctx`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.orig_ctx` | cardinality | yes |  | no | Context length the frequencies were trained at. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled.<br>*Applicable when rope.scaling.kind = "yarn".* |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | yes |  | no | YaRN: number of rotations above which a frequency is left unscaled.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | yes |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.attention_factor` | real | yes |  | no | YaRN: the factor multiplying the rotated queries and keys — the paper's 0.1·ln(factor) + 1 unless the checkpoint defines otherwise (Ministral 3: 1).<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | yes |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | yes |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
 | `qk_norm` | record of 3 field(s) | no |  | yes | Normalization applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding. Its learned scale, when there is one, is declared inside it: a scale cannot be declared without the normalization it belongs to. Absent, queries and keys are not normalized. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.kind` | enum: `"rms"`, `"layer"` | yes |  | no | Which normalization. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.eps` | real | yes |  | no | Added to the mean square (`rms`) or the variance (`layer`) before the root; changes no tensor. |
@@ -306,7 +307,7 @@ Values of `rope.mrope.sections`:
 
 Values of `rope.scaling.kind`:
 
-- `"yarn"` — YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.
+- `"yarn"` — YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths; the rotated queries and keys are multiplied by `attention_factor`.
 - `"llama3"` — Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.
 - `"linear"` — Position interpolation: every position is divided by `factor`.
 
@@ -459,14 +460,15 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.theta` | real | yes |  | no | Base of the rotary frequencies of the decoupled key. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.compress_theta` | real | no |  | no | Base of the rotary frequencies applied inside the compressor; absent, `theta`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`rope.partial_dims` | cardinality | no |  | no | Channels of `head_dim` that carry the decoupled rotary key; absent, the whole head is rotated. |
-| &nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling` | record of 7 field(s) | no |  | no | Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling` | record of 8 field(s) | no |  | no | Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. A kind's fields are all required under it: the published values differ, so none is defaulted. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.kind` | enum: `"yarn"`, `"llama3"`, `"linear"` | yes |  | no | Context-extension method applied to the rotary frequencies. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.factor` | real | yes |  | no | Ratio between the served context and `orig_ctx`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.orig_ctx` | cardinality | yes |  | no | Context length the frequencies were trained at. |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | no |  | no | YaRN: number of rotations above which a frequency is left unscaled.<br>*Applicable when rope.scaling.kind = "yarn".* |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
-| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_fast` | real | yes |  | no | YaRN: number of rotations above which a frequency is left unscaled.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | yes |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.attention_factor` | real | yes |  | no | YaRN: the factor multiplying the rotated queries and keys — the paper's 0.1·ln(factor) + 1 unless the checkpoint defines otherwise (Ministral 3: 1).<br>*Applicable when rope.scaling.kind = "yarn".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | yes |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | yes |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
 
 Values of `mask`:
 
@@ -476,7 +478,7 @@ Values of `mask`:
 
 Values of `rope.scaling.kind`:
 
-- `"yarn"` — YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.
+- `"yarn"` — YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths; the rotated queries and keys are multiplied by `attention_factor`.
 - `"llama3"` — Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.
 - `"linear"` — Position interpolation: every position is divided by `factor`.
 
@@ -3253,7 +3255,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 34 | 34 | 100% |
-| argument | 187 | 187 | 100% |
+| argument | 189 | 189 | 100% |
 | port | 78 | 78 | 100% |
 | parameter | 116 | 116 | 100% |
 | state | 8 | 8 | 100% |
