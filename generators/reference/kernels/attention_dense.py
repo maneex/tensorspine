@@ -13,8 +13,8 @@
 | rope: partial                   | implemented (the first `partial · head_dim` channels) |
 | rope: mrope (sections contiguous or interleaved) | implemented for one position stream (t = h = w: the two layouts are one computation; an image would tell them apart) |
 | rope: scaling                   | refused                                         |
-| qk_norm rms (+ weight, zero-centred) | implemented, before RoPE                   |
-| qk_norm layer                   | refused                                         |
+| qk_norm kind rms (scale, zero_centered) | implemented, before RoPE                |
+| qk_norm kind layer              | refused                                         |
 | temperature                     | refused                                         |
 | q/k/v/out biases                | implemented                                     |
 | output_gate (`q_gated`)         | implemented: per head, query rows then gate rows |
@@ -23,7 +23,8 @@ Conventions the contract leaves open, as read here: keys of the current elements
 appended to the state before the queries attend (a query sees itself); the scale is
 head_dim^-1/2; rope `split` pairs channel i with i + rotary/2 (rotate-half) over the rotated
 channels only, whose base frequencies are computed on the rotated width; `qk_norm` is an RMS
-norm over head_dim applied before RoPE, its scale zero-centred when the argument says so. These
+norm over head_dim applied before RoPE, with the learned scales `qk_norm.scale` declares, zero-centred
+when it says so. These
 readings are now stated by the contract (finding 1, 30 Aug 2026); `mrope.sections` is declared
 by the document and, for a single position stream, both layouts are plain RoPE.
 """
@@ -33,8 +34,7 @@ from kernels._common import present, refuse_unknown, supports_from, w
 
 CONTRACT = ("attention.dense", "1.0.0")
 KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'mask', 'window', 'chunk', 'cross', 'streaming', 'rope',
-         'qk_norm', 'temperature', 'q_bias', 'k_bias', 'v_bias', 'out_bias', 'output_gate', 'qk_norm_weight',
-         'qk_norm_zero_centered'}
+         'qk_norm', 'temperature', 'q_bias', 'k_bias', 'v_bias', 'out_bias', 'output_gate'}
 
 
 CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any",
@@ -44,9 +44,9 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
                                        "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
                                                                               "sections": ["contiguous", "interleaved"]}},
                                        "scaling": "absent"}},
-                              "qk_norm": {"absent": True, "values": ["rms"]}, "q_bias": "any", "k_bias": "any",
-                              "v_bias": "any", "out_bias": "any", "output_gate": "any", "qk_norm_weight": "any",
-                              "qk_norm_zero_centered": "any"},
+                              "qk_norm": {"absent": True, "fields": {"kind": ["rms"],
+                                          "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
+                              "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
                 "states": ["append"],
                 "notes": ["mrope for one position stream only: an image would need the sections to differ"]}
 
@@ -117,14 +117,16 @@ def run(ctx, arguments, inputs, params, states, physical=None):
     if arguments.get('v_bias'):
         v = v + w(ctx, params['v_bias'])
     q, k, v = q.reshape(n, h, d), k.view(n, kv, d), v.view(n, kv, d)
-    if arguments.get('qk_norm') == 'rms':
+    qk_norm = arguments.get('qk_norm')
+    if qk_norm and qk_norm['kind'] == 'rms':
         eps = ctx.eps
-        zc = bool(arguments.get('qk_norm_zero_centered'))
+        scale = qk_norm.get('scale')                    # present: q_norm and k_norm are declared
+        zc = bool(scale and scale.get('zero_centered'))
         one = torch.ones(d, device=x.device, dtype=x.dtype)
-        qs = w(ctx, params['q_norm']) if arguments.get('qk_norm_weight') else one
-        ks = w(ctx, params['k_norm']) if arguments.get('qk_norm_weight') else one
-        q = rms_norm(q, qs, eps, zc and arguments.get('qk_norm_weight'))
-        k = rms_norm(k, ks, eps, zc and arguments.get('qk_norm_weight'))
+        qs = w(ctx, params['q_norm']) if scale is not None else one
+        ks = w(ctx, params['k_norm']) if scale is not None else one
+        q = rms_norm(q, qs, eps, zc)
+        k = rms_norm(k, ks, eps, zc)
     rope = arguments.get('rope')
     if rope:
         q = rope_split(q, ctx.positions, rope['theta'], rope.get('partial'))

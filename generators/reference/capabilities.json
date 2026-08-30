@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "reference",
-    "version": "3c6677b",
+    "version": "dfcce42",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-08-30"
   },
@@ -91,17 +91,23 @@
         },
         "qk_norm": {
           "absent": true,
-          "values": [
-            "rms"
-          ]
+          "fields": {
+            "kind": [
+              "rms"
+            ],
+            "scale": {
+              "absent": true,
+              "fields": {
+                "zero_centered": "any"
+              }
+            }
+          }
         },
         "q_bias": "any",
         "k_bias": "any",
         "v_bias": "any",
         "out_bias": "any",
-        "output_gate": "any",
-        "qk_norm_weight": "any",
-        "qk_norm_zero_centered": "any"
+        "output_gate": "any"
       },
       "states": [
         "append"
