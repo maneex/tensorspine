@@ -35,7 +35,8 @@ def main(argv=None):
     ap.add_argument('--conv-history', type=int, default=3, help="positions the D4 conv state keeps")
     ap.add_argument('--out', required=True)
     args = ap.parse_args(argv)
-    from transformers import AutoConfig, AutoModelForCausalLM
+    from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForImageTextToText
+    from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
     dtype = {'f32': torch.float32, 'bf16': torch.bfloat16}[args.dtype]
     config = AutoConfig.from_pretrained(args.model)
     text = getattr(config, 'text_config', None) or config
@@ -44,7 +45,10 @@ def main(argv=None):
         if getattr(text, 'layer_types', None):
             text.layer_types = list(text.layer_types)[:args.layers]
     t0 = time.time()
-    model = AutoModelForCausalLM.from_pretrained(args.model, config=config, dtype=dtype)
+    # the class the config maps to: causal-LM when transformers lists the type there, else the
+    # image-text-to-text wrapper (a multimodal checkpoint run on text; its decoder is `language_model`)
+    cls = AutoModelForCausalLM if config.model_type in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES else AutoModelForImageTextToText
+    model = cls.from_pretrained(args.model, config=config, dtype=dtype)
     model.eval()
     n_layers = text.num_hidden_layers
     print(f"loaded {args.model}: {n_layers} layers in {dtype} ({time.time() - t0:.0f}s)")
@@ -102,16 +106,25 @@ def main(argv=None):
     header = {'model': args.model, 'layers': n_layers, 'dtype': args.dtype, 'ids': ids, 'tokens': tokens,
               'hook_map': hook_map, 'torch': torch.__version__,
               'transformers': __import__('transformers').__version__,
-              'index_sha256': _sha(os.path.join(args.model, 'model.safetensors.index.json'))}
+              **_provenance(args.model)}
     write_dump(args.out, dump, header)
     print(f"dumped {len(dump)} tensors -> {args.out}")
 
 
-def _sha(path):
+def _provenance(model_dir):
+    """What identifies the weights: the index file's hash, or — for a checkpoint that is one
+    file without an index — the hash of that file's safetensors header."""
     import hashlib
-    if not os.path.exists(path):
-        return None
-    return hashlib.sha256(open(path, 'rb').read()).hexdigest()
+    import struct
+    index = os.path.join(model_dir, 'model.safetensors.index.json')
+    if os.path.exists(index):
+        return {'index_sha256': hashlib.sha256(open(index, 'rb').read()).hexdigest()}
+    single = os.path.join(model_dir, 'model.safetensors')
+    if os.path.exists(single):
+        with open(single, 'rb') as f:
+            n = struct.unpack('<Q', f.read(8))[0]
+            return {'header_sha256': hashlib.sha256(f.read(n)).hexdigest()}
+    return {'index_sha256': None}
 
 
 if __name__ == '__main__':
