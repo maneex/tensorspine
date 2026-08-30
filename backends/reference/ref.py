@@ -95,7 +95,7 @@ def cmd_info(args):
     g = open_graph(args)
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
-    r = registry.refusals(g, kernels)
+    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])))
     print(f"{g.model}: {len(g.nodes)} nodes, {len(g.tensors)} tensors, {len(g.states)} states")
     if r:
         print(f"  refusals: {len(r)}")
@@ -138,7 +138,7 @@ def compiled(model, args):
 def build(args, g):
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
-    r = registry.refusals(g, kernels)
+    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])))
     if r:
         print(f"refused: {len(r)} reason(s)")
         for line in r[:20]:
@@ -191,7 +191,7 @@ def cmd_run(args):
     g = open_graph(args)
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
-    r = registry.refusals(g, kernels)
+    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])))
     if r:
         print(f"refused: {len(r)} reason(s)")
         for line in r[:20]:

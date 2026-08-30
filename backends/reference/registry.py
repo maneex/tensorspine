@@ -22,10 +22,13 @@ def load_kernels():
     return kernels
 
 
-def refusals(graph, kernels):
-    """Every reason the model cannot run, collected before any weight is read."""
+def refusals(graph, kernels, nodes=None):
+    """Every reason the model cannot run, collected before any weight is read; over the
+    occurrences an invocation evaluates when `nodes` is given (§7)."""
     out = []
     for node, entry in graph.nodes.items():
+        if nodes is not None and node not in nodes:
+            continue
         key = (entry['contract']['name'], entry['contract']['version'])
         k = kernels.get(key)
         if k is None:

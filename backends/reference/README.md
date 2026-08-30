@@ -132,6 +132,13 @@ states, D6 cuts) — derived in-process from a model document through `tools/der
 the model source or the catalog. What it knows about a model: nothing; `--truncate` and `--set`
 edit the *document* before deriving and are a test convenience.
 
+An input the document declares may deliver nothing in an invocation (§7): the occurrences it
+alone would reach are not evaluated and need no kernel, `splice` keeps its `text`, and only the
+inputs D2 marks `required_for` the output at hand are refused when absent. A multimodal document
+therefore runs on text with its vision tower silent — the test proves `qwen3.8-27b` on text gives
+`qwen3.8-27b-text`'s logits bit for bit. Sending an image waits on the language saying where the
+inserted elements go (the `splice` placement, a parked finding).
+
 Conventions: a value's tensor has the element axis first, then the port's axes in the contract's
 order; one sequence, no batch axis; parameters stay at their D3 dtype and are upcast per
 operation (`--compute f32` on CPU, `bf16` on CUDA); `append` states are buffers of `--capacity`

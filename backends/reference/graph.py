@@ -137,6 +137,17 @@ class Graph:
             self.input_stream[name] = entry.get('stream', name)
             for t in entry['to']:
                 self.fed_by_input[(t['node'], t['port'])] = name
+        # ports that may receive nothing: the sources of insert transforms (D2 transforms are not
+        # emitted; the contract's transform is visible through the value domains: a `source` port
+        # of `splice` — the language's only insert today — is recognised by its contract)
+        self.insert_sources = {n: ['source'] for n, e in self.nodes.items() if e['contract']['name'] == 'splice'}
+        # ports whose elements a source-indexed state of the occurrence holds (D4 `indexed_by_source`)
+        self.state_indexed_by = {}
+        for st in doc['d4']['states']:
+            if st.get('indexed_by_source'):
+                for m in st['members']:
+                    node, sname = m.rsplit('.', 1)
+                    self.state_indexed_by.setdefault(node, {})['source_values'] = sname
         self.generative = None     # (output name, stream) — the element fed back at decode
         for name, o in self.interfaces['outputs'].items():
             if o.get('generative'):

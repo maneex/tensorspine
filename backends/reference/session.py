@@ -18,9 +18,12 @@ class Session:
     def run(self, inputs, dump=None):
         """One invocation: every declared public input supplied (R08), positions
         continuing per stream."""
-        missing = [n for n in self.graph.interfaces['inputs'] if n not in inputs]
-        if missing:
-            raise state_mod.Refusal(f"public input(s) not supplied: {missing}")
+        wanted = {self.graph.generative[0]} if self.graph.generative else set(self.graph.interfaces['outputs'])
+        for n in self.graph.interfaces['inputs']:
+            if n not in inputs:
+                needed = set(self.graph.input_values[n].get('required_for', [])) & wanted
+                if needed and not self.consumed.get(self.graph.input_stream[n]):
+                    raise state_mod.Refusal(f"input {n} delivers nothing, and {sorted(needed)} need it (§7)")
         positions = {}
         for name, t in inputs.items():
             expect = [a['extent'] for a in self.graph.input_values[name]['shape']]

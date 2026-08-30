@@ -63,14 +63,25 @@ def step(model, inputs, positions, states, dump=None):
     values = {}
     remaining = dict(plan.remaining)
     ctx = Ctx(model.compute, model.device, model.static)
+    active = plan.evaluable(set(inputs), states)
     for block in plan.blocks:
         block_params = model.block_params(block)
         model.loaded_blocks += 1
         for si in block.steps:
             s = plan.steps[si]
+            if s.node not in active:
+                continue
+            if s.kernel is None:
+                raise ShapeError(f"{s.node}: no kernel for {s.contract['name']}@{s.contract['version']}, yet evaluated")
             ins = {}
             for port, (kind, ref) in s.inputs.items():
-                ins[port] = inputs[ref] if kind == 'input' else values[ref]
+                if kind == 'input' and ref in inputs:
+                    ins[port] = inputs[ref]
+                elif kind == 'value' and ref in values:
+                    ins[port] = values[ref]
+                else:                                       # nothing delivered: an empty value
+                    shape = [a['extent'] for a in (graph.values.get(ref) or graph.input_values.get(ref) or {}).get('shape', [])]
+                    ins[port] = torch.empty((0, *shape), dtype=model.compute, device=model.device)
             params = {slot: block_params[ident] for slot, ident in s.params.items()}
             sts = {name: states[ident] for name, ident in s.states.items()}
             ctx.positions = positions.get(s.stream) if s.stream else None
@@ -86,9 +97,10 @@ def step(model, inputs, positions, states, dump=None):
                 if dump is not None and vname in plan.dump_values:
                     dump[f"value/{vname}"] = t.detach().to('cpu', torch.float32).clone()
             for port, (kind, ref) in s.inputs.items():
-                if kind == 'value':
+                if kind == 'value' and ref in values:
                     remaining[ref] -= 1
                     if remaining[ref] == 0 and ref not in needed:
                         del values[ref]
         model.release(block, block_params)
-    return {name: values[f"{o['node']}.{o['port']}"] for name, o in graph.interfaces['outputs'].items()}
+    return {name: values[f"{o['node']}.{o['port']}"] for name, o in graph.interfaces['outputs'].items()
+            if f"{o['node']}.{o['port']}" in values}

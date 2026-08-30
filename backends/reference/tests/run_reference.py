@@ -143,6 +143,44 @@ def m1(check):
     ok = True
     for fixture, document, checkpoint in FIXTURES:
         ok &= fixture_case(check, os.path.join(REF, 'fixtures', fixture), document, os.path.join(CHECKPOINTS, checkpoint))
+    ok &= text_only_case(check)
+    return ok
+
+
+def text_only_case(check):
+    """§7 (finding 3): the multimodal document run on text alone — `pixels` delivers nothing,
+    the vision tower is not evaluated and needs no kernel — gives exactly the text document's
+    logits and tokens."""
+    ck = os.path.join(CHECKPOINTS, 'Qwen3.8-27B')
+    if not os.path.isdir(ck):
+        print("  skip text-only equivalence (Qwen 3.8 27B not on disk)")
+        return True
+    tmp = tempfile.mkdtemp(prefix='tensorspine-ref-textonly-')
+    kernels = registry.load_kernels()
+    runs = {}
+    for document in ('qwen3.8-27b', 'qwen3.8-27b-text'):
+        path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', f'{document}.json'), 'decoder.layer=4', tmp)
+        g = graph_mod.load(path)
+        plan = Plan(g, kernels)
+        active = plan.evaluable({'tokens'})
+        refused = registry.refusals(g, kernels, active)
+        if document == 'qwen3.8-27b':
+            ok = check("text only: the vision tower is not evaluated and needs no kernel",
+                       not refused and not any(n.startswith('vision/') for n in active) and 'splice' in active
+                       and g.input_values['pixels']['required_for'] == [] and g.input_values['tokens']['required_for'] == ['main'])
+        params = loader.load_parameters(g, ck, 'cpu')
+        model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
+        session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+        ids = [760, 6511, 314, 9338, 369]
+        out = session.prefill(ids)
+        logits = out[g.generative[0]].clone()
+        tokens = [greedy(out, g)]
+        for _ in range(2):
+            tokens.append(greedy(session.decode(tokens[-1]), g))
+        runs[document] = (logits, tokens)
+    a, b = runs['qwen3.8-27b'], runs['qwen3.8-27b-text']
+    ok &= check(f"text only: the multimodal document gives the text document's logits and tokens {a[1]}",
+                torch.equal(a[0], b[0]) and a[1] == b[1])
     return ok
 
 

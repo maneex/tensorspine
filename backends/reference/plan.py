@@ -11,7 +11,8 @@ comes from D6 (every crossing edge forward), so a block needs nothing from a lat
 
 
 class Step:
-    __slots__ = ('node', 'kernel', 'contract', 'arguments', 'inputs', 'params', 'states', 'outputs', 'stream')
+    __slots__ = ('node', 'kernel', 'contract', 'arguments', 'inputs', 'params', 'states', 'outputs', 'stream',
+                 'insert_sources', 'state_indexed_by')
 
     def __init__(self, node, kernel, entry, graph):
         self.node = node
@@ -29,6 +30,8 @@ class Step:
         self.states = graph.states_of.get(node, {})
         self.outputs = graph.outputs_of.get(node, {})
         self.stream = graph.node_stream(node)
+        self.insert_sources = set(graph.insert_sources.get(node, ()))
+        self.state_indexed_by = graph.state_indexed_by.get(node, {})     # input port -> state name
 
 
 class Block:
@@ -52,7 +55,7 @@ class Plan:
             entry = graph.nodes[node]
             key = (entry['contract']['name'], entry['contract']['version'])
             index[node] = len(self.steps)
-            self.steps.append(Step(node, kernels[key], entry, graph))
+            self.steps.append(Step(node, kernels.get(key), entry, graph))   # None: refused if ever evaluated
         self.dump_values = {}
         for c in graph.cuts:
             for p in c['payload']:
@@ -149,6 +152,31 @@ class Plan:
                          f"parameters {gib(b.bytes)}, payload in {payload / 2**20:.1f} MiB for {elements} elements")
         lines.append(f"  resident at most {gib(largest + resident_bytes)}; traffic {gib(self.traffic_bytes())} of parameters per invocation")
         return lines
+
+    def evaluable(self, delivered, states=None):
+        """The occurrences an invocation evaluates (§7): every input port fed by a delivered
+        input or an evaluated occurrence, excepting an insert transform's source and a port
+        whose elements a state of the occurrence indexed by that port already holds."""
+        graph = self.graph
+        fed = {(n, port) for (n, port), name in graph.fed_by_input.items() if name in delivered}
+        done = set()
+        for s in self.steps:
+            ok = True
+            for port, (kind, ref) in s.inputs.items():
+                if kind == 'input' and (s.node, port) in fed:
+                    continue
+                if kind == 'value' and ref.rsplit('.', 1)[0] in done:
+                    continue
+                if port in s.insert_sources:
+                    continue
+                held = s.state_indexed_by.get(port)
+                if held is not None and states is not None and states[s.states[held]].length > 0:
+                    continue
+                ok = False
+                break
+            if ok:
+                done.add(s.node)
+        return done
 
     def traffic_bytes(self):
         """Parameter bytes moved per invocation: nothing when one block holds the model,
