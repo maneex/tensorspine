@@ -131,6 +131,9 @@
         },
         "token_types": {
           "literal": 2
+        },
+        "eps": {
+          "quantity": "eps"
         }
       },
       "families": [

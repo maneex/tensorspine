@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm.",
-    "description": "Three lookups are summed — the token in `weight`, its position in `position`, its segment type in `token_type` — and the sum is normalized by a LayerNorm with scale and bias.",
+    "description": "Three lookups are summed — the token in `weight`, its position in `position`, its segment type in `token_type` — and the sum is normalized by a LayerNorm with scale and bias (variance plus `eps`). The segment type is 0 for every token in this version: the contract has no `types` input, and the table is read at index 0, as BERT does when no segment identifiers are given; a `types` input is a later version.",
     "external_docs": [
       {
         "url": "https://arxiv.org/abs/1810.04805",
@@ -46,6 +46,14 @@
         "required": true,
         "structural": true,
         "description": "Number of segment types."
+      },
+      "eps": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "structural": false,
+        "description": "Epsilon of the LayerNorm over the summed lookups (variance plus `eps`)."
       }
     },
     "ports": {
@@ -174,7 +182,7 @@
             }
           ]
         },
-        "description": "Segment-type table."
+        "description": "Segment-type table, read at index 0 in this version (no `types` input)."
       },
       "norm": {
         "role": "norm.scale",
