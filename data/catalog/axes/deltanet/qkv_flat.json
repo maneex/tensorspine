@@ -1,0 +1,11 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "deltanet.qkv_flat",
+  "definition": {
+    "space": "value",
+    "summary": "Fused query/key/value projection width of a gated-delta layer, `2*key_heads*head_dim + value_heads*head_dim`.",
+    "description": "A sum, not a product of declared axes: the axis carries no factors and the shape alone does not say how to partition it by head (O5.10). The contract's description fixes the order of the channels: query, key, then value.",
+    "note": "fused QKV width of the delta rule; a sum, hence no factors"
+  }
+}

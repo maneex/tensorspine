@@ -150,7 +150,7 @@
             },
             {
               "name": "kernel",
-              "axis": "audio.kernel",
+              "axis": "sequence.kernel",
               "nature": "structural",
               "extent": {
                 "argument": "kernel"
@@ -215,7 +215,7 @@
             },
             {
               "name": "kernel",
-              "axis": "audio.kernel",
+              "axis": "sequence.kernel",
               "nature": "structural",
               "extent": {
                 "argument": "kernel"

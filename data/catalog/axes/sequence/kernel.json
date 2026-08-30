@@ -1,0 +1,11 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "sequence.kernel",
+  "definition": {
+    "space": "value",
+    "summary": "Support of a convolution along the sequence, in positions.",
+    "description": "The temporal extent of a kernel that slides along the sequence, whatever the stream: the frames of the audio stem's convolutions and the positions of a gated-delta layer's depthwise causal convolution are the same kind of dimension. Not an axis a shape composes along or a partition targets.",
+    "note": "support of a convolution along the sequence: audio frames or delta-rule positions"
+  }
+}

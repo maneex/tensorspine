@@ -168,7 +168,7 @@
           "axes": [
             {
               "name": "qkv_flat",
-              "axis": "attention.qkv_flat",
+              "axis": "deltanet.qkv_flat",
               "nature": "projection",
               "extent": {
                 "op": "add",
@@ -324,7 +324,7 @@
             },
             {
               "name": "kernel",
-              "axis": "audio.kernel",
+              "axis": "sequence.kernel",
               "nature": "structural",
               "extent": {
                 "argument": "conv.kernel"
