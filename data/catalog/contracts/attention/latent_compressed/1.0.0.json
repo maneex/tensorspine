@@ -216,7 +216,7 @@
                     "structural": false,
                     "description": "Context-extension method applied to the rotary frequencies.",
                     "value_descriptions": {
-                      "yarn": "YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths, with attention temperature.",
+                      "yarn": "YaRN: per-frequency interpolation between `beta_fast` and `beta_slow` wavelengths; the rotated queries and keys are multiplied by `attention_factor`.",
                       "llama3": "Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.",
                       "linear": "Position interpolation: every position is divided by `factor`."
                     }
@@ -241,7 +241,7 @@
                     "type": {
                       "kind": "real"
                     },
-                    "required": false,
+                    "required": true,
                     "structural": false,
                     "present_when": {
                       "compare": {
@@ -260,7 +260,7 @@
                     "type": {
                       "kind": "real"
                     },
-                    "required": false,
+                    "required": true,
                     "structural": false,
                     "present_when": {
                       "compare": {
@@ -275,11 +275,30 @@
                     },
                     "description": "YaRN: number of rotations below which a frequency is fully interpolated."
                   },
+                  "attention_factor": {
+                    "type": {
+                      "kind": "real"
+                    },
+                    "required": true,
+                    "structural": false,
+                    "present_when": {
+                      "compare": {
+                        "operator": "equal",
+                        "left": {
+                          "argument": "rope.scaling.kind"
+                        },
+                        "right": {
+                          "literal": "yarn"
+                        }
+                      }
+                    },
+                    "description": "YaRN: the factor multiplying the rotated queries and keys — the paper's 0.1·ln(factor) + 1 unless the checkpoint defines otherwise (Ministral 3: 1)."
+                  },
                   "low": {
                     "type": {
                       "kind": "real"
                     },
-                    "required": false,
+                    "required": true,
                     "structural": false,
                     "present_when": {
                       "compare": {
@@ -298,7 +317,7 @@
                     "type": {
                       "kind": "real"
                     },
-                    "required": false,
+                    "required": true,
                     "structural": false,
                     "present_when": {
                       "compare": {
@@ -317,7 +336,7 @@
               },
               "required": false,
               "structural": false,
-              "description": "Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained."
+              "description": "Context-extension scaling of the rotary frequencies; absent, the frequencies are used as trained. A kind's fields are all required under it: the published values differ, so none is defaulted."
             }
           }
         },

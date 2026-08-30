@@ -241,6 +241,9 @@
                     "beta_slow": {
                       "literal": 1
                     },
+                    "attention_factor": {
+                      "literal": 1.0
+                    },
                     "orig_ctx": {
                       "literal": 16384
                     }
