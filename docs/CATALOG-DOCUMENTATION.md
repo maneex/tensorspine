@@ -187,7 +187,7 @@ than carry them: a list maintained by hand drifts.
 
 - `schemas/tensorspine-documentation.schema.json` — the model, 20 `$defs`.
 - `tools/document.py`, `tools/tensorspine --document` — the generator.
-- **The catalog, documented in full.** Every one of the 34 contracts, 36 axes and 55 precision roles
+- **The catalog, documented in full.** Every one of the 34 contracts, 36 axes and 54 precision roles
   carries a `summary` and a `description`; every argument, record field, port, parameter slot, state
 port, payload component, state operation, state rule, partition, cost entry and domain transform of
   every primitive contract carries a `description`, as does every cost correction and sparsity

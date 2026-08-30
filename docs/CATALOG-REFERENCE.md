@@ -14,7 +14,7 @@ External documentation:
 
 - [Tensorspine Language Specification](SPECIFICATION.md) *(specification)* — Normative authority on contract contents (§4) and identity (§8.2).
 
-Bases consulted, in order: `data/catalog`. 34 contracts, 36 axes, 55 precision roles.
+Bases consulted, in order: `data/catalog`. 34 contracts, 36 axes, 54 precision roles.
 
 ## Contents
 
@@ -150,7 +150,6 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [attention.indexer](#role-attention.indexer) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Projections of the sparse index of latent attention. |
 | [attention.kv_projection](#role-attention.kv_projection) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Latent key/value projection. |
 | [attention.output_down](#role-attention.output_down) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Down projection of a grouped low-rank attention output. |
-| [attention.output_gate](#role-attention.output_gate) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Per-head output gate projection. |
 | [attention.output_projection](#role-attention.output_projection) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Attention output projection. |
 | [attention.output_up](#role-attention.output_up) | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Up projection of a grouped low-rank attention output. |
 | [attention.projection_bias](#role-attention.projection_bias) | `f32`, `bf16`, `f16` | `bf16` | full_precision | Biases of the attention projections. |
@@ -3093,7 +3092,6 @@ A precision role bounds the storage types a slot, port or state component may ta
 | <a id="role-attention.indexer"></a>`attention.indexer` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Projections of the sparse index of latent attention. |
 | <a id="role-attention.kv_projection"></a>`attention.kv_projection` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Latent key/value projection. |
 | <a id="role-attention.output_down"></a>`attention.output_down` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Down projection of a grouped low-rank attention output. |
-| <a id="role-attention.output_gate"></a>`attention.output_gate` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Per-head output gate projection. |
 | <a id="role-attention.output_projection"></a>`attention.output_projection` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Attention output projection. |
 | <a id="role-attention.output_up"></a>`attention.output_up` | `bf16`, `f16`, `f32`, `f8e4m3`, `fp4` | `bf16` | quantizable | Up projection of a grouped low-rank attention output. |
 | <a id="role-attention.projection_bias"></a>`attention.projection_bias` | `f32`, `bf16`, `f16` | `bf16` | full_precision | Biases of the attention projections. |
@@ -3201,11 +3199,11 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | domain transform relation | `align` | 1 |
 | domain transform relation | `insert` | 1 |
 | domain transform relation | `merge` | 4 |
-| dtype admissible | `bf16` | 52 |
-| dtype admissible | `f16` | 49 |
-| dtype admissible | `f32` | 50 |
-| dtype admissible | `f8e4m3` | 29 |
-| dtype admissible | `fp4` | 27 |
+| dtype admissible | `bf16` | 51 |
+| dtype admissible | `f16` | 48 |
+| dtype admissible | `f32` | 49 |
+| dtype admissible | `f8e4m3` | 28 |
+| dtype admissible | `fp4` | 26 |
 | dtype admissible | `i32` | 2 |
 | dtype admissible | `i64` | 2 |
 | parameter sharing | `exclusive` | 26 |
@@ -3224,7 +3222,7 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | port domain | `position` | 1 |
 | port domain | `token` | 9 |
 | precision sensitivity | `full_precision` | 19 |
-| precision sensitivity | `quantizable` | 30 |
+| precision sensitivity | `quantizable` | 29 |
 | precision sensitivity | `reduced` | 6 |
 | sparsity policy | `argument` | 1 |
 | sparsity policy | `element` | 4 |
@@ -3268,7 +3266,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 | transform | 6 | 6 | 100% |
 | sparsity | 12 | 12 | 100% |
 | axis | 36 | 36 | 100% |
-| precision_role | 55 | 55 | 100% |
+| precision_role | 54 | 54 | 100% |
 
 
 <a id="appendix-c" name="appendix-c"></a>
