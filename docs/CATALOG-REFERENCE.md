@@ -60,7 +60,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 
 | Contract | Summary | Shape |
 |---|---|---|
-| [attention.dense@1.0.0](#contract-attention.dense-1.0.0) | Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm. | 19 args · 2→1 ports · 11 params · state `kv` |
+| [attention.dense@1.0.0](#contract-attention.dense-1.0.0) | Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm. | 17 args · 2→1 ports · 11 params · state `kv` |
 | [attention.latent_compressed@1.0.0](#contract-attention.latent_compressed-1.0.0) | Latent attention: low-rank query and output projections, one compressed latent KV, optional sparse index. | 11 args · 1→1 ports · 16 params · state `kv`, `sliding`, `compressor`, `index`, `index_compressor` |
 | [conditioning.layer_select@1.0.0](#contract-conditioning.layer_select-1.0.0) | Selects, from the per-layer auxiliary vectors, the slice that belongs to one layer. | 3 args · 1→1 ports · 0 params |
 | [conditioning.multiplicative@1.0.0](#contract-conditioning.multiplicative-1.0.0) | Per-layer conditioning: gates the input, multiplies by the condition, projects back and normalizes. | 3 args · 2→1 ports · 3 params |
@@ -224,7 +224,7 @@ Three arguments change what the primitive *is* rather than how it computes:
 - `window` bounds the span a query may attend to, and turns the cache into a ring of that span;
 - `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.
 
-`rope`, `qk_norm` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.
+`rope` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; `qk_norm` declares its learned scales inside itself (`qk_norm.scale`), so that a scale cannot be declared without the normalization it belongs to. Each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.
 
 The projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).
 
@@ -240,7 +240,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 19 (5 required, 15 structural) | 2 | 1 | 11 | 0 | `kv` (append, window) | 4 | 1 correction(s) |
+| 17 (5 required, 15 structural) | 2 | 1 | 11 | 0 | `kv` (append, window) | 4 | 1 correction(s) |
 
 ##### Arguments
 
@@ -274,7 +274,10 @@ External documentation:
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.beta_slow` | real | no |  | no | YaRN: number of rotations below which a frequency is fully interpolated.<br>*Applicable when rope.scaling.kind = "yarn".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.low` | real | no |  | no | Llama 3: low-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`rope.scaling.high` | real | no |  | no | Llama 3: high-frequency factor.<br>*Applicable when rope.scaling.kind = "llama3".* |
-| `qk_norm` | enum: `"rms"`, `"layer"` | no |  | no | Normalization applied to queries and keys before the dot product. The learned scale is declared separately by `qk_norm_weight`. Applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding. |
+| `qk_norm` | record of 2 field(s) | no |  | yes | Normalization applied to the projected queries and keys, per head over `head_dim`, before the rotary embedding. Its learned scale, when there is one, is declared inside it: a scale cannot be declared without the normalization it belongs to. Absent, queries and keys are not normalized. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.kind` | enum: `"rms"`, `"layer"` | yes |  | no | Which normalization. |
+| &nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.scale` | record of 1 field(s) | no |  | yes | The normalization has a learned per-channel scale: present, this record declares the `q_norm` and `k_norm` slots; an empty record is a plain scale. Absent, queries and keys are normalized without a scale.<br>*Note: present: the Q/K norm has learned scales, q_norm and k_norm* |
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`qk_norm.scale.zero_centered` | boolean | no | `false` | no | The scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor. |
 | `temperature` | record of 2 field(s) | no |  | no | Position-dependent attention temperature: the logits of position `p` are multiplied by `1 + scale * log(1 + p / floor)`. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`temperature.floor` | cardinality | yes |  | no | Positions per temperature step: the scale grows once per `floor` positions. |
 | &nbsp;&nbsp;&nbsp;&nbsp;`temperature.scale` | real | yes |  | no | Growth of the logit scale per step. |
@@ -283,8 +286,6 @@ External documentation:
 | `v_bias` | boolean | no | `false` | yes | Learned bias on the value projection. |
 | `out_bias` | boolean | no | `false` | yes | Learned bias on the output projection. |
 | `output_gate` | boolean | no | `false` | yes | Per-head sigmoid gate on the attention output, computed from `input` by the gate rows of the gated query projection `q_gated`.<br>*Note: per-head sigmoid gate; its rows live in the gated query projection q_gated* |
-| `qk_norm_weight` | boolean | no | `false` | yes | The Q/K normalization has a learned per-channel scale: declares the `q_norm` and `k_norm` slots.<br>*Note: Q/K RMSNorm has a learned scale* |
-| `qk_norm_zero_centered` | boolean | no | `false` | no | The learned Q/K normalization scales are stored as offsets from one: the scale applied is `1 + q_norm` and `1 + k_norm`, as Qwen 3.5 stores them. Changes no tensor; without `qk_norm_weight` it has no effect. |
 
 Values of `mask`:
 
@@ -309,7 +310,7 @@ Values of `rope.scaling.kind`:
 - `"llama3"` — Llama 3 frequency scaling: wavelengths above `orig_ctx/low` are scaled by `factor`, below `orig_ctx/high` are kept, in between interpolated.
 - `"linear"` — Position interpolation: every position is divided by `factor`.
 
-Values of `qk_norm`:
+Values of `qk_norm.kind`:
 
 - `"rms"` — RMS normalization.
 - `"layer"` — Layer normalization.
@@ -342,8 +343,8 @@ Outputs:
 | `k_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[key: kv_heads*head_dim = kv_heads: kv_heads × head_dim: head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) = [attention.kv_heads](#axis-attention.kv_heads) × [attention.head_dim](#axis-attention.head_dim) | exclusive | k_bias = true | Bias of the key projection. |
 | `v_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[value: kv_heads*head_dim = kv_heads: kv_heads × head_dim: head_dim]` | [attention.kv_heads](#axis-attention.kv_heads) (projection) = [attention.kv_heads](#axis-attention.kv_heads) × [attention.head_dim](#axis-attention.head_dim) | exclusive | v_bias = true | Bias of the value projection. |
 | `out_bias` | [attention.projection_bias](#role-attention.projection_bias) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | out_bias = true | Bias of the output projection. |
-| `q_norm` | [norm.scale](#role-norm.scale) | `[head_dim: head_dim]` | [attention.head_dim](#axis-attention.head_dim) (feature) | exclusive | qk_norm_weight = true | Learned scale of the query normalization. |
-| `k_norm` | [norm.scale](#role-norm.scale) | `[head_dim: head_dim]` | [attention.head_dim](#axis-attention.head_dim) (feature) | exclusive | qk_norm_weight = true | Learned scale of the key normalization. |
+| `q_norm` | [norm.scale](#role-norm.scale) | `[head_dim: head_dim]` | [attention.head_dim](#axis-attention.head_dim) (feature) | exclusive | qk_norm.scale present | Learned scale of the query normalization. |
+| `k_norm` | [norm.scale](#role-norm.scale) | `[head_dim: head_dim]` | [attention.head_dim](#axis-attention.head_dim) (feature) | exclusive | qk_norm.scale present | Learned scale of the key normalization. |
 
 ##### State ports
 
@@ -3253,7 +3254,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 34 | 34 | 100% |
-| argument | 185 | 185 | 100% |
+| argument | 186 | 186 | 100% |
 | port | 78 | 78 | 100% |
 | parameter | 116 | 116 | 100% |
 | state | 8 | 8 | 100% |
