@@ -312,6 +312,12 @@
       "expect": "V17",
       "match": "template",
       "note": "A document that locates its weights and instantiates a template: a template instance's tensors have no location, a stated limit (V17)."
+    },
+    {
+      "document": "models/v4-input-feeds-unequal-ports.json",
+      "expect": "V4",
+      "match": "shapes differ",
+      "note": "A public input is an edge like any other (§5.3): the ports it feeds must compose (V4). Here `tokens` feeds a token-index port and a width-vector port."
     }
   ]
 }

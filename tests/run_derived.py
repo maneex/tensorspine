@@ -104,6 +104,12 @@ def main():
     located = {t['identity']: t.get('location') for t in l3['d3']['tensors']}
     ok &= check("llama3-8b: decoder.attn.q[layer=3] is stored as model.layers.3.self_attn.q_proj.weight",
                 located.get('decoder.attn.q[layer=3]') == {'tensor': 'model.layers.3.self_attn.q_proj.weight'})
+    d2 = {v['value']: v for v in l3['d2']['values']}
+    ok &= check("llama3-8b: the public input `tokens` is a value — one token index per element on stream tokens",
+                d2.get('tokens', {}).get('input') == 'tokens' and d2['tokens']['shape'] == [] and d2['tokens']['role'] == 'activation.token_index'
+                and d2['tokens']['domain'] == {'kind': 'token', 'stream': 'tokens'} and d2['tokens']['to'] == ['embed.tokens'])
+    ok &= check("llama3-8b: the generative output's value is listed with its shape and exposed as `logits`",
+                d2.get('lm_head.logits', {}).get('exposed') == ['logits'] and [a['extent'] for a in d2['lm_head.logits']['shape']] == [128256])
     names = [v['tensor'] for v in located.values() if v]
     ok &= check("llama3-8b: 291 tensors located under 291 distinct physical names",
                 len(names) == 291 and len(set(names)) == 291)
