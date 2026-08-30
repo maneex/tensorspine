@@ -1,4 +1,4 @@
-"""What the reference backend has been verified on: the committed fixtures (a truncated model
+"""What the reference generator has been verified on: the committed fixtures (a truncated model
 against a `transformers` dump at every legal cut and state) and the full-model greedy tokens.
 Read by the test and by `ref.py capabilities`."""
 

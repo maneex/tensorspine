@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The official implementation at the same boundaries (R07, R11): `transformers` runs the
 checkpoint — optionally with `num_hidden_layers` overridden so the dump stays small — and
-writes, under the keys the reference backend's `--dump` uses, the output of every decoder
+writes, under the keys the reference generator's `--dump` uses, the output of every decoder
 layer, the KV cache after prefill, the last position's logits, the argmax per position and
 the greedy tokens. The hook → D1-value map is data in the header: the only place HF names
 meet D1 names.

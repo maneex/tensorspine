@@ -12,6 +12,11 @@ def refuse_unknown(arguments, known, reasons):
             reasons.append(f"{k}={arguments[k]!r} (argument unknown to this kernel)")
 
 
+# `physical`: the opaque parameters the serving application passes to a primitive beside its
+# contract arguments (generators/CAPABILITIES.md) — a dict, or None; a kernel reads what it knows
+# and ignores the rest. The targeted backend is one optional key, `backend`.
+
+
 def w(ctx, t):
     """A parameter in the compute dtype (upcast per operation; storage stays at the D3 dtype)."""
     return t.to(ctx.dtype)
@@ -35,9 +40,9 @@ def chunked_matmul(ctx, x, weight):
 
 # --- capabilities as data ---------------------------------------------------
 # A kernel declares CAPABILITIES = {"arguments": {...}, "excluding": [...], "states": [...],
-# "transforms": [...], "notes": [...]} in the manifest's rule grammar (backends/CAPABILITIES.md);
+# "transforms": [...], "notes": [...]} in the manifest's rule grammar (generators/CAPABILITIES.md);
 # supports() and the manifest both come from it, and the rules are evaluated by the language's
-# reader, tools/capabilities.py — one implementation for every backend.
+# reader, tools/capabilities.py — one implementation for every generator.
 import os
 import sys
 

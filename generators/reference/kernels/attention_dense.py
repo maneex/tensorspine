@@ -98,7 +98,7 @@ def attend(q, K, V, length, qpos, causal, static=False):
     return torch.einsum('hnm,mhd->nhd', p, V).reshape(n, h * d)
 
 
-def run(ctx, arguments, inputs, params, states):
+def run(ctx, arguments, inputs, params, states, physical=None):
     x = inputs['input']
     n = x.shape[0]
     h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']

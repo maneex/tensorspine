@@ -26,8 +26,28 @@ class Ctx:
         self.eps = eps            # finding: the Q/K normalisation has no `eps` of its own in the contract
 
 
+def physical_for(physical, node, contract):
+    """The opaque parameters addressed to an occurrence: by its exact identifier, by a site
+    pattern where `*` alone is a wildcard (`decoder/attn[layer=*]`), or by its contract
+    version; more specific entries override more general ones (contract < pattern < exact)."""
+    import re
+    if not physical:
+        return None
+    out = {}
+    cid = f"{contract['name']}@{contract['version']}"
+    for key, value in physical.items():
+        if key == cid:
+            out.update(value)
+    for key, value in physical.items():
+        if key != cid and key != node and '*' in key and re.fullmatch(re.escape(key).replace(r'\*', '.*'), node):
+            out.update(value)
+    if node in physical:
+        out.update(physical[node])
+    return out or None
+
+
 class TensorspineModel(nn.Module):
-    def __init__(self, graph, plan, params=None, compute_dtype=torch.float32, device='cpu', source=None):
+    def __init__(self, graph, plan, params=None, compute_dtype=torch.float32, device='cpu', source=None, physical=None):
         """`params`: every identity resident (one block). `source(identity) -> tensor` on the
         device: materialised per block and released after it (several blocks)."""
         super().__init__()
@@ -41,6 +61,7 @@ class TensorspineModel(nn.Module):
         self.check = True          # every produced value against its D2 shape (eager)
         self.static = False        # masked attention over the whole capacity (compiled form)
         self.loaded_blocks = 0     # blocks materialised so far (the traffic, in blocks)
+        self.physical = {s.node: physical_for(physical, s.node, s.contract) for s in plan.steps}
 
     def block_params(self, block):
         if self.source is None:
@@ -85,7 +106,7 @@ def step(model, inputs, positions, states, dump=None):
             params = {slot: block_params[ident] for slot, ident in s.params.items()}
             sts = {name: states[ident] for name, ident in s.states.items()}
             ctx.positions = positions.get(s.stream) if s.stream else None
-            outs = s.kernel.run(ctx, s.arguments, ins, params, sts)
+            outs = s.kernel.run(ctx, s.arguments, ins, params, sts, model.physical.get(s.node))
             n = None if ctx.positions is None else ctx.positions.shape[0]
             for port, t in outs.items():
                 vname = f"{s.node}.{port}"

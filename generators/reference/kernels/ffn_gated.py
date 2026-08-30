@@ -28,7 +28,7 @@ CAPABILITIES = {"arguments": {"width": "any", "inner": "any", "activation": ["si
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
-def run(ctx, arguments, inputs, params, states):
+def run(ctx, arguments, inputs, params, states, physical=None):
     x = inputs['input']
     g = x @ w(ctx, params['gate']).T
     u = x @ w(ctx, params['up']).T

@@ -1,7 +1,7 @@
 # Fixtures
 
-Dumps of the official implementation at the boundaries the reference backend dumps at
-(reference-backend plan R07, R11): `value/<D1 value>` for the output of every decoder layer,
+Dumps of the official implementation at the boundaries the reference generator dumps at
+(reference-generator plan R07, R11): `value/<D1 value>` for the output of every decoder layer,
 `state/<D4 identity>/<component>` for the KV cache after prefill, `logits/last` and
 `logits/argmax` for the prefill logits; the greedy tokens and the run's provenance (model id,
 index-file hash, library versions, dtype, ids, hook map) in the file's metadata.

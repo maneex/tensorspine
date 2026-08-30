@@ -10,5 +10,5 @@ CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any"}, "states": []
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
-def run(ctx, arguments, inputs, params, states):
+def run(ctx, arguments, inputs, params, states, physical=None):
     return {'logits': chunked_matmul(ctx, inputs['input'], params['weight'])}   # the head upcast in bounded chunks

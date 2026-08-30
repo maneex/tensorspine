@@ -94,9 +94,9 @@ def build_parser():
                              'omitted, --d1, --derive and --view land beside their model and '
                              '--document writes to stdout.')
     command.add_argument('--capabilities', metavar='MANIFEST',
-                         help='read a backend\'s capabilities manifest (backends/CAPABILITIES.md): validate it '
+                         help='read a generator\'s capabilities manifest (generators/CAPABILITIES.md): validate it '
                               'against its schema and the catalog, then say for each document whether the '
-                              'backend can run it for the inputs --inputs names (default: those required for '
+                              'generator can run it for the inputs --inputs names (default: those required for '
                               'the generative output); --coverage adds what the catalog and the corpus still need.')
     parser.add_argument('--inputs', metavar='NAMES', help='for --capabilities: the public inputs delivered, comma-separated')
     parser.add_argument('--coverage', action='store_true', help='for --capabilities: the coverage report over the catalog and the corpus')

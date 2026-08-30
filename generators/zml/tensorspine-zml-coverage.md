@@ -1,6 +1,6 @@
 # TensorSpine primitive coverage in ZML
 
-Repository location: `backends/zml/tensorspine-zml-coverage.md`
+Repository location: `generators/zml/tensorspine-zml-coverage.md` (the directory was `backends/` when this audit was written)
 
 Audit date: 2026-08-29
 

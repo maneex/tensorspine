@@ -39,7 +39,7 @@ def l2norm(x, eps=1e-6):
     return x * torch.rsqrt(x.pow(2).sum(-1, keepdim=True) + eps)
 
 
-def run(ctx, arguments, inputs, params, states):
+def run(ctx, arguments, inputs, params, states, physical=None):
     x = inputs['input']
     n = x.shape[0]
     kh, vh, d = arguments['key_heads'], arguments['value_heads'], arguments['head_dim']

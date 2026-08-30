@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M0 and M1 of the reference-backend plan (§0).
+"""M0 and M1 of the reference-generator plan (§0).
 
 M0 — random weights, no checkpoint:
 
@@ -17,7 +17,7 @@ the convolution history and the recurrent matrix) and the logits within toleranc
 tokens `transformers` produced in bf16 on 29 Aug 2026 (minutes on CPU; ~16 GB of page cache for
 Llama 3 8B, ~8 GB for Qwen 3.5 4B).
 
-    python3 backends/reference/tests/run_reference.py [--compile] [--full]
+    python3 generators/reference/tests/run_reference.py [--compile] [--full]
 """
 import os
 import sys
@@ -69,6 +69,7 @@ def main(compile_step=False, full=False):
     session = Session(model, capacity=32, device='cpu', dtype=torch.float32)
     dump = {}
     out = session.prefill([1, 2, 3, 4, 5, 6, 7, 8], dump)
+    out0 = out['logits'].clone()
     ok &= check("prefill: logits [8, vocab] and every value on its D2 shape", list(out['logits'].shape) == [8, 256])
     nxt = greedy(out, g)
     out = session.decode(nxt, dump)
@@ -98,6 +99,17 @@ def main(compile_step=False, full=False):
         ok &= check("blocks: a bound below one layer is refused", False)
     except ValueError as e:
         ok &= check("blocks: a bound below one layer is refused", 'exceeds --max-ram' in str(e))
+    # the opaque channel (generators/CAPABILITIES.md): parameters reach the primitive beside its arguments
+    from module import physical_for
+    phys = {'attention.dense@1.0.0': {'backend': 'cpu', 'kernel': 'vanilla'}, 'decoder/attn[layer=*]': {'kernel': 'paged'},
+            'decoder/attn[layer=2]': {'block_size': 16}}
+    ok &= check("physical parameters resolve contract < pattern < exact, and other occurrences get none",
+                physical_for(phys, 'decoder/attn[layer=2]', {'name': 'attention.dense', 'version': '1.0.0'}) == {'backend': 'cpu', 'kernel': 'paged', 'block_size': 16}
+                and physical_for(phys, 'decoder/attn[layer=0]', {'name': 'attention.dense', 'version': '1.0.0'}) == {'backend': 'cpu', 'kernel': 'paged'}
+                and physical_for(phys, 'decoder/ffn[layer=0]', {'name': 'ffn.gated', 'version': '1.0.0'}) is None)
+    pmodel = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu', physical=phys)
+    pout = Session(pmodel, capacity=32, device='cpu', dtype=torch.float32).prefill([1, 2, 3, 4, 5, 6, 7, 8])
+    ok &= check("a primitive ignores opaque keys it does not read: same logits", torch.equal(pout['logits'], out0))
     # masked == sliced
     torch.manual_seed(0)
     q = torch.randn(3, 4, 16); K = torch.randn(32, 2, 16); V = torch.randn(32, 2, 16)
@@ -121,7 +133,7 @@ def main(compile_step=False, full=False):
             model.static = False
     else:
         print("  skip compile (pass --compile)")
-    # the committed manifest is what the code generates (backends/CAPABILITIES.md)
+    # the committed manifest is what the code generates (generators/CAPABILITIES.md)
     sys.path.insert(0, REF)
     import ref as ref_cli
     import json
@@ -129,7 +141,7 @@ def main(compile_step=False, full=False):
     with open(os.path.join(REF, 'capabilities.json'), encoding='utf-8') as f:
         committed = json.load(f)
     for m in (fresh, committed):
-        m['backend'] = {k: v for k, v in m['backend'].items() if k not in ('version', 'generated')}
+        m['generator'] = {k: v for k, v in m['generator'].items() if k not in ('version', 'generated')}
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
     ok &= m1(check)
     if full:

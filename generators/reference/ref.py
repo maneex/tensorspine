@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The reference backend's command line.
+"""The reference generator's command line.
 
     ref.py info    MODEL [--capacity N]                      bytes from D3/D4, free memory, refusals
     ref.py verify  MODEL --checkpoint DIR                    V17 against the file headers; nothing is read
@@ -10,7 +10,7 @@
 
 Common options: --device cpu|cuda[:i], --compute f32|bf16, --capacity N, --truncate decoder.layer=N,
 --set path=value. MODEL is a model document (derived here) or a derived document. In a chat, an
-empty line quits; the session persists across turns. See backends/reference/README.md.
+empty line quits; the session persists across turns. See generators/reference/README.md.
 """
 import argparse
 import json
@@ -43,6 +43,8 @@ def common(p):
     p.add_argument('--capacity', type=int, default=1024)
     p.add_argument('--device', default='cpu')
     p.add_argument('--compute', default=None, help='f32 (CPU default) | bf16 (CUDA default)')
+    p.add_argument('--physical', metavar='FILE', help='opaque parameters for the primitives (generators/CAPABILITIES.md): '
+                   'a JSON object keyed by occurrence, by site pattern with * as the wildcard (decoder/attn[layer=*]) or by contract version')
     p.add_argument('--max-ram', type=float, default=None, metavar='GIB',
                    help='run in blocks of layers at legal cuts so that the parameters held at once, the '
                         'payload crossing into a block, the states and the largest temporary stay under this bound')
@@ -65,6 +67,13 @@ def open_graph(args):
             for n in notes:
                 print(f"  edited: {n}")
     return graph_mod.load(path)
+
+
+def physical_of(args):
+    if not getattr(args, 'physical', None):
+        return None
+    with open(args.physical, encoding='utf-8') as f:
+        return json.load(f)
 
 
 def compute_dtype(args):
@@ -161,8 +170,8 @@ def build(args, g):
         return None
     print(f"  verified {stats['located']} located tensors against {stats['physical']} physical ({stats['unnamed']} unnamed)")
     if len(plan.blocks) > 1:
-        return TensorspineModel(g, plan, None, dtype, args.device, source=loader.Source(g, args.checkpoint, args.device).materialise)
-    return TensorspineModel(g, plan, loader.load_parameters(g, args.checkpoint, args.device), dtype, args.device)
+        return TensorspineModel(g, plan, None, dtype, args.device, source=loader.Source(g, args.checkpoint, args.device).materialise, physical=physical_of(args))
+    return TensorspineModel(g, plan, loader.load_parameters(g, args.checkpoint, args.device), dtype, args.device, physical=physical_of(args))
 
 
 def cmd_chat(args):
@@ -177,7 +186,7 @@ def cmd_chat(args):
 
 
 def manifest():
-    """The reference backend's capabilities, from its code (backends/CAPABILITIES.md)."""
+    """The reference generator's capabilities, from its code (generators/CAPABILITIES.md)."""
     import datetime
     import subprocess
     import state as state_mod
@@ -196,10 +205,9 @@ def manifest():
                 entry[key] = list(cap[key])
         contracts[f"{name}@{ver}"] = entry
     return {'schema': 'tensorspine-capabilities/1',
-            'backend': {'name': 'reference', 'version': version, 'generator': 'backends/reference/ref.py capabilities',
-                        'generated': datetime.date.today().isoformat()},
-            'devices': ['cpu', 'cuda'],
-            'compute_dtypes': {'cpu': ['f32', 'bf16'], 'cuda': ['bf16', 'f32']},
+            'generator': {'name': 'reference', 'version': version, 'generator': 'generators/reference/ref.py capabilities',
+                          'generated': datetime.date.today().isoformat()},
+            'compute_dtypes': ['f32', 'bf16'],
             'parameter_dtypes': sorted(DTYPES),
             'state_laws': list(state_mod.LAWS), 'access': list(state_mod.ACCESS), 'sharing': [], 'partitions': [],
             'domains': {'kinds': ['sequence', 'token', 'position', 'patch'],
@@ -260,7 +268,7 @@ def cmd_run(args):
     if args.random:
         params = loader.random_parameters(g, args.device, args.seed)
         model = TensorspineModel(g, plan, None if blocks else params, dtype, args.device,
-                                 source=loader.RandomSource(params).materialise if blocks else None)
+                                 source=loader.RandomSource(params).materialise if blocks else None, physical=physical_of(args))
     else:
         errors, advisories, stats = loader.verify(g, args.checkpoint)
         if errors:
@@ -271,9 +279,9 @@ def cmd_run(args):
         print(f"  verified {stats['located']} located tensors against {stats['physical']} physical "
               f"({stats['unnamed']} unnamed)")
         if blocks:
-            model = TensorspineModel(g, plan, None, dtype, args.device, source=loader.Source(g, args.checkpoint, args.device).materialise)
+            model = TensorspineModel(g, plan, None, dtype, args.device, source=loader.Source(g, args.checkpoint, args.device).materialise, physical=physical_of(args))
         else:
-            model = TensorspineModel(g, plan, loader.load_parameters(g, args.checkpoint, args.device), dtype, args.device)
+            model = TensorspineModel(g, plan, loader.load_parameters(g, args.checkpoint, args.device), dtype, args.device, physical=physical_of(args))
     session = Session(model, args.capacity, args.device, dtype, decode_model=compiled(model, args))
     print(f"{g.model}: {len(plan.steps)} steps, {len(g.tensors)} tensors, {len(session.states)} states, "
           f"{'random parameters' if args.random else 'loaded from ' + args.checkpoint}, "

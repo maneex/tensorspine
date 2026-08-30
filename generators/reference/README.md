@@ -1,9 +1,9 @@
-# Reference backend
+# Reference generator
 
-A loader and a reference implementation of the primitives, in PyTorch, that turn a model document,
+The reference *generator* — a loader and a reference implementation of the primitives, in PyTorch — turns a model document,
 its derived products and the checkpoint it names into a module with one `forward`, a comparison
 against the official implementation at every layer boundary, and a small chat. Not a serving
-system. The plan is [`docs/reference-backend-plan.md`](../../docs/reference-backend-plan.md); the
+system. The plan is [`docs/reference-generator-plan.md`](../../docs/reference-generator-plan.md); the
 weight locations it loads by are [`docs/location-plan.md`](../../docs/location-plan.md).
 
 **Status: M2.** Two models run from their documents and the checkpoints they name, with no
@@ -32,12 +32,12 @@ traffic printed. Next: M3 (CUDA).
 
 ## Capabilities
 
-`backends/reference/capabilities.json` is the backend's manifest (the format is
-[`backends/CAPABILITIES.md`](../CAPABILITIES.md)): what it can evaluate, in the language's
+`generators/reference/capabilities.json` is the generator's manifest (the format is
+[`generators/CAPABILITIES.md`](../CAPABILITIES.md)): what it can evaluate, in the language's
 vocabulary, generated from the kernels' `CAPABILITIES` tables — the same tables `supports()` is
 computed from, so the manifest cannot drift from the code, and the test regenerates it to prove
-it. Two readers: a runtime asks `tensorspine --capabilities backends/reference/capabilities.json
-MODEL…` whether this backend can run a document for a delivery of inputs, before loading anything;
+it. Two readers: a runtime asks `tensorspine --capabilities generators/reference/capabilities.json
+MODEL…` whether this generator can run a document for a delivery of inputs, before loading anything;
 a maintainer asks `--coverage` what the catalog and the corpus still need. `ref.py capabilities
 [--check]` regenerates it and validates its names against the catalog.
 
@@ -51,7 +51,7 @@ other document edit before deriving).
 
 ```sh
 CK=~/work/perso/huggingface/Meta-Llama-3-8B
-R=backends/reference/ref.py
+R=generators/reference/ref.py
 
 python3 $R info    data/models/llama3-8b.json --capacity 4096          # bytes from D3/D4, free memory, refusals
 python3 $R verify  data/models/llama3-8b.json --checkpoint $CK         # V17 against the file headers, nothing read
@@ -65,10 +65,10 @@ python3 $R chat    data/models/qwen3.5-4b-text.json --checkpoint ~/work/perso/hu
 # the comparison against transformers, at every legal cut and every state after prefill
 python3 $R run     data/models/llama3-8b.json --checkpoint $CK --truncate decoder.layer=3 \
                    --ids 128000,791,6864,315,9822,374 --steps 3 --dump /tmp/ours.safetensors
-python3 backends/reference/fixtures/dump_hf.py --model $CK --layers 3 --ids 128000,791,6864,315,9822,374 \
+python3 generators/reference/fixtures/dump_hf.py --model $CK --layers 3 --ids 128000,791,6864,315,9822,374 \
                    --steps 3 --out /tmp/theirs.safetensors
 python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors [--atol 1e-3 --rtol 1e-2]
-python3 backends/reference/tests/run_reference.py [--compile] [--full]   # M0 on random weights; M1/M2 on the fixtures when the checkpoints are on disk
+python3 generators/reference/tests/run_reference.py [--compile] [--full]   # M0 on random weights; M1/M2 on the fixtures when the checkpoints are on disk
 ```
 
 ### Chat
@@ -134,7 +134,7 @@ same as the memory-mapped one-block run's, which allocated only 0.90 GiB (23 GiB
 pages) and took 106 s for the prefill and ~98 s per step: the copy per block costs about twenty
 seconds a token here, and buys a bound. The mode measures the disk, by design; prefetching the
 next block, reading straight into the owned buffer, more cache or a faster disk are the levers,
-and none of them is the reference backend's business.
+and none of them is the reference generator's business.
 
 
 

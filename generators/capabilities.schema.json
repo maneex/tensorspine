@@ -1,13 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/backends/capabilities.json",
-  "title": "Capabilities of an implementation candidate",
+  "$id": "https://tensorspine.dev/schema/generators/capabilities.json",
+  "title": "Capabilities of a generator",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema",
-    "backend",
-    "devices",
+    "generator",
     "compute_dtypes",
     "parameter_dtypes",
     "state_laws",
@@ -23,7 +22,7 @@
     "schema": {
       "const": "tensorspine-capabilities/1"
     },
-    "backend": {
+    "generator": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -39,28 +38,18 @@
         "version": {
           "type": "string"
         },
-        "generator": {
-          "type": "string"
-        },
         "generated": {
           "type": "string"
+        },
+        "generator": {
+          "type": "string"
         }
-      }
-    },
-    "devices": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "string"
       }
     },
     "compute_dtypes": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/dtype"
-        }
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dtype"
       }
     },
     "parameter_dtypes": {
@@ -282,12 +271,6 @@
             ]
           }
         },
-        "devices": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "notes": {
           "type": "array",
           "items": {
@@ -308,5 +291,5 @@
       }
     }
   },
-  "description": "A manifest per implementation candidate: what it can evaluate, in the language's vocabulary — so that a runtime infers whether it can run a document, and a maintainer reads what is not covered yet. Generated from the backend's code."
+  "description": "A manifest per generator: what it can evaluate, in the language's vocabulary — so that a runtime infers whether it can run a document, and a maintainer reads what is not covered yet. Generated from the generator's code. Physical parameters and the targeted backend are opaque and not described here."
 }

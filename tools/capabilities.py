@@ -1,9 +1,9 @@
-"""Capabilities of an implementation candidate (backends/CAPABILITIES.md): can a backend run a
-document, and what does it still not cover.
+"""Capabilities of a generator (generators/CAPABILITIES.md): can a generator run a document, and
+what does it still not cover.
 
     tensorspine --capabilities MANIFEST [MODEL ...] [--inputs a,b] [--coverage]
 
-A manifest is validated against `backends/capabilities.schema.json` and its names against the
+A manifest is validated against `generators/capabilities.schema.json` and its names against the
 catalog before anything is inferred: a claim outside the vocabulary is an error, not a capability.
 """
 import json
@@ -14,7 +14,7 @@ import derive
 from expr import contract_condition
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCHEMA = os.path.join(ROOT, 'backends', 'capabilities.schema.json')
+SCHEMA = os.path.join(ROOT, 'generators', 'capabilities.schema.json')
 
 
 # --- the argument rules ------------------------------------------------------
@@ -160,7 +160,7 @@ def evaluated(doc, cat, delivered):
 
 
 def can_run(manifest, doc, cat, delivered=None):
-    """(ok, reasons) — the first reasons a candidate cannot evaluate this document for this delivery."""
+    """(ok, reasons) — the first reasons a generator cannot evaluate this document for this delivery."""
     d1, d2, d3, d4 = doc['d1'], doc['d2'], doc['d3'], doc['d4']
     generative = [n for n, o in d1['interfaces']['outputs'].items() if o.get('generative')]
     if delivered is None:
@@ -276,7 +276,7 @@ def run(manifest_path, documents, catalog_bases=None, inputs=None, report_covera
     manifest, errors = load(manifest_path)
     cat = catalog_mod.load(*(catalog_bases or [os.path.join(ROOT, 'data', 'catalog')]))
     errors += names(manifest, cat)
-    print(f"capabilities  {manifest['backend']['name']} ({manifest['backend']['version']}), {len(manifest['contracts'])} contracts")
+    print(f"capabilities  {manifest['generator']['name']} ({manifest['generator']['version']}), {len(manifest['contracts'])} contracts")
     for e in errors[:20]:
         print(f"  [manifest] {e}")
     if errors:

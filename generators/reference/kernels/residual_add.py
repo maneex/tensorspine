@@ -10,5 +10,5 @@ CAPABILITIES = {"arguments": {"width": "any"}, "states": []}
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
-def run(ctx, arguments, inputs, params, states):
+def run(ctx, arguments, inputs, params, states, physical=None):
     return {'output': inputs['a'] + inputs['b']}

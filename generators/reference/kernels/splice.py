@@ -21,7 +21,7 @@ CAPABILITIES = {"arguments": {"width": "any"}, "states": [], "transforms": ["ins
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
-def run(ctx, arguments, inputs, params, states):
+def run(ctx, arguments, inputs, params, states, physical=None):
     source = inputs.get('source')
     if source is not None and source.shape[0] > 0:
         raise Unplaced("splice: the placement of the inserted elements in the token stream is not declared by the language")

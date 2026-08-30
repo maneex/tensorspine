@@ -12,7 +12,7 @@ CAPABILITIES = {"arguments": {"width": "any", "eps": "any", "zero_centered": "an
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
-def run(ctx, arguments, inputs, params, states):
+def run(ctx, arguments, inputs, params, states, physical=None):
     x = inputs['input']
     scale = w(ctx, params['weight'])
     if arguments.get('zero_centered'):

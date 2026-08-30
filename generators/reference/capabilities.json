@@ -1,25 +1,15 @@
 {
   "schema": "tensorspine-capabilities/1",
-  "backend": {
+  "generator": {
     "name": "reference",
-    "version": "14244e8",
-    "generator": "backends/reference/ref.py capabilities",
+    "version": "3c6677b",
+    "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-08-30"
   },
-  "devices": [
-    "cpu",
-    "cuda"
+  "compute_dtypes": [
+    "f32",
+    "bf16"
   ],
-  "compute_dtypes": {
-    "cpu": [
-      "f32",
-      "bf16"
-    ],
-    "cuda": [
-      "bf16",
-      "f32"
-    ]
-  },
   "parameter_dtypes": [
     "bf16",
     "f16",
