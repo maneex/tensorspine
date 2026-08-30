@@ -23,7 +23,7 @@
     },
     {
       "base": "catalog/unknown-axis",
-      "match": "axis 'attention.qkv_flatt' is not in the catalog",
+      "match": "axis 'attention.headz' is not in the catalog",
       "note": "A shape citing an axis the catalog does not hold — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {
