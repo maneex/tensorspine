@@ -631,6 +631,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     # --- interfaces: edges like any other, seeds of the streams -----------
     fragmented = {n for n, i in model['interfaces']['inputs'].items() if i.get('fragmented')}
     seeds = {}
+    fed_shapes = {}
     for name, decl in model['interfaces']['inputs'].items():
         stream = decl.get('stream', name)
         if 'stream' in decl and decl['stream'] not in model['interfaces']['inputs']:
@@ -649,6 +650,13 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                            f"by {producers[target]}")
             producers[target] = f"input:{name}"
             seeds[target] = (decl['kind'], stream)
+            # a public input is an edge like any other (§5.3): the ports it feeds compose (V4)
+            fed_def, fed_args = resolved[key][1], resolved[key][2]
+            shape = port_shape(fed_def['ports']['inputs'][endpoint['port']], fed_args)
+            first = fed_shapes.setdefault(name, (shape, f"{where(key)}.{endpoint['port']}"))
+            if shape != first[0]:
+                fail('V4', f"input {name}: feeds {first[1]}{list(first[0])} and "
+                           f"{where(key)}.{endpoint['port']}{list(shape)}, whose shapes differ")
     for name, decl in model['interfaces']['outputs'].items():
         key = select(decl['from']['occurrence'], {})
         if key not in resolved:

@@ -349,6 +349,42 @@ def d2(graph, cat):
         dom = domains.get((key, pname))
         if dom and dom[1] not in streams:
             streams[dom[1]] = {"kind": dom[0], "count": c}
+    # a public input is an edge like any other (§5.3): the value it delivers, named by the input,
+    # with the shape of the port it feeds (V4 makes every fed port agree)
+    model = graph['model']
+    for iname, decl in model['interfaces']['inputs'].items():
+        endpoint = decl['to'][0]
+        key = _select(graph, endpoint['occurrence'])
+        if key not in resolved:
+            continue
+        name, definition, args = resolved[key]
+        port = definition['ports']['inputs'][endpoint['port']]
+        n = _elements(port['shape'], args) if 'shape' in port else 1
+        dtype = cat['precision'][port['role']]['default']
+        stream = decl.get('stream', iname)
+        values[iname] = {"value": iname, "input": iname,
+                         "to": [t for e in decl['to'] for t in _target_ids(graph, _select(graph, e['occurrence']), e['port'])],
+                         "shape": _shape(port['shape'], args) if 'shape' in port else [],
+                         "role": port['role'], "dtype": dtype, "elements": n,
+                         "bytes_per_element": n * BYTES[dtype], "domain": {"kind": decl['kind'], "stream": stream},
+                         "count": streams.get(stream, {}).get('count', {stream: 1.0})}
+    # a public output exposes a value whether or not an edge consumes it
+    for oname, decl in model['interfaces']['outputs'].items():
+        key = _select(graph, decl['from']['occurrence'])
+        vid = _source_id(graph, key, decl['from']['port'])
+        if vid not in values and key in resolved:
+            name, definition, args = resolved[key]
+            port = definition['ports']['outputs'][decl['from']['port']]
+            dom = domains.get((key, decl['from']['port']))
+            n = _elements(port['shape'], args) if 'shape' in port else 0
+            dtype = cat['precision'][port['role']]['default']
+            values[vid] = {"value": vid, "to": [], "shape": _shape(port['shape'], args) if 'shape' in port else [],
+                           "role": port['role'], "dtype": dtype, "elements": n,
+                           "bytes_per_element": n * BYTES[dtype] if n is not None else None,
+                           "domain": {"kind": dom[0], "stream": dom[1]} if dom else None,
+                           "count": counts.get((key, decl['from']['port']))}
+        if vid in values:
+            values[vid].setdefault('exposed', []).append(oname)
     cuts = []
     for cid, kind, block in _structural_cuts(graph):
         crossing = {}

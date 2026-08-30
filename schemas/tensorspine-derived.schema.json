@@ -409,7 +409,15 @@
             "additionalProperties": false,
             "properties": {
               "value": {
-                "$ref": "#/$defs/value_reference"
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/value_reference"
+                  },
+                  {
+                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                  }
+                ],
+                "description": "The producing `node.port`, or the name of the public input that delivers the value."
               },
               "to": {
                 "type": "array",
@@ -443,6 +451,18 @@
               },
               "count": {
                 "$ref": "#/$defs/count"
+              },
+              "input": {
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier",
+                "description": "Present when the value is delivered by this public input; `to` lists the ports it feeds and `shape` is theirs."
+              },
+              "exposed": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                },
+                "description": "The public outputs that expose this value."
               }
             },
             "required": [
