@@ -3,11 +3,13 @@
 The reference *generator* — a loader and a reference implementation of the primitives, in PyTorch — turns a model document,
 its derived products and the checkpoint it names into a module with one `forward`, a comparison
 against the official implementation at every layer boundary, and a small chat. Not a serving
-system. The plan is [`docs/reference-generator-plan.md`](../../docs/reference-generator-plan.md); the
-weight locations it loads by are [`docs/location-plan.md`](../../docs/location-plan.md).
+system. Its plan, and the location plan whose weight locations it loads by, are working notes
+outside the tree.
 
-**Status: M2.** Two models run from their documents and the checkpoints they name, with no
-per-model code, and agree with `transformers`:
+**Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Three models run from their documents
+and the checkpoints they name, with no per-model code, and agree with `transformers` (a fourth
+document, the multimodal `qwen3.8-27b`, runs on text and gives `qwen3.8-27b-text`'s logits bit for
+bit — below):
 
 - `llama3-8b` (six contracts, one state law): on the 3-layer fixture, layer outputs within 2e-7,
   KV states within 3e-6, logits within 8e-6; on the full 32-layer model the eight greedy tokens
