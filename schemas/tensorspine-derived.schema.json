@@ -463,6 +463,17 @@
                   "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
                 },
                 "description": "The public outputs that expose this value."
+              },
+              "required": {
+                "type": "boolean",
+                "description": "For a public input's value: whether some public output is not evaluated without this input (§7) — false for an input whose elements are only inserted into another stream."
+              },
+              "required_for": {
+                "type": "array",
+                "items": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                },
+                "description": "For a public input's value: the public outputs not evaluated without it on a first delivery (§7)."
               }
             },
             "required": [

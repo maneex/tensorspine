@@ -555,7 +555,13 @@ implicit default.
 
 An **invocation** is one evaluation of the expanded graph on one delivery of its inputs: all
 elements of a non-fragmented input, one fragment of a fragmented one; when an output is generative,
-each generated element is delivered to the output's stream in the next invocation. A generative
+each generated element is delivered to the output's stream in the next invocation. An input may
+deliver zero elements in an invocation — its stream complete, or unused by that invocation. An
+occurrence is evaluated in an invocation when every input port receives elements, excepting a
+port that is the source of an `insert` transform of its contract, and a port whose elements a
+state of the occurrence indexed by that port already holds; an occurrence not evaluated delivers
+nothing downstream, and a state indexed by a stream that delivered nothing is not visited. An
+input is **required** for an output when, on a first delivery, the output is not evaluated without it. A generative
 document has two **phases**: the invocations consuming supplied elements (prefill) and those
 consuming one generated element (decode). A **cut** is a partition of the emitted occurrences into
 two blocks; it is **legal** when every crossing edge is directed from the first block to the second.

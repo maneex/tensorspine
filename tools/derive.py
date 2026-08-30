@@ -249,6 +249,11 @@ def _counts(graph):
     return counts
 
 
+def _present_port(definition, pname, args):
+    port = definition['ports']['inputs'][pname]
+    return contract_condition(port['present_when'], args) if 'present_when' in port else True
+
+
 def graph_value(graph, e):
     from expr import model_value
     return model_value(e, graph['quantities'], {})
@@ -368,6 +373,37 @@ def d2(graph, cat):
                          "role": port['role'], "dtype": dtype, "elements": n,
                          "bytes_per_element": n * BYTES[dtype], "domain": {"kind": decl['kind'], "stream": stream},
                          "count": streams.get(stream, {}).get('count', {stream: 1.0})}
+    # required (§7): an input is required for an output when the output is not evaluated
+    # without it — evaluated meaning every input port fed, an insert transform's source excepted
+    def evaluated(delivered):
+        fed = {}
+        for iname, decl in model['interfaces']['inputs'].items():
+            if iname in delivered:
+                for e in decl['to']:
+                    fed[(_select(graph, e['occurrence']), e['port'])] = True
+        done = set()
+        for node in graph['order']:
+            name, definition, args = resolved[node]
+            inserts = {t['from_port'] for t in definition.get('domain_transforms', []) if t.get('relation') == 'insert'}
+            ok = True
+            for pname in definition['ports']['inputs']:
+                if _present_port(definition, pname, args) and (node, pname) not in fed and pname not in inserts:
+                    ok = False
+                    break
+            if ok:
+                done.add(node)
+                for src, sp, dst, dp, bid in edges:
+                    if src == node:
+                        fed[(dst, dp)] = True
+        return done
+    outputs_at = {oname: _select(graph, decl['from']['occurrence']) for oname, decl in model['interfaces']['outputs'].items()}
+    all_inputs = set(model['interfaces']['inputs'])
+    for iname in list(values):
+        if 'input' in values[iname]:
+            without = evaluated(all_inputs - {iname})
+            needed = [oname for oname, key in outputs_at.items() if key not in without]
+            values[iname]['required_for'] = needed
+            values[iname]['required'] = bool(needed)
     # a public output exposes a value whether or not an edge consumes it
     for oname, decl in model['interfaces']['outputs'].items():
         key = _select(graph, decl['from']['occurrence'])
