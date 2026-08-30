@@ -235,7 +235,11 @@
               "literal": "chunked"
             },
             "qk_norm": {
-              "literal": "rms"
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                }
+              }
             },
             "rope": {
               "record": {
@@ -384,7 +388,11 @@
               "literal": "chunked"
             },
             "qk_norm": {
-              "literal": "rms"
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                }
+              }
             },
             "rope": {
               "record": {
@@ -540,7 +548,11 @@
               "literal": "chunked"
             },
             "qk_norm": {
-              "literal": "rms"
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                }
+              }
             },
             "rope": {
               "record": {
@@ -696,7 +708,11 @@
               "literal": "causal"
             },
             "qk_norm": {
-              "literal": "rms"
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                }
+              }
             },
             "temperature": {
               "record": {

@@ -17,7 +17,7 @@
   "residual.stream_expand": 1,
   "residual.stream_inject": 30
  },
- "wl": "1add649cf1eb5f6c",
+ "wl": "4736613dbae1e7f3",
  "parameter_slots": 728,
  "tensors": 727,
  "shared": 1,

@@ -362,10 +362,14 @@
               "literal": "causal"
             },
             "qk_norm": {
-              "literal": "rms"
-            },
-            "qk_norm_weight": {
-              "literal": true
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                },
+                "scale": {
+                  "record": {}
+                }
+              }
             },
             "rope": {
               "record": {
@@ -678,10 +682,14 @@
               "literal": "causal"
             },
             "qk_norm": {
-              "literal": "rms"
-            },
-            "qk_norm_weight": {
-              "literal": true
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                },
+                "scale": {
+                  "record": {}
+                }
+              }
             },
             "rope": {
               "record": {

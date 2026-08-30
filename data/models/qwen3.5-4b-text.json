@@ -569,15 +569,20 @@
               }
             },
             "qk_norm": {
-              "literal": "rms"
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                },
+                "scale": {
+                  "record": {
+                    "zero_centered": {
+                      "literal": true
+                    }
+                  }
+                }
+              }
             },
             "output_gate": {
-              "literal": true
-            },
-            "qk_norm_weight": {
-              "literal": true
-            },
-            "qk_norm_zero_centered": {
               "literal": true
             }
           },
