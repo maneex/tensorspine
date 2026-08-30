@@ -69,7 +69,7 @@ Every unit is rendered from its definition first, then from its documentation. F
 | [embed@1.0.0](#contract-embed-1.0.0) | Token embedding: looks up one `width` vector per token identifier. | 2 args · 1→1 ports · 1 params |
 | [embedding.token_auxiliary@1.0.0](#contract-embedding.token_auxiliary-1.0.0) | Token embedding that also emits a per-layer auxiliary vector for every layer of the stack. | 5 args · 1→2 ports · 4 params |
 | [embedding.token_position@1.0.0](#contract-embedding.token_position-1.0.0) | Token embedding plus a learned position table. | 3 args · 1→1 ports · 2 params |
-| [embedding.token_position_type@1.0.0](#contract-embedding.token_position_type-1.0.0) | BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm. | 4 args · 1→1 ports · 5 params |
+| [embedding.token_position_type@1.0.0](#contract-embedding.token_position_type-1.0.0) | BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm. | 5 args · 1→1 ports · 5 params |
 | [ffn.dense@1.0.0](#contract-ffn.dense-1.0.0) | Dense feed-forward network: an up projection, a non-linearity, then a down projection. | 8 args · 1→1 ports · 6 params |
 | [ffn.gated@1.0.0](#contract-ffn.gated-1.0.0) | Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection. | 8 args · 1→1 ports · 8 params |
 | [lm_head@1.0.0](#contract-lm_head-1.0.0) | Output head: projects the hidden state to one logit per vocabulary entry. | 2 args · 1→1 ports · 1 params |
@@ -1016,7 +1016,7 @@ Activatable units (§4.5): a lookup table is the limiting case, one row per elem
 
 **BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm.**
 
-Three lookups are summed — the token in `weight`, its position in `position`, its segment type in `token_type` — and the sum is normalized by a LayerNorm with scale and bias.
+Three lookups are summed — the token in `weight`, its position in `position`, its segment type in `token_type` — and the sum is normalized by a LayerNorm with scale and bias (variance plus `eps`). The segment type is 0 for every token in this version: the contract has no `types` input, and the table is read at index 0, as BERT does when no segment identifiers are given; a `types` input is a later version.
 
 > **Note (maintainers).** Word + position + segment type sum, followed by a LayerNorm.
 
@@ -1026,7 +1026,7 @@ External documentation:
 
 | Arguments | Inputs | Outputs | Parameters | Constants | State ports | Partitions | Logical cost |
 |---|---|---|---|---|---|---|---|
-| 4 (4 required, 4 structural) | 1 | 1 | 5 | 0 | none | 1 | — |
+| 5 (5 required, 4 structural) | 1 | 1 | 5 | 0 | none | 1 | — |
 
 ##### Arguments
 
@@ -1036,6 +1036,7 @@ External documentation:
 | `vocabulary` | cardinality | yes |  | yes | Number of token identifiers. |
 | `positions` | cardinality | yes |  | yes | Number of positions the table covers. |
 | `token_types` | cardinality | yes |  | yes | Number of segment types. |
+| `eps` | real | yes |  | no | Epsilon of the LayerNorm over the summed lookups (variance plus `eps`). |
 
 ##### Ports
 
@@ -1057,7 +1058,7 @@ Outputs:
 |---|---|---|---|---|---|---|
 | `weight` | [embedding.table](#role-embedding.table) | `[vocabulary: vocabulary] × [feature: width]` | [model.vocabulary](#axis-model.vocabulary) (structural) × [model.width](#axis-model.width) (feature) | shareable with [embedding.table](#role-embedding.table)<br>*Note: sharing allowed between embedding table and output head: same axis identities in the same order, no view required* | always | Token table. |
 | `position` | [embedding.position](#role-embedding.position) | `[position: positions] × [feature: width]` | [sequence.position](#axis-sequence.position) (structural) × [model.width](#axis-model.width) (feature) | exclusive | always | Position table. |
-| `token_type` | [embedding.token_type](#role-embedding.token_type) | `[type: token_types] × [feature: width]` | [token.type](#axis-token.type) (structural) × [model.width](#axis-model.width) (feature) | exclusive | always | Segment-type table. |
+| `token_type` | [embedding.token_type](#role-embedding.token_type) | `[type: token_types] × [feature: width]` | [token.type](#axis-token.type) (structural) × [model.width](#axis-model.width) (feature) | exclusive | always | Segment-type table, read at index 0 in this version (no `types` input). |
 | `norm` | [norm.scale](#role-norm.scale) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | always | Scale of the LayerNorm. |
 | `norm_bias` | [norm.bias](#role-norm.bias) | `[feature: width]` | [model.width](#axis-model.width) (feature) | exclusive | always | Bias of the LayerNorm. |
 
@@ -3187,7 +3188,7 @@ Every value of every closed enumeration that at least one unit uses, and how man
 | argument type | `cardinality` | 33 |
 | argument type | `enum` | 7 |
 | argument type | `physical` | 2 |
-| argument type | `real` | 11 |
+| argument type | `real` | 12 |
 | argument type | `record` | 3 |
 | axis nature | `feature` | 33 |
 | axis nature | `projection` | 7 |
@@ -3255,7 +3256,7 @@ Sites that carry a `summary` (units) or a `description` (elements). A missing en
 |---|---|---|---|
 | base | 1 | 1 | 100% |
 | contract | 34 | 34 | 100% |
-| argument | 189 | 189 | 100% |
+| argument | 190 | 190 | 100% |
 | port | 78 | 78 | 100% |
 | parameter | 116 | 116 | 100% |
 | state | 8 | 8 | 100% |
