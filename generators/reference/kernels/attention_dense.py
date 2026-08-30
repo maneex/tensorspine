@@ -12,7 +12,8 @@
 | rope: layout interleaved / 2d   | refused                                         |
 | rope: partial                   | implemented (the first `partial · head_dim` channels) |
 | rope: mrope (sections contiguous or interleaved) | implemented for one position stream (t = h = w: the two layouts are one computation; an image would tell them apart) |
-| rope: scaling                   | refused                                         |
+| rope: scaling yarn              | implemented: the original implementation's correction range (rotations → dimensions, truncated to integers) and linear ramp over the r/2 frequencies; the document's `attention_factor` on the rotated queries and keys |
+| rope: scaling llama3 / linear   | refused                                         |
 | qk_norm kind rms (eps, scale, zero_centered) | implemented, before RoPE           |
 | qk_norm kind layer              | refused                                         |
 | temperature                     | refused                                         |
@@ -43,7 +44,9 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
                               "rope": {"absent": True, "fields": {"theta": "any", "layout": ["split"], "partial": "any",
                                        "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
                                                                               "sections": ["contiguous", "interleaved"]}},
-                                       "scaling": "absent"}},
+                                       "scaling": {"absent": True, "fields": {"kind": ["yarn"], "factor": "any", "orig_ctx": "any",
+                                                   "beta_fast": "any", "beta_slow": "any", "attention_factor": "any",
+                                                   "low": "absent", "high": "absent"}}}},
                               "qk_norm": {"absent": True, "fields": {"kind": ["rms"], "eps": "any",
                                           "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
                               "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
@@ -54,19 +57,43 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
-def rope_split(x, positions, theta, partial=None):
+def inv_freq(r, theta, scaling=None, device=None):
+    """The r/2 inverse frequencies over the rotated width r: the trained ones, or YaRN's —
+    the original implementation's correction range (a number of rotations mapped to a dimension,
+    truncated to integers, clamped to [0, r-1]), a linear ramp over the r/2 frequencies, the
+    frequencies interpolated by `factor` below the ramp and left as trained above it."""
+    inv = 1.0 / (theta ** (torch.arange(0, r, 2, device=device, dtype=torch.float32) / r))
+    if not scaling:
+        return inv
+    assert scaling['kind'] == 'yarn', scaling
+    factor, orig = float(scaling['factor']), float(scaling['orig_ctx'])
+
+    def dim_of(rotations):
+        return (r * math.log(orig / (rotations * 2 * math.pi))) / (2 * math.log(theta))
+    low = max(math.floor(dim_of(scaling['beta_fast'])), 0)
+    high = min(math.ceil(dim_of(scaling['beta_slow'])), r - 1)
+    if low == high:
+        high += 0.001
+    ramp = torch.clamp((torch.arange(r // 2, device=device, dtype=torch.float32) - low) / (high - low), 0, 1)
+    return (inv / factor) * ramp + inv * (1 - ramp)
+
+
+def rope_split(x, positions, theta, partial=None, scaling=None):
     """Rotate-half RoPE over the first `partial · d` channels of each head (all of them when
     `partial` is absent): x [n, h, d], positions [n]. The base frequencies are computed on the
-    rotated width, as the reference does."""
+    rotated width, as the reference does; under YaRN the rotated channels are then multiplied by
+    the document's `attention_factor` (queries and keys alike, as the reference scales cos and sin)."""
     d = x.shape[-1]
     r = d if not partial else int(d * partial)
-    inv = 1.0 / (theta ** (torch.arange(0, r, 2, device=x.device, dtype=torch.float32) / r))
+    inv = inv_freq(r, theta, scaling, x.device)
     freqs = positions.to(torch.float32)[:, None] * inv[None, :]
     emb = torch.cat([freqs, freqs], dim=-1)
     cos, sin = emb.cos().to(x.dtype)[:, None, :], emb.sin().to(x.dtype)[:, None, :]
     xr, xp = x[..., :r], x[..., r:]
     x1, x2 = xr[..., : r // 2], xr[..., r // 2:]
     xr = xr * cos + torch.cat([-x2, x1], dim=-1) * sin
+    if scaling:
+        xr = xr * scaling['attention_factor']
     return torch.cat([xr, xp], dim=-1) if r < d else xr
 
 
@@ -129,8 +156,8 @@ def run(ctx, arguments, inputs, params, states, physical=None):
         k = rms_norm(k, ks, eps, zc)
     rope = arguments.get('rope')
     if rope:
-        q = rope_split(q, ctx.positions, rope['theta'], rope.get('partial'))
-        k = rope_split(k, ctx.positions, rope['theta'], rope.get('partial'))
+        q = rope_split(q, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
+        k = rope_split(k, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
     causal = arguments['mask'] == 'causal'
     if 'kv' in states:
         st = states['kv']

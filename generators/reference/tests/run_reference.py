@@ -117,6 +117,22 @@ def main(compile_step=False, full=False):
     a = attention_dense.attend(q, K, V, 9, qpos, True, static=False)
     b = attention_dense.attend(q, K, V, 9, qpos, True, static=True)
     ok &= check("masked attention over the whole capacity equals the sliced form", torch.allclose(a, b, atol=1e-6))
+    # YaRN (finding 10): the kernel's frequencies are transformers' for Shieldstral's record, whose
+    # attention factor the document states as 1; without mscale transformers gives the paper's value
+    from transformers import Ministral3Config
+    from transformers.modeling_rope_utils import _compute_yarn_parameters
+    yarn = {'kind': 'yarn', 'factor': 16, 'beta_fast': 32, 'beta_slow': 1, 'attention_factor': 1.0, 'orig_ctx': 16384}
+    rp = {'rope_type': 'yarn', 'rope_theta': 1e6, 'factor': 16.0, 'beta_fast': 32.0, 'beta_slow': 1.0, 'original_max_position_embeddings': 16384}
+    cfg = Ministral3Config(hidden_size=3072, num_attention_heads=32, head_dim=128, max_position_embeddings=262144,
+                           rope_parameters=dict(rp, mscale=1.0, mscale_all_dim=1.0))
+    theirs, factor = _compute_yarn_parameters(cfg, 'cpu')
+    ours = attention_dense.inv_freq(128, 1e6, yarn, 'cpu')
+    ok &= check("YaRN: the kernel's 64 inverse frequencies equal transformers' for Shieldstral's record, whose attention factor is 1",
+                torch.allclose(ours, theirs, atol=0, rtol=1e-6) and factor == 1.0)
+    _, paper = _compute_yarn_parameters(Ministral3Config(hidden_size=3072, num_attention_heads=32, head_dim=128,
+                                                         max_position_embeddings=262144, rope_parameters=dict(rp)), 'cpu')
+    ok &= check("YaRN: without mscale transformers' factor is the paper's 0.1·ln 16 + 1, the value deepseek-v4-pro states",
+                paper == 1.2772588722239782)
     if compile_step:
         t0 = time.time()
         try:
@@ -209,10 +225,12 @@ def fixture_case(check, fixture, document, checkpoint):
     errors, _, stats = loader.verify(g, checkpoint)
     ok = check(f"{label}: the {header['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
     kernels = registry.load_kernels()
-    refused = registry.refusals(g, kernels)
-    ok &= check(f"{label}: every contract has a kernel for its arguments", not refused, refused[:2])
+    plan = Plan(g, kernels)
+    active = plan.evaluable({g.feedback_input})      # the fixture delivers the token input alone (§7)
+    refused = registry.refusals(g, kernels, active)
+    ok &= check(f"{label}: every contract the delivery evaluates has a kernel for its arguments", not refused, refused[:2])
     params = loader.load_parameters(g, checkpoint, 'cpu')
-    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
     session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
     ours = {}
     out = session.prefill(ids, ours)

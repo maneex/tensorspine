@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "reference",
-    "version": "c3dee58",
+    "version": "4767fc8",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-08-30"
   },
@@ -86,7 +86,21 @@
                 ]
               }
             },
-            "scaling": "absent"
+            "scaling": {
+              "absent": true,
+              "fields": {
+                "kind": [
+                  "yarn"
+                ],
+                "factor": "any",
+                "orig_ctx": "any",
+                "beta_fast": "any",
+                "beta_slow": "any",
+                "attention_factor": "any",
+                "low": "absent",
+                "high": "absent"
+              }
+            }
           }
         },
         "qk_norm": {
