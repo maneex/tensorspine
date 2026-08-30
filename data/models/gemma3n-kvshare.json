@@ -366,6 +366,9 @@
                 "kind": {
                   "literal": "rms"
                 },
+                "eps": {
+                  "quantity": "eps"
+                },
                 "scale": {
                   "record": {}
                 }
@@ -685,6 +688,9 @@
               "record": {
                 "kind": {
                   "literal": "rms"
+                },
+                "eps": {
+                  "quantity": "eps"
                 },
                 "scale": {
                   "record": {}

@@ -249,6 +249,9 @@
               "record": {
                 "kind": {
                   "literal": "rms"
+                },
+                "eps": {
+                  "quantity": "eps"
                 }
               }
             },
@@ -426,6 +429,9 @@
               "record": {
                 "kind": {
                   "literal": "rms"
+                },
+                "eps": {
+                  "quantity": "eps"
                 }
               }
             },

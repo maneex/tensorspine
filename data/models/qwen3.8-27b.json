@@ -720,6 +720,9 @@
                 "kind": {
                   "literal": "rms"
                 },
+                "eps": {
+                  "quantity": "eps"
+                },
                 "scale": {
                   "record": {
                     "zero_centered": {
