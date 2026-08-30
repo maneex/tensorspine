@@ -121,6 +121,11 @@ def main():
                 sh.get('decoder.attn.q[layer=3]') == {'tensor': 'language_model.model.layers.3.self_attn.q_proj.weight'}
                 and sh.get('tied_embeddings') == {'tensor': 'language_model.model.embed_tokens.weight'}
                 and len(sh_names) == 458 and len(set(sh_names)) == 458)
+    cb = {t['identity']: t.get('location') for t in docs['colbert-v2']['d3']['tensors']}
+    cb_names = [v['tensor'] for v in cb.values() if v]
+    ok &= check("colbert-v2: 198 tensors located one-to-one — enc.attn.q[layer=3] under bert.encoder.layer, the head on linear.weight",
+                cb.get('enc.attn.q[layer=3]') == {'tensor': 'bert.encoder.layer.3.attention.self.query.weight'}
+                and cb.get('pooler.weight') == {'tensor': 'linear.weight'} and len(cb_names) == 198 and len(set(cb_names)) == 198)
     print("derived: all good" if ok else "derived: FAILED")
     return 0 if ok else 1
 

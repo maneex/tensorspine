@@ -453,6 +453,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.output.LayerNorm.weight"
+              ]
             }
           },
           "attn_n.bias": {
@@ -464,6 +473,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.output.LayerNorm.bias"
+              ]
             }
           },
           "attn.q": {
@@ -475,6 +493,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.self.query.weight"
+              ]
             }
           },
           "attn.k": {
@@ -486,6 +513,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.self.key.weight"
+              ]
             }
           },
           "attn.v": {
@@ -497,6 +533,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.self.value.weight"
+              ]
             }
           },
           "attn.out": {
@@ -508,6 +553,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.output.dense.weight"
+              ]
             }
           },
           "attn.q_bias": {
@@ -519,6 +573,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.self.query.bias"
+              ]
             }
           },
           "attn.k_bias": {
@@ -530,6 +593,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.self.key.bias"
+              ]
             }
           },
           "attn.v_bias": {
@@ -541,6 +613,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.self.value.bias"
+              ]
             }
           },
           "attn.out_bias": {
@@ -552,6 +633,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".attention.output.dense.bias"
+              ]
             }
           },
           "ffn_n.weight": {
@@ -563,6 +653,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".output.LayerNorm.weight"
+              ]
             }
           },
           "ffn_n.bias": {
@@ -574,6 +673,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".output.LayerNorm.bias"
+              ]
             }
           },
           "ffn.in": {
@@ -585,6 +693,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".intermediate.dense.weight"
+              ]
             }
           },
           "ffn.out": {
@@ -596,6 +713,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".output.dense.weight"
+              ]
             }
           },
           "ffn.in_bias": {
@@ -607,6 +733,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".intermediate.dense.bias"
+              ]
             }
           },
           "ffn.out_bias": {
@@ -618,6 +753,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "bert.encoder.layer.",
+                {
+                  "index": "layer"
+                },
+                ".output.dense.bias"
+              ]
             }
           }
         }
@@ -717,6 +861,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "bert.embeddings.word_embeddings.weight"
+          ]
         }
       },
       "embed.position": {
@@ -734,6 +883,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "bert.embeddings.position_embeddings.weight"
+          ]
         }
       },
       "embed.token_type": {
@@ -751,6 +905,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "bert.embeddings.token_type_embeddings.weight"
+          ]
         }
       },
       "embed.norm": {
@@ -768,6 +927,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "bert.embeddings.LayerNorm.weight"
+          ]
         }
       },
       "embed.norm_bias": {
@@ -785,6 +949,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "bert.embeddings.LayerNorm.bias"
+          ]
         }
       },
       "pooler.weight": {
@@ -802,6 +971,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "linear.weight"
+          ]
         }
       }
     },
