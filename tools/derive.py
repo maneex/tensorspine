@@ -18,8 +18,10 @@ without inference code — as one file, validated against the derived schema.
       loss of flattened axes without factors (O5.10).
 
 Encodings are outside the specification (§7); this one is the repository's.
-A template instance is one node at its caller's level for cuts and partitions;
-its tensors and states are listed under the instance's prefix (§5.2 rule 2).
+Template instances are expanded before anything is derived (§5.1): every
+product is computed once, over the expanded graph, and an occurrence, tensor,
+state, value or cut inside an instance carries the instance's prefix (§5.2
+rule 2) — as D1 names it.
 """
 import json
 import os
@@ -35,6 +37,11 @@ BYTES = {'bool': 1, 'u4': 0.5, 'i4': 0.5, 'u8': 1, 'i8': 1, 'i16': 2, 'i32': 4, 
 
 
 def ident(key):
+    """`node` as D1 names it: an occurrence inside a template instance is
+    prefixed by the instance (§5.2 rule 2); `_expand` wraps such a key as
+    ('sub', prefix, key)."""
+    if key[0] == 'sub':
+        return key[1] + ident(key[2])
     if key[0] == 'root':
         return key[1]
     return f"{key[1]}/{key[2]}[" + ",".join(f"{k}={v}" for k, v in key[3]) + "]"
@@ -95,7 +102,7 @@ def _status(statuses):
 
 # --- D3 ---------------------------------------------------------------------
 
-def d3(graph, cat, prefix=''):
+def d3(graph, cat):
     resolved = graph['resolved']
     tensors = []
     for inst in graph['tensor_instances']:
@@ -117,8 +124,8 @@ def d3(graph, cat, prefix=''):
                         "activated_fraction": (activated / extent) if activated is not None and extent else None}
         dtype = _dtype(graph, cat, inst['dtype'], param['role'])
         n = _elements(param['shape'], args, param.get('multiplicity'))
-        entry = {"identity": prefix + inst['identity'],
-                 "members": [f"{prefix}{ident(k)}.{p}" for k, p in inst['members']],
+        entry = {"identity": inst['identity'],
+                 "members": [f"{ident(k)}.{p}" for k, p in inst['members']],
                  "contract": name, "slot": pname, "role": param['role'],
                  "sensitivity": cat['precision'][param['role']]['sensitivity'],
                  "dtype": dtype, "shape": _shape(param['shape'], args),
@@ -130,8 +137,6 @@ def d3(graph, cat, prefix=''):
         if inst.get('location') is not None:
             entry['location'] = inst['location']
         tensors.append(entry)
-    for key, sub in graph['sub_results'].items():
-        tensors.extend(d3(sub['graph'], cat, prefix + ident(key) + '/')['tensors'])
     totals = {"tensors": len(tensors),
               "elements": sum(t['elements'] or 0 for t in tensors),
               "bytes": sum(t['bytes'] or 0 for t in tensors),
@@ -150,7 +155,7 @@ def _visits(rule, source_indexed, law):
     return {"write": "once per new element of its stream", "read": "once per element produced"}
 
 
-def d4(graph, cat, prefix=''):
+def d4(graph, cat):
     resolved, domains, own = graph['resolved'], graph['domains'], graph['own']
     states = []
     for inst in graph['state_instances']:
@@ -173,8 +178,8 @@ def d4(graph, cat, prefix=''):
                             "bytes": (n * BYTES[dtype]) if n is not None else None})
         per_position = sum(c['bytes'] or 0 for c in payload)
         span = _num(contract_value(rule['span'], args)) if rule and 'span' in rule else None
-        entry = {"identity": prefix + inst['identity'],
-                 "members": [f"{prefix}{ident(k)}.{s}" for k, s in inst['members']],
+        entry = {"identity": inst['identity'],
+                 "members": [f"{ident(k)}.{s}" for k, s in inst['members']],
                  "contract": name, "state": sname,
                  "law": rule['law'] if rule else None, "access": rule['access'] if rule else None,
                  "sharing": rule['sharing'] if rule else None,
@@ -189,8 +194,6 @@ def d4(graph, cat, prefix=''):
                  "operations": sorted({o['effect'] for o in port['operations'].values()}),
                  "visits": _visits(rule, source_indexed, rule['law'] if rule else None)}
         states.append(entry)
-    for key, sub in graph['sub_results'].items():
-        states.extend(d4(sub['graph'], cat, prefix + ident(key) + '/')['states'])
     totals = {"identities": len(states),
               "by_law": dict(Counter(s['law'] for s in states)),
               "append_bytes_per_cached_position": sum(s['bytes_per_cached_position'] for s in states if s['law'] == 'append'),
@@ -202,6 +205,96 @@ def d4(graph, cat, prefix=''):
 
 # --- D2 and the cuts ---------------------------------------------------------
 
+# --- expansion --------------------------------------------------------------
+
+def _wrap(prefix, key):
+    return ('sub', prefix, key) if prefix else key
+
+
+def _expand(graph, prefix=''):
+    """The analysis graph with every template instance expanded in place (§5.1)
+    — on the analysis side, what D1 does on emission. The instance's occurrences
+    carry its prefix (§5.2 rule 2); the edges into and out of it are rewired to
+    the template's own endpoints; the template's streams take the names of the
+    caller's streams that feed them; its tensor and state identities join the
+    caller's under the prefix. The result has no `sub_results`; `meta` gives
+    every occurrence its families and, for a generated one, its composition
+    (prefixed) and indices; `compositions` lists the prefixed composition names
+    in declaration order; `inputs_at` and `outputs_at` resolve the level's
+    public interfaces to occurrence ports."""
+    model, subs = graph['model'], graph['sub_results']
+    inner = {key: _expand(sub['graph'], prefix + ident(key) + '/') for key, sub in subs.items()}
+    for key, sub in subs.items():
+        # the template's streams are the caller's streams that feed its inputs
+        rename = {}
+        for iname, decl in sub['graph']['model']['interfaces']['inputs'].items():
+            fed = graph['domains'].get((key, iname))
+            if fed is not None:
+                rename[decl.get('stream', iname)] = fed[1]
+        ex = inner[key]
+        ex['domains'] = {k: (d[0], rename.get(d[1], d[1])) for k, d in ex['domains'].items()}
+        ex['own'] = {k: ((d[0], rename.get(d[1], d[1])) if d else d) for k, d in ex['own'].items()}
+
+    def targets(key, port):
+        return inner[key]['inputs_at'][port] if key in inner else [(_wrap(prefix, key), port)]
+
+    def source(key, port):
+        return inner[key]['outputs_at'][port] if key in inner else (_wrap(prefix, key), port)
+
+    inputs_at = {iname: [t for e in decl['to'] for t in targets(_select(graph, e['occurrence']), e['port'])]
+                 for iname, decl in model['interfaces']['inputs'].items()}
+    outputs_at = {oname: source(_select(graph, decl['from']['occurrence']), decl['from']['port'])
+                  for oname, decl in model['interfaces']['outputs'].items()}
+    resolved, domains, own, order, meta = {}, {}, {}, [], {}
+    for key, entry in graph['resolved'].items():
+        if key in inner:
+            continue
+        w = _wrap(prefix, key)
+        resolved[w] = entry
+        own[w] = graph['own'].get(key)
+        if key[0] == 'root':
+            fams, comp = set(model['occurrences'][key[1]]['families']), None
+        else:
+            decl = model['compositions'][key[1]]
+            fams = set(decl['occurrences'][key[2]]['families']) | set(decl['families'])
+            comp = (prefix + key[1], dict(key[3]))
+        meta[w] = {'families': fams, 'composition': comp}
+    for (key, port), d in graph['domains'].items():
+        if key not in inner:
+            domains[(_wrap(prefix, key), port)] = d
+    for key in graph['order']:
+        if key in inner:
+            order.extend(inner[key]['order'])
+        elif _wrap(prefix, key) in resolved:
+            order.append(_wrap(prefix, key))
+    edges = []
+    for src, sp, dst, dp, bid in graph['edges']:
+        s_key, s_port = source(src, sp)
+        for t_key, t_port in targets(dst, dp):
+            edges.append((s_key, s_port, t_key, t_port, prefix + bid))
+    compositions = [prefix + name for name in model['compositions']]
+    for ex in inner.values():
+        resolved.update(ex['resolved'])
+        domains.update(ex['domains'])
+        own.update(ex['own'])
+        meta.update(ex['meta'])
+        edges.extend(ex['edges'])
+        compositions.extend(ex['compositions'])
+
+    def instances(kind):
+        out = [dict(inst, identity=prefix + inst['identity'],
+                    members=[(_wrap(prefix, k), p) for k, p in inst['members']]) for inst in graph[kind]]
+        for ex in inner.values():
+            out.extend(ex[kind])
+        return out
+
+    return dict(graph, resolved=resolved, edges=edges, domains=domains, own=own, order=order,
+                sub_results={}, meta=meta, compositions=compositions,
+                inputs_at=inputs_at, outputs_at=outputs_at,
+                tensor_instances=instances('tensor_instances'),
+                state_instances=instances('state_instances'))
+
+
 def _counts(graph):
     """Element count of every port, as a combination of the inputs' counts:
     seeded by the public inputs, merges divide by their factor, inserts add."""
@@ -209,14 +302,8 @@ def _counts(graph):
     model = graph['model']
     counts = {}
     for name, decl in model['interfaces']['inputs'].items():
-        for endpoint in decl['to']:
-            sel = endpoint['occurrence']
-            for key in resolved:
-                if (sel['kind'] == 'root' and key == ('root', sel['occurrence'])) or \
-                   (sel['kind'] == 'generated' and key[0] == 'gen' and key[1] == sel['composition']
-                        and key[2] == sel['occurrence']
-                        and dict(key[3]) == {k: graph_value(graph, v) for k, v in sel['indices'].items()}):
-                    counts[(key, endpoint['port'])] = {decl.get('stream', name): 1.0}
+        for key, port in graph['inputs_at'][name]:
+            counts[(key, port)] = {decl.get('stream', name): 1.0}
     incoming = defaultdict(list)
     for src, sp, dst, dp, bid in edges:
         incoming[dst].append((src, sp, dp))
@@ -266,26 +353,10 @@ def _select(graph, sel):
             tuple(sorted((k, graph_value(graph, v)) for k, v in sel['indices'].items())))
 
 
-def _source_id(graph, key, port):
-    """`node.port` as D1 names it: a template instance's output is the
-    template's own output endpoint, prefixed by the instance (§5.2 rule 2)."""
-    sub = graph['sub_results'].get(key)
-    if sub is None:
-        return f"{ident(key)}.{port}"
-    decl = sub['graph']['model']['interfaces']['outputs'][port]
-    inner = _select(sub['graph'], decl['from']['occurrence'])
-    return f"{ident(key)}/{_source_id(sub['graph'], inner, decl['from']['port'])}"
-
-
-def _target_ids(graph, key, port):
-    sub = graph['sub_results'].get(key)
-    if sub is None:
-        return [f"{ident(key)}.{port}"]
-    out = []
-    for endpoint in sub['graph']['model']['interfaces']['inputs'][port]['to']:
-        inner = _select(sub['graph'], endpoint['occurrence'])
-        out.extend(f"{ident(key)}/{t}" for t in _target_ids(sub['graph'], inner, endpoint['port']))
-    return out
+def _value_id(key, port):
+    """`node.port` as D1 names it — inside a template instance, under the
+    instance's prefix (§5.2 rule 2), the graph being expanded."""
+    return f"{ident(key)}.{port}"
 
 
 def _ancestors(nodes, edges):
@@ -306,23 +377,24 @@ def _ancestors(nodes, edges):
 def _structural_cuts(graph):
     """Legal cuts by construction: the ancestor closure of a layer prefix or of
     a family is downward closed, so every crossing edge points out of it."""
-    resolved, edges, model = graph['resolved'], graph['edges'], graph['model']
+    resolved, edges, meta = graph['resolved'], graph['edges'], graph['meta']
     cuts = []
-    for comp_name, comp in model['compositions'].items():
-        if len(comp['indices']) != 1:
+    layers = defaultdict(dict)                    # composition -> occurrence -> its indices
+    for key in resolved:
+        comp = meta[key]['composition']
+        if comp and len(comp[1]) == 1:
+            layers[comp[0]][key] = comp[1]
+    for comp_name in graph['compositions']:
+        if comp_name not in layers:
             continue
-        index = next(iter(comp['indices']))
-        values = sorted({dict(k[3])[index] for k in resolved if k[0] == 'gen' and k[1] == comp_name})
+        index = next(iter(next(iter(layers[comp_name].values()))))
+        values = sorted({idx[index] for idx in layers[comp_name].values()})
         for v in values[:-1]:
-            block = {k for k in resolved if k[0] == 'gen' and k[1] == comp_name and dict(k[3])[index] <= v}
+            block = {k for k, idx in layers[comp_name].items() if idx[index] <= v}
             cuts.append((f"{comp_name}[{index}<={v}]", "layer", _ancestors(block, edges)))
     families = defaultdict(set)
-    for key, (name, definition, args) in resolved.items():
-        occurrence = model['occurrences'][key[1]] if key[0] == 'root' else model['compositions'][key[1]]['occurrences'][key[2]]
-        fams = set(occurrence['families'])
-        if key[0] == 'gen':
-            fams |= set(model['compositions'][key[1]]['families'])
-        for f in fams:
+    for key in resolved:
+        for f in meta[key]['families']:
             families[f].add(key)
     for f in sorted(families):
         block = _ancestors(families[f], edges)
@@ -338,7 +410,7 @@ def d2(graph, cat):
     for src, sp, dst, dp, bid in edges:
         name, definition, args = resolved[src]
         port = definition['ports']['outputs'][sp]
-        vid = _source_id(graph, src, sp)
+        vid = _value_id(src, sp)
         if vid not in values:
             dom = domains.get((src, sp))
             n = _elements(port['shape'], args) if 'shape' in port else 0
@@ -348,7 +420,7 @@ def d2(graph, cat):
                            "bytes_per_element": n * BYTES[dtype] if n is not None else None,
                            "domain": {"kind": dom[0], "stream": dom[1]} if dom else None,
                            "count": counts.get((src, sp))}
-        values[vid]['to'].extend(_target_ids(graph, dst, dp))
+        values[vid]['to'].append(_value_id(dst, dp))
     streams = {}
     for (key, pname), c in counts.items():
         dom = domains.get((key, pname))
@@ -358,17 +430,17 @@ def d2(graph, cat):
     # with the shape of the port it feeds (V4 makes every fed port agree)
     model = graph['model']
     for iname, decl in model['interfaces']['inputs'].items():
-        endpoint = decl['to'][0]
-        key = _select(graph, endpoint['occurrence'])
-        if key not in resolved:
+        endpoints = graph['inputs_at'][iname]
+        if not endpoints:
             continue
+        key, pname = endpoints[0]
         name, definition, args = resolved[key]
-        port = definition['ports']['inputs'][endpoint['port']]
+        port = definition['ports']['inputs'][pname]
         n = _elements(port['shape'], args) if 'shape' in port else 1
         dtype = cat['precision'][port['role']]['default']
         stream = decl.get('stream', iname)
         values[iname] = {"value": iname, "input": iname,
-                         "to": [t for e in decl['to'] for t in _target_ids(graph, _select(graph, e['occurrence']), e['port'])],
+                         "to": [_value_id(k, p) for k, p in endpoints],
                          "shape": _shape(port['shape'], args) if 'shape' in port else [],
                          "role": port['role'], "dtype": dtype, "elements": n,
                          "bytes_per_element": n * BYTES[dtype], "domain": {"kind": decl['kind'], "stream": stream},
@@ -377,10 +449,10 @@ def d2(graph, cat):
     # without it — evaluated meaning every input port fed, an insert transform's source excepted
     def evaluated(delivered):
         fed = {}
-        for iname, decl in model['interfaces']['inputs'].items():
+        for iname in model['interfaces']['inputs']:
             if iname in delivered:
-                for e in decl['to']:
-                    fed[(_select(graph, e['occurrence']), e['port'])] = True
+                for key, port in graph['inputs_at'][iname]:
+                    fed[(key, port)] = True
         done = set()
         for node in graph['order']:
             name, definition, args = resolved[node]
@@ -396,7 +468,7 @@ def d2(graph, cat):
                     if src == node:
                         fed[(dst, dp)] = True
         return done
-    outputs_at = {oname: _select(graph, decl['from']['occurrence']) for oname, decl in model['interfaces']['outputs'].items()}
+    outputs_at = {oname: key for oname, (key, port) in graph['outputs_at'].items()}
     all_inputs = set(model['interfaces']['inputs'])
     for iname in list(values):
         if 'input' in values[iname]:
@@ -405,20 +477,19 @@ def d2(graph, cat):
             values[iname]['required_for'] = needed
             values[iname]['required'] = bool(needed)
     # a public output exposes a value whether or not an edge consumes it
-    for oname, decl in model['interfaces']['outputs'].items():
-        key = _select(graph, decl['from']['occurrence'])
-        vid = _source_id(graph, key, decl['from']['port'])
+    for oname, (key, oport) in graph['outputs_at'].items():
+        vid = _value_id(key, oport)
         if vid not in values and key in resolved:
             name, definition, args = resolved[key]
-            port = definition['ports']['outputs'][decl['from']['port']]
-            dom = domains.get((key, decl['from']['port']))
+            port = definition['ports']['outputs'][oport]
+            dom = domains.get((key, oport))
             n = _elements(port['shape'], args) if 'shape' in port else 0
             dtype = cat['precision'][port['role']]['default']
             values[vid] = {"value": vid, "to": [], "shape": _shape(port['shape'], args) if 'shape' in port else [],
                            "role": port['role'], "dtype": dtype, "elements": n,
                            "bytes_per_element": n * BYTES[dtype] if n is not None else None,
                            "domain": {"kind": dom[0], "stream": dom[1]} if dom else None,
-                           "count": counts.get((key, decl['from']['port']))}
+                           "count": counts.get((key, oport))}
         if vid in values:
             values[vid].setdefault('exposed', []).append(oname)
     cuts = []
@@ -426,7 +497,7 @@ def d2(graph, cat):
         crossing = {}
         for src, sp, dst, dp, bid in edges:
             if src in block and dst not in block:
-                vid = _source_id(graph, src, sp)
+                vid = _value_id(src, sp)
                 crossing.setdefault(vid, values[vid])
         per_invocation = Counter()
         for v in crossing.values():
@@ -487,19 +558,15 @@ def d5(graph, cat, products3, products4, products2, stats):
 
 # --- D6 ---------------------------------------------------------------------
 
-def d6(graph, cat, products2, prefix=''):
+def d6(graph, cat, products2):
     resolved = graph['resolved']
     partitions = []
     loss = []
-    for key, sub in graph['sub_results'].items():
-        inner = d6(sub['graph'], cat, {'cuts': []}, prefix + ident(key) + '/')
-        partitions.extend(inner['partitions'])
-        loss.extend(inner['information_loss'])
     for key, (name, definition, args) in resolved.items():
         for p in definition.get('partitions', []):
             if 'when' in p and not contract_condition(p['when'], args):
                 continue
-            partitions.append({"node": prefix + ident(key), "contract": name, "target": p['target'],
+            partitions.append({"node": ident(key), "contract": name, "target": p['target'],
                                "communication": p['communication']})
         for pname, param in definition['parameters'].items():
             if 'present_when' in param and not contract_condition(param['present_when'], args):
@@ -507,7 +574,7 @@ def d6(graph, cat, products2, prefix=''):
             for a in param['shape']['axes']:
                 flattened = isinstance(a['extent'], dict) and a['extent'].get('op') == 'multiply'
                 if flattened and 'factors' not in a:
-                    loss.append({"node": prefix + ident(key), "slot": pname, "axis": a['axis'],
+                    loss.append({"node": ident(key), "slot": pname, "axis": a['axis'],
                                  "reason": "flattened axis without declared factors (O5.10): "
                                            "partitionability along its factors is unknown"})
     return {"cuts": [{"cut": c['cut'], "kind": c['kind'], "sizes": c['sizes'],
@@ -521,7 +588,7 @@ def products(model_path, cat, assignment=None):
     result = validate_mod.analyse(model_path, cat, assignment)
     if result['errors']:
         raise ValueError(f"not valid, no products: {result['errors'][0]}")
-    graph = result['graph']
+    graph = _expand(result['graph'])
     p3 = d3(graph, cat)
     p4 = d4(graph, cat)
     p2 = d2(graph, cat)
