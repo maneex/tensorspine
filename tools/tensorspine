@@ -93,6 +93,13 @@ def build_parser():
                              'directory takes one file per model (catalog.md for --document); '
                              'omitted, --d1, --derive and --view land beside their model and '
                              '--document writes to stdout.')
+    command.add_argument('--capabilities', metavar='MANIFEST',
+                         help='read a backend\'s capabilities manifest (backends/CAPABILITIES.md): validate it '
+                              'against its schema and the catalog, then say for each document whether the '
+                              'backend can run it for the inputs --inputs names (default: those required for '
+                              'the generative output); --coverage adds what the catalog and the corpus still need.')
+    parser.add_argument('--inputs', metavar='NAMES', help='for --capabilities: the public inputs delivered, comma-separated')
+    parser.add_argument('--coverage', action='store_true', help='for --capabilities: the coverage report over the catalog and the corpus')
     parser.add_argument('--catalog', metavar='DIR', action='append',
                         help='a catalog base, repeatable, overriding the bases a document '
                              'declares in its `catalog` field (which are resolved relative to '
@@ -169,6 +176,12 @@ def dispatch(args, documents, bases, assignment, parser):
             print(f"checkpoint  {args.checkpoint}")
             failed += artifact.run(documents, bases, args.checkpoint, assignment)
         return 1 if failed else 0
+
+    if args.capabilities:
+        import capabilities
+        corpus = sorted(glob.glob(os.path.join(DEFAULT_MODELS, '*.json'))) if args.coverage else []
+        return capabilities.run(args.capabilities, documents, bases, args.inputs.split(',') if args.inputs else None,
+                                args.coverage, corpus)
 
     if args.lint:
         import lint

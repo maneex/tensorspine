@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tensorspine.dev/schema/backends/capabilities.json",
+  "title": "Capabilities of an implementation candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "backend",
+    "devices",
+    "compute_dtypes",
+    "parameter_dtypes",
+    "state_laws",
+    "access",
+    "sharing",
+    "partitions",
+    "domains",
+    "sessions_per_invocation",
+    "locations",
+    "contracts"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tensorspine-capabilities/1"
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "generator",
+        "generated"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "generator": {
+          "type": "string"
+        },
+        "generated": {
+          "type": "string"
+        }
+      }
+    },
+    "devices": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "compute_dtypes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/dtype"
+        }
+      }
+    },
+    "parameter_dtypes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dtype"
+      }
+    },
+    "state_laws": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "append",
+          "window",
+          "fixed"
+        ]
+      }
+    },
+    "access": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "logical_position",
+          "ring",
+          "aggregate",
+          "selected"
+        ]
+      }
+    },
+    "sharing": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "by_position",
+          "by_source",
+          "within_span",
+          "at_fork_point"
+        ]
+      }
+    },
+    "partitions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "none",
+          "all_reduce",
+          "all_gather",
+          "all_to_all"
+        ]
+      }
+    },
+    "domains": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kinds",
+        "transforms",
+        "fragmented"
+      ],
+      "properties": {
+        "kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "sequence",
+              "token",
+              "position",
+              "patch"
+            ]
+          }
+        },
+        "transforms": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "merge",
+              "align",
+              "insert"
+            ]
+          }
+        },
+        "fragmented": {
+          "type": "boolean"
+        }
+      }
+    },
+    "sessions_per_invocation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "tensor",
+          "stack",
+          "concat",
+          "slice"
+        ]
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*@[0-9]+\\.[0-9]+\\.[0-9]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/contract"
+      }
+    }
+  },
+  "$defs": {
+    "dtype": {
+      "enum": [
+        "bool",
+        "u4",
+        "i4",
+        "u8",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "f8e4m3",
+        "f8e5m2",
+        "fp4",
+        "f16",
+        "bf16",
+        "f32",
+        "f64"
+      ]
+    },
+    "rule": {
+      "oneOf": [
+        {
+          "enum": [
+            "any",
+            "absent"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "values"
+          ],
+          "properties": {
+            "absent": {
+              "type": "boolean"
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fields"
+          ],
+          "properties": {
+            "absent": {
+              "type": "boolean"
+            },
+            "fields": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/rule"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arguments",
+        "states"
+      ],
+      "properties": {
+        "arguments": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/rule"
+          }
+        },
+        "excluding": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "append",
+              "window",
+              "fixed"
+            ]
+          }
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "transforms": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "merge",
+              "align",
+              "insert"
+            ]
+          },
+          "description": "the domain transforms of the contract the kernel realises"
+        }
+      }
+    }
+  },
+  "description": "A manifest per implementation candidate: what it can evaluate, in the language's vocabulary — so that a runtime infers whether it can run a document, and a maintainer reads what is not covered yet. Generated from the backend's code."
+}
