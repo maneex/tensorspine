@@ -1,6 +1,7 @@
 /* Tensorspine reference catalog — stylesheet for the pandoc rendering.
    Build: docs/style/catalog.sh (pandoc + catalog.html template + catalog.lua filter).
-   Palette: warm neutrals, one rust accent. Type: Newsreader / IBM Plex Sans / IBM Plex Mono. */
+   Palette: warm neutrals, one petrol-blue accent — the deep end of the logo's own
+   ramp, so the mark and the page share one colour. Type: Newsreader / IBM Plex Sans / IBM Plex Mono. */
 
 :root {
   --bg: #f7f5f0;
@@ -14,16 +15,18 @@
   --rule: #e1ddd3;
   --rule-strong: #22211e;
   --chip: #d5cfc2;
-  --accent: #9a4a1c;
-  --accent-dark: #6e3311;
+  --accent: #15577f;
+  --accent-dark: #0f3f5e;
   --note-label: #7a5a2e;
+  --logo-blue: #175e8c;   /* the name's own two colours, from docs/tensorspine.svg */
+  --logo-teal: #2ac3c1;
   --serif: "Newsreader", Georgia, "Times New Roman", serif;
   --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   --nav-w: 264px;
   --rail-w: 200px;
   --content-w: 760px;
-  --bar-h: 52px;
+  --bar-h: 72px;
 }
 
 /* ---------- base ---------- */
@@ -66,7 +69,7 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 0; }
 
 /* ---------- site navigation ---------- */
 /* One bar across the whole site, from docs/style/nav.html; it carries the
-   wordmark and the sections, and marks the one being read. */
+   lockup and the sections, and marks the one being read. */
 .sitebar {
   position: sticky;
   top: 0;
@@ -79,12 +82,20 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: 0; }
   background: var(--bg);
   border-bottom: 1px solid var(--rule);
 }
-.sitebar .wordmark {
-  flex-shrink: 0;
-  font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: -0.01em;
-  color: var(--ink);
+/* The lockup, docs/style/nav.html: the monogram with the name beside it. The
+   drawing, and the name's own two colours, are the file's; the arrangement is
+   all that is set here. Two measures, both fractions of the monogram's height
+   H: the gap between the two is 0.21 H, and the name is set at 0.44 H — two
+   and a half times the size the stacked lockup gives it. */
+.sitebar .wordmark { flex-shrink: 0; display: flex; align-items: center; gap: 11.9px; }
+.sitebar .wordmark:hover { text-decoration: none; }
+.sitebar .mono { display: block; height: 56px; width: auto; }
+.sitebar .name {
+  font-family: sans-serif; font-size: 24.5px; font-weight: normal; letter-spacing: 0;
+  line-height: 1; white-space: nowrap;
 }
-.sitebar .wordmark:hover { color: var(--accent); text-decoration: none; }
+.sitebar .name span:first-child { color: var(--logo-blue); }
+.sitebar .name span:last-child { color: var(--logo-teal); }
 .sitebar .sitekind { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .sitebar .sitelinks { display: flex; align-self: stretch; gap: 20px; overflow-x: auto; scrollbar-width: none; }
 .sitebar .sitelinks::-webkit-scrollbar { display: none; }
@@ -288,7 +299,7 @@ table.facts td code { font-family: var(--mono); font-size: 14px; }
 /* ---------- misc ---------- */
 .anchor { display: block; position: relative; top: -24px; visibility: hidden; }
 section[id] { scroll-margin-top: calc(var(--bar-h) + 16px); }
-::selection { background: #e9d2bf; }
+::selection { background: #cfe2ea; }
 
 @media (max-width: 1200px) {
   .rail { display: none; }
@@ -301,7 +312,13 @@ section[id] { scroll-margin-top: calc(var(--bar-h) + 16px); }
   }
 }
 @media (max-width: 860px) {
+  /* The bar gives back 12px of its height here, and the lockup follows it down
+     on the same two measures. */
+  :root { --bar-h: 60px; }
   .sitebar { gap: 20px; padding: 0 24px; }
+  .sitebar .wordmark { gap: 9.4px; }
+  .sitebar .mono { height: 44px; }
+  .sitebar .name { font-size: 19.2px; }
   .page { flex-direction: column; }
   .nav { position: static; height: auto; width: auto; border-right: 0; border-bottom: 1px solid var(--rule); padding: 24px; }
   .content { padding: 24px 20px 60px; }

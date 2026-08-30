@@ -57,7 +57,7 @@ import tempfile
 
 # ---------- shared look ----------
 # The diagrams belong to the documentation site, so they take their colours and
-# their type from docs/style/catalog.css: warm neutrals, one rust accent, and
+# their type from docs/style/catalog.css: warm neutrals, one petrol-blue accent, and
 # hairline rules. Graphviz lays the labels out with the metric-compatible
 # fallback faces below; the page's own CSS then swaps them for IBM Plex Mono /
 # IBM Plex Sans, the faces the rest of the site uses (see TEMPLATE).
@@ -70,7 +70,7 @@ INK = "#22211e"           # --ink, node name
 MUTED = "#6f6a60"         # --muted, secondary line
 FAINT = "#8a847a"         # --faint, edges
 CHIP = "#d5cfc2"          # --chip, node border
-ACCENT = "#9a4a1c"        # --accent, compositions
+ACCENT = "#15577f"        # --accent, compositions
 NOTE = "#7a5a2e"          # --note-label, index range, carry and derived figures
 
 # Every occurrence and composition node carries one more label row, kept empty
@@ -400,15 +400,17 @@ TEMPLATE = r"""<!doctype html>
     --rule: #e1ddd3;
     --rule-strong: #22211e;
     --chip: #d5cfc2;
-    --accent: #9a4a1c;
-    --accent-dark: #6e3311;
+    --accent: #15577f;
+    --accent-dark: #0f3f5e;
     --note-label: #7a5a2e;
+    --logo-blue: #175e8c;   /* the name's own two colours, from docs/tensorspine.svg */
+    --logo-teal: #2ac3c1;
     --serif: "Newsreader", Georgia, "Times New Roman", serif;
     --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
     --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
     --nav-w: 264px;
     --insp-w: 340px;
-    --bar-h: 52px;
+    --bar-h: 72px;
   }
 
   /* ---------- base ---------- */
@@ -424,23 +426,31 @@ TEMPLATE = r"""<!doctype html>
   }
   a { color: var(--accent); text-decoration: none; }
   a:hover { color: var(--accent-dark); text-decoration: underline; }
-  ::selection { background: #e9d2bf; }
+  ::selection { background: #cfe2ea; }
 
   /* ---------- site navigation ---------- */
   /* The site's own bar, docs/style/nav.html, put here by tools/site.sh; a page
-     rendered on its own keeps the wordmark and drops the links, which would
+     rendered on its own keeps the lockup and drops the links, which would
      lead nowhere. */
   .sitebar {
     display: flex; align-items: center; gap: 30px; flex-shrink: 0;
     height: var(--bar-h); padding: 0 32px;
     border-bottom: 1px solid var(--rule);
   }
-  .sitebar .wordmark {
-    flex-shrink: 0;
-    font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: -0.01em;
-    color: var(--ink);
+  /* The lockup, docs/style/nav.html: the monogram with the name beside it. The
+     drawing, and the name's own two colours, are the file's; the arrangement is
+     all that is set here. Two measures, both fractions of the monogram's height
+     H: the gap between the two is 0.21 H, and the name is set at 0.44 H — two
+     and a half times the size the stacked lockup gives it. */
+  .sitebar .wordmark { flex-shrink: 0; display: flex; align-items: center; gap: 11.9px; }
+  .sitebar .wordmark:hover { text-decoration: none; }
+  .sitebar .mono { display: block; height: 56px; width: auto; }
+  .sitebar .name {
+    font-family: sans-serif; font-size: 24.5px; font-weight: normal; letter-spacing: 0;
+    line-height: 1; white-space: nowrap;
   }
-  .sitebar .wordmark:hover { color: var(--accent); text-decoration: none; }
+  .sitebar .name span:first-child { color: var(--logo-blue); }
+  .sitebar .name span:last-child { color: var(--logo-teal); }
   .sitebar .sitekind { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sitebar .sitelinks { display: flex; align-self: stretch; gap: 20px; overflow-x: auto; scrollbar-width: none; }
   .sitebar .sitelinks::-webkit-scrollbar { display: none; }
@@ -787,6 +797,14 @@ TEMPLATE = r"""<!doctype html>
       -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
       mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
     }
+  }
+  @media (max-width: 860px) {
+    /* The bar alone follows the rest of the site down here; the tool below it
+       has a floor width of its own. */
+    :root { --bar-h: 60px; }
+    .sitebar .wordmark { gap: 9.4px; }
+    .sitebar .mono { height: 44px; }
+    .sitebar .name { font-size: 19.2px; }
   }
   @media print {
     .sitebar, .nav, .topbar, .measurebar, .inspector, .statusbar { display: none; }
@@ -2375,9 +2393,11 @@ document.addEventListener('DOMContentLoaded', init);
 """
 
 
-# The bar of a page that stands on its own: the site's, without the links.
+# The bar of a page that stands on its own: the site's, carrying the name alone.
+# The monogram is inlined in docs/style/nav.html, which tools/site.sh hands to
+# --site-nav for every page that is part of the site.
 STANDALONE_NAV = ('<nav class="sitebar">\n'
-                  '  <span class="wordmark">Tensorspine</span>\n'
+                  '  <span class="wordmark"><span class="name"><span>Tensor</span><span>Spine</span></span></span>\n'
                   '  <span class="sitekind">Model view</span>\n'
                   '</nav>')
 

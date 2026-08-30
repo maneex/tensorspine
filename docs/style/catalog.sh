@@ -3,8 +3,8 @@
 #   docs/style/catalog.sh [IN.md] [OUT.html] [NAV.html]
 # Defaults: docs/CATALOG-REFERENCE.md -> docs/CATALOG-REFERENCE.html
 # NAV.html is the site navigation for this page (tools/site.sh resolves
-# nav.html for it); without it the page keeps the wordmark and drops the links,
-# which would lead nowhere outside the site.
+# nav.html for it); without it the page keeps the name and drops both the
+# monogram and the links, which would lead nowhere outside the site.
 # Regenerate the Markdown first with: python3 tools/tensorspine --document catalog -o docs/CATALOG-REFERENCE.md
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
@@ -19,7 +19,7 @@ if [ -z "$nav" ]; then
   trap 'rm -f "$nav"' EXIT
   cat > "$nav" <<'BAR'
 <nav class="sitebar">
-  <span class="wordmark">Tensorspine</span>
+  <span class="wordmark"><span class="name"><span>Tensor</span><span>Spine</span></span></span>
   <span class="sitekind">Reference catalog</span>
 </nav>
 BAR
