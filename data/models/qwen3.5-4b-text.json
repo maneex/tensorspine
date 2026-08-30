@@ -238,7 +238,7 @@
         "decoder"
       ],
       "occurrences": {
-        "gdn_n": {
+        "norm": {
           "contract": {
             "name": "norm.rms",
             "version": "1.0.0"
@@ -256,41 +256,7 @@
           },
           "families": [
             "norm"
-          ],
-          "when": {
-            "all": [
-              {
-                "compare": {
-                  "operator": "not_equal",
-                  "left": {
-                    "op": "modulo",
-                    "args": [
-                      {
-                        "index": "layer"
-                      },
-                      {
-                        "literal": 4
-                      }
-                    ]
-                  },
-                  "right": {
-                    "literal": 3
-                  }
-                }
-              },
-              {
-                "compare": {
-                  "operator": "less",
-                  "left": {
-                    "index": "layer"
-                  },
-                  "right": {
-                    "literal": 31
-                  }
-                }
-              }
-            ]
-          }
+          ]
         },
         "gdn": {
           "contract": {
@@ -467,60 +433,6 @@
             "residual"
           ]
         },
-        "attn_n": {
-          "contract": {
-            "name": "norm.rms",
-            "version": "1.0.0"
-          },
-          "arguments": {
-            "width": {
-              "quantity": "d"
-            },
-            "eps": {
-              "quantity": "eps"
-            },
-            "zero_centered": {
-              "literal": true
-            }
-          },
-          "families": [
-            "norm"
-          ],
-          "when": {
-            "all": [
-              {
-                "compare": {
-                  "operator": "equal",
-                  "left": {
-                    "op": "modulo",
-                    "args": [
-                      {
-                        "index": "layer"
-                      },
-                      {
-                        "literal": 4
-                      }
-                    ]
-                  },
-                  "right": {
-                    "literal": 3
-                  }
-                }
-              },
-              {
-                "compare": {
-                  "operator": "greater_or_equal",
-                  "left": {
-                    "index": "layer"
-                  },
-                  "right": {
-                    "literal": 3
-                  }
-                }
-              }
-            ]
-          }
-        },
         "attn": {
           "contract": {
             "name": "attention.dense",
@@ -678,7 +590,7 @@
       },
       "bindings": {
         "values": {
-          "gdn_n.carry": {
+          "norm.carry": {
             "from": {
               "site": "mlp_r",
               "indices": {
@@ -697,57 +609,19 @@
               "port": "output"
             },
             "to": {
-              "site": "gdn_n",
+              "site": "norm",
               "port": "input"
             },
             "when": {
-              "all": [
-                {
-                  "compare": {
-                    "operator": "not_equal",
-                    "left": {
-                      "op": "modulo",
-                      "args": [
-                        {
-                          "index": "layer"
-                        },
-                        {
-                          "literal": 4
-                        }
-                      ]
-                    },
-                    "right": {
-                      "literal": 3
-                    }
-                  }
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "layer"
                 },
-                {
-                  "all": [
-                    {
-                      "compare": {
-                        "operator": "greater_or_equal",
-                        "left": {
-                          "index": "layer"
-                        },
-                        "right": {
-                          "literal": 1
-                        }
-                      }
-                    },
-                    {
-                      "compare": {
-                        "operator": "less",
-                        "left": {
-                          "index": "layer"
-                        },
-                        "right": {
-                          "literal": 31
-                        }
-                      }
-                    }
-                  ]
+                "right": {
+                  "literal": 1
                 }
-              ]
+              }
             }
           },
           "gdn_r.carry": {
@@ -824,7 +698,7 @@
           },
           "gdn.norm_in": {
             "from": {
-              "site": "gdn_n",
+              "site": "norm",
               "port": "output"
             },
             "to": {
@@ -882,29 +756,6 @@
               "port": "b"
             }
           },
-          "attn_n.in": {
-            "from": {
-              "site": "mlp_r",
-              "indices": {
-                "layer": {
-                  "op": "subtract",
-                  "args": [
-                    {
-                      "index": "layer"
-                    },
-                    {
-                      "literal": 1
-                    }
-                  ]
-                }
-              },
-              "port": "output"
-            },
-            "to": {
-              "site": "attn_n",
-              "port": "input"
-            }
-          },
           "attn_r.a": {
             "from": {
               "site": "mlp_r",
@@ -930,7 +781,7 @@
           },
           "attn.norm_in": {
             "from": {
-              "site": "attn_n",
+              "site": "norm",
               "port": "output"
             },
             "to": {
@@ -970,10 +821,10 @@
           }
         },
         "parameters": {
-          "gdn_n.weight": {
+          "norm.weight": {
             "members": [
               {
-                "site": "gdn_n",
+                "site": "norm",
                 "parameter": "weight"
               }
             ],
@@ -1246,26 +1097,6 @@
               ]
             }
           },
-          "attn_n.weight": {
-            "members": [
-              {
-                "site": "attn_n",
-                "parameter": "weight"
-              }
-            ],
-            "dtype": {
-              "quantity": "precision"
-            },
-            "location": {
-              "tensor": [
-                "model.language_model.layers.",
-                {
-                  "index": "layer"
-                },
-                ".input_layernorm.weight"
-              ]
-            }
-          },
           "attn.q_gated": {
             "members": [
               {
@@ -1430,7 +1261,7 @@
           "occurrence": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "gdn_n",
+            "occurrence": "norm",
             "indices": {
               "layer": {
                 "literal": 0
