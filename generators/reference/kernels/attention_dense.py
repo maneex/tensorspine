@@ -13,7 +13,7 @@
 | rope: partial                   | implemented (the first `partial · head_dim` channels) |
 | rope: mrope (sections contiguous or interleaved) | implemented for one position stream (t = h = w: the two layouts are one computation; an image would tell them apart) |
 | rope: scaling                   | refused                                         |
-| qk_norm kind rms (scale, zero_centered) | implemented, before RoPE                |
+| qk_norm kind rms (eps, scale, zero_centered) | implemented, before RoPE           |
 | qk_norm kind layer              | refused                                         |
 | temperature                     | refused                                         |
 | q/k/v/out biases                | implemented                                     |
@@ -44,7 +44,7 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
                                        "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
                                                                               "sections": ["contiguous", "interleaved"]}},
                                        "scaling": "absent"}},
-                              "qk_norm": {"absent": True, "fields": {"kind": ["rms"],
+                              "qk_norm": {"absent": True, "fields": {"kind": ["rms"], "eps": "any",
                                           "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
                               "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
                 "states": ["append"],
@@ -119,7 +119,7 @@ def run(ctx, arguments, inputs, params, states, physical=None):
     q, k, v = q.reshape(n, h, d), k.view(n, kv, d), v.view(n, kv, d)
     qk_norm = arguments.get('qk_norm')
     if qk_norm and qk_norm['kind'] == 'rms':
-        eps = ctx.eps
+        eps = qk_norm['eps']
         scale = qk_norm.get('scale')                    # present: q_norm and k_norm are declared
         zc = bool(scale and scale.get('zero_centered'))
         one = torch.ones(d, device=x.device, dtype=x.dtype)

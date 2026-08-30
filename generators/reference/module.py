@@ -18,12 +18,11 @@ class ShapeError(Exception):
 
 
 class Ctx:
-    def __init__(self, dtype, device, static=False, eps=1e-6):
+    def __init__(self, dtype, device, static=False):
         self.dtype = dtype
         self.device = device
         self.static = static
         self.positions = None
-        self.eps = eps            # finding: the Q/K normalisation has no `eps` of its own in the contract
 
 
 def physical_for(physical, node, contract):

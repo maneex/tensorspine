@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "reference",
-    "version": "dfcce42",
+    "version": "c3dee58",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-08-30"
   },
@@ -95,6 +95,7 @@
             "kind": [
               "rms"
             ],
+            "eps": "any",
             "scale": {
               "absent": true,
               "fields": {
