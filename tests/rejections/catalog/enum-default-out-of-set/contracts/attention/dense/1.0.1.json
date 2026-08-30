@@ -419,6 +419,14 @@
                 "layer": "Layer normalization."
               }
             },
+            "eps": {
+              "type": {
+                "kind": "real"
+              },
+              "required": true,
+              "structural": false,
+              "description": "Added to the mean square (`rms`) or the variance (`layer`) before the root; changes no tensor."
+            },
             "scale": {
               "type": {
                 "kind": "record",
