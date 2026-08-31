@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tensorspine.dev/schema/generators/zml/primitive-abi.json",
+  "title": "The ZML generator's primitive ABI — request and response",
+  "oneOf": [
+    { "$ref": "#/$defs/request" },
+    { "$ref": "#/$defs/response" }
+  ],
+  "$defs": {
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "occurrence",
+        "contract",
+        "arguments",
+        "signature"
+      ],
+      "properties": {
+        "schema": {
+          "const": "tensorspine-primitive-request/1"
+        },
+        "occurrence": {
+          "type": "string",
+          "description": "The D1 node identifier this body is emitted for, e.g. decoder/attn[layer=0]."
+        },
+        "contract": {
+          "$ref": "#/$defs/contract"
+        },
+        "arguments": {
+          "type": "object",
+          "description": "The occurrence's D1 arguments, verbatim: resolved, defaults applied. The contract owns their grammar; this schema does not restate it.",
+          "additionalProperties": true
+        },
+        "signature": {
+          "$ref": "#/$defs/signature"
+        },
+        "states": {
+          "type": "object",
+          "description": "The D4 state rule of each state the occurrence holds, keyed by the contract's state name.",
+          "additionalProperties": {
+            "$ref": "#/$defs/state"
+          }
+        },
+        "physical": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "The opaque physical parameters addressed to this occurrence (generators/CAPABILITIES.md): block sizes, layouts, kernel selection, with `backend` as one optional key. Neither typed nor validated here, by design.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema"
+      ],
+      "oneOf": [
+        { "required": [ "mlir" ] },
+        { "required": [ "refusals" ] }
+      ],
+      "properties": {
+        "schema": {
+          "const": "tensorspine-primitive-response/1"
+        },
+        "mlir": {
+          "type": "string",
+          "description": "One MLIR `func.func` in textual form, whose function type equals the requested signature. The host parses it, appends it to the module, and names it as the decomposition of the occurrence's stablehlo.composite."
+        },
+        "refusals": {
+          "type": "array",
+          "description": "Why this request cannot be emitted, in the refusal vocabulary the generators share: one `name=value` per argument, record field or state rule not implemented. A response carrying refusals carries no body.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "notes": {
+          "type": "array",
+          "description": "Conventions this body reads into a contract that leaves them open. Recorded, never authoritative: where a note and the contract disagree, the contract wins and the note is a finding.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operands",
+        "results"
+      ],
+      "description": "The function type the host will call, in order. The host dictates it; the primitive fills the body. A returned function whose type differs is refused before it enters the module.",
+      "properties": {
+        "operands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operand"
+          }
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operand"
+          }
+        }
+      }
+    },
+    "operand": {
+      "type": "object",
+      "required": [
+        "shape",
+        "dtype"
+      ],
+      "description": "One argument or result of the emitted function, named by exactly one of `port`, `slot`, `state` or `positions`.",
+      "oneOf": [
+        { "required": [ "port" ] },
+        { "required": [ "slot" ] },
+        { "required": [ "state" ] },
+        { "required": [ "positions" ] }
+      ],
+      "properties": {
+        "port": {
+          "type": "string",
+          "description": "A contract input or output port. Its leading axis is the element count of this invocation; the axes after it are D2's per-element shape."
+        },
+        "slot": {
+          "type": "string",
+          "description": "A contract parameter slot. Its shape is D3's, after the location has been assembled; it carries no element axis."
+        },
+        "state": {
+          "type": "string",
+          "description": "One payload component of a state the occurrence holds, as `state.component` (e.g. `kv.k`). Its leading axis is the capacity the deployment fixed, not an element count."
+        },
+        "positions": {
+          "type": "string",
+          "description": "The position index of a stream, named by the stream. One element per element of that stream, in the same order as the ports it indexes."
+        },
+        "shape": {
+          "type": "array",
+          "description": "The full concrete shape, as the host will pass it. Never per-element and never symbolic: the host has already resolved elements per invocation and state capacity from the deployment's workload.",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "dtype": {
+          "$ref": "#/$defs/dtype"
+        }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "law",
+        "access"
+      ],
+      "description": "D4's rule for one state, copied so the primitive can refuse a law it does not implement without consulting the derived document.",
+      "properties": {
+        "law": {
+          "type": "string"
+        },
+        "access": {
+          "type": "string"
+        },
+        "sharing": {
+          "type": "string"
+        },
+        "span": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "dtype": {
+      "enum": [
+        "bool",
+        "u4",
+        "i4",
+        "u8",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "f8e4m3",
+        "f8e5m2",
+        "fp4",
+        "f16",
+        "bf16",
+        "f32",
+        "f64"
+      ]
+    }
+  }
+}
