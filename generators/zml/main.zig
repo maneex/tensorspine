@@ -47,17 +47,43 @@ pub fn main(init: std.process.Init) !void {
     var g: graph.Graph = try .openFile(allocator, init.io, args.derived);
     defer g.deinit();
 
-    const nodes = try g.nodes();
-    const values = try g.values();
-    const tensors = try g.tensors();
-    const states = try g.states();
-
-    log.info("{s}: {d} occurrences, {d} values, {d} parameter tensors, {d} states", .{
+    const d = g.doc();
+    log.info("{s}: {d} occurrences, {d} values, {d} parameter tensors, {d} states, {d} edges, {d} ordered", .{
         g.model(),
-        nodes.count(),
-        values.items.len,
-        tensors.items.len,
-        states.items.len,
+        d.d1.nodes.map.count(),
+        d.d2.values.len,
+        d.d3.tensors.len,
+        d.d4.states.len,
+        d.d1.edges.len,
+        d.d1.topological_order.len,
+    });
+
+    // Every member of D3 and D4 resolves, and every edge's target is a known port:
+    // the indices are exercised here rather than trusted at ZM2.
+    var located: usize = 0;
+    for (d.d3.tensors) |t| {
+        for (t.members) |m| if (g.tensorIndexOf(m) == null) {
+            log.err("unresolved parameter member {s}", .{m});
+            return error.InconsistentDocument;
+        };
+        if (t.location != null) located += 1;
+    }
+    for (d.d4.states) |s| {
+        for (s.members) |m| if (g.stateOf(m) == null) {
+            log.err("unresolved state member {s}", .{m});
+            return error.InconsistentDocument;
+        };
+    }
+    for (d.d1.topological_order) |id| if (g.node(id) == null) {
+        log.err("ordered node {s} is not in d1.nodes", .{id});
+        return error.InconsistentDocument;
+    };
+
+    const gen = g.generative();
+    log.info("{d}/{d} tensors located; generative output {s}", .{
+        located,
+        d.d3.tensors.len,
+        if (gen) |o| o.port else "(none)",
     });
 
     // Touching ZML proves the dependency is linked, not merely declared.
