@@ -45,10 +45,63 @@ def derive(out_dir, only=None):
     return sorted(f for f in os.listdir(out_dir) if f.endswith('.derived.json'))
 
 
+def evaluate(binary, derived, checkpoint, out_dir):
+    """The numbers, against an oracle computed here from the checkpoint alone.
+
+    Not against the reference generator: these two values are short enough to write
+    down independently, so the check does not inherit anybody's reading of them. The
+    reference's fixtures take over at the first layer cut, where the mathematics stops
+    being one line."""
+    try:
+        import numpy as np
+        import torch
+        from safetensors.torch import safe_open
+    except ImportError as e:
+        print(f'skip: evaluation needs numpy, torch and safetensors ({e})')
+        return 0
+
+    index = os.path.join(checkpoint, 'model.safetensors.index.json')
+    if not os.path.isfile(index):
+        print(f'skip: no checkpoint at {checkpoint}')
+        return 0
+    weight_map = json.load(open(index, encoding='utf-8'))['weight_map']
+
+    def weight(name):
+        with safe_open(os.path.join(checkpoint, weight_map[name]), framework='pt') as f:
+            return f.get_tensor(name).to(torch.float32).numpy()
+
+    ids = [128000, 791, 6864, 315, 9822, 374]
+    with open(derived, encoding='utf-8') as f:
+        doc = json.load(f)
+    eps = doc['d1']['nodes']['decoder/attn_n[layer=0]']['arguments']['eps']
+
+    rows = weight('model.embed_tokens.weight')[ids]
+    scale = weight('model.layers.0.input_layernorm.weight')
+    normed = rows / np.sqrt((rows ** 2).mean(-1, keepdims=True) + eps) * scale
+
+    failed = 0
+    for value, want, tol in (('embed.output', rows, 0.0),
+                             ('decoder/attn_n[layer=0].output', normed, 1e-6)):
+        path = os.path.join(out_dir, 'value.bin')
+        run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
+                              f'--until={value}', f'--out={path}'], capture_output=True)
+        if run.returncode != 0:
+            print(f'FAIL {value}: {run.stderr.decode(errors="replace")[-600:]}')
+            failed += 1
+            continue
+        got = np.fromfile(path, dtype=np.float32).reshape(want.shape)
+        err = float(np.abs(got - want).max())
+        ok = err <= tol
+        print(f'{"OK  " if ok else "FAIL"} {value}: max abs {err:.3e} (tolerance {tol:.0e})')
+        failed += 0 if ok else 1
+    return failed
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zml', default=os.environ.get('ZML_HOME', os.path.expanduser('~/work/perso/zml')))
     ap.add_argument('--model', help='one document by name, instead of the whole corpus')
+    ap.add_argument('--checkpoint', help='also evaluate llama3-8b against an oracle computed from this checkpoint')
     ap.add_argument('--keep', action='store_true', help='keep the derived documents')
     a = ap.parse_args()
 
@@ -96,7 +149,17 @@ def main():
                 failed += 1
             else:
                 print(f'OK   {model}: {got[0]} occurrences, {got[2]} tensors, {got[3]} states')
-        print(f'\n{len(names) - failed} passed, {failed} failed')
+        checked = len(names)
+        if a.checkpoint:
+            llama = os.path.join(out_dir, 'llama3-8b.derived.json')
+            if os.path.isfile(llama):
+                print()
+                before = failed
+                failed += evaluate(binary, llama, a.checkpoint, out_dir)
+                checked += 2
+                if failed == before:
+                    pass
+        print(f'\n{checked - failed} passed, {failed} failed')
         return 1 if failed else 0
     finally:
         if a.keep:

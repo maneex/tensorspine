@@ -1,15 +1,15 @@
 //! `tspl` — the ZML generator's command line.
-//!
-//! ZM0 reads a derived document and reports what it contains, linking `@zml//zml`
-//! so the build itself is the check: the module wiring, the Zig toolchain and the
-//! ZML dependency are proven before any semantics are written.
 
 const std = @import("std");
 
 const zml = @import("zml");
 const stdx = zml.stdx;
 
+const dtypes = @import("dtypes.zig");
+const emit = @import("emit.zig");
 const graph = @import("graph.zig");
+const loader = @import("loader.zig");
+const plan = @import("plan.zig");
 const registry = @import("registry.zig");
 
 pub const std_options: std.Options = .{
@@ -21,15 +21,25 @@ const log = std.log.scoped(.tspl);
 const Args = struct {
     derived: []const u8,
     refusals: bool = false,
+    checkpoint: ?[]const u8 = null,
+    until: ?[]const u8 = null,
+    ids: ?[]const u8 = null,
+    out: ?[]const u8 = null,
+    @"dump-mlir": ?[]const u8 = null,
 
     pub const help =
-        \\ Use tspl --derived=<path> [--refusals]
+        \\ Use tspl --derived=<path> [--refusals] [--checkpoint=<dir> --until=<value>]
         \\
         \\ Run a tensorspine/2.0 model from its derived document (D1–D6).
         \\
         \\ Options:
-        \\   --derived=<path>    Path to a .derived.json, as `tensorspine --derive` emits it (required)
-        \\   --refusals          Report, per contract, the occurrences no primitive implements
+        \\   --derived=<path>      Path to a .derived.json, as `tensorspine --derive` emits it (required)
+        \\   --refusals            Report, per contract, the occurrences no primitive implements
+        \\   --checkpoint=<path>   The safetensors repository or file D3's locations name
+        \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
+        \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
+        \\   --out=<path>          Write the result's raw bytes here
+        \\   --dump-mlir=<dir>     Ask XLA to dump the emitted IR here
         \\
     ;
 };
@@ -68,11 +78,108 @@ fn reportRefusals(allocator: std.mem.Allocator, g: *const graph.Graph) !bool {
     return refused == 0;
 }
 
+/// The llama3-8b fixture's prompt: "<|begin_of_text|>The capital of France is".
+const default_ids = [_]i32{ 128000, 791, 6864, 315, 9822, 374 };
+
+fn parseIds(allocator: std.mem.Allocator, spec: ?[]const u8) ![]i32 {
+    const text = spec orelse return allocator.dupe(i32, &default_ids);
+    var list: std.ArrayList(i32) = .empty;
+    errdefer list.deinit(allocator);
+    var it = std.mem.tokenizeAny(u8, text, ", ");
+    while (it.next()) |token| {
+        try list.append(allocator, try std.fmt.parseInt(i32, token, 10));
+    }
+    return list.toOwnedSlice(allocator);
+}
+
+fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Graph) !void {
+    const checkpoint = args.checkpoint orelse {
+        log.err("--until needs --checkpoint: the parameters come from where D3 locates them", .{});
+        return error.MissingCheckpoint;
+    };
+
+    const ids = try parseIds(allocator, args.ids);
+    defer allocator.free(ids);
+
+    const platform: *zml.Platform = try .auto(allocator, io, .{});
+    defer platform.deinit(allocator, io);
+    log.info("platform: {s}", .{@tagName(platform.target)});
+
+    var tensors: zml.safetensors.TensorRegistry = try .fromPath(allocator, io, checkpoint);
+    defer tensors.deinit();
+    var store: zml.io.TensorStore = .fromRegistry(allocator, &tensors);
+    defer store.deinit();
+
+    // What to evaluate. Compute is f32 on CPU, as the reference does, so a comparison
+    // against it is a comparison of the mathematics and not of two roundings.
+    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), .f32);
+    defer p.deinit();
+    log.info("{d} step(s) to reach {s}, {d} public input(s), {d} parameter tensor(s)", .{
+        p.steps.len, args.until.?, p.publics.len, p.params_used.len,
+    });
+
+    // The parameters the plan needs, by D3's locations — nothing per model.
+    var model = try loader.locate(allocator, g, store.view(), p.params_used);
+    defer model.deinit(allocator);
+
+    const publics = try allocator.alloc(zml.Tensor, p.publics.len);
+    defer allocator.free(publics);
+    for (p.public_shapes, publics) |shape, *t| t.* = .fromShape(shape);
+
+    var exe = try zml.module.compile(allocator, io, emit.forward, .{ plan.Handle.of(&p), model.params, publics }, platform, .{
+        .program_name = g.model(),
+        .xla_dump_to = args.@"dump-mlir",
+    });
+    defer exe.deinit();
+    log.info("compiled", .{});
+
+    // The weights, into buffers ZML pairs with the model by visit order.
+    var buffers = try zml.mem.bufferize(allocator, loader.Model, &model);
+    defer allocator.free(buffers.params);
+    var weights: zml.io.Loader = try .init(allocator, platform, .default);
+    defer weights.deinit();
+    weights.load(io, loader.Model, &model, &buffers, &store, &.{}, .{});
+    try weights.await(io);
+    log.info("{Bi:.2} of weights loaded", .{weights.bytes_loaded.raw});
+
+    var token_buffer = try zml.Buffer.fromSlice(
+        io,
+        platform,
+        .init(p.public_shapes[0], std.mem.sliceAsBytes(ids)),
+        platform.replicated_sharding,
+    );
+    defer token_buffer.deinit();
+
+    var call_args = try exe.args(allocator);
+    defer call_args.deinit(allocator);
+    var results = try exe.results(allocator);
+    defer results.deinit(allocator);
+
+    call_args.set(.{ buffers.params, token_buffer });
+    exe.call(call_args, &results);
+
+    var out = results.get(zml.Buffer);
+    defer out.deinit();
+    const slice = try out.toSliceAlloc(allocator, io);
+    defer allocator.free(slice.bytes);
+
+    log.info("{s} = {f}", .{ args.until.?, out.shape() });
+    if (args.out) |path| {
+        const file = try std.Io.Dir.cwd().createFile(io, path, .{});
+        defer file.close(io);
+        var buffer: [4096]u8 = undefined;
+        var writer = file.writer(io, &buffer);
+        try writer.interface.writeAll(slice.bytes);
+        try writer.interface.flush();
+        log.info("{d} bytes written to {s}", .{ slice.bytes.len, path });
+    }
+}
+
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
 
     // `bazel run` executes from the runfiles tree; go back to the shell's directory
-    // so a relative --derived path means what the user typed.
+    // so a relative path means what the user typed.
     if (init.environ_map.get("BUILD_WORKING_DIRECTORY")) |build_working_directory| {
         var working_dir = try std.Io.Dir.openDirAbsolute(init.io, build_working_directory, .{});
         defer working_dir.close(init.io);
@@ -95,8 +202,13 @@ pub fn main(init: std.process.Init) !void {
         d.d1.topological_order.len,
     });
 
-    // Every member of D3 and D4 resolves, and every edge's target is a known port:
-    // the indices are exercised here rather than trusted at ZM2.
+    if (args.refusals) {
+        _ = try reportRefusals(allocator, &g);
+        return;
+    }
+    if (args.until != null) return evaluate(allocator, init.io, args, &g);
+
+    // Every member of D3 and D4 resolves, and every ordered node is known.
     var located: usize = 0;
     for (d.d3.tensors) |t| {
         for (t.members) |m| if (g.tensorIndexOf(m) == null) {
@@ -122,13 +234,4 @@ pub fn main(init: std.process.Init) !void {
         d.d3.tensors.len,
         if (gen) |o| o.port else "(none)",
     });
-
-    if (args.refusals) {
-        _ = try reportRefusals(allocator, &g);
-        return;
-    }
-
-    // Touching ZML proves the dependency is linked, not merely declared.
-    const hidden = zml.Shape.init(.{ .s = 1, .d = 4096 }, .bf16);
-    log.info("zml links: a {f} activation is {d} bytes", .{ hidden, hidden.byteSize() });
 }
