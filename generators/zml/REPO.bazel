@@ -1,0 +1,2 @@
+# Repository boundary marker. This directory is brought into a build as a Bazel
+# local_repository by the workspace that provides ZML; it is not a module of its own.

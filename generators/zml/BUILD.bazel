@@ -1,0 +1,13 @@
+load("@rules_zig//zig:defs.bzl", "zig_binary")
+
+# The ZML generator. Its sources are owned by the tensorspine repository; the ZML
+# workspace is the build root and reaches them through a local_repository, so ZML
+# keeps its own module overrides (see generators/zml/README.md).
+
+zig_binary(
+    name = "tspl",
+    srcs = glob(["*.zig"]),
+    main = "main.zig",
+    visibility = ["//visibility:public"],
+    deps = ["@zml//zml"],
+)
