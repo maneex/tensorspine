@@ -33,14 +33,19 @@ Three steps; the first two happen once.
 
 ZML is Bazel-only (`build.zig` is empty), so **the ZML workspace is the build root** and these
 sources are injected into it — nothing in the ZML checkout is edited, and no path outside this
-repository is written down in it. From the ZML checkout, with `<generator>` the absolute path of
-this directory:
+repository is written down in it. Two directories are involved, so both are shell variables rather
+than prose: `$ZML_HOME` is the ZML checkout, `$TENSORSPINE_GENERATOR` is *this* directory, absolute
+because Bazel resolves it from a build root that is somewhere else.
 
 ```sh
-./bazel.sh build --inject_repository=tensorspine=<generator> @tensorspine//:tspl
+export ZML_HOME=~/somewhere/zml                      # the ZML checkout
+export TENSORSPINE_GENERATOR=$PWD/generators/zml     # from this repository's root
+
+cd "$ZML_HOME" && ./bazel.sh build \
+  --inject_repository=tensorspine="$TENSORSPINE_GENERATOR" @tensorspine//:tspl
 ```
 
-The binary lands at `bazel-bin/external/+local_repository+tensorspine/tspl`.
+The binary lands at `$ZML_HOME/bazel-bin/external/+local_repository+tensorspine/tspl`.
 
 ### 2. Derive the document
 
@@ -56,7 +61,7 @@ tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_RUNTIME_D
 ### 3. Run
 
 ```sh
-<zml>/bazel-bin/external/+local_repository+tensorspine/tspl \
+"$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
   --derived="$TENSORSPINE_RUNTIME_DIR/llama3-8b.derived.json" \
   --checkpoint="$TENSORSPINE_CHECKPOINT" \
   --steps=8 --compute=bf16 --split=16
@@ -69,7 +74,7 @@ the reference fixture's identifiers; `--ids=128000,791,…` overrides it.
 Nothing about that command is llama's. The hybrid is the same invocation against another document:
 
 ```sh
-<zml>/bazel-bin/external/+local_repository+tensorspine/tspl \
+"$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
   --derived="$TENSORSPINE_RUNTIME_DIR/qwen3.5-4b-text.derived.json" \
   --checkpoint="$TENSORSPINE_QWEN" \
   --ids=760,6511,314,9338,369 --steps=8 --compute=bf16 --split=8
@@ -148,7 +153,7 @@ To avoid repeating the inject flag, put it in the ZML checkout's `user.bazelrc` 
 stays relative:
 
 ```
-build --inject_repository=tensorspine=%workspace%/../<repo>/generators/zml
+build --inject_repository=tensorspine=%workspace%/../<this-repository>/generators/zml
 ```
 
 The test harness needs neither: it computes its own location and passes the flag.
@@ -156,7 +161,7 @@ The test harness needs neither: it computes its own location and passes the flag
 ## Testing
 
 ```sh
-export ZML_HOME=<the zml checkout>
+export ZML_HOME=~/somewhere/zml                   # the ZML checkout
 export TENSORSPINE_CHECKPOINT=<the safetensors repository>
 generators/zml/tests/run_zml.py
 ```
@@ -181,12 +186,13 @@ whether the manifest can run the document.
 ## Where the runtime files live
 
 Derived documents, checkpoints and dumps are **runtime inputs**, not part of this repository: none
-of them has a fixed place in the tree, and nothing here names one. Three environment variables name
-them, each overridden by a flag, and **none has a default inside the tree**:
+of them has a fixed place in the tree, and nothing here names one. Every one is a shell variable,
+each overridden by a flag, and **none has a default inside the tree**. All name **directories**:
 
 | Variable | What it holds | Flag | Unset |
 |---|---|---|---|
 | `ZML_HOME` | the ZML checkout that is the build root | `--zml` | the harness skips and says so |
+| `TENSORSPINE_GENERATOR` | this directory, absolute, for `--inject_repository` | — | the harness computes it |
 | `TENSORSPINE_RUNTIME_DIR` | where derived documents and dumps go | `--runtime-dir` | a temporary directory, deleted after |
 | `TENSORSPINE_CHECKPOINT` | the safetensors repository D3's locations name, for `llama3-8b` | `--checkpoint` | those numerical checks are skipped |
 | `TENSORSPINE_COLBERT` | the `colbertv2.0` repository | `--colbert-checkpoint` | those numerical checks are skipped |
