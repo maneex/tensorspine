@@ -8,10 +8,14 @@ document must equal what `tools/derive.py` put in it.
     generators/zml/tests/run_zml.py [--zml DIR] [--runtime-dir DIR] [--checkpoint DIR]
                                     [--model NAME] [--keep]
 
-Runtime inputs — the ZML checkout, a working directory, a checkpoint — are named by
-$ZML_HOME, $TENSORSPINE_RUNTIME_DIR and $TENSORSPINE_CHECKPOINT, or by the matching flag.
-None has a default inside the tree: prints `skip` and exits 0 for whatever is absent, so
-the suite runs anywhere and says which checks it did not make.
+Then, for whichever checkpoints it is given, the numbers against the reference
+generator's committed fixtures: llama3-8b, colbert-v2 and qwen3.5-4b-text.
+
+Runtime inputs — the ZML checkout, a working directory, three checkpoints — are named by
+$ZML_HOME, $TENSORSPINE_RUNTIME_DIR, $TENSORSPINE_CHECKPOINT, $TENSORSPINE_COLBERT and
+$TENSORSPINE_QWEN, or by the matching flag. None has a default inside the tree: prints
+`skip` and exits 0 for whatever is absent, so the suite runs anywhere and says which
+checks it did not make.
 """
 import argparse
 import json
@@ -51,6 +55,7 @@ def derive(out_dir, only=None):
 
 FIXTURE = 'generators/reference/fixtures/llama3-8b.3layers.hf.safetensors'
 COLBERT_FIXTURE = 'generators/reference/fixtures/colbert-v2.12layers.hf.safetensors'
+QWEN_FIXTURE = 'generators/reference/fixtures/qwen3.5-4b-text.4layers.hf.safetensors'
 
 # Relative to each value's own scale: an f32 rounding budget, recorded from what the
 # runs actually produce, not chosen in advance. Layers 1 and 2 carry a 225.7 activation,
@@ -230,6 +235,80 @@ def colbert(binary, out_dir, checkpoint):
     return checked, failed
 
 
+def qwen(binary, out_dir, checkpoint):
+    """A hybrid document: three gated-delta layers and one attention layer.
+
+    Its four kinds of state are the two laws llama3-8b cannot exercise — the recurrent
+    matrix is `fixed`, read and written whole, and the convolution history is a `window`
+    consumed as a ring — beside the KV cache, which is the one it can. So this is where
+    the state machinery is actually decided, and where a layout choice would show: a
+    window held as a rotating ring rather than a chronological slide would give the same
+    outputs and a different dumped buffer, and the fixture holds the buffer.
+
+    The attention layer carries four branches at once besides — partial rope, mrope,
+    an rms qk_norm and the per-head output gate — and none of them is separable from the
+    others in a checkpoint, which is why they arrive together."""
+    try:
+        import numpy as np
+        from safetensors.numpy import load_file
+    except ImportError:
+        return 0, 0
+    fixture = os.path.join(ROOT, QWEN_FIXTURE)
+    if not os.path.isfile(fixture) or not os.path.isdir(checkpoint):
+        print(f'skip: qwen3.5-4b-text needs {QWEN_FIXTURE} and a checkpoint at {checkpoint}')
+        return 0, 0
+
+    derived = os.path.join(out_dir, 'qwen3.5-4b-text.derived.json')
+    if not os.path.isfile(derived):
+        return 0, 0
+    fx = load_file(fixture)
+    ids = '760,6511,314,9338,369'                            # the fixture's own prompt
+    dumps = os.path.join(out_dir, 'qwen-dump')
+    os.makedirs(dumps, exist_ok=True)
+
+    checked = failed = 0
+    for layer in range(4):
+        value = f'decoder/mlp_r[layer={layer}].output'
+        path = os.path.join(out_dir, 'qwen.bin')
+        run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
+                              f'--until={value}', f'--ids={ids}', f'--out={path}', f'--dump={dumps}'],
+                             capture_output=True)
+        checked += 1
+        if run.returncode != 0:
+            print(f'FAIL qwen {value}: {run.stderr.decode(errors="replace")[-400:]}')
+            failed += 1
+            continue
+        want = fx[f'value/{value}']
+        got = np.fromfile(path, dtype=np.float32).reshape(want.shape)
+        err = float(np.abs(got - want).max()) / float(np.abs(want).max())
+        ok = err <= TOLERANCE
+        failed += 0 if ok else 1
+        print(f'{"OK  " if ok else "FAIL"} qwen {value}: {err:.2e} of scale (tolerance {TOLERANCE:.0e})')
+
+    # every state the deepest run left behind, named by its D4 identity whatever layout
+    # held it: three convolution histories, three recurrent matrices, one KV cache
+    states = [(f'decoder.gdn.conv[layer={i}]', 'w') for i in range(3)] \
+        + [(f'decoder.gdn.recurrent[layer={i}]', 's') for i in range(3)] \
+        + [('decoder.attn.kv[layer=3]', c) for c in ('k', 'v')]
+    for identity, component in states:
+        path = os.path.join(dumps, f'{identity}.{component}.bin')
+        key = f'state/{identity}/{component}'
+        if not os.path.isfile(path) or key not in fx:
+            print(f'FAIL qwen state {identity}.{component}: nothing dumped')
+            checked += 1
+            failed += 1
+            continue
+        want = fx[key]
+        got = np.fromfile(path, dtype=np.float32).reshape(want.shape)
+        err = float(np.abs(got - want).max()) / float(np.abs(want).max())
+        ok = err <= TOLERANCE
+        checked += 1
+        failed += 0 if ok else 1
+        print(f'{"OK  " if ok else "FAIL"} qwen state {identity}.{component}: '
+              f'{err:.2e} of scale (tolerance {TOLERANCE:.0e})')
+    return checked, failed
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zml', default=os.environ.get('ZML_HOME'),
@@ -238,6 +317,8 @@ def main():
                     help='where derived documents go ($TENSORSPINE_RUNTIME_DIR; a temporary directory by default)')
     ap.add_argument('--colbert-checkpoint', default=os.environ.get('TENSORSPINE_COLBERT'),
                     help='the colbertv2.0 repository ($TENSORSPINE_COLBERT); without it those checks are skipped')
+    ap.add_argument('--qwen-checkpoint', default=os.environ.get('TENSORSPINE_QWEN'),
+                    help='the Qwen3.5-4B repository ($TENSORSPINE_QWEN); without it those checks are skipped')
     ap.add_argument('--checkpoint', default=os.environ.get('TENSORSPINE_CHECKPOINT'),
                     help='the safetensors repository D3 locates weights in ($TENSORSPINE_CHECKPOINT); '
                          'without it the numerical checks are skipped')
@@ -316,6 +397,12 @@ def main():
         if a.colbert_checkpoint:
             print()
             more, bad = colbert(binary, out_dir, a.colbert_checkpoint)
+            checked += more
+            failed += bad
+
+        if a.qwen_checkpoint:
+            print()
+            more, bad = qwen(binary, out_dir, a.qwen_checkpoint)
             checked += more
             failed += bad
 

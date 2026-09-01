@@ -144,9 +144,15 @@ generators/zml/tests/run_zml.py
 ```
 
 It builds the target itself, derives all 14 corpus documents, and checks that what `tspl` reads out
-of each equals what `tools/derive.py` put in. Then, for whichever checkpoints it is given:
-`llama3-8b`'s embedding, its first norm, its first three layer cuts and all six KV components, and
-`colbert-v2`'s layer cuts and embeddings — all against the reference generator's committed fixtures.
+of each equals what `tools/derive.py` put in. Then, for whichever checkpoints it is given — all
+against the reference generator's committed fixtures:
+
+| Document | Checked |
+|---|---|
+| `llama3-8b` | the embedding, the first norm, three layer cuts, all six KV components |
+| `colbert-v2` | two layer cuts and the embeddings |
+| `qwen3.5-4b-text` | four layer cuts, and **every state**: three convolution histories, three recurrent matrices, one KV cache |
+
 Last, it regenerates the capabilities manifest and diffs it, and asks the language's own reader
 whether the manifest can run the document.
 
@@ -162,6 +168,7 @@ them, each overridden by a flag, and **none has a default inside the tree**:
 | `TENSORSPINE_RUNTIME_DIR` | where derived documents and dumps go | `--runtime-dir` | a temporary directory, deleted after |
 | `TENSORSPINE_CHECKPOINT` | the safetensors repository D3's locations name, for `llama3-8b` | `--checkpoint` | those numerical checks are skipped |
 | `TENSORSPINE_COLBERT` | the `colbertv2.0` repository | `--colbert-checkpoint` | those numerical checks are skipped |
+| `TENSORSPINE_QWEN` | the `Qwen3.5-4B` repository | `--qwen-checkpoint` | those numerical checks are skipped |
 
 So `$TENSORSPINE_RUNTIME_DIR` is wherever you point it — it is a convention, not a location this
 repository owns. Set it to keep derived documents between runs; leave it unset to let the harness
