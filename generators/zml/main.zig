@@ -11,6 +11,7 @@ const graph = @import("graph.zig");
 const loader = @import("loader.zig");
 const plan = @import("plan.zig");
 const registry = @import("registry.zig");
+const capabilities = @import("capabilities.zig");
 const chat = @import("chat.zig");
 const session = @import("session.zig");
 
@@ -21,7 +22,7 @@ pub const std_options: std.Options = .{
 const log = std.log.scoped(.tspl);
 
 const Args = struct {
-    derived: []const u8,
+    derived: []const u8 = "",
     refusals: bool = false,
     checkpoint: ?[]const u8 = null,
     until: ?[]const u8 = null,
@@ -31,6 +32,9 @@ const Args = struct {
     split: u32 = 1,
     chat: bool = false,
     tokenizer: ?[]const u8 = null,
+    capabilities: ?[]const u8 = null,
+    version: []const u8 = "unknown",
+    generated: []const u8 = "unknown",
     compute: []const u8 = "f32",
     @"separate-states": bool = false,
     out: ?[]const u8 = null,
@@ -44,6 +48,9 @@ const Args = struct {
         \\
         \\ Options:
         \\   --derived=<path>      Path to a .derived.json, as `tensorspine --derive` emits it (required)
+        \\   --capabilities=<path> Write this generator's manifest, from the primitives' own tables
+        \\   --version=<text>      What the manifest records as this generator's version
+        \\   --generated=<date>    What the manifest records as its date
         \\   --refusals            Report, per contract, the occurrences no primitive implements
         \\   --checkpoint=<path>   The safetensors repository or file D3's locations name
         \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
@@ -367,6 +374,12 @@ pub fn main(init: std.process.Init) !void {
     }
 
     const args = stdx.flags.parseProcessArgs(init.minimal, Args);
+
+    if (args.capabilities) |path| {
+        const n = try capabilities.write(allocator, init.io, path, args.version, args.generated);
+        log.info("{d} contracts -> {s}", .{ n, path });
+        return;
+    }
 
     var g: graph.Graph = try .openFile(allocator, init.io, args.derived);
     defer g.deinit();

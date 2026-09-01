@@ -1,0 +1,140 @@
+{
+  "schema": "tensorspine-capabilities/1",
+  "generator": {
+    "name": "zml",
+    "version": "33eb668",
+    "generator": "tspl --capabilities",
+    "generated": "2026-09-01"
+  },
+  "compute_dtypes": [
+    "f32",
+    "bf16"
+  ],
+  "parameter_dtypes": [
+    "bf16",
+    "f16",
+    "f32"
+  ],
+  "state_laws": [
+    "append"
+  ],
+  "access": [
+    "logical_position"
+  ],
+  "sharing": [],
+  "partitions": [],
+  "domains": {
+    "kinds": [
+      "token"
+    ],
+    "transforms": [],
+    "fragmented": false
+  },
+  "sessions_per_invocation": 1,
+  "locations": [
+    "tensor"
+  ],
+  "contracts": {
+    "attention.dense@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "heads": "any",
+        "head_dim": "any",
+        "kv_heads": "any",
+        "mask": [
+          "causal",
+          "none"
+        ],
+        "window": "absent",
+        "chunk": "absent",
+        "cross": [
+          false
+        ],
+        "streaming": [
+          false
+        ],
+        "temperature": "absent",
+        "output_gate": [
+          false
+        ],
+        "qk_norm": "absent",
+        "rope": {
+          "absent": true,
+          "fields": {
+            "theta": "any",
+            "layout": [
+              "split"
+            ],
+            "partial": "absent",
+            "mrope": "absent",
+            "scaling": "absent"
+          }
+        },
+        "q_bias": "any",
+        "k_bias": "any",
+        "v_bias": "any",
+        "out_bias": "any"
+      },
+      "states": [
+        "append"
+      ],
+      "notes": [
+        "rope layout split is emitted as ZML's real_im_pass, the same rotate-half pairing"
+      ]
+    },
+    "embed@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "vocabulary": "any"
+      },
+      "states": []
+    },
+    "ffn.gated@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "inner": "any",
+        "activation": [
+          "silu",
+          "gelu_tanh",
+          "relu2"
+        ],
+        "in_bias": "any",
+        "out_bias": "any",
+        "condition_dim": "absent",
+        "condition": "absent",
+        "activation_sparsity": {
+          "absent": true,
+          "values": [
+            0,
+            0
+          ]
+        }
+      },
+      "states": [],
+      "notes": [
+        "activation gelu (erf) is refused: ZML's gelu is the tanh approximation"
+      ]
+    },
+    "lm_head@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "vocabulary": "any"
+      },
+      "states": []
+    },
+    "norm.rms@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "eps": "any",
+        "zero_centered": "any"
+      },
+      "states": []
+    },
+    "residual.add@1.0.0": {
+      "arguments": {
+        "width": "any"
+      },
+      "states": []
+    }
+  }
+}

@@ -142,6 +142,52 @@ def evaluate(binary, derived, checkpoint, out_dir):
     return checked, failed
 
 
+MANIFEST = os.path.join(GENERATOR, 'capabilities.json')
+
+
+def manifest(binary):
+    """The manifest, regenerated from the primitives' own tables and diffed against the
+    committed one — `generators/CAPABILITIES.md`'s rule, that a manifest comes from the
+    code and never from a hand-maintained list, only holds if something checks. The
+    version and the date are read back out of the committed file and passed in, so the
+    diff is about the tables and not about the calendar."""
+    if not os.path.isfile(MANIFEST):
+        print(f'FAIL manifest: {MANIFEST} is not committed')
+        return 1, 1
+    with open(MANIFEST, encoding='utf-8') as f:
+        committed = f.read()
+    known = json.loads(committed)['generator']
+
+    out = os.path.join(tempfile.mkdtemp(prefix='tspl-manifest-'), 'capabilities.json')
+    try:
+        run = subprocess.run([binary, f'--capabilities={out}',
+                              f'--version={known["version"]}', f'--generated={known["generated"]}'],
+                             capture_output=True)
+        if run.returncode != 0:
+            print(f'FAIL manifest: {run.stderr.decode(errors="replace")[-400:]}')
+            return 1, 1
+        with open(out, encoding='utf-8') as f:
+            regenerated = f.read()
+    finally:
+        shutil.rmtree(os.path.dirname(out), ignore_errors=True)
+
+    if regenerated != committed:
+        print('FAIL manifest: regenerating it from the primitives gives something else; '
+              f'run `tspl --capabilities={MANIFEST} --version=… --generated=…`')
+        return 1, 1
+    print(f'OK   manifest: {len(json.loads(committed)["contracts"])} contracts, regenerated identically')
+
+    # And the language's own reader agrees it can run what it claims.
+    reader = subprocess.run([os.path.join(ROOT, 'tools', 'tensorspine'), '--capabilities',
+                             MANIFEST, os.path.join(MODELS, 'llama3-8b.json')], capture_output=True)
+    text = (reader.stdout + reader.stderr).decode(errors='replace')
+    if 'can run' not in text:
+        print(f'FAIL manifest: the reader does not agree it can run llama3-8b\n{text.strip()[-400:]}')
+        return 2, 1
+    print('OK   manifest: tensorspine --capabilities agrees it can run llama3-8b')
+    return 2, 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zml', default=os.environ.get('ZML_HOME'),
@@ -222,6 +268,11 @@ def main():
         else:
             print('\nskip: no checkpoint (--checkpoint or $TENSORSPINE_CHECKPOINT); '
                   'the numerical checks did not run')
+
+        print()
+        more, bad = manifest(binary)
+        checked += more
+        failed += bad
         print(f'\n{checked - failed} passed, {failed} failed')
         return 1 if failed else 0
     finally:
