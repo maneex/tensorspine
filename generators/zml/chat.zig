@@ -210,6 +210,6 @@ fn feed(
     defer logits.deinit();
 
     const slice = try logits.toSliceAlloc(allocator, io);
-    defer allocator.free(slice.bytes);
+    defer slice.free(allocator);
     return session.argmaxLast(slice.bytes, compute, @intCast(logits.shape().dim(-1)));
 }

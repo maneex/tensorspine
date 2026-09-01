@@ -252,7 +252,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
         start += @intCast(elements.len);
 
         const logits = try out.toSliceAlloc(allocator, io);
-        defer allocator.free(logits.bytes);
+        defer logits.free(allocator);
         const vocab: usize = @intCast(out.shape().dim(-1));
         next[0] = try session.argmaxLast(logits.bytes, compute, vocab);
         out.deinit();
@@ -326,7 +326,7 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer out.deinit();
 
     const slice = try out.toSliceAlloc(allocator, io);
-    defer allocator.free(slice.bytes);
+    defer slice.free(allocator);
     log.info("{s} = {f}", .{ args.until.?, out.shape() });
     if (args.out) |path| {
         try write(io, path, slice.bytes);
@@ -340,7 +340,7 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
         for (c.plan.states) |instance| {
             for (instance.components) |component| {
                 const bytes = try states[k].toSliceAlloc(allocator, io);
-                defer allocator.free(bytes.bytes);
+                defer bytes.free(allocator);
                 const portion = bytes.bytes.len / instance.members;
                 for (instance.identities, 0..) |identity, m| {
                     const name = try std.fmt.allocPrint(allocator, "{s}/{s}.{s}.bin", .{ dir, identity, component.name });
