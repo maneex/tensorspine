@@ -26,6 +26,7 @@ const Args = struct {
     ids: ?[]const u8 = null,
     capacity: ?u32 = null,
     steps: u32 = 8,
+    compute: []const u8 = "f32",
     out: ?[]const u8 = null,
     dump: ?[]const u8 = null,
     @"dump-mlir": ?[]const u8 = null,
@@ -43,6 +44,9 @@ const Args = struct {
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
         \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --steps)
         \\   --steps=<n>           Tokens to generate when --until is absent (default: 8)
+        \\   --compute=<dtype>     f32 (default) or bf16. f32 upcasts every weight inside the graph,
+        \\                         which doubles what a run holds; bf16 computes at the checkpoint's
+        \\                         own precision, as ZML's hand-written models do
         \\   --out=<path>          Write the result's raw bytes here
         \\   --dump=<dir>          Also write every state buffer, named by its D4 identity
         \\   --dump-mlir=<dir>     Ask XLA to dump the emitted IR here
@@ -132,9 +136,10 @@ const Compiled = struct {
         target: []const u8,
         elements: i64,
         capacity: i64,
+        compute: zml.DataType,
         params: []const zml.Tensor,
     ) !Compiled {
-        var p = try plan.until(allocator, g, target, elements, capacity, .f32);
+        var p = try plan.until(allocator, g, target, elements, capacity, compute);
         errdefer p.deinit();
 
         const publics = try allocator.alloc(zml.Tensor, p.publics.len);
@@ -204,12 +209,25 @@ fn invoke(
 }
 
 /// The identifier of the largest logit of the last element — greedy decoding. Sampling
-/// is the serving application's, not the document's: nothing in D1–D6 mentions it.
-fn argmaxLast(logits: []align(1) const f32, vocabulary: usize) i32 {
-    const last = logits[logits.len - vocabulary ..];
+/// is the serving application's, not the document's: nothing in D1–D6 mentions it. The
+/// logits arrive in whatever the compute dtype is, so the comparison decodes rather than
+/// assumes.
+fn argmaxLast(bytes: []const u8, dt: zml.DataType, vocabulary: usize) !i32 {
+    const width = dt.sizeOf();
+    const start = bytes.len - vocabulary * width;
     var best: usize = 0;
-    for (last, 0..) |value, i| {
-        if (value > last[best]) best = i;
+    var best_value: f32 = -std.math.inf(f32);
+    for (0..vocabulary) |i| {
+        const at = bytes[start + i * width ..];
+        const value: f32 = switch (dt) {
+            .f32 => @bitCast(std.mem.readInt(u32, at[0..4], .little)),
+            .bf16 => @bitCast(@as(u32, std.mem.readInt(u16, at[0..2], .little)) << 16),
+            else => return error.UnsupportedComputeDtype,
+        };
+        if (value > best_value) {
+            best_value = value;
+            best = i;
+        }
     }
     return @intCast(best);
 }
@@ -247,10 +265,12 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     // Capacity holds the prompt and everything generated: deployment intent, not a
     // document fact (§7).
     const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len + args.steps);
+    const compute = try dtypes.of(args.compute);
+    log.info("computing in {s}", .{@tagName(compute)});
 
     // The parameters, by D3's locations. Both arities reach the same value, so both
     // need the same identities in the same order — asserted rather than assumed.
-    var shape_plan = try plan.until(allocator, g, target, @intCast(ids.len), capacity, .f32);
+    var shape_plan = try plan.until(allocator, g, target, @intCast(ids.len), capacity, compute);
     const params_used = try allocator.dupe(usize, shape_plan.params_used);
     defer allocator.free(params_used);
     shape_plan.deinit();
@@ -259,9 +279,9 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer model.deinit(allocator);
     reportRss(io, "locate");
 
-    var prefill = try Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, model.params);
+    var prefill = try Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, model.params);
     defer prefill.deinit();
-    var decode = try Compiled.init(allocator, io, platform, g, target, 1, capacity, model.params);
+    var decode = try Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, model.params);
     defer decode.deinit();
     if (!std.mem.eql(usize, prefill.plan.params_used, decode.plan.params_used)) {
         log.err("the two arities disagree on which parameters they need", .{});
@@ -317,9 +337,8 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
         const logits = try out.toSliceAlloc(allocator, io);
         defer allocator.free(logits.bytes);
-        const values = std.mem.bytesAsSlice(f32, logits.bytes);
         const vocab: usize = @intCast(out.shape().dim(-1));
-        next[0] = argmaxLast(values, vocab);
+        next[0] = try argmaxLast(logits.bytes, compute, vocab);
         out.deinit();
 
         if (step < args.steps) try generated.append(allocator, next[0]);
@@ -357,7 +376,7 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     // Capacity is deployment intent, not a document fact: D4 gives the bytes per
     // position, how many positions is the runtime's business (§7).
     const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len);
-    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, .f32);
+    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, try dtypes.of(args.compute));
     defer p.deinit();
     log.info("{d} step(s) to reach {s}, {d} public input(s), {d} parameter tensor(s), {d} state buffer(s)", .{
         p.steps.len, args.until.?, p.publics.len, p.params_used.len, p.state_shapes.len,
