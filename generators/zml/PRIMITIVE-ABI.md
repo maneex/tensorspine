@@ -104,6 +104,53 @@ what a backend with a faster kernel pattern-matches to substitute its own.
 An emitted body naming an operation from a dialect the host has not registered fails at parse —
 loudly, and before it can affect the graph.
 
+## Does every contract fit through it?
+
+The boundary was derived from MLIR's constructor shape and StableHLO's op set — both closed,
+both owned elsewhere — and **not** induced from the primitives that happen to exist. An
+interface fitted to the primitives one can already see is fitted to the wrong sample: the
+ones that motivate a boundary are the ones not yet written. The catalog's contracts are
+therefore used to *falsify* the boundary, never to generate it.
+
+All 34 contract files of the catalog were checked, on paper, against the request and the
+response, 1 September 2026. What a body needs is: its arguments, its input and output ports,
+its parameter slots, its states, and the positions of the streams indexing its elements.
+
+A partition of the 34, so every contract is counted once:
+
+| Group | Contracts | Verdict |
+|---:|---|---|
+| **25** | arguments, ports and slots only | expressible; the request carries all three |
+| **3** | with states — `attention.dense` (`kv`), `sequence.gated_delta` (`recurrent`, `conv`), `attention.latent_compressed` (five, `index` among them) | expressible: each state is an operand and a result, with D4's law beside it. `attention.dense` also carries the `align` transform, and cross attention's `source_values` is an ordinary port. |
+| **4** | with a `merge` transform — `conv_frontend` and the three projectors | expressible **because the shapes are concrete**: *n·k* elements become *n*, which the operand and result extents already say. This was the strongest candidate for needing a symbolic request, and it does not. |
+| **1** | a template — `decoder.causal_yarn` | expands to other contracts before any body is asked for |
+| **1** | with an `insert` transform — `splice` | **does not fit** |
+
+### The one that does not fit, and why it is not the boundary's fault
+
+`splice` inserts an already-projected stream into the token sequence *at its placeholder
+positions*. Those positions are in no port, no argument, and no state: the request cannot
+carry them because **the language does not say where the inserted elements go**. The
+reference generator refuses it for exactly that reason and in those words, admitting only an
+empty `source`. Two generators reaching the same wall from opposite directions is evidence
+about the language, not about this interface — and it is already recorded as such.
+
+Adding a placement operand here would be inventing a semantics the catalog has not fixed, and
+would make a fetched primitive depend on a convention no document declares. So the boundary
+stays as it is, and `splice` refuses in the same words as everywhere else.
+
+### What the pass changed
+
+Nothing in the schema — which is the result worth having, since a boundary that had to grow
+for each of 34 known cases would not survive the 35th. Two readings it did settle:
+
+- **Several `positions` operands are needed**, not one. Multimodal RoPE indexes one occurrence
+  by more than one stream, and the operand is named by its stream precisely so that a request
+  can carry several. A single positions operand would have been the natural guess and would
+  have been wrong.
+- **`merge` needs no request extension.** It was the strongest candidate for one, and concrete
+  extents cover it.
+
 ## What is not in it
 
 The physical parameters' grammar: the language declares them opaque and this boundary passes them
