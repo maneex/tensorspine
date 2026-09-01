@@ -152,10 +152,10 @@ def main():
                     help='the safetensors repository D3 locates weights in ($TENSORSPINE_CHECKPOINT); '
                          'without it the numerical checks are skipped')
     ap.add_argument('--model', help='one document by name, instead of the whole corpus')
-    ap.add_argument('--compilation-mode', default='opt', choices=('opt', 'dbg', 'fastbuild'),
-                    help="Bazel's -c: `opt` by default. A `dbg` build gives `init.gpa` a leak-checking "
-                         'allocator that does not return freed pages, and the loader then holds several '
-                         'times the weights (measured: 12.93 GiB for 3.18 GiB)')
+    ap.add_argument('--compilation-mode', default='dbg', choices=('opt', 'dbg', 'fastbuild'),
+                    help="Bazel's -c: `dbg` by default, which is what every measurement here used "
+                         'and what runs the full model, and which keeps leak checking. `opt` runs '
+                         'faster and rebuilds XLA from scratch to get there')
     ap.add_argument('--keep', action='store_true', help='keep the derived documents')
     a = ap.parse_args()
 
