@@ -12,9 +12,13 @@ const primitive = @import("primitive.zig");
 pub const all = [_]primitive.Primitive{
     @import("primitives/attention_dense.zig").primitive,
     @import("primitives/embed.zig").primitive,
+    @import("primitives/embedding_token_position_type.zig").primitive,
+    @import("primitives/ffn_dense.zig").primitive,
     @import("primitives/ffn_gated.zig").primitive,
     @import("primitives/lm_head.zig").primitive,
+    @import("primitives/norm_layer.zig").primitive,
     @import("primitives/norm_rms.zig").primitive,
+    @import("primitives/pooler.zig").primitive,
     @import("primitives/residual_add.zig").primitive,
 };
 

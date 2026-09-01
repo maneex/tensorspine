@@ -3,7 +3,7 @@
 //! | branch                          | status                                    |
 //! |---------------------------------|-------------------------------------------|
 //! | mask causal                     | implemented                               |
-//! | mask none (stateless encoder)   | implemented                               |
+//! | mask none (stateless encoder)   | implemented, with or without a state      |
 //! | mask chunked, window            | refused                                   |
 //! | cross, streaming                | refused                                   |
 //! | rope theta, layout split        | implemented (rotate-half)                 |
@@ -56,13 +56,14 @@ fn project(x: zml.Tensor, w: zml.Tensor, bias: ?zml.Tensor, heads: i64) zml.Tens
 /// positions the state holds, and — when causal — those at or before the query's own
 /// position. Masking over the whole capacity rather than slicing to the length is what
 /// gives one code path whatever the capacity, which a compiled graph needs.
-fn mask(positions: zml.Tensor, length: zml.Tensor, keys: i64, dt: zml.DataType) zml.Tensor {
+fn mask(positions: zml.Tensor, length: zml.Tensor, keys: i64, dt: zml.DataType, causal: bool) zml.Tensor {
     const qk = zml.Shape.init(.{ .q = positions.dim(0), .k = keys }, .i32);
     const kidx = zml.Tensor.iota(qk, .k);
 
     var allowed = kidx.cmp(.LT, length.convert(.i32).broad(qk));
-    allowed = allowed.logical(.AND, kidx.cmp(.LE, positions.convert(.i32).withTags(.{.q}).broad(qk)));
-
+    if (causal) {
+        allowed = allowed.logical(.AND, kidx.cmp(.LE, positions.convert(.i32).withTags(.{.q}).broad(qk)));
+    }
     return zml.Tensor.select(allowed, .scalar(0, dt), .scalar(-std.math.inf(f32), dt));
 }
 
@@ -74,7 +75,6 @@ fn run(ctx: *p.Ctx, call: p.Call) ![]const p.Binding {
 
     if (call.argBool("output_gate")) return p.Error.Unimplemented;
     if (call.arg("qk_norm") != null) return p.Error.Unimplemented;
-    if (!std.mem.eql(u8, call.argStr("mask") orelse "causal", "causal")) return p.Error.Unimplemented;
 
     var q = project(x, call.params.must("q"), call.params.get("q_bias"), heads);
     var k = project(x, call.params.must("k"), call.params.get("k_bias"), kv_heads);
@@ -102,27 +102,41 @@ fn run(ctx: *p.Ctx, call: p.Call) ![]const p.Binding {
         k = zml.nn.rope(k, positions.withTags(.{.s}), opts);
     }
 
-    // The keys and values of this invocation join the state before the queries attend,
-    // so a query sees itself — the convention the contract states.
-    const kv = call.state("kv") orelse return p.Error.MissingArgument;
-    const updated = try kv.append(ctx.allocator, &.{ k, v });
+    const causal = std.mem.eql(u8, call.argStr("mask") orelse "causal", "causal");
+    if (!causal and !std.mem.eql(u8, call.argStr("mask").?, "none")) return p.Error.Unimplemented;
 
-    // This occurrence's own portion of the state, whatever layout holds it.
-    const written = kv.after(updated);
-    const k_view = written.get("k").?.withTags(.{ .k, .h, .hd }).convert(q.dtype());
-    const v_view = written.get("v").?.withTags(.{ .k, .h, .hd }).convert(q.dtype());
+    // With a state, the keys and values of this invocation join it before the queries
+    // attend, so a query sees itself — the convention the contract states. Without one —
+    // a stateless encoder, which D4 gives no state at all — they attend over this
+    // invocation's own elements and nothing else.
+    var k_view = k.rename(.{ .s = .k });
+    var v_view = v.rename(.{ .s = .k });
+    var updated: []zml.Tensor = &.{};
+    var attn_mask: ?zml.Tensor = null;
+
+    if (call.state("kv")) |kv| {
+        updated = try kv.append(ctx.allocator, &.{ k, v });
+        const written = kv.after(updated);
+        k_view = written.get("k").?.withTags(.{ .k, .h, .hd });
+        v_view = written.get("v").?.withTags(.{ .k, .h, .hd });
+        attn_mask = mask(positions, kv.length(), k_view.dim(.k), q.dtype(), causal);
+    } else if (causal) {
+        attn_mask = mask(positions, zml.Tensor.scalar(k_view.dim(.k), .i32), k_view.dim(.k), q.dtype(), true);
+    }
 
     const out = zml.nn.sdpa(
         q.rename(.{ .s = .q }),
-        k_view,
-        v_view,
-        .{ .attn_mask = mask(positions, kv.length(), k_view.dim(.k), q.dtype()) },
+        k_view.convert(q.dtype()),
+        v_view.convert(q.dtype()),
+        .{ .attn_mask = attn_mask },
     );
 
     var y = p.linear(out.merge(.{ .d = .{ .h, .hd } }).rename(.{ .q = .s }), call.params.must("out"));
     if (call.params.get("out_bias")) |b| {
         y = y.add(p.features(b).convert(y.dtype()).broad(y.shape()));
     }
+
+    if (updated.len == 0) return p.one(ctx, "output", y);
 
     const results = try ctx.allocator.alloc(p.Binding, 3);
     results[0] = .{ .name = "output", .tensor = y };

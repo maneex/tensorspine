@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "zml",
-    "version": "33eb668",
+    "version": "53352e2",
     "generator": "tspl --capabilities",
     "generated": "2026-09-01"
   },
@@ -89,6 +89,46 @@
       },
       "states": []
     },
+    "embedding.token_position_type@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "vocabulary": "any",
+        "positions": "any",
+        "token_types": "any",
+        "eps": "any"
+      },
+      "states": [],
+      "notes": [
+        "the segment type is 0 for every token, as the contract states for this version"
+      ]
+    },
+    "ffn.dense@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "inner": "any",
+        "activation": [
+          "silu",
+          "gelu",
+          "gelu_tanh",
+          "relu2"
+        ],
+        "in_bias": "any",
+        "out_bias": "any",
+        "condition_dim": "absent",
+        "condition": "absent",
+        "activation_sparsity": {
+          "absent": true,
+          "values": [
+            0,
+            0
+          ]
+        }
+      },
+      "states": [],
+      "notes": [
+        "activation gelu computes erf by Abramowitz & Stegun 7.1.26 (|e| <= 1.5e-7): neither StableHLO nor ZML binds an erf op"
+      ]
+    },
     "ffn.gated@1.0.0": {
       "arguments": {
         "width": "any",
@@ -122,11 +162,32 @@
       },
       "states": []
     },
+    "norm.layer@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "eps": "any"
+      },
+      "states": []
+    },
     "norm.rms@1.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any",
         "zero_centered": "any"
+      },
+      "states": []
+    },
+    "pooler@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "project_to": "any",
+        "normalize": [
+          "l2",
+          "none"
+        ],
+        "reduce": [
+          "none"
+        ]
       },
       "states": []
     },
