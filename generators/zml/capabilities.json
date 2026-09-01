@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "zml",
-    "version": "45bbda1",
+    "version": "a58ed52",
     "generator": "tspl --capabilities",
     "generated": "2026-09-01"
   },
@@ -58,10 +58,22 @@
           false
         ],
         "temperature": "absent",
-        "output_gate": [
-          false
-        ],
-        "qk_norm": "absent",
+        "output_gate": "any",
+        "qk_norm": {
+          "absent": true,
+          "fields": {
+            "kind": [
+              "rms"
+            ],
+            "eps": "any",
+            "scale": {
+              "absent": true,
+              "fields": {
+                "zero_centered": "any"
+              }
+            }
+          }
+        },
         "rope": {
           "absent": true,
           "fields": {
@@ -69,9 +81,20 @@
             "layout": [
               "split"
             ],
-            "partial": "absent",
-            "mrope": "absent",
-            "scaling": "absent"
+            "partial": "any",
+            "scaling": "absent",
+            "mrope": {
+              "absent": true,
+              "fields": {
+                "t": "any",
+                "h": "any",
+                "w": "any",
+                "sections": [
+                  "contiguous",
+                  "interleaved"
+                ]
+              }
+            }
           }
         },
         "q_bias": "any",
@@ -83,7 +106,8 @@
         "append"
       ],
       "notes": [
-        "rope layout split is emitted as ZML's real_im_pass, the same rotate-half pairing"
+        "rope layout split is emitted as ZML's real_im_pass, the same rotate-half pairing",
+        "mrope for one position stream only: an image would need the sections to differ"
       ]
     },
     "embed@1.0.0": {
