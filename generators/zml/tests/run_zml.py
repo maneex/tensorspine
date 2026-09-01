@@ -50,6 +50,7 @@ def derive(out_dir, only=None):
 
 
 FIXTURE = 'generators/reference/fixtures/llama3-8b.3layers.hf.safetensors'
+COLBERT_FIXTURE = 'generators/reference/fixtures/colbert-v2.12layers.hf.safetensors'
 
 # Relative to each value's own scale: an f32 rounding budget, recorded from what the
 # runs actually produce, not chosen in advance. Layers 1 and 2 carry a 225.7 activation,
@@ -188,12 +189,55 @@ def manifest(binary):
     return 2, 0
 
 
+def colbert(binary, out_dir, checkpoint):
+    """The other generator's fixture for a document with no generative output and no
+    state at all — the shape llama3-8b cannot exercise. Its identifiers and its cuts are
+    the reference's; agreeing with them is two generators agreeing, not one agreeing with
+    itself."""
+    try:
+        import numpy as np
+        from safetensors.numpy import load_file
+    except ImportError:
+        return 0, 0
+    fixture = os.path.join(ROOT, COLBERT_FIXTURE)
+    if not os.path.isfile(fixture) or not os.path.isdir(checkpoint):
+        print(f'skip: colbert needs {COLBERT_FIXTURE} and a checkpoint at {checkpoint}')
+        return 0, 0
+
+    derived = os.path.join(out_dir, 'colbert-v2.derived.json')
+    if not os.path.isfile(derived):
+        return 0, 0
+    fx = load_file(fixture)
+    ids = '101,1,2054,2003,1996,3007,1997,2605,1029,102'      # the fixture's own prompt
+
+    checked = failed = 0
+    for value, key in [(f'enc/ffn_n[layer={i}].output', f'value/enc/ffn_n[layer={i}].output') for i in (0, 11)] \
+            + [('pooler.output', 'value/pooler.output')]:
+        path = os.path.join(out_dir, 'colbert.bin')
+        run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
+                              f'--until={value}', f'--ids={ids}', f'--out={path}'], capture_output=True)
+        checked += 1
+        if run.returncode != 0:
+            print(f'FAIL colbert {value}: {run.stderr.decode(errors="replace")[-400:]}')
+            failed += 1
+            continue
+        want = fx[key]
+        got = np.fromfile(path, dtype=np.float32).reshape(want.shape)
+        err = float(np.abs(got - want).max()) / float(np.abs(want).max())
+        ok = err <= TOLERANCE
+        failed += 0 if ok else 1
+        print(f'{"OK  " if ok else "FAIL"} colbert {value}: {err:.2e} of scale (tolerance {TOLERANCE:.0e})')
+    return checked, failed
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zml', default=os.environ.get('ZML_HOME'),
                     help='the ZML checkout that is the build root ($ZML_HOME)')
     ap.add_argument('--runtime-dir', default=os.environ.get('TENSORSPINE_RUNTIME_DIR'),
                     help='where derived documents go ($TENSORSPINE_RUNTIME_DIR; a temporary directory by default)')
+    ap.add_argument('--colbert-checkpoint', default=os.environ.get('TENSORSPINE_COLBERT'),
+                    help='the colbertv2.0 repository ($TENSORSPINE_COLBERT); without it those checks are skipped')
     ap.add_argument('--checkpoint', default=os.environ.get('TENSORSPINE_CHECKPOINT'),
                     help='the safetensors repository D3 locates weights in ($TENSORSPINE_CHECKPOINT); '
                          'without it the numerical checks are skipped')
@@ -268,6 +312,12 @@ def main():
         else:
             print('\nskip: no checkpoint (--checkpoint or $TENSORSPINE_CHECKPOINT); '
                   'the numerical checks did not run')
+
+        if a.colbert_checkpoint:
+            print()
+            more, bad = colbert(binary, out_dir, a.colbert_checkpoint)
+            checked += more
+            failed += bad
 
         print()
         more, bad = manifest(binary)

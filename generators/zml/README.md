@@ -7,6 +7,10 @@ Deriving here would be a second implementation of the language.
 
 The reference generator is the oracle: the same fixtures, the same D6 cuts, the same dumped states.
 
+> **Two documents run whole.** `colbert-v2` — a retrieval encoder with no generative output and no
+> state at all — matches the reference generator's fixture within **1.21e-06** on its embeddings,
+> every row L2-normalised to one, on 0.41 GiB of weights.
+>
 > **`llama3-8b` runs whole.** All 32 layers, from the derived document and the checkpoint alone:
 > `[12366, 13, 1102, 374, 7559, 304, 279, 10411]` — the reference generator's own recorded tokens,
 > and `transformers`'. 195 occurrences as 16 programs; 370 MiB to compile, 15.28 GiB resident after
@@ -139,9 +143,12 @@ export TENSORSPINE_CHECKPOINT=<the safetensors repository>
 generators/zml/tests/run_zml.py
 ```
 
-It builds the target itself, derives all 14 corpus documents, checks that what `tspl` reads out of
-each equals what `tools/derive.py` put in, then compares `llama3-8b`'s embedding, its first norm,
-its first three layer cuts and all six KV components against the reference's fixture — 25 checks.
+It builds the target itself, derives all 14 corpus documents, and checks that what `tspl` reads out
+of each equals what `tools/derive.py` put in. Then, for whichever checkpoints it is given:
+`llama3-8b`'s embedding, its first norm, its first three layer cuts and all six KV components, and
+`colbert-v2`'s layer cuts and embeddings — all against the reference generator's committed fixtures.
+Last, it regenerates the capabilities manifest and diffs it, and asks the language's own reader
+whether the manifest can run the document.
 
 ## Where the runtime files live
 
@@ -153,7 +160,8 @@ them, each overridden by a flag, and **none has a default inside the tree**:
 |---|---|---|---|
 | `ZML_HOME` | the ZML checkout that is the build root | `--zml` | the harness skips and says so |
 | `TENSORSPINE_RUNTIME_DIR` | where derived documents and dumps go | `--runtime-dir` | a temporary directory, deleted after |
-| `TENSORSPINE_CHECKPOINT` | the safetensors repository D3's locations name | `--checkpoint` | the numerical checks are skipped |
+| `TENSORSPINE_CHECKPOINT` | the safetensors repository D3's locations name, for `llama3-8b` | `--checkpoint` | those numerical checks are skipped |
+| `TENSORSPINE_COLBERT` | the `colbertv2.0` repository | `--colbert-checkpoint` | those numerical checks are skipped |
 
 So `$TENSORSPINE_RUNTIME_DIR` is wherever you point it — it is a convention, not a location this
 repository owns. Set it to keep derived documents between runs; leave it unset to let the harness
