@@ -7,9 +7,18 @@ Deriving here would be a second implementation of the language.
 
 The reference generator is the oracle: the same fixtures, the same D6 cuts, the same dumped states.
 
-> **Two documents run whole.** `colbert-v2` — a retrieval encoder with no generative output and no
-> state at all — matches the reference generator's fixture within **1.21e-06** on its embeddings,
-> every row L2-normalised to one, on 0.41 GiB of weights.
+> **Three documents run whole**, and the manifest says four of the corpus's fourteen can.
+>
+> **`qwen3.5-4b-text` runs whole** — a hybrid: 24 gated-delta layers and 8 attention layers, whose
+> states are `fixed` and `window` beside the KV cache. `[11751, 13, 198, 32, 13, 2912, 198, 33]`,
+> again the reference generator's own recorded tokens. Its **56 states become four buffers**, and
+> the whole run holds 8.58 GiB against 7.83 GiB of weights — a document built of these has almost
+> nothing to page. Its four layer cuts and every state of the reference's fixture agree within
+> **2.53e-06**.
+>
+> `colbert-v2` — a retrieval encoder with no generative output and no state at all — matches the
+> reference generator's fixture within **1.21e-06** on its embeddings, every row L2-normalised to
+> one, on 0.41 GiB of weights.
 >
 > **`llama3-8b` runs whole.** All 32 layers, from the derived document and the checkpoint alone:
 > `[12366, 13, 1102, 374, 7559, 304, 279, 10411]` — the reference generator's own recorded tokens,
@@ -56,6 +65,15 @@ tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_RUNTIME_D
 That is the invocation that produced the tokens above. **`--compute=bf16 --split=16` are what make
 it fit** on a 31 GiB machine: without them the same run wants about 40 GiB. The prompt defaults to
 the reference fixture's identifiers; `--ids=128000,791,…` overrides it.
+
+Nothing about that command is llama's. The hybrid is the same invocation against another document:
+
+```sh
+<zml>/bazel-bin/external/+local_repository+tensorspine/tspl \
+  --derived="$TENSORSPINE_RUNTIME_DIR/qwen3.5-4b-text.derived.json" \
+  --checkpoint="$TENSORSPINE_QWEN" \
+  --ids=760,6511,314,9338,369 --steps=8 --compute=bf16 --split=8
+```
 
 A full-model run is slow on CPU — 32 layers through 16 programs for every token — so it is worth
 `nohup`-ing and watching the `rss after …` lines it prints.
@@ -152,6 +170,10 @@ against the reference generator's committed fixtures:
 | `llama3-8b` | the embedding, the first norm, three layer cuts, all six KV components |
 | `colbert-v2` | two layer cuts and the embeddings |
 | `qwen3.5-4b-text` | four layer cuts, and **every state**: three convolution histories, three recurrent matrices, one KV cache |
+| `qwen3.8-27b-text` | the same, at other quantities — 48 value heads against 32, a 10240-wide convolution against 8192 |
+
+The two hybrids are checked because one document could have been fitted and two at different
+sizes cannot: the second needed no code at all, only its checkpoint.
 
 Last, it regenerates the capabilities manifest and diffs it, and asks the language's own reader
 whether the manifest can run the document.
@@ -169,6 +191,7 @@ them, each overridden by a flag, and **none has a default inside the tree**:
 | `TENSORSPINE_CHECKPOINT` | the safetensors repository D3's locations name, for `llama3-8b` | `--checkpoint` | those numerical checks are skipped |
 | `TENSORSPINE_COLBERT` | the `colbertv2.0` repository | `--colbert-checkpoint` | those numerical checks are skipped |
 | `TENSORSPINE_QWEN` | the `Qwen3.5-4B` repository | `--qwen-checkpoint` | those numerical checks are skipped |
+| `TENSORSPINE_QWEN27` | the `Qwen3.8-27B` repository | `--qwen27-checkpoint` | those numerical checks are skipped |
 
 So `$TENSORSPINE_RUNTIME_DIR` is wherever you point it — it is a convention, not a location this
 repository owns. Set it to keep derived documents between runs; leave it unset to let the harness
