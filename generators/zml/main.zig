@@ -27,6 +27,7 @@ const Args = struct {
     capacity: ?u32 = null,
     steps: u32 = 8,
     compute: []const u8 = "f32",
+    @"separate-states": bool = false,
     out: ?[]const u8 = null,
     dump: ?[]const u8 = null,
     @"dump-mlir": ?[]const u8 = null,
@@ -44,6 +45,8 @@ const Args = struct {
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
         \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --steps)
         \\   --steps=<n>           Tokens to generate when --until is absent (default: 8)
+        \\   --separate-states     One buffer per D4 identity instead of one per family; the
+        \\                         packed layout is the default and is a serving choice
         \\   --compute=<dtype>     f32 (default) or bf16. f32 upcasts every weight inside the graph,
         \\                         which doubles what a run holds; bf16 computes at the checkpoint's
         \\                         own precision, as ZML's hand-written models do
@@ -137,9 +140,10 @@ const Compiled = struct {
         elements: i64,
         capacity: i64,
         compute: zml.DataType,
+        packed_states: bool,
         params: []const zml.Tensor,
     ) !Compiled {
-        var p = try plan.until(allocator, g, target, elements, capacity, compute);
+        var p = try plan.until(allocator, g, target, elements, capacity, compute, packed_states);
         errdefer p.deinit();
 
         const publics = try allocator.alloc(zml.Tensor, p.publics.len);
@@ -270,7 +274,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     // The parameters, by D3's locations. Both arities reach the same value, so both
     // need the same identities in the same order — asserted rather than assumed.
-    var shape_plan = try plan.until(allocator, g, target, @intCast(ids.len), capacity, compute);
+    var shape_plan = try plan.until(allocator, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states");
     const params_used = try allocator.dupe(usize, shape_plan.params_used);
     defer allocator.free(params_used);
     shape_plan.deinit();
@@ -279,9 +283,9 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer model.deinit(allocator);
     reportRss(io, "locate");
 
-    var prefill = try Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, model.params);
+    var prefill = try Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states", model.params);
     defer prefill.deinit();
-    var decode = try Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, model.params);
+    var decode = try Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, !args.@"separate-states", model.params);
     defer decode.deinit();
     if (!std.mem.eql(usize, prefill.plan.params_used, decode.plan.params_used)) {
         log.err("the two arities disagree on which parameters they need", .{});
@@ -376,7 +380,7 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     // Capacity is deployment intent, not a document fact: D4 gives the bytes per
     // position, how many positions is the runtime's business (§7).
     const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len);
-    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, try dtypes.of(args.compute));
+    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, try dtypes.of(args.compute), !args.@"separate-states");
     defer p.deinit();
     log.info("{d} step(s) to reach {s}, {d} public input(s), {d} parameter tensor(s), {d} state buffer(s)", .{
         p.steps.len, args.until.?, p.publics.len, p.params_used.len, p.state_shapes.len,
@@ -458,16 +462,22 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     log.info("{s} = {f}", .{ args.until.?, out.shape() });
 
+    // A dump is written in the document's terms: one file per D4 identity, whatever
+    // layout the run chose to hold them in. What the serving application packed is its
+    // own business and does not leave the generator.
     if (args.dump) |dir| {
         var k: usize = 0;
         for (p.states) |instance| {
             for (instance.components) |component| {
-                const name = try std.fmt.allocPrint(allocator, "{s}/{s}.{s}.bin", .{ dir, instance.identity, component.name });
-                defer allocator.free(name);
                 const bytes = try state_out[k].toSliceAlloc(allocator, io);
                 defer allocator.free(bytes.bytes);
-                try write(io, name, bytes.bytes);
-                log.info("state {s}.{s} = {f}", .{ instance.identity, component.name, state_out[k].shape() });
+                const portion = bytes.bytes.len / instance.members;
+                for (instance.identities, 0..) |identity, m| {
+                    const name = try std.fmt.allocPrint(allocator, "{s}/{s}.{s}.bin", .{ dir, identity, component.name });
+                    defer allocator.free(name);
+                    try write(io, name, bytes.bytes[m * portion ..][0..portion]);
+                }
+                log.info("state {s} x{d} = {f}", .{ component.name, instance.members, state_out[k].shape() });
                 k += 1;
             }
         }

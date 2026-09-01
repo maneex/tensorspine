@@ -107,12 +107,16 @@ fn run(ctx: *p.Ctx, call: p.Call) ![]const p.Binding {
     const kv = call.state("kv") orelse return p.Error.MissingArgument;
     const updated = try kv.append(ctx.allocator, &.{ k, v });
 
-    const keys = updated[0].dim(0);
+    // This occurrence's own portion of the state, whatever layout holds it.
+    const written = kv.after(updated);
+    const k_view = written.get("k").?.withTags(.{ .k, .h, .hd }).convert(q.dtype());
+    const v_view = written.get("v").?.withTags(.{ .k, .h, .hd }).convert(q.dtype());
+
     const out = zml.nn.sdpa(
         q.rename(.{ .s = .q }),
-        updated[0].withTags(.{ .k, .h, .hd }).convert(q.dtype()),
-        updated[1].withTags(.{ .k, .h, .hd }).convert(q.dtype()),
-        .{ .attn_mask = mask(positions, kv.length(), keys, q.dtype()) },
+        k_view,
+        v_view,
+        .{ .attn_mask = mask(positions, kv.length(), k_view.dim(.k), q.dtype()) },
     );
 
     var y = p.linear(out.merge(.{ .d = .{ .h, .hd } }).rename(.{ .q = .s }), call.params.must("out"));

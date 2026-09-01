@@ -62,6 +62,7 @@ fn decompose(args: []zml.Tensor, c: Decomposition) []zml.Tensor {
     }
 
     var states: std.ArrayList(primitive.State) = .empty;
+    var at: usize = 0;
     for (c.step.states) |binding| {
         const instance = c.plan.states[binding.instance];
         const n = instance.components.len;
@@ -70,12 +71,14 @@ fn decompose(args: []zml.Tensor, c: Decomposition) []zml.Tensor {
             .handle = .{
                 .law = instance.law,
                 .access = instance.access,
-                .buffers = buffers.items[0..n],
-                .names = names.items[0..n],
+                .buffers = buffers.items[at .. at + n],
+                .names = names.items[at .. at + n],
+                .member = binding.member,
                 .start = start.?,
                 .elements = c.plan.elements,
             },
         }) catch @panic("out of memory");
+        at += n;
     }
 
     c.ctx.positions = positions;

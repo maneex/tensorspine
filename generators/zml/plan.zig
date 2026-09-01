@@ -44,12 +44,18 @@ pub const SlotBinding = struct {
     param: usize,
 };
 
-/// One state an occurrence holds: the contract's name for it, which instance it is,
-/// and where its components begin in the flat state array.
+/// One state an occurrence holds: the contract's name for it, which layout holds it,
+/// where that layout's components begin in the flat state array, and which portion of
+/// them this occurrence owns.
+///
+/// `member` is a **physical parameter**, not a contract argument: D4 declares one
+/// identity per layer, and packing a family into one buffer is the serving
+/// application's layout choice (`state.zig`).
 pub const StateBinding = struct {
     name: []const u8,
     instance: usize,
     base: usize,
+    member: i64,
 };
 
 pub const Step = struct {
@@ -134,6 +140,10 @@ pub fn until(
     elements: i64,
     capacity: i64,
     compute: zml.DataType,
+    /// Pack states whose law, access and payload agree into one buffer each. A serving
+    /// layout choice: one buffer per identity is legal and simpler, one buffer per
+    /// family is what a deep model needs and what a paged cache would want.
+    packed_states: bool,
 ) !Plan {
     var arena: std.heap.ArenaAllocator = .init(allocator);
     errdefer arena.deinit();
@@ -172,6 +182,7 @@ pub fn until(
     var params_used: std.ArrayList(usize) = .empty;
     var states: std.ArrayList(state_mod.Instance) = .empty;
     var state_shapes: std.ArrayList(zml.Shape) = .empty;
+    var bases: std.ArrayList(usize) = .empty;
 
     for (d.d1.topological_order) |node_id| {
         if (!needed.contains(node_id)) continue;
@@ -227,17 +238,37 @@ pub fn until(
             }
         }
 
-        // states: D4's members are `node.state`, as D3's are `node.slot`
+        // states: D4's members are `node.state`, as D3's are `node.slot`. States whose
+        // law, access and payload agree share one allocation — the serving layout — and
+        // each occurrence is told which portion is its own.
         var step_states: std.ArrayList(StateBinding) = .empty;
         for (d.d4.states) |st| {
             for (st.members) |m| {
                 const owner, const name = splitLast(m);
                 if (!std.mem.eql(u8, owner, node_id)) continue;
-                const instance = try state_mod.instanceOf(a, st, capacity, compute);
-                const base = state_shapes.items.len;
-                for (instance.components) |c| try state_shapes.append(a, c.shape);
-                try step_states.append(a, .{ .name = name, .instance = states.items.len, .base = base });
-                try states.append(a, instance);
+
+                var into: ?usize = null;
+                if (packed_states) {
+                    for (states.items, 0..) |*existing, i| {
+                        if (existing.packableWith(st, compute)) {
+                            into = i;
+                            break;
+                        }
+                    }
+                }
+                if (into) |i| {
+                    const member: i64 = @intCast(states.items[i].members);
+                    try state_mod.addMember(a, &states.items[i], st.identity);
+                    for (states.items[i].components, 0..) |c, k| state_shapes.items[bases.items[i] + k] = c.shape;
+                    try step_states.append(a, .{ .name = name, .instance = i, .base = bases.items[i], .member = member });
+                } else {
+                    const instance = try state_mod.instanceOf(a, st, capacity, compute);
+                    const base = state_shapes.items.len;
+                    for (instance.components) |c| try state_shapes.append(a, c.shape);
+                    try step_states.append(a, .{ .name = name, .instance = states.items.len, .base = base, .member = 0 });
+                    try bases.append(a, base);
+                    try states.append(a, instance);
+                }
             }
         }
 
