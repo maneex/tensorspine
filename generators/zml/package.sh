@@ -133,7 +133,12 @@ built from       $(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo unk
 packaged         $(date -u +%Y-%m-%dT%H:%M:%SZ)
 tspl sha256      $(sha256sum "$stage/tspl" | cut -d' ' -f1)
 
-Unpack anywhere and run ./run.sh; it takes tspl's own options:
+Unpack with a parallel bzip2 — plain \`tar -xf\` decompresses on one thread and takes
+tens of minutes on an archive this size:
+
+    tar --use-compress-program='pbzip2 -d' -xf ARCHIVE     # or lbzip2 -d
+
+Then run ./run.sh from the unpacked directory; it takes tspl's own options:
 
     ./run.sh --steps=8 --compute=bf16            # generate
     ./run.sh --chat --compute=bf16 --capacity=512
