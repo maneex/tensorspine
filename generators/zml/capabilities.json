@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "zml",
-    "version": "53352e2",
+    "version": "e29efeb",
     "generator": "tspl --capabilities",
     "generated": "2026-09-01"
   },
@@ -16,7 +16,9 @@
     "f32"
   ],
   "state_laws": [
-    "append"
+    "append",
+    "window",
+    "fixed"
   ],
   "access": [
     "logical_position"

@@ -25,10 +25,10 @@ const compute_dtypes = [_][]const u8{ "f32", "bf16" };
 /// (`fp4`, the f8s, the sub-byte integers) would need unpacking that nothing here does.
 const parameter_dtypes = [_][]const u8{ "bf16", "f16", "f32" };
 
-/// What `state.zig` implements, not what it names. `Law` has three values and `Access`
-/// four; `Handle.append` refuses everything but `append`, and nothing reads a ring or an
-/// aggregate yet.
-const state_laws = [_][]const u8{"append"};
+/// What `state.zig` implements, not what it names. All three laws are written now —
+/// `append` at a cursor, `window` as a chronological slide, `fixed` written whole.
+/// `Access` has four values and nothing consumes a `selected` state.
+const state_laws = [_][]const u8{ "append", "window", "fixed" };
 const access = [_][]const u8{"logical_position"};
 
 /// What `loader.zig` assembles. D3 also carries `slice`, which it refuses by name.

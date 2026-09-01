@@ -8,6 +8,12 @@
 //! In a traced graph a state is functional: buffers arrive as operands and leave as
 //! results.
 //!
+//! | Law | One member's buffer | Written by |
+//! |---|---|---|
+//! | `append` | `[capacity, *payload]` | `append`, at the invocation's `start` |
+//! | `window` | `[span, *payload]`, chronological | `append`, sliding |
+//! | `fixed` | `[*payload]` — the payload *is* the state (§4.3) | `write` |
+//!
 //! **The model exposes a state; the serving application decides how to hold it.**
 //!
 //! The line between the two is the whole point, so it is worth stating exactly:
@@ -85,11 +91,13 @@ pub const Instance = struct {
         if (self.law != (lawOf(s.law) catch return false)) return false;
         if (self.access != (accessOf(s.access) catch return false)) return false;
         if (self.components.len != s.payload.len) return false;
+        // The axes ahead of the payload: members, and a positions axis unless fixed.
+        const leading: i64 = if (self.law == .fixed) 1 else 2;
         for (self.components, s.payload) |c, p| {
             if (!std.mem.eql(u8, c.name, p.component)) return false;
-            if (p.shape.len + 2 != c.shape.rank()) return false;
+            if (p.shape.len + @as(usize, @intCast(leading)) != c.shape.rank()) return false;
             for (p.shape, 0..) |axis, i| {
-                if (c.shape.dim(@as(i64, @intCast(i)) + 2) != axis.extent) return false;
+                if (c.shape.dim(@as(i64, @intCast(i)) + leading) != axis.extent) return false;
             }
             if (c.shape.dtype() != compute) return false;
         }
@@ -109,18 +117,20 @@ pub fn instanceOf(
     const law = try lawOf(s.law);
     const access = try accessOf(s.access);
 
-    const positions: i64 = switch (law) {
+    // §4.3: a payload is one position for `append` and `window`, the whole state for
+    // `fixed` — which is why a fixed state has no positions axis at all.
+    const positions: ?i64 = switch (law) {
         .append => capacity,
         .window => s.span orelse return Error.MissingSpan,
-        .fixed => 1,
+        .fixed => null,
     };
 
     const components = try allocator.alloc(Component, s.payload.len);
     for (s.payload, components) |p, *c| {
-        // [members, positions, *payload]; the members axis grows as identities join.
+        // [members, positions?, *payload]; the members axis grows as identities join.
         var sh = zml.Shape.init(.{}, compute);
         sh = sh.appendDim(1, null);
-        sh = sh.appendDim(positions, null);
+        if (positions) |n| sh = sh.appendDim(n, null);
         for (p.shape) |axis| sh = sh.appendDim(axis.extent, null);
         c.* = .{ .name = p.component, .shape = sh };
     }
@@ -172,26 +182,79 @@ pub const Handle = struct {
         return null;
     }
 
-    /// The buffers with this invocation's values written into this occurrence's
-    /// portion. For `append`, elements land at `start`, contiguously — which is what
-    /// the reference's cursor does.
+    /// This invocation's elements, written into this occurrence's portion.
+    ///
+    /// `append` lands them at `start`, contiguously — which is what the reference's
+    /// cursor does. `window` slides: the oldest positions fall off the front and the
+    /// newest arrive at the back, so the buffer is chronological at every instant.
+    ///
+    /// A ring would rotate instead, and O5.3 permits either: it calls the access
+    /// geometry a property of how a state is *consumed*, "rather than runtime
+    /// data-structure names". So a slide and a rotation are two layouts of one
+    /// declared state, and the choice is the serving application's like every other
+    /// layout here. The slide is the one whose buffer already reads as the document
+    /// describes the state — which is what has to leave the generator in a dump — and
+    /// with a span of three positions it is the cheaper of the two besides.
     pub fn append(self: Handle, allocator: std.mem.Allocator, values: []const zml.Tensor) ![]zml.Tensor {
         std.debug.assert(values.len == self.buffers.len);
-        if (self.law != .append) return Error.UnimplementedLaw;
 
         const out = try allocator.alloc(zml.Tensor, self.buffers.len);
         for (self.buffers, values, out) |buffer, value, *updated| {
-            const offsets = try allocator.alloc(zml.Tensor, buffer.rank());
-            defer allocator.free(offsets);
-            offsets[0] = zml.Tensor.scalar(self.member, .i32);
-            offsets[1] = self.start.convert(.i32);
-            for (offsets[2..]) |*o| o.* = zml.Tensor.scalar(0, .i32);
-
-            // The update carries the members axis as a single position of its own.
-            const update = value.convert(buffer.dtype()).insertAxes(0, .{.portion});
-            updated.* = buffer.dynamicUpdateSlice(offsets, update);
+            const v = value.convert(buffer.dtype());
+            updated.* = switch (self.law) {
+                .append => try self.writeAt(allocator, buffer, v, self.start.convert(.i32)),
+                .window => blk: {
+                    const span = buffer.dim(1);
+                    const n = v.dim(0);
+                    // The tail of the history, then this invocation's elements. A
+                    // buffer that has held fewer than `span` positions is still zero
+                    // in front, which is exactly the zero padding the reference pads
+                    // its chronological read with.
+                    const slid = if (n >= span)
+                        v.slice(0, .{ .start = n - span })
+                    else
+                        zml.Tensor.concatenate(&.{ self.get(self.names[0]).?.slice(0, .{ .start = n }), v }, 0);
+                    break :blk try self.writeAt(allocator, buffer, slid, null);
+                },
+                // A fixed state is written whole, never appended to: §4.3 gives it no
+                // positions to append at.
+                .fixed => return Error.UnimplementedLaw,
+            };
         }
         return out;
+    }
+
+    /// A `fixed` state, replaced. Its payload is the whole state (§4.3), so there is
+    /// nothing to position and nothing to grow: the primitive hands back what it
+    /// computed and this writes it into the portion it owns.
+    pub fn write(self: Handle, allocator: std.mem.Allocator, values: []const zml.Tensor) ![]zml.Tensor {
+        std.debug.assert(values.len == self.buffers.len);
+        if (self.law != .fixed) return Error.UnimplementedLaw;
+
+        const out = try allocator.alloc(zml.Tensor, self.buffers.len);
+        for (self.buffers, values, out) |buffer, value, *updated| {
+            updated.* = try self.writeAt(allocator, buffer, value.convert(buffer.dtype()), null);
+        }
+        return out;
+    }
+
+    /// One update into this occurrence's portion: `at` positions it along the law's
+    /// positions axis, and is absent for a law that has none.
+    fn writeAt(
+        self: Handle,
+        allocator: std.mem.Allocator,
+        buffer: zml.Tensor,
+        update: zml.Tensor,
+        at: ?zml.Tensor,
+    ) !zml.Tensor {
+        const offsets = try allocator.alloc(zml.Tensor, buffer.rank());
+        defer allocator.free(offsets);
+        offsets[0] = zml.Tensor.scalar(self.member, .i32);
+        for (offsets[1..]) |*o| o.* = zml.Tensor.scalar(0, .i32);
+        if (at) |t| offsets[1] = t;
+
+        // The update carries the members axis as a single position of its own.
+        return buffer.dynamicUpdateSlice(offsets, update.insertAxes(0, .{.portion}));
     }
 
     /// The same handle over buffers that have just been written — so a primitive reads
