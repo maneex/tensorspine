@@ -48,6 +48,22 @@ A derived document comes from the language's own tool, run once, offline:
 tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_RUNTIME_DIR"
 ```
 
+### Serving choices
+
+None of these changes the graph, the numbers or the tokens; all of them change what a run
+holds. They are arguments because the decisions are the serving application's, not the
+document's.
+
+| Option | What it decides |
+|---|---|
+| `--split=<n>` | compile and run the graph as *n* programs in sequence. XLA CPU upcasts bf16 matmuls to f32, so one program's scratch holds an f32 copy of every weight its matmuls touch; cutting bounds that to the largest group. Measured on 8 layers: 14.3 GiB at 1, 8.5 GiB at 8, same tokens. |
+| `--compute=<dtype>` | `f32` (default) or `bf16`. bf16 is the checkpoint's own precision, as ZML's hand-written models use. |
+| `--capacity=<n>` | positions a growing state holds — deployment intent, not a document fact. |
+| `--separate-states` | one buffer per D4 identity instead of one per family. The packed layout is the default; both give identical results. |
+
+`tspl` reports its resident set after each phase, so where memory goes is visible rather
+than inferred.
+
 ### Where the runtime files live
 
 Derived documents, checkpoints and dumps are **runtime inputs**, not part of this
