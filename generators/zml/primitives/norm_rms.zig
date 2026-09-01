@@ -20,8 +20,8 @@ pub const primitive: p.Primitive = .{
 fn run(ctx: *p.Ctx, call: p.Call) ![]const p.Binding {
     const eps: f32 = @floatCast(try call.requireFloat("eps"));
 
-    const x = call.inputs.must("input").withPartialTags(.{.d});
-    var scale = call.params.must("weight").withTags(.{.d}).convert(x.dtype());
+    const x = p.features(call.inputs.must("input"));
+    var scale = p.features(call.params.must("weight")).convert(x.dtype());
     if (call.argBool("zero_centered")) scale = scale.addConstant(1);
 
     const y = zml.nn.rmsNorm(x, .d, eps).mul(scale.broad(x.shape()));

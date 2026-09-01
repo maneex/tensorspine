@@ -10,6 +10,8 @@ const std = @import("std");
 
 const zml = @import("zml");
 
+const state_mod = @import("state.zig");
+
 /// A value bound to the port, slot, state component or stream that names it.
 pub const Binding = struct {
     name: []const u8,
@@ -52,7 +54,27 @@ pub const Error = error{
     /// The contract requires an argument the occurrence does not carry, or carries
     /// with a type the contract does not allow.
     MissingArgument,
+    /// A value of an argument this primitive does not implement. Its capability table
+    /// says so too; this is the same refusal, reached at emission.
+    Unimplemented,
 };
+
+/// The activation with its feature axis named `.d`.
+///
+/// Tags are the primitive's own comptime literals, never the document's axis names:
+/// at run time ZML matches tags by pointer identity, so a tag interned from JSON
+/// would never equal `.d` (Z07). The document supplies extents; the primitive
+/// supplies meaning.
+pub fn features(x: zml.Tensor) zml.Tensor {
+    return x.withPartialTags(.{.d});
+}
+
+/// x · Wᵀ for a `[out, in]` parameter — the layout every projection slot uses — with
+/// the result's feature axis named `.d` again, so projections chain.
+pub fn linear(x: zml.Tensor, w: zml.Tensor) zml.Tensor {
+    const xd = features(x);
+    return xd.dot(w.withTags(.{ .dout, .d }).convert(xd.dtype()), .d).rename(.{ .dout = .d });
+}
 
 /// One occurrence, as a primitive sees it.
 pub const Call = struct {
@@ -61,11 +83,21 @@ pub const Call = struct {
     arguments: std.json.Value = .null,
     inputs: Bindings = .{},
     params: Bindings = .{},
-    states: Bindings = .{},
+    /// The states this occurrence holds, by the contract's own state names. A
+    /// primitive reads and appends; it never allocates or shapes one — D4 said what
+    /// they are and `state.zig` implements each law once (Z08).
+    states: []const State = &.{},
     /// The opaque physical parameters addressed to this occurrence — `backend` among
     /// them. Neither typed nor validated: a primitive reads what it knows and ignores
     /// the rest (generators/CAPABILITIES.md).
     physical: ?std.json.Value = null,
+
+    pub fn state(self: Call, name: []const u8) ?state_mod.Handle {
+        for (self.states) |s| {
+            if (std.mem.eql(u8, s.name, name)) return s.handle;
+        }
+        return null;
+    }
 
     pub fn arg(self: Call, name: []const u8) ?std.json.Value {
         return switch (self.arguments) {
@@ -122,12 +154,21 @@ pub const Call = struct {
     }
 };
 
+/// One state, named as its contract names it.
+pub const State = struct {
+    name: []const u8,
+    handle: state_mod.Handle,
+};
+
 pub const Run = *const fn (ctx: *Ctx, call: Call) anyerror![]const Binding;
 
 pub const Primitive = struct {
     name: []const u8,
     version: []const u8,
     run: Run,
+    /// Whether this primitive is given the positions of its stream. Most are not: a
+    /// norm or a residual does not know where its elements sit.
+    needs_positions: bool = false,
     /// This primitive's entry in the manifest's rule grammar
     /// (`generators/CAPABILITIES.md`), declared by the code that implements it and
     /// assembled by `tspl --capabilities`. Never a hand-maintained list elsewhere.

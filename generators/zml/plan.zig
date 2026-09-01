@@ -13,6 +13,7 @@ const zml = @import("zml");
 const dtypes = @import("dtypes.zig");
 const graph = @import("graph.zig");
 const primitive = @import("primitive.zig");
+const state_mod = @import("state.zig");
 const registry = @import("registry.zig");
 
 const log = std.log.scoped(.tspl);
@@ -43,12 +44,21 @@ pub const SlotBinding = struct {
     param: usize,
 };
 
+/// One state an occurrence holds: the contract's name for it, which instance it is,
+/// and where its components begin in the flat state array.
+pub const StateBinding = struct {
+    name: []const u8,
+    instance: usize,
+    base: usize,
+};
+
 pub const Step = struct {
     node: []const u8,
     prim: *const primitive.Primitive,
     arguments: std.json.Value,
     inputs: []const PortBinding,
     params: []const SlotBinding,
+    states: []const StateBinding,
     /// The ports this step produces, and the shape each is declared to have. The host
     /// fixes the signature; the primitive fills it (PRIMITIVE-ABI.md, the same rule).
     outputs: []const []const u8,
@@ -85,6 +95,13 @@ pub const Plan = struct {
     /// The D3 identities this plan needs, in the order `Model.params` holds them.
     /// Evaluating one value must not read a whole checkpoint.
     params_used: []const usize,
+    /// The state instances the plan touches, and their buffers flattened in the order
+    /// the traced function takes and returns them.
+    states: []const state_mod.Instance,
+    state_shapes: []const zml.Shape,
+    /// How many elements this invocation carries — deployment intent, fixed before the
+    /// plan so every shape in it is concrete.
+    elements: i64,
     result: Source,
     compute: zml.DataType,
 
@@ -115,6 +132,7 @@ pub fn until(
     g: *const graph.Graph,
     target: []const u8,
     elements: i64,
+    capacity: i64,
     compute: zml.DataType,
 ) !Plan {
     var arena: std.heap.ArenaAllocator = .init(allocator);
@@ -152,6 +170,8 @@ pub fn until(
     // D3 index -> index into params_used
     var used: std.AutoHashMapUnmanaged(usize, usize) = .empty;
     var params_used: std.ArrayList(usize) = .empty;
+    var states: std.ArrayList(state_mod.Instance) = .empty;
+    var state_shapes: std.ArrayList(zml.Shape) = .empty;
 
     for (d.d1.topological_order) |node_id| {
         if (!needed.contains(node_id)) continue;
@@ -207,6 +227,20 @@ pub fn until(
             }
         }
 
+        // states: D4's members are `node.state`, as D3's are `node.slot`
+        var step_states: std.ArrayList(StateBinding) = .empty;
+        for (d.d4.states) |st| {
+            for (st.members) |m| {
+                const owner, const name = splitLast(m);
+                if (!std.mem.eql(u8, owner, node_id)) continue;
+                const instance = try state_mod.instanceOf(a, st, capacity, compute);
+                const base = state_shapes.items.len;
+                for (instance.components) |c| try state_shapes.append(a, c.shape);
+                try step_states.append(a, .{ .name = name, .instance = states.items.len, .base = base });
+                try states.append(a, instance);
+            }
+        }
+
         // outputs: the D2 values this node produces, in D2's order
         var outputs: std.ArrayList([]const u8) = .empty;
         var shapes: std.ArrayList(zml.Shape) = .empty;
@@ -225,6 +259,7 @@ pub fn until(
             .arguments = node.arguments,
             .inputs = try inputs.toOwnedSlice(a),
             .params = try params.toOwnedSlice(a),
+            .states = try step_states.toOwnedSlice(a),
             .outputs = try outputs.toOwnedSlice(a),
             .shapes = try shapes.toOwnedSlice(a),
             .composite = try std.fmt.allocPrintSentinel(
@@ -248,6 +283,9 @@ pub fn until(
         .publics = try publics.toOwnedSlice(a),
         .public_shapes = try public_shapes.toOwnedSlice(a),
         .params_used = try params_used.toOwnedSlice(a),
+        .states = try states.toOwnedSlice(a),
+        .state_shapes = try state_shapes.toOwnedSlice(a),
+        .elements = elements,
         .result = .{ .value = .{ .step = result.step, .out = result.out } },
         .compute = compute,
     };

@@ -24,7 +24,9 @@ const Args = struct {
     checkpoint: ?[]const u8 = null,
     until: ?[]const u8 = null,
     ids: ?[]const u8 = null,
+    capacity: ?u32 = null,
     out: ?[]const u8 = null,
+    dump: ?[]const u8 = null,
     @"dump-mlir": ?[]const u8 = null,
 
     pub const help =
@@ -38,7 +40,9 @@ const Args = struct {
         \\   --checkpoint=<path>   The safetensors repository or file D3's locations name
         \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
+        \\   --capacity=<n>        Positions a growing state holds (default: as many as there are ids)
         \\   --out=<path>          Write the result's raw bytes here
+        \\   --dump=<dir>          Also write every state buffer, named by its D4 identity
         \\   --dump-mlir=<dir>     Ask XLA to dump the emitted IR here
         \\
     ;
@@ -112,10 +116,13 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     // What to evaluate. Compute is f32 on CPU, as the reference does, so a comparison
     // against it is a comparison of the mathematics and not of two roundings.
-    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), .f32);
+    // Capacity is deployment intent, not a document fact: D4 gives the bytes per
+    // position, how many positions is the runtime's business (§7).
+    const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len);
+    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, .f32);
     defer p.deinit();
-    log.info("{d} step(s) to reach {s}, {d} public input(s), {d} parameter tensor(s)", .{
-        p.steps.len, args.until.?, p.publics.len, p.params_used.len,
+    log.info("{d} step(s) to reach {s}, {d} public input(s), {d} parameter tensor(s), {d} state buffer(s)", .{
+        p.steps.len, args.until.?, p.publics.len, p.params_used.len, p.state_shapes.len,
     });
 
     // The parameters the plan needs, by D3's locations — nothing per model.
@@ -126,7 +133,15 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer allocator.free(publics);
     for (p.public_shapes, publics) |shape, *t| t.* = .fromShape(shape);
 
-    var exe = try zml.module.compile(allocator, io, emit.forward, .{ plan.Handle.of(&p), model.params, publics }, platform, .{
+    const state_tensors = try allocator.alloc(zml.Tensor, p.state_shapes.len);
+    defer allocator.free(state_tensors);
+    for (p.state_shapes, state_tensors) |shape, *t| t.* = .fromShape(shape);
+
+    const start: zml.Tensor = .fromShape(zml.Shape.init(.{}, .i32));
+
+    var exe = try zml.module.compile(allocator, io, emit.forward, .{
+        plan.Handle.of(&p), model.params, publics, start, state_tensors,
+    }, platform, .{
         .program_name = g.model(),
         .xla_dump_to = args.@"dump-mlir",
     });
@@ -155,24 +170,64 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     var results = try exe.results(allocator);
     defer results.deinit(allocator);
 
-    call_args.set(.{ buffers.params, token_buffer });
+    // The states begin zeroed and `start` says where this invocation's elements land.
+    // Zeroed, not uninitialised: masked positions still reach the weighted sum with a
+    // zero weight, and a NaN there would poison it.
+    const state_buffers = try allocator.alloc(zml.Buffer, p.state_shapes.len);
+    defer allocator.free(state_buffers);
+    for (p.state_shapes, state_buffers) |shape, *b| {
+        const zeros = try allocator.alloc(u8, shape.byteSize());
+        defer allocator.free(zeros);
+        @memset(zeros, 0);
+        b.* = try .fromBytes(io, platform, shape, platform.replicated_sharding, zeros);
+    }
+    defer for (state_buffers) |*b| b.deinit();
+
+    var start_buffer = try zml.Buffer.scalar(io, platform, @as(i32, 0), .i32);
+    defer start_buffer.deinit();
+
+    call_args.set(.{ buffers.params, token_buffer, start_buffer, state_buffers });
     exe.call(call_args, &results);
 
-    var out = results.get(zml.Buffer);
+    // `fill` writes into buffers already allocated, which is what a result carrying a
+    // runtime-length slice of states needs.
+    const state_out = try allocator.alloc(zml.Buffer, p.state_shapes.len);
+    defer allocator.free(state_out);
+    var out: zml.Buffer = undefined;
+    results.fill(.{ &out, &state_out });
     defer out.deinit();
     const slice = try out.toSliceAlloc(allocator, io);
     defer allocator.free(slice.bytes);
 
     log.info("{s} = {f}", .{ args.until.?, out.shape() });
+
+    if (args.dump) |dir| {
+        var k: usize = 0;
+        for (p.states) |instance| {
+            for (instance.components) |component| {
+                const name = try std.fmt.allocPrint(allocator, "{s}/{s}.{s}.bin", .{ dir, instance.identity, component.name });
+                defer allocator.free(name);
+                const bytes = try state_out[k].toSliceAlloc(allocator, io);
+                defer allocator.free(bytes.bytes);
+                try write(io, name, bytes.bytes);
+                log.info("state {s}.{s} = {f}", .{ instance.identity, component.name, state_out[k].shape() });
+                k += 1;
+            }
+        }
+    }
     if (args.out) |path| {
-        const file = try std.Io.Dir.cwd().createFile(io, path, .{});
-        defer file.close(io);
-        var buffer: [4096]u8 = undefined;
-        var writer = file.writer(io, &buffer);
-        try writer.interface.writeAll(slice.bytes);
-        try writer.interface.flush();
+        try write(io, path, slice.bytes);
         log.info("{d} bytes written to {s}", .{ slice.bytes.len, path });
     }
+}
+
+fn write(io: std.Io, path: []const u8, bytes: []const u8) !void {
+    const file = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer file.close(io);
+    var buffer: [4096]u8 = undefined;
+    var writer = file.writer(io, &buffer);
+    try writer.interface.writeAll(bytes);
+    try writer.interface.flush();
 }
 
 pub fn main(init: std.process.Init) !void {
