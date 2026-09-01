@@ -52,18 +52,18 @@ The binary lands at `$ZML_HOME/bazel-bin/external/+local_repository+tensorspine/
 Offline, once per model, through the language's own tool — the generator never derives:
 
 ```sh
-export TENSORSPINE_RUNTIME_DIR=~/somewhere/tensorspine-runtime    # your choice; see below
-mkdir -p "$TENSORSPINE_RUNTIME_DIR"
+export TENSORSPINE_ARTIFACTS=~/somewhere/tensorspine    # your choice; see below
+mkdir -p "$TENSORSPINE_ARTIFACTS/derived"
 
-tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_RUNTIME_DIR"
+tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_ARTIFACTS/derived"
 ```
 
 ### 3. Run
 
 ```sh
 "$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
-  --derived="$TENSORSPINE_RUNTIME_DIR/llama3-8b.derived.json" \
-  --checkpoint="$TENSORSPINE_CHECKPOINT" \
+  --derived="$TENSORSPINE_ARTIFACTS/derived/llama3-8b.derived.json" \
+  --checkpoint="$TENSORSPINE_ARTIFACTS/weights/Meta-Llama-3-8B" \
   --steps=8 --compute=bf16 --split=16
 ```
 
@@ -75,8 +75,8 @@ Nothing about that command is llama's. The hybrid is the same invocation against
 
 ```sh
 "$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
-  --derived="$TENSORSPINE_RUNTIME_DIR/qwen3.5-4b-text.derived.json" \
-  --checkpoint="$TENSORSPINE_QWEN" \
+  --derived="$TENSORSPINE_ARTIFACTS/derived/qwen3.5-4b-text.derived.json" \
+  --checkpoint="$TENSORSPINE_ARTIFACTS/weights/Qwen3.5-4B" \
   --ids=760,6511,314,9338,369 --steps=8 --compute=bf16 --split=8
 ```
 
@@ -162,7 +162,7 @@ The test harness needs neither: it computes its own location and passes the flag
 
 ```sh
 export ZML_HOME=~/somewhere/zml                   # the ZML checkout
-export TENSORSPINE_CHECKPOINT=<the safetensors repository>
+export TENSORSPINE_ARTIFACTS=~/somewhere/tensorspine
 generators/zml/tests/run_zml.py
 ```
 
@@ -185,23 +185,40 @@ whether the manifest can run the document.
 
 ## Where the runtime files live
 
-Derived documents, checkpoints and dumps are **runtime inputs**, not part of this repository: none
-of them has a fixed place in the tree, and nothing here names one. Every one is a shell variable,
-each overridden by a flag, and **none has a default inside the tree**. All name **directories**:
+Derived documents, weights and dumps are **runtime inputs**, not part of this repository: none has a
+fixed place in the tree, and nothing here names one. **Three shell variables, all naming
+directories**, none with a default inside the tree:
 
 | Variable | What it holds | Flag | Unset |
 |---|---|---|---|
 | `ZML_HOME` | the ZML checkout that is the build root | `--zml` | the harness skips and says so |
 | `TENSORSPINE_GENERATOR` | this directory, absolute, for `--inject_repository` | — | the harness computes it |
-| `TENSORSPINE_RUNTIME_DIR` | where derived documents and dumps go | `--runtime-dir` | a temporary directory, deleted after |
-| `TENSORSPINE_CHECKPOINT` | the safetensors repository D3's locations name, for `llama3-8b` | `--checkpoint` | those numerical checks are skipped |
-| `TENSORSPINE_COLBERT` | the `colbertv2.0` repository | `--colbert-checkpoint` | those numerical checks are skipped |
-| `TENSORSPINE_QWEN` | the `Qwen3.5-4B` repository | `--qwen-checkpoint` | those numerical checks are skipped |
-| `TENSORSPINE_QWEN27` | the `Qwen3.8-27B` repository | `--qwen27-checkpoint` | those numerical checks are skipped |
+| `TENSORSPINE_ARTIFACTS` | everything a run needs, in one place | `--artifacts` | documents go somewhere temporary, numerical checks skipped |
 
-So `$TENSORSPINE_RUNTIME_DIR` is wherever you point it — it is a convention, not a location this
-repository owns. Set it to keep derived documents between runs; leave it unset to let the harness
-work in a temporary directory and clean up.
+A run needs the derived document **and** the weights it locates tensors in; they are one deployment,
+so they are one directory:
+
+```
+$TENSORSPINE_ARTIFACTS/
+  derived/                 llama3-8b.derived.json, qwen3.5-4b-text.derived.json, …
+  weights/                 one directory per artifact — a symlink when they live elsewhere
+    Meta-Llama-3-8B/       what `--checkpoint` is pointed at
+    Qwen3.5-4B/
+  dumps/<model>/           what a run left behind, named by D4 identity
+```
+
+`GLOSSARY.md` calls one of those weight directories *"the artifact the document wraps"*, and
+`tools/artifact.py` is the language's own reader for them — the variable is that word's plural, and
+holds the documents beside them. Which subdirectory belongs to which document is a table in the
+harness, not a guess: weights that are absent make their checks say so rather than search.
+
+**Weights are big and shared.** Nothing needs moving: point `weights` at wherever they already are.
+
+```sh
+export TENSORSPINE_ARTIFACTS=~/somewhere/tensorspine
+mkdir -p "$TENSORSPINE_ARTIFACTS"
+ln -s ~/somewhere/huggingface "$TENSORSPINE_ARTIFACTS/weights"
+```
 
 ## Why the build is wired this way
 

@@ -74,8 +74,22 @@ Every command takes a model document (derived in-process) or a derived document,
 `--truncate decoder.layer=N` (a truncated document, for smoke tests) and `--set path=value` (any
 other document edit before deriving).
 
+Weights, derived documents and dumps are **runtime inputs**, not part of this repository, and one
+shell variable names all of them — `$TENSORSPINE_ARTIFACTS`, the same one the ZML generator reads:
+
+```
+$TENSORSPINE_ARTIFACTS/
+  derived/                 the derived documents
+  weights/<artifact>/      what `--checkpoint` is pointed at; a symlink when they live elsewhere
+  dumps/<model>/           what a run left behind
+```
+
+`GLOSSARY.md` calls one of those weight directories *"the artifact the document wraps"*. Nothing in
+this repository has a default inside the tree, and the test harness says `skip` for whatever is
+absent rather than looking in a home directory.
+
 ```sh
-CK=~/work/perso/huggingface/Meta-Llama-3-8B
+CK="$TENSORSPINE_ARTIFACTS/weights/Meta-Llama-3-8B"
 R=generators/reference/ref.py
 
 python3 $R info    data/models/llama3-8b.json --capacity 4096          # bytes from D3/D4, free memory, refusals
@@ -85,7 +99,7 @@ python3 $R run     data/models/llama3-8b.json --random --set quantities.d.source
 python3 $R info    data/models/llama3-8b.json --capacity 4096 --max-ram 6                    # the partition and its traffic
 python3 $R run     data/models/llama3-8b.json --checkpoint $CK --ids 128000,791,6864,315,9822,374 --max-ram 6
 python3 $R chat    data/models/llama3-8b.json --checkpoint $CK --capacity 512 --max-new-tokens 60
-python3 $R chat    data/models/qwen3.5-4b-text.json --checkpoint ~/work/perso/huggingface/Qwen3.5-4B \
+python3 $R chat    data/models/qwen3.5-4b-text.json --checkpoint "$TENSORSPINE_ARTIFACTS/weights/Qwen3.5-4B" \
                    --capacity 1024 --max-new-tokens 200
 # the comparison against transformers, at every legal cut and every state after prefill
 python3 $R run     data/models/llama3-8b.json --checkpoint $CK --truncate decoder.layer=3 \

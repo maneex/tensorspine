@@ -5,17 +5,17 @@ Builds `@tensorspine//:tspl` in a ZML checkout, then checks the generator agains
 language's own tools: for every corpus document, what `tspl` reads out of the derived
 document must equal what `tools/derive.py` put in it.
 
-    generators/zml/tests/run_zml.py [--zml DIR] [--runtime-dir DIR] [--checkpoint DIR]
-                                    [--model NAME] [--keep]
+    generators/zml/tests/run_zml.py [--zml DIR] [--artifacts DIR] [--model NAME] [--keep]
 
 Then, for whichever checkpoints it is given, the numbers against the reference
 generator's committed fixtures: llama3-8b, colbert-v2, and the two hybrids.
 
-Runtime inputs — the ZML checkout, a working directory, four checkpoints — are named by
-$ZML_HOME, $TENSORSPINE_RUNTIME_DIR, $TENSORSPINE_CHECKPOINT, $TENSORSPINE_COLBERT,
-$TENSORSPINE_QWEN and $TENSORSPINE_QWEN27, or by the matching flag. None has a default inside the tree: prints
-`skip` and exits 0 for whatever is absent, so the suite runs anywhere and says which
-checks it did not make.
+Two directories, both shell variables, neither with a default inside the tree:
+$ZML_HOME is the ZML checkout that is the build root, and $TENSORSPINE_ARTIFACTS is the
+one runtime directory — `derived/` for the documents, `weights/<artifact>/` for the
+checkpoints they locate tensors in, `dumps/` for what a run leaves behind. Prints `skip`
+and exits 0 for whatever is absent, so the suite runs anywhere and says which checks it
+did not make.
 """
 import argparse
 import json
@@ -56,6 +56,16 @@ def derive(out_dir, only=None):
 FIXTURE = 'generators/reference/fixtures/llama3-8b.3layers.hf.safetensors'
 COLBERT_FIXTURE = 'generators/reference/fixtures/colbert-v2.12layers.hf.safetensors'
 
+# The artifact each document's D3 locations name, under `$TENSORSPINE_ARTIFACTS/weights`.
+# GLOSSARY calls one of these directories "the artifact the document wraps"; the variable
+# is the plural of that, and holds the derived documents beside them.
+WEIGHTS = {
+    'llama3-8b': 'Meta-Llama-3-8B',
+    'colbert-v2': 'colbertv2.0',
+    'qwen3.5-4b-text': 'Qwen3.5-4B',
+    'qwen3.8-27b-text': 'Qwen3.8-27B',
+}
+
 # The hybrids, and the fixture each is checked against. Both are three gated-delta layers
 # then one attention layer, at different quantities: 32 value heads against 48, a
 # convolution 8192 channels wide against 10240, a 2560 residual stream against 5120. One
@@ -71,7 +81,7 @@ HYBRIDS = [
 TOLERANCE = 5e-06
 
 
-def evaluate(binary, derived, checkpoint, out_dir):
+def evaluate(binary, derived, checkpoint, scratch, dumps):
     """The numbers, against the reference generator's fixture — the oracle.
 
     The fixture is `transformers` hooked at D6's layer cuts and at every state, on the
@@ -111,7 +121,6 @@ def evaluate(binary, derived, checkpoint, out_dir):
     scale = weight('model.layers.0.input_layernorm.weight')
 
     fx = load_file(fixture)
-    dumps = os.path.join(out_dir, 'dump')
     os.makedirs(dumps, exist_ok=True)
 
     # value -> (what it must equal, the tolerance relative to that value's own scale)
@@ -124,7 +133,7 @@ def evaluate(binary, derived, checkpoint, out_dir):
 
     checked, failed = 0, 0
     for value, want, tol in wanted:
-        path = os.path.join(out_dir, 'value.bin')
+        path = os.path.join(scratch, 'value.bin')
         run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
                               f'--until={value}', f'--out={path}', f'--dump={dumps}'],
                              capture_output=True)
@@ -202,7 +211,7 @@ def manifest(binary):
     return 2, 0
 
 
-def colbert(binary, out_dir, checkpoint):
+def colbert(binary, derived_dir, checkpoint, scratch):
     """The other generator's fixture for a document with no generative output and no
     state at all — the shape llama3-8b cannot exercise. Its identifiers and its cuts are
     the reference's; agreeing with them is two generators agreeing, not one agreeing with
@@ -217,7 +226,7 @@ def colbert(binary, out_dir, checkpoint):
         print(f'skip: colbert needs {COLBERT_FIXTURE} and a checkpoint at {checkpoint}')
         return 0, 0
 
-    derived = os.path.join(out_dir, 'colbert-v2.derived.json')
+    derived = os.path.join(derived_dir, 'colbert-v2.derived.json')
     if not os.path.isfile(derived):
         return 0, 0
     fx = load_file(fixture)
@@ -226,7 +235,7 @@ def colbert(binary, out_dir, checkpoint):
     checked = failed = 0
     for value, key in [(f'enc/ffn_n[layer={i}].output', f'value/enc/ffn_n[layer={i}].output') for i in (0, 11)] \
             + [('pooler.output', 'value/pooler.output')]:
-        path = os.path.join(out_dir, 'colbert.bin')
+        path = os.path.join(scratch, 'colbert.bin')
         run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
                               f'--until={value}', f'--ids={ids}', f'--out={path}'], capture_output=True)
         checked += 1
@@ -243,7 +252,17 @@ def colbert(binary, out_dir, checkpoint):
     return checked, failed
 
 
-def qwen(binary, out_dir, checkpoint, model, fixture_path):
+def weights(artifacts, model):
+    """Where this document's weights are, by the layout — `weights/<artifact>` under the
+    one directory. `None` when they are not there, and the checks that need them say they
+    did not run rather than guess at another location."""
+    if not artifacts:
+        return None
+    path = os.path.join(artifacts, 'weights', WEIGHTS[model])
+    return path if os.path.isdir(path) else None
+
+
+def qwen(binary, derived_dir, checkpoint, model, fixture_path, scratch, dumps):
     """A hybrid document: three gated-delta layers and one attention layer.
 
     Its four kinds of state are the two laws llama3-8b cannot exercise — the recurrent
@@ -266,18 +285,17 @@ def qwen(binary, out_dir, checkpoint, model, fixture_path):
         print(f'skip: {model} needs {fixture_path} and a checkpoint at {checkpoint}')
         return 0, 0
 
-    derived = os.path.join(out_dir, f'{model}.derived.json')
+    derived = os.path.join(derived_dir, f'{model}.derived.json')
     if not os.path.isfile(derived):
         return 0, 0
     fx = load_file(fixture)
     ids = '760,6511,314,9338,369'                            # the fixture's own prompt
-    dumps = os.path.join(out_dir, f'{model}-dump')
     os.makedirs(dumps, exist_ok=True)
 
     checked = failed = 0
     for layer in range(4):
         value = f'decoder/mlp_r[layer={layer}].output'
-        path = os.path.join(out_dir, 'hybrid.bin')
+        path = os.path.join(scratch, 'hybrid.bin')
         run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
                               f'--until={value}', f'--ids={ids}', f'--out={path}', f'--dump={dumps}'],
                              capture_output=True)
@@ -321,17 +339,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zml', default=os.environ.get('ZML_HOME'),
                     help='the ZML checkout that is the build root ($ZML_HOME)')
-    ap.add_argument('--runtime-dir', default=os.environ.get('TENSORSPINE_RUNTIME_DIR'),
-                    help='where derived documents go ($TENSORSPINE_RUNTIME_DIR; a temporary directory by default)')
-    ap.add_argument('--colbert-checkpoint', default=os.environ.get('TENSORSPINE_COLBERT'),
-                    help='the colbertv2.0 repository ($TENSORSPINE_COLBERT); without it those checks are skipped')
-    ap.add_argument('--qwen-checkpoint', default=os.environ.get('TENSORSPINE_QWEN'),
-                    help='the Qwen3.5-4B repository ($TENSORSPINE_QWEN); without it those checks are skipped')
-    ap.add_argument('--qwen27-checkpoint', default=os.environ.get('TENSORSPINE_QWEN27'),
-                    help='the Qwen3.8-27B repository ($TENSORSPINE_QWEN27); without it those checks are skipped')
-    ap.add_argument('--checkpoint', default=os.environ.get('TENSORSPINE_CHECKPOINT'),
-                    help='the safetensors repository D3 locates weights in ($TENSORSPINE_CHECKPOINT); '
-                         'without it the numerical checks are skipped')
+    ap.add_argument('--artifacts', default=os.environ.get('TENSORSPINE_ARTIFACTS'),
+                    help='the one runtime directory ($TENSORSPINE_ARTIFACTS): `derived/` holds the '
+                         'documents, `weights/<artifact>/` the checkpoints they locate tensors in, '
+                         '`dumps/` what a run leaves behind. Without it the documents go to a '
+                         'temporary directory and every numerical check is skipped. Weights that '
+                         'live elsewhere are reached by making `weights` a symlink')
     ap.add_argument('--model', help='one document by name, instead of the whole corpus')
     ap.add_argument('--compilation-mode', default='dbg', choices=('opt', 'dbg', 'fastbuild'),
                     help="Bazel's -c: `dbg` by default, which is what every measurement here used "
@@ -368,11 +381,16 @@ def main():
         print(f'FAIL: built, but no binary at {binary}')
         return 1
 
-    if a.runtime_dir:
-        out_dir = os.path.join(a.runtime_dir, 'derived')
-        os.makedirs(out_dir, exist_ok=True)
+    # One directory, three roles. Unset, the documents go somewhere temporary and every
+    # check that needs weights says it did not run.
+    if a.artifacts:
+        out_dir = os.path.join(a.artifacts, 'derived')
+        dumps_root = os.path.join(a.artifacts, 'dumps')
     else:
         out_dir = tempfile.mkdtemp(prefix='tspl-derived-')
+        dumps_root = out_dir
+    os.makedirs(out_dir, exist_ok=True)
+    scratch = tempfile.mkdtemp(prefix='tspl-work-')
     try:
         names = derive(out_dir, a.model)
         failed = 0
@@ -393,28 +411,32 @@ def main():
             else:
                 print(f'OK   {model}: {got[0]} occurrences, {got[2]} tensors, {got[3]} states')
         checked = len(names)
-        if a.checkpoint:
-            llama = os.path.join(out_dir, 'llama3-8b.derived.json')
-            if os.path.isfile(llama):
-                print()
-                more, bad = evaluate(binary, llama, a.checkpoint, out_dir)
-                checked += more
-                failed += bad
-        else:
-            print('\nskip: no checkpoint (--checkpoint or $TENSORSPINE_CHECKPOINT); '
+        if not a.artifacts:
+            print('\nskip: no artifacts directory (--artifacts or $TENSORSPINE_ARTIFACTS); '
                   'the numerical checks did not run')
 
-        if a.colbert_checkpoint:
+        llama = weights(a.artifacts, 'llama3-8b')
+        derived_llama = os.path.join(out_dir, 'llama3-8b.derived.json')
+        if llama and os.path.isfile(derived_llama):
             print()
-            more, bad = colbert(binary, out_dir, a.colbert_checkpoint)
+            more, bad = evaluate(binary, derived_llama, llama, scratch,
+                                 os.path.join(dumps_root, 'llama3-8b'))
             checked += more
             failed += bad
 
-        for checkpoint, (model, fixture_path) in zip((a.qwen_checkpoint, a.qwen27_checkpoint), HYBRIDS):
+        if weights(a.artifacts, 'colbert-v2'):
+            print()
+            more, bad = colbert(binary, out_dir, weights(a.artifacts, 'colbert-v2'), scratch)
+            checked += more
+            failed += bad
+
+        for model, fixture_path in HYBRIDS:
+            checkpoint = weights(a.artifacts, model)
             if not checkpoint:
                 continue
             print()
-            more, bad = qwen(binary, out_dir, checkpoint, model, fixture_path)
+            more, bad = qwen(binary, out_dir, checkpoint, model, fixture_path, scratch,
+                             os.path.join(dumps_root, model))
             checked += more
             failed += bad
 
@@ -425,7 +447,8 @@ def main():
         print(f'\n{checked - failed} passed, {failed} failed')
         return 1 if failed else 0
     finally:
-        if a.keep or a.runtime_dir:
+        shutil.rmtree(scratch, ignore_errors=True)
+        if a.keep or a.artifacts:
             print(f'derived documents kept in {out_dir}')
         else:
             shutil.rmtree(out_dir, ignore_errors=True)

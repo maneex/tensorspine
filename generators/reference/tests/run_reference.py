@@ -40,7 +40,10 @@ from plan import Plan            # noqa: E402
 from session import Session, greedy  # noqa: E402
 from compare import compare, read_dump  # noqa: E402
 
-CHECKPOINTS = os.path.expanduser('~/work/perso/huggingface')
+# `weights/` under the one runtime directory (`generators/zml/README.md` describes the
+# layout; both generators read the same one). No default inside the tree, and no home
+# path written down here: unset, every fixture check says `skip`.
+CHECKPOINTS = os.path.join(os.environ.get('TENSORSPINE_ARTIFACTS', ''), 'weights')
 from verified import FIXTURES, FULL   # noqa: E402
 
 TINY = {'quantities.d.source.value': 64, 'quantities.ffn.source.value': 128, 'quantities.heads.source.value': 4,

@@ -24,8 +24,11 @@ import derive                          # noqa: E402
 
 LLAMA = os.path.join(ROOT, 'data', 'models', 'llama3-8b.json')
 SHIELD_DOC = os.path.join(ROOT, 'data', 'models', 'shieldstral-3b.json')
-SHIELDSTRAL = os.path.expanduser('~/work/perso/huggingface/Shieldstral-1.0-3B')
-CHECKPOINT = os.path.expanduser('~/work/perso/huggingface/Meta-Llama-3-8B')
+# `weights/` under $TENSORSPINE_ARTIFACTS, the one runtime directory. Unset, the checks
+# that need a checkpoint say so instead of looking in somebody's home directory.
+WEIGHTS = os.path.join(os.environ.get('TENSORSPINE_ARTIFACTS', ''), 'weights')
+SHIELDSTRAL = os.path.join(WEIGHTS, 'Shieldstral-1.0-3B')
+CHECKPOINT = os.path.join(WEIGHTS, 'Meta-Llama-3-8B')
 
 
 def check(label, ok, detail=''):
