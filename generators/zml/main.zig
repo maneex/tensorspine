@@ -231,9 +231,13 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     const ids = try parseIds(allocator, args.ids);
     defer allocator.free(ids);
 
-    const platform: *zml.Platform = try .auto(allocator, io, .{});
+    // One device. ZML's CPU default is four, and a replicated parameter is copied to
+    // each of them — four times the weights resident, before anything is computed.
+    // Sharding is a non-goal here (the manifest declares no partitions), so one device
+    // is both what this generator means and what fits.
+    const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
     defer platform.deinit(allocator, io);
-    log.info("platform: {s}", .{@tagName(platform.target)});
+    log.info("platform: {s}, {d} device(s)", .{ @tagName(platform.target), platform.devices.len });
 
     var tensors: zml.safetensors.TensorRegistry = try .fromPath(allocator, io, checkpoint);
     defer tensors.deinit();
@@ -272,7 +276,13 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer allocator.free(buffers.params);
     defer for (buffers.params) |*b| b.deinit();
     {
-        var weights: zml.io.Loader = try .init(allocator, platform, .default);
+        // The loader stages each tensor in host memory before handing it to the device,
+        // one at a time, and frees it again — allocations as large as the largest tensor,
+        // with no reuse between them. The page allocator returns them to the system at
+        // once; a general-purpose allocator retains them, and a debug build's retains
+        // them with leak checking on top, which is how 3.18 GiB of weights came to hold
+        // 12.93 GiB resident.
+        var weights: zml.io.Loader = try .init(std.heap.page_allocator, platform, .default);
         defer weights.deinit();
         weights.load(io, loader.Model, &model, &buffers, &store, &.{}, .{});
         try weights.await(io);
@@ -329,9 +339,13 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     const ids = try parseIds(allocator, args.ids);
     defer allocator.free(ids);
 
-    const platform: *zml.Platform = try .auto(allocator, io, .{});
+    // One device. ZML's CPU default is four, and a replicated parameter is copied to
+    // each of them — four times the weights resident, before anything is computed.
+    // Sharding is a non-goal here (the manifest declares no partitions), so one device
+    // is both what this generator means and what fits.
+    const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
     defer platform.deinit(allocator, io);
-    log.info("platform: {s}", .{@tagName(platform.target)});
+    log.info("platform: {s}, {d} device(s)", .{ @tagName(platform.target), platform.devices.len });
 
     var tensors: zml.safetensors.TensorRegistry = try .fromPath(allocator, io, checkpoint);
     defer tensors.deinit();
@@ -375,7 +389,7 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     // The weights, into buffers ZML pairs with the model by visit order.
     var buffers = try zml.mem.bufferize(allocator, loader.Model, &model);
     defer allocator.free(buffers.params);
-    var weights: zml.io.Loader = try .init(allocator, platform, .default);
+    var weights: zml.io.Loader = try .init(std.heap.page_allocator, platform, .default);
     defer weights.deinit();
     weights.load(io, loader.Model, &model, &buffers, &store, &.{}, .{});
     try weights.await(io);
