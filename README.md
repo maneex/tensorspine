@@ -307,7 +307,7 @@ python3 tests/run_signatures.py                         # every model still deno
 python3 tests/run_costs.py                              # D5: operations per element from the inventory
 python3 tests/run_derived.py                            # every derived document on its schema, and its facts
 python3 tests/run_artifact.py                           # V17 against checkpoint headers: the location forms
-python3 tools/tensorspine --validate --checkpoint ~/models/Meta-Llama-3-8B data/models/llama3-8b.json
+python3 tools/tensorspine --validate --checkpoint "$TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B" data/models/llama3-8b.json
 python3 tools/tensorspine --document catalog -o docs/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
 # Templates require external quantity assignments.

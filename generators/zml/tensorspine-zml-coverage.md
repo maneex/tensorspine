@@ -6,9 +6,9 @@ Audit date: 2026-08-29
 
 ## Scope and snapshots
 
-This report maps the TensorSpine reference catalog in
-`/home/corwin/work/perso/armature/master` to the public numerical APIs and the
-tracked model implementations in `/home/corwin/work/perso/zml`.
+This report maps this repository's TensorSpine reference catalog to the public
+numerical APIs and the tracked model implementations of the ZML checkout
+(`$ZML_HOME`).
 
 - TensorSpine base commit: `3d6bf1fd25b4832cbdcff33c389c4c9f7d918bfe`
 - ZML base commit: `a37f903c3fa01599587254b404506fcc9fedd395`
@@ -22,16 +22,16 @@ tracked model implementations in `/home/corwin/work/perso/zml`.
 
 Primary sources:
 
-- [TensorSpine catalog metadata](/home/corwin/work/perso/armature/master/data/catalog/catalog.json)
-- [TensorSpine generated catalog reference](/home/corwin/work/perso/armature/master/docs/CATALOG-REFERENCE.md)
-- [ZML NN helpers](/home/corwin/work/perso/zml/zml/nn.zig)
-- [ZML tensor operations](/home/corwin/work/perso/zml/zml/tensor.zig)
-- [ZML higher-order operations](/home/corwin/work/perso/zml/zml/ops.zig)
-- [ZML attention dispatch](/home/corwin/work/perso/zml/zml/attention.zig)
-- [ZML MoE dispatch](/home/corwin/work/perso/zml/zml/moe/moe.zig)
-- [Tracked Qwen 3.5 model](/home/corwin/work/perso/zml/examples/llm/models/qwen3_5/model.zig)
-- [Tracked Qwen 3.5 MoE model](/home/corwin/work/perso/zml/examples/llm/models/qwen3_5_moe/model.zig)
-- [Tracked Llama model](/home/corwin/work/perso/zml/examples/llm/models/llama/model.zig)
+- [TensorSpine catalog metadata](../../data/catalog/catalog.json)
+- [TensorSpine generated catalog reference](../../docs/CATALOG-REFERENCE.md)
+- ZML NN helpers — `$ZML_HOME/zml/nn.zig`
+- ZML tensor operations — `$ZML_HOME/zml/tensor.zig`
+- ZML higher-order operations — `$ZML_HOME/zml/ops.zig`
+- ZML attention dispatch — `$ZML_HOME/zml/attention.zig`
+- ZML MoE dispatch — `$ZML_HOME/zml/moe/moe.zig`
+- Tracked Qwen 3.5 model — `$ZML_HOME/examples/llm/models/qwen3_5/model.zig`
+- Tracked Qwen 3.5 MoE model — `$ZML_HOME/examples/llm/models/qwen3_5_moe/model.zig`
+- Tracked Llama model — `$ZML_HOME/examples/llm/models/llama/model.zig`
 
 ## Executive result
 
@@ -360,6 +360,6 @@ The TensorSpine signature fixtures make the practical gaps visible:
 
 This is a static source audit. `bazel test //zml:test` could not be run in the
 restricted workspace: the bare `bazel` command was absent, and the repository
-wrapper then failed because its output base under `/home/corwin/.cache/bazel`
-was not writable. No runtime result is inferred for the 22 building-block-only
+wrapper then failed because its output base under the user's Bazel cache was not
+writable. No runtime result is inferred for the 22 building-block-only
 rows.

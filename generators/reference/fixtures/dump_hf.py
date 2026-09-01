@@ -89,7 +89,7 @@ def main(argv=None):
             print(f"encoded {len(ids)} ({time.time() - t0:.1f}s)")
             for h_ in hooks:
                 h_.remove()
-            header = {'model': args.model, 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids,
+            header = {'model': artifact_name(args.model), 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids,
                       'tokens': tokens, 'hook_map': hook_map, 'torch': torch.__version__,
                       'transformers': __import__('transformers').__version__, **_provenance(args.model)}
             write_dump(args.out, dump, header)
@@ -136,7 +136,7 @@ def main(argv=None):
         print("tokens:", tokens)
     for h in hooks:
         h.remove()
-    header = {'model': args.model, 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids, 'tokens': tokens,
+    header = {'model': artifact_name(args.model), 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids, 'tokens': tokens,
               'hook_map': hook_map, 'torch': torch.__version__,
               'transformers': __import__('transformers').__version__,
               **_provenance(args.model)}
@@ -153,6 +153,12 @@ def _read_tensor(model_dir, name):
         return f.get_tensor(name)
 
 
+
+def artifact_name(path):
+    """The artifact's directory name, never the path it was read from: a fixture is
+    committed, and a committed file must not carry the layout of the machine that made
+    it. The name is what `verified.py` and the harnesses key on anyway."""
+    return os.path.basename(os.path.normpath(path))
 def _provenance(model_dir):
     """What identifies the weights: the index file's hash, or — for a checkpoint that is one
     file without an index — the hash of that file's safetensors header."""
