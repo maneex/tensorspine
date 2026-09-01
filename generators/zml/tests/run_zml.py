@@ -152,6 +152,10 @@ def main():
                     help='the safetensors repository D3 locates weights in ($TENSORSPINE_CHECKPOINT); '
                          'without it the numerical checks are skipped')
     ap.add_argument('--model', help='one document by name, instead of the whole corpus')
+    ap.add_argument('--compilation-mode', default='opt', choices=('opt', 'dbg', 'fastbuild'),
+                    help="Bazel's -c: `opt` by default. A `dbg` build gives `init.gpa` a leak-checking "
+                         'allocator that does not return freed pages, and the loader then holds several '
+                         'times the weights (measured: 12.93 GiB for 3.18 GiB)')
     ap.add_argument('--keep', action='store_true', help='keep the derived documents')
     a = ap.parse_args()
 
@@ -171,13 +175,14 @@ def main():
     # is computed here instead of written down anywhere.
     inject = f'--inject_repository=tensorspine={GENERATOR}'
 
-    build = subprocess.run([bazel, 'build', inject, TARGET], cwd=a.zml,
+    build = subprocess.run([bazel, 'build', '-c', a.compilation_mode, inject, TARGET], cwd=a.zml,
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     if build.returncode != 0:
         sys.stderr.write(build.stderr.decode(errors='replace')[-4000:])
         print('FAIL: build')
         return 1
-    binary = os.path.join(a.zml, 'bazel-bin', 'external', '+local_repository+tensorspine', 'tspl')
+    binary = os.path.join(a.zml, 'bazel-out', f'k8-{a.compilation_mode}', 'bin',
+                          'external', '+local_repository+tensorspine', 'tspl')
     if not os.path.isfile(binary):
         print(f'FAIL: built, but no binary at {binary}')
         return 1

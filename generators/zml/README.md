@@ -21,8 +21,14 @@ checkout is edited** and no path is written down in this repository. From the ZM
 checkout, with `<generator>` the absolute path of this directory:
 
 ```sh
-./bazel.sh build --inject_repository=tensorspine=<generator> @tensorspine//:tspl
+./bazel.sh build -c opt --inject_repository=tensorspine=<generator> @tensorspine//:tspl
 ```
+
+**`-c opt` is not optional for running a model.** Bazel's default is a debug build, where
+`init.gpa` is a leak-checking allocator that does not return freed pages; the loader's
+per-tensor host staging then accumulates, and 3.18 GiB of weights leave **12.93 GiB**
+resident. `tspl` reports its resident set after each phase — locate, compile, load, and
+every invocation — so this is visible rather than inferred.
 
 `REPO.bazel` here is the boundary marker Bazel requires; it declares nothing.
 
