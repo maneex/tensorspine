@@ -10,7 +10,7 @@ obtained.*
 ## Why there is a boundary at all
 
 A ZML primitive does not compute. It runs once, while the graph is being built, and **emits MLIR**;
-XLA compiles the result. So the artefact a primitive fundamentally is, is IR — and IR that depends
+XLA compiles the result. So the artifact a primitive fundamentally is, is IR — and IR that depends
 on more than the contract: on this occurrence's concrete shapes, and on physical parameters the
 serving application chooses, `backend` among them. ZML itself works this way, dispatching on a
 runtime backend value at emission time.
