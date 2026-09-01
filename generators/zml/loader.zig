@@ -64,27 +64,36 @@ pub fn locate(
             log.err("{s}: location form not implemented (only `tensor` today)", .{t.identity});
             return Error.UnsupportedLocation;
         };
-        params[i] = store.maybeCreateTensor(name, null, .replicated) orelse {
-            log.err("{s}: checkpoint has no tensor '{s}'", .{ t.identity, name });
-            return Error.NotInCheckpoint;
-        };
-        try check(t, params[i]);
+        params[i] = try create(store, t, name);
     }
     return .{ .params = params };
 }
 
-/// The checkpoint agrees with what the document declares. D3 is the authority on the
-/// shape; the checkpoint is only asked to match it.
-fn check(t: graph.Tensor, tensor: zml.Tensor) !void {
-    const dims = tensor.dims();
-    if (dims.len != t.shape.len) {
-        log.err("{s}: D3 says rank {d}, checkpoint has {d}", .{ t.identity, t.shape.len, dims.len });
+/// One tensor, at the shape D3 declares.
+///
+/// D3 is the authority on the shape; the checkpoint is asked only to hold the same
+/// elements. A checkpoint that writes them under a different rank — a depthwise
+/// convolution kernel stored `[channels, 1, kernel]` where the contract declares
+/// `[channels, kernel]` — is bound at D3's, because the bytes are identical and a
+/// primitive is written against the document, never against a framework's habits.
+/// The reference generator reshapes for the same reason, so the two agree.
+fn create(store: zml.io.TensorStore.View, t: graph.Tensor, name: []const u8) !zml.Tensor {
+    const source = store.getShape(name) orelse {
+        log.err("{s}: checkpoint has no tensor '{s}'", .{ t.identity, name });
+        return Error.NotInCheckpoint;
+    };
+
+    var declared: zml.Shape = .init(.{}, source.dtype());
+    for (t.shape) |axis| declared = declared.appendDim(axis.extent, null);
+
+    if (std.mem.eql(i64, source.dims(), declared.dims())) {
+        return store.maybeCreateTensor(name, null, .replicated).?;
+    }
+    if (source.count() != declared.count()) {
+        log.err("{s}: D3 says {any}, checkpoint '{s}' has {any} — not the same elements", .{
+            t.identity, declared.dims(), name, source.dims(),
+        });
         return Error.ShapeMismatch;
     }
-    for (t.shape, dims) |axis, dim| {
-        if (axis.extent != dim) {
-            log.err("{s}: D3 says {d} on {s}, checkpoint has {d}", .{ t.identity, axis.extent, axis.axis, dim });
-            return Error.ShapeMismatch;
-        }
-    }
+    return store.maybeCreateBinding(&.{name}, declared.withReplicatedPartitioning()).?;
 }
