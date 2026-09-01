@@ -52,7 +52,7 @@ doc "$repo_dir/README.md" "$out/index.html" "" "" index \
 
 for f in "$repo_dir"/docs/*.md; do
   name=$(basename "$f" .md)
-  case "$name" in CATALOG-REFERENCE|PLAN-DOCUMENTATION) continue ;; esac
+  case "$name" in CATALOG-REFERENCE|PLAN-DOCUMENTATION|TENSORSPINE_MODEL_TSPL) continue ;; esac
   slug=$(printf %s "$name" | tr '[:upper:]' '[:lower:]')
   title=$(sed -n 's/^# //p' "$f" | head -1)
   doc "$f" "$out/spec/$slug.html" "../" "docs" "$slug" \

@@ -10,8 +10,7 @@ syntax, validity, and denotation do not depend on source code, tools, or other r
 Every requirement identifier it cites (O‑, I‑, N‑) is stated in Appendix A or §9.*
 
 For motivation and repository orientation, read the [README](../README.md). For a field-by-field
-JSON authoring guide, read [Tensorspine model JSON](TENSORSPINE-MODEL_JSON.md); for the lossless
-human-authoring syntax, read the [TSPL 1.0 specification](TENSORSPINE_MODEL_TSPL.md). The
+JSON authoring guide, read [Tensorspine model JSON](TENSORSPINE-MODEL_JSON.md). The
 [glossary](GLOSSARY.md) summarizes terminology and points back to its canonical sections; the
 [architecture guide](ARCHITECTURE.md) explains the design rationale. None of those explanatory
 documents adds requirements to this specification.
