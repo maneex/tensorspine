@@ -1,5 +1,8 @@
 # TensorSpine
 
+**Project documentation:** access it directly at
+[maneex.github.io/tensorspine](https://maneex.github.io/tensorspine/).
+
 ## 0. TensorSpine in four statements
 
 1. **Every serving application reimplements every model.** The weights are already data; the
