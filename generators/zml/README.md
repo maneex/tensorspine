@@ -9,37 +9,58 @@ The reference generator is the oracle: the same fixtures, the same D6 cuts, the 
 
 ## Building
 
-ZML is Bazel-only (`build.zig` is empty), so **the ZML workspace is the build root** and reaches
-these sources through a `local_repository`. ZML must stay the root module: `bzlmod` ignores
-`single_version_override` declared anywhere but the root, and ZML's `MODULE.bazel` carries four of
-them with patch labels relative to its own root. A `bazel_dep` in the other direction is not an
-option either — this directory depends on `@zml//zml`, so ZML depending on it as a module would be a
-cycle in the module graph.
+ZML is Bazel-only (`build.zig` is empty), so **the ZML workspace is the build root** and
+these sources are injected into it. ZML must stay the root module: `bzlmod` ignores
+`single_version_override` declared anywhere but the root, and ZML's `MODULE.bazel` carries
+four of them with patch labels relative to its own root. A `bazel_dep` in the other
+direction is not an option either — this directory depends on `@zml//zml`, so ZML
+depending on it as a module would be a cycle in the module graph.
 
-Append to the `MODULE.bazel` of your ZML checkout, with `path` pointing at this directory:
-
-```python
-tensorspine_repo = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-
-tensorspine_repo(
-    name = "tensorspine",
-    path = "../armature/master/generators/zml",
-)
-```
-
-`REPO.bazel` in this directory is the boundary marker Bazel requires; it declares nothing.
-
-Then, from the ZML checkout:
+`--inject_repository` names the repository on the command line, so **nothing in the ZML
+checkout is edited** and no path is written down in this repository. From the ZML
+checkout, with `<generator>` the absolute path of this directory:
 
 ```sh
-./bazel.sh build @tensorspine//:tspl
-./bazel.sh run   @tensorspine//:tspl -- --derived=/path/to/llama3-8b.derived.json
+./bazel.sh build --inject_repository=tensorspine=<generator> @tensorspine//:tspl
 ```
+
+`REPO.bazel` here is the boundary marker Bazel requires; it declares nothing.
+
+To avoid repeating the flag, put it in the ZML checkout's `user.bazelrc` — Bazel expands
+`%workspace%` there, its equivalent of `CMAKE_SOURCE_DIR`, so a path relative to the ZML
+checkout stays relative:
+
+```
+build --inject_repository=tensorspine=%workspace%/../<repo>/generators/zml
+```
+
+The test harness needs neither: it computes its own location and passes the flag.
 
 A derived document comes from the language's own tool, run once, offline:
 
 ```sh
-tensorspine --derive data/models/llama3-8b.json -o /some/dir/
+tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_RUNTIME_DIR"
+```
+
+### Where the runtime files live
+
+Derived documents, checkpoints and dumps are **runtime inputs**, not part of this
+repository: none of them has a fixed place in the tree, and nothing here names one. The
+test harness reads three environment variables, and takes an explicit flag over any of
+them:
+
+| Variable | What it holds | Flag |
+|---|---|---|
+| `ZML_HOME` | the ZML checkout that is the build root | `--zml` |
+| `TENSORSPINE_RUNTIME_DIR` | where derived documents and dumps go (a temporary directory by default) | `--runtime-dir` |
+| `TENSORSPINE_CHECKPOINT` | the safetensors repository D3's locations name | `--checkpoint` |
+
+Unset, the harness derives into a temporary directory and skips the numerical checks — so
+it runs anywhere, and says which checks it did not make.
+
+```sh
+generators/zml/tests/run_zml.py                    # structure only
+generators/zml/tests/run_zml.py --checkpoint=DIR   # and the numbers
 ```
 
 ### Pinned
@@ -50,9 +71,9 @@ tensorspine --derive data/models/llama3-8b.json -o /some/dir/
 | Zig | 0.16.0, from ZML's toolchain — not from `PATH` |
 | Bazel | 9.1.1 via `./bazel.sh` (bazelisk) |
 
-Those two `MODULE.bazel` lines live in a repository this one does not own, so a `git pull` there can
-drop them. That is the intended failure — Bazel says the module is missing rather than doing
-something subtle — and re-applying them is the fix.
+Nothing has to be edited in the ZML checkout, so a `git pull` there cannot break the
+wiring. What a ZML update can break is the code: these sources are written against the
+commit above, and `zml/`'s API is not frozen.
 
 ## What is here
 
