@@ -56,6 +56,29 @@ the reference fixture's identifiers; `--ids=128000,791,…` overrides it.
 A full-model run is slow on CPU — 32 layers through 16 programs for every token — so it is worth
 `nohup`-ing and watching the `rss after …` lines it prints.
 
+### Chatting
+
+```sh
+tspl --derived=DOC --checkpoint=CK --chat --compute=bf16 --split=16 --capacity=512
+```
+
+A turn is tokenised, fed through the graph, and answered until a stop identifier or
+`--steps` tokens; the session's states are carried from one turn to the next, so the
+conversation *is* the growing state. The tokenizer comes from the checkpoint's
+`tokenizer.json` (`--tokenizer=PATH` overrides it), and the turn ends on whichever of
+`<|end_of_text|>`, `<|eot_id|>`, `</s>` or `<|im_end|>` that tokenizer knows.
+
+The tokenizer, the stopping rule and the notion of a turn are all the serving
+application's — the language describes a token stream, not what a token is, nor when a
+conversation ends. `llama3-8b` is a base model and will happily run to `--steps`; an
+instruction-tuned mirror stops itself.
+
+Only one arity is compiled, for a single element, and the prompt is fed through it a
+token at a time. A compiled graph has static shapes, so a prefill of *n* tokens would be
+a different program for every *n* a conversation happens to produce; feeding one at a
+time costs the same forward passes and compiles once. A serving application that cared
+would compile a few prefill widths and pad to them.
+
 ### Other things `tspl` does
 
 ```sh
@@ -160,6 +183,8 @@ What a ZML update *can* break is the code: these sources are written against the
 | Path | |
 |---|---|
 | `main.zig` | `tspl` — the command line |
+| `chat.zig` | a conversation: tokenizer, turns, stopping |
+| `session.zig` | the compiled arities, and one invocation through them |
 | `graph.zig` | the derived document as Zig data |
 | `plan.zig` | what to evaluate, in what order, cut into programs |
 | `loader.zig` | parameters, from D3's locations |
