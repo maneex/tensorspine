@@ -83,14 +83,41 @@ pub const Step = struct {
 /// the primitive side reads, and ZML never looks inside it.
 pub const Handle = struct {
     ptr: *const anyopaque,
+    /// Which of the plan's groups this program is.
+    group: usize = 0,
 
     pub fn of(p: *const Plan) Handle {
         return .{ .ptr = p };
     }
 
+    pub fn ofGroup(p: *const Plan, group: usize) Handle {
+        return .{ .ptr = p, .group = group };
+    }
+
     pub fn plan(self: Handle) *const Plan {
         return @ptrCast(@alignCast(self.ptr));
     }
+};
+
+/// One value crossing a group boundary: produced in one program, consumed in a later
+/// one, so it leaves the first as a result and enters the second as an argument.
+pub const Boundary = struct {
+    step: usize,
+    out: usize,
+    shape: zml.Shape,
+};
+
+/// A contiguous run of steps compiled as one program. Several programs run in sequence
+/// over the same weights and states, and XLA frees each one's scratch before the next
+/// begins — which is what bounds a run whose scratch would otherwise hold every layer's
+/// weights at once.
+pub const Group = struct {
+    first: usize,
+    last: usize,
+    inputs: []const Boundary,
+    outputs: []const Boundary,
+    /// Indices into `Plan.params_used`: only what these steps read.
+    params: []const usize,
 };
 
 pub const Plan = struct {
@@ -110,11 +137,87 @@ pub const Plan = struct {
     elements: i64,
     result: Source,
     compute: zml.DataType,
+    /// One group when the whole plan is one program.
+    groups: []const Group = &.{},
 
     pub fn deinit(self: *Plan) void {
         self.arena.deinit();
     }
+
+    /// Cut the steps into `count` contiguous programs of roughly equal length, and work
+    /// out what crosses each boundary. Splitting is a **serving choice** — the graph and
+    /// its numbers are the same either way — so it is a run-time argument, like the
+    /// reference generator's `--max-ram`.
+    pub fn split(self: *Plan, count: usize) !void {
+        const a = self.arena.allocator();
+        const n = @max(1, @min(count, self.steps.len));
+        const groups = try a.alloc(Group, n);
+
+        var first: usize = 0;
+        for (groups, 0..) |*group, g| {
+            const last = if (g + 1 == n) self.steps.len else (self.steps.len * (g + 1)) / n;
+
+            var inputs: std.ArrayList(Boundary) = .empty;
+            var outputs: std.ArrayList(Boundary) = .empty;
+            var params: std.ArrayList(usize) = .empty;
+
+            for (self.steps[first..last]) |step| {
+                for (step.inputs) |in| {
+                    const v = switch (in.source) {
+                        .value => |v| v,
+                        .public => continue,
+                    };
+                    if (v.step >= first) continue;            // produced inside this group
+                    if (has(inputs.items, v.step, v.out)) continue;
+                    try inputs.append(a, .{ .step = v.step, .out = v.out, .shape = self.steps[v.step].shapes[v.out] });
+                }
+                for (step.params) |slot| {
+                    if (std.mem.indexOfScalar(usize, params.items, slot.param) == null) {
+                        try params.append(a, slot.param);
+                    }
+                }
+            }
+
+            // What leaves: anything a later step reads, and the plan's own result.
+            for (first..last) |si| {
+                for (self.steps[si].outputs, 0..) |_, out| {
+                    var needed = switch (self.result) {
+                        .value => |v| v.step == si and v.out == out,
+                        .public => false,
+                    };
+                    if (!needed) {
+                        for (self.steps[last..]) |later| {
+                            for (later.inputs) |in| switch (in.source) {
+                                .value => |v| if (v.step == si and v.out == out) {
+                                    needed = true;
+                                },
+                                .public => {},
+                            };
+                        }
+                    }
+                    if (needed) try outputs.append(a, .{ .step = si, .out = out, .shape = self.steps[si].shapes[out] });
+                }
+            }
+
+            group.* = .{
+                .first = first,
+                .last = last,
+                .inputs = try inputs.toOwnedSlice(a),
+                .outputs = try outputs.toOwnedSlice(a),
+                .params = try params.toOwnedSlice(a),
+            };
+            first = last;
+        }
+        self.groups = groups;
+    }
 };
+
+fn has(items: []const Boundary, step: usize, out: usize) bool {
+    for (items) |b| {
+        if (b.step == step and b.out == out) return true;
+    }
+    return false;
+}
 
 fn splitLast(name: []const u8) struct { []const u8, []const u8 } {
     const i = std.mem.lastIndexOfScalar(u8, name, '.') orelse return .{ name, "" };

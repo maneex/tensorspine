@@ -26,6 +26,7 @@ const Args = struct {
     ids: ?[]const u8 = null,
     capacity: ?u32 = null,
     steps: u32 = 8,
+    split: u32 = 1,
     compute: []const u8 = "f32",
     @"separate-states": bool = false,
     out: ?[]const u8 = null,
@@ -45,6 +46,9 @@ const Args = struct {
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
         \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --steps)
         \\   --steps=<n>           Tokens to generate when --until is absent (default: 8)
+        \\   --split=<n>           Compile and run the graph as n programs in sequence; XLA's
+        \\                         scratch holds an f32 copy of every weight one program's
+        \\                         matmuls touch, so cutting bounds a run's memory
         \\   --separate-states     One buffer per D4 identity instead of one per family; the
         \\                         packed layout is the default and is a serving choice
         \\   --compute=<dtype>     f32 (default) or bf16. f32 upcasts every weight inside the graph,
@@ -124,12 +128,16 @@ fn parseIds(allocator: std.mem.Allocator, spec: ?[]const u8) ![]i32 {
     return list.toOwnedSlice(allocator);
 }
 
-/// One compiled arity: prefill carries the prompt, decode carries one element. A
-/// compiled graph has static shapes, so the two are two executables over the same
-/// weights and the same states — which is what a session is.
+/// One compiled arity, as one or more programs run in sequence.
+///
+/// A compiled graph has static shapes, so prefill and decode are two arities; and a
+/// long graph is cut into several programs because XLA's scratch for one program holds
+/// an f32 copy of every weight that program's matmuls touch — it upcasts bf16 dots on
+/// CPU — so a whole model in one program needs about three times its own weights.
+/// Cutting bounds that to the largest group, and the numbers do not move.
 const Compiled = struct {
     plan: plan.Plan,
-    exe: zml.Exe,
+    exes: []zml.Exe,
 
     fn init(
         allocator: std.mem.Allocator,
@@ -141,10 +149,12 @@ const Compiled = struct {
         capacity: i64,
         compute: zml.DataType,
         packed_states: bool,
+        split: usize,
         params: []const zml.Tensor,
     ) !Compiled {
         var p = try plan.until(allocator, g, target, elements, capacity, compute, packed_states);
         errdefer p.deinit();
+        try p.split(split);
 
         const publics = try allocator.alloc(zml.Tensor, p.publics.len);
         defer allocator.free(publics);
@@ -155,22 +165,34 @@ const Compiled = struct {
         for (p.state_shapes, states) |shape, *t| t.* = .fromShape(shape);
 
         const start: zml.Tensor = .fromShape(zml.Shape.init(.{}, .i32));
-        const exe = try zml.module.compile(allocator, io, emit.forward, .{
-            plan.Handle.of(&p), params, publics, start, states,
-        }, platform, .{ .program_name = g.model() });
-        return .{ .plan = p, .exe = exe };
+
+        const exes = try allocator.alloc(zml.Exe, p.groups.len);
+        errdefer allocator.free(exes);
+        for (p.groups, exes, 0..) |group, *exe, i| {
+            const group_params = try allocator.alloc(zml.Tensor, group.params.len);
+            defer allocator.free(group_params);
+            for (group.params, group_params) |at, *t| t.* = params[at];
+
+            const carried = try allocator.alloc(zml.Tensor, group.inputs.len);
+            defer allocator.free(carried);
+            for (group.inputs, carried) |b, *t| t.* = .fromShape(b.shape);
+
+            log.info("compiling group {d}/{d}: steps {d}..{d}, {d} param(s), {d} carried, {d} out", .{
+                i + 1, p.groups.len, group.first, group.last, group.params.len, group.inputs.len, group.outputs.len,
+            });
+            exe.* = try zml.module.compile(allocator, io, emit.forward, .{
+                plan.Handle.ofGroup(&p, i), group_params, publics, carried, start, states,
+            }, platform, .{ .program_name = g.model() });
+        }
+        return .{ .plan = p, .exes = exes };
     }
 
-    fn deinit(self: *Compiled) void {
-        self.exe.deinit();
+    fn deinit(self: *Compiled, allocator: std.mem.Allocator) void {
+        for (self.exes) |exe| exe.deinit();
+        allocator.free(self.exes);
         self.plan.deinit();
     }
 };
-
-
-/// One invocation of a compiled arity: the elements in, the states as they stand, the
-/// value out and the states after. States are functional in the graph, so a session is
-/// just the buffers carried from one call to the next.
 fn invoke(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -193,23 +215,59 @@ fn invoke(
     var start_buffer = try zml.Buffer.scalar(io, platform, start, .i32);
     defer start_buffer.deinit();
 
-    var call_args = try c.exe.args(allocator);
-    defer call_args.deinit(allocator);
-    var results = try c.exe.results(allocator);
-    defer results.deinit(allocator);
+    // Values that have crossed a boundary and are still needed, keyed as the plan keys
+    // them. A program's scratch is gone by the time the next one starts; these are not.
+    var live: std.ArrayList(struct { step: usize, out: usize, buffer: zml.Buffer }) = .empty;
+    defer live.deinit(allocator);
+    defer for (live.items) |*item| item.buffer.deinit();
 
-    call_args.set(.{ params, tokens, start_buffer, states });
-    c.exe.call(call_args, &results);
+    for (c.plan.groups, c.exes) |group, exe| {
+        const group_params = try allocator.alloc(zml.Buffer, group.params.len);
+        defer allocator.free(group_params);
+        for (group.params, group_params) |at, *b| b.* = params[at];
 
-    const after = try allocator.alloc(zml.Buffer, states.len);
-    defer allocator.free(after);
-    results.fill(.{ out, &after });
+        const carried = try allocator.alloc(zml.Buffer, group.inputs.len);
+        defer allocator.free(carried);
+        for (group.inputs, carried) |want, *b| {
+            b.* = for (live.items) |item| {
+                if (item.step == want.step and item.out == want.out) break item.buffer;
+            } else return error.MissingBoundaryValue;
+        }
 
-    // The states this call produced replace the ones it read.
-    for (states, after) |*before, next| {
-        before.deinit();
-        before.* = next;
+        var call_args = try exe.args(allocator);
+        defer call_args.deinit(allocator);
+        var results = try exe.results(allocator);
+        defer results.deinit(allocator);
+
+        call_args.set(.{ group_params, tokens, carried, start_buffer, states });
+        exe.call(call_args, &results);
+
+        const produced = try allocator.alloc(zml.Buffer, group.outputs.len);
+        defer allocator.free(produced);
+        const after = try allocator.alloc(zml.Buffer, states.len);
+        defer allocator.free(after);
+        results.fill(.{ &produced, &after });
+
+        for (states, after) |*before, next| {
+            before.deinit();
+            before.* = next;
+        }
+        for (group.outputs, produced) |b, buffer| {
+            try live.append(allocator, .{ .step = b.step, .out = b.out, .buffer = buffer });
+        }
     }
+
+    // The plan's result is the last value the last group produced.
+    const last = c.plan.groups[c.plan.groups.len - 1];
+    const wanted = last.outputs[last.outputs.len - 1];
+    for (live.items, 0..) |item, i| {
+        if (item.step == wanted.step and item.out == wanted.out) {
+            out.* = item.buffer;
+            _ = live.swapRemove(i);
+            return;
+        }
+    }
+    return error.MissingResult;
 }
 
 /// The identifier of the largest logit of the last element — greedy decoding. Sampling
@@ -283,16 +341,17 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer model.deinit(allocator);
     reportRss(io, "locate");
 
-    var prefill = try Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states", model.params);
-    defer prefill.deinit();
-    var decode = try Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, !args.@"separate-states", model.params);
-    defer decode.deinit();
+    var prefill = try Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, model.params);
+    defer prefill.deinit(allocator);
+    var decode = try Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, !args.@"separate-states", args.split, model.params);
+    defer decode.deinit(allocator);
     if (!std.mem.eql(usize, prefill.plan.params_used, decode.plan.params_used)) {
         log.err("the two arities disagree on which parameters they need", .{});
         return error.InconsistentPlan;
     }
-    log.info("{d} occurrences, {d} parameter tensors, {d} state buffers, capacity {d}", .{
-        prefill.plan.steps.len, prefill.plan.params_used.len, prefill.plan.state_shapes.len, capacity,
+    log.info("{d} occurrences in {d} program(s), {d} parameter tensors, {d} state buffers, capacity {d}", .{
+        prefill.plan.steps.len, prefill.plan.groups.len, prefill.plan.params_used.len,
+        prefill.plan.state_shapes.len, capacity,
     });
     reportRss(io, "compile");
 
@@ -362,10 +421,6 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     const ids = try parseIds(allocator, args.ids);
     defer allocator.free(ids);
 
-    // One device. ZML's CPU default is four, and a replicated parameter is copied to
-    // each of them — four times the weights resident, before anything is computed.
-    // Sharding is a non-goal here (the manifest declares no partitions), so one device
-    // is both what this generator means and what fits.
     const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
     defer platform.deinit(allocator, io);
     log.info("platform: {s}, {d} device(s)", .{ @tagName(platform.target), platform.devices.len });
@@ -375,101 +430,63 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     var store: zml.io.TensorStore = .fromRegistry(allocator, &tensors);
     defer store.deinit();
 
-    // What to evaluate. Compute is f32 on CPU, as the reference does, so a comparison
-    // against it is a comparison of the mathematics and not of two roundings.
-    // Capacity is deployment intent, not a document fact: D4 gives the bytes per
-    // position, how many positions is the runtime's business (§7).
+    const compute = try dtypes.of(args.compute);
     const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len);
-    var p = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, try dtypes.of(args.compute), !args.@"separate-states");
-    defer p.deinit();
-    log.info("{d} step(s) to reach {s}, {d} public input(s), {d} parameter tensor(s), {d} state buffer(s)", .{
-        p.steps.len, args.until.?, p.publics.len, p.params_used.len, p.state_shapes.len,
-    });
 
-    // The parameters the plan needs, by D3's locations — nothing per model.
-    var model = try loader.locate(allocator, g, store.view(), p.params_used);
+    var shape_plan = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, compute, !args.@"separate-states");
+    const params_used = try allocator.dupe(usize, shape_plan.params_used);
+    defer allocator.free(params_used);
+    shape_plan.deinit();
+
+    var model = try loader.locate(allocator, g, store.view(), params_used);
     defer model.deinit(allocator);
 
-    const publics = try allocator.alloc(zml.Tensor, p.publics.len);
-    defer allocator.free(publics);
-    for (p.public_shapes, publics) |shape, *t| t.* = .fromShape(shape);
-
-    const state_tensors = try allocator.alloc(zml.Tensor, p.state_shapes.len);
-    defer allocator.free(state_tensors);
-    for (p.state_shapes, state_tensors) |shape, *t| t.* = .fromShape(shape);
-
-    const start: zml.Tensor = .fromShape(zml.Shape.init(.{}, .i32));
-
-    var exe = try zml.module.compile(allocator, io, emit.forward, .{
-        plan.Handle.of(&p), model.params, publics, start, state_tensors,
-    }, platform, .{
-        .program_name = g.model(),
-        .xla_dump_to = args.@"dump-mlir",
+    var c = try Compiled.init(allocator, io, platform, g, args.until.?, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, model.params);
+    defer c.deinit(allocator);
+    log.info("{d} step(s) to reach {s} in {d} program(s), {d} parameter tensor(s), {d} state buffer(s)", .{
+        c.plan.steps.len, args.until.?, c.plan.groups.len, c.plan.params_used.len, c.plan.state_shapes.len,
     });
-    defer exe.deinit();
-    log.info("compiled", .{});
 
-    // The weights, into buffers ZML pairs with the model by visit order.
     var buffers = try zml.mem.bufferize(allocator, loader.Model, &model);
     defer allocator.free(buffers.params);
-    var weights: zml.io.Loader = try .init(std.heap.page_allocator, platform, .default);
-    defer weights.deinit();
-    weights.load(io, loader.Model, &model, &buffers, &store, &.{}, .{});
-    try weights.await(io);
-    log.info("{Bi:.2} of weights loaded", .{weights.bytes_loaded.raw});
+    defer for (buffers.params) |*b| b.deinit();
+    {
+        var weights: zml.io.Loader = try .init(std.heap.page_allocator, platform, .default);
+        defer weights.deinit();
+        weights.load(io, loader.Model, &model, &buffers, &store, &.{}, .{});
+        try weights.await(io);
+        log.info("{Bi:.2} of weights loaded", .{weights.bytes_loaded.raw});
+    }
 
-    var token_buffer = try zml.Buffer.fromSlice(
-        io,
-        platform,
-        .init(p.public_shapes[0], std.mem.sliceAsBytes(ids)),
-        platform.replicated_sharding,
-    );
-    defer token_buffer.deinit();
-
-    var call_args = try exe.args(allocator);
-    defer call_args.deinit(allocator);
-    var results = try exe.results(allocator);
-    defer results.deinit(allocator);
-
-    // The states begin zeroed and `start` says where this invocation's elements land.
-    // Zeroed, not uninitialised: masked positions still reach the weighted sum with a
-    // zero weight, and a NaN there would poison it.
-    const state_buffers = try allocator.alloc(zml.Buffer, p.state_shapes.len);
-    defer allocator.free(state_buffers);
-    for (p.state_shapes, state_buffers) |shape, *b| {
+    const states = try allocator.alloc(zml.Buffer, c.plan.state_shapes.len);
+    defer allocator.free(states);
+    for (c.plan.state_shapes, states) |shape, *b| {
         const zeros = try allocator.alloc(u8, shape.byteSize());
         defer allocator.free(zeros);
         @memset(zeros, 0);
         b.* = try .fromBytes(io, platform, shape, platform.replicated_sharding, zeros);
     }
-    defer for (state_buffers) |*b| b.deinit();
+    defer for (states) |*b| b.deinit();
 
-    var start_buffer = try zml.Buffer.scalar(io, platform, @as(i32, 0), .i32);
-    defer start_buffer.deinit();
-
-    call_args.set(.{ buffers.params, token_buffer, start_buffer, state_buffers });
-    exe.call(call_args, &results);
-
-    // `fill` writes into buffers already allocated, which is what a result carrying a
-    // runtime-length slice of states needs.
-    const state_out = try allocator.alloc(zml.Buffer, p.state_shapes.len);
-    defer allocator.free(state_out);
     var out: zml.Buffer = undefined;
-    results.fill(.{ &out, &state_out });
+    try invoke(allocator, io, platform, &c, buffers.params, ids, 0, states, &out);
     defer out.deinit();
+
     const slice = try out.toSliceAlloc(allocator, io);
     defer allocator.free(slice.bytes);
-
     log.info("{s} = {f}", .{ args.until.?, out.shape() });
+    if (args.out) |path| {
+        try write(io, path, slice.bytes);
+        log.info("{d} bytes written to {s}", .{ slice.bytes.len, path });
+    }
 
     // A dump is written in the document's terms: one file per D4 identity, whatever
-    // layout the run chose to hold them in. What the serving application packed is its
-    // own business and does not leave the generator.
+    // layout the run chose to hold them in.
     if (args.dump) |dir| {
         var k: usize = 0;
-        for (p.states) |instance| {
+        for (c.plan.states) |instance| {
             for (instance.components) |component| {
-                const bytes = try state_out[k].toSliceAlloc(allocator, io);
+                const bytes = try states[k].toSliceAlloc(allocator, io);
                 defer allocator.free(bytes.bytes);
                 const portion = bytes.bytes.len / instance.members;
                 for (instance.identities, 0..) |identity, m| {
@@ -477,14 +494,9 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
                     defer allocator.free(name);
                     try write(io, name, bytes.bytes[m * portion ..][0..portion]);
                 }
-                log.info("state {s} x{d} = {f}", .{ component.name, instance.members, state_out[k].shape() });
                 k += 1;
             }
         }
-    }
-    if (args.out) |path| {
-        try write(io, path, slice.bytes);
-        log.info("{d} bytes written to {s}", .{ slice.bytes.len, path });
     }
 }
 

@@ -119,11 +119,11 @@ fn find(produced: []const primitive.Binding, name: []const u8, step: *const plan
     std.debug.panic("{s}: {s} produced no '{s}'", .{ step.node, step.prim.name, name });
 }
 
-/// What the traced function returns: the value asked for, and every state buffer as it
-/// stands afterwards. States are functional here — in as operands, out as results —
-/// which is what lets the caller donate them.
+/// What one program returns: the values crossing its outgoing boundary (the last
+/// group's carries the plan's result), and every state buffer as it stands afterwards.
+/// States are functional here — in as operands, out as results.
 pub const Result = struct {
-    value: zml.Tensor,
+    outputs: []zml.Tensor,
     states: []zml.Tensor,
 };
 
@@ -134,10 +134,12 @@ pub fn forward(
     handle: plan_mod.Handle,
     params: []const zml.Tensor,
     publics: []const zml.Tensor,
+    carried: []const zml.Tensor,
     start: zml.Tensor,
     states_in: []const zml.Tensor,
 ) Result {
     const p = handle.plan();
+    const group = p.groups[handle.group];
     const cc = zml.module.CompilationContext.current();
 
     // Everything the walk allocates dies with the walk: the emitted MLIR holds the
@@ -155,12 +157,15 @@ pub fn forward(
     const positions = start.convert(.i32).broad(zml.Shape.init(.{p.elements}, .i32))
         .add(zml.Tensor.iota(zml.Shape.init(.{p.elements}, .i32), 0));
 
-    // States live across the whole walk: written by one step, read by the next.
-    const states = a.alloc(zml.Tensor, states_in.len) catch @panic("out of memory");
+    // States live across the whole walk: written by one step, read by the next. They
+    // are returned, so they outlive the arena — `collectOutputInfo` reads the result
+    // after this function returns, and the compilation context's own arena is what
+    // lasts that long.
+    const states = cc.alloc(zml.Tensor, states_in.len);
     @memcpy(states, states_in);
 
     const produced = a.alloc([]zml.Tensor, p.steps.len) catch @panic("out of memory");
-    for (p.steps, produced) |*step, *results| {
+    for (p.steps[group.first..group.last], produced[group.first..group.last]) |*step, *results| {
         var operands: std.ArrayList(Operand) = .empty;
         var tensors: std.ArrayList(zml.Tensor) = .empty;
         var shapes: std.ArrayList(zml.Shape) = .empty;
@@ -168,13 +173,22 @@ pub fn forward(
         for (step.inputs) |in| {
             operands.append(a, .{ .input = in.port }) catch @panic("out of memory");
             tensors.append(a, switch (in.source) {
-                .value => |v| produced[v.step][v.out],
+                // Inside the group it is a value; from an earlier group it entered as an
+                // argument of this program.
+                .value => |v| if (v.step >= group.first) produced[v.step][v.out] else blk: {
+                    for (group.inputs, carried) |b, tensor| {
+                        if (b.step == v.step and b.out == v.out) break :blk tensor;
+                    }
+                    std.debug.panic("{s}: nothing carries {d}.{d} into group {d}", .{ step.node, v.step, v.out, handle.group });
+                },
                 .public => |i| publics[i],
             }) catch @panic("out of memory");
         }
         for (step.params) |slot| {
             operands.append(a, .{ .param = slot.slot }) catch @panic("out of memory");
-            tensors.append(a, params[slot.param]) catch @panic("out of memory");
+            const at = std.mem.indexOfScalar(usize, group.params, slot.param) orelse
+                std.debug.panic("{s}: group {d} was not given parameter {d}", .{ step.node, handle.group, slot.param });
+            tensors.append(a, params[at]) catch @panic("out of memory");
         }
         for (step.outputs, step.shapes) |_, shape| {
             shapes.append(a, shape) catch @panic("out of memory");
@@ -212,11 +226,9 @@ pub fn forward(
         }
     }
 
-    return .{
-        .value = switch (p.result) {
-            .value => |v| produced[v.step][v.out],
-            .public => |i| publics[i],
-        },
-        .states = states,
-    };
+    // Returned, so from the compilation context's arena and not the walk's.
+    const outputs = cc.alloc(zml.Tensor, group.outputs.len);
+    for (group.outputs, outputs) |b, *t| t.* = produced[b.step][b.out];
+
+    return .{ .outputs = outputs, .states = states };
 }
