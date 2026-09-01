@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "zml",
-    "version": "e29efeb",
+    "version": "45bbda1",
     "generator": "tspl --capabilities",
     "generated": "2026-09-01"
   },
@@ -21,7 +21,9 @@
     "fixed"
   ],
   "access": [
-    "logical_position"
+    "logical_position",
+    "ring",
+    "aggregate"
   ],
   "sharing": [],
   "partitions": [],
@@ -198,6 +200,32 @@
         "width": "any"
       },
       "states": []
+    },
+    "sequence.gated_delta@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "key_heads": "any",
+        "value_heads": "any",
+        "head_dim": "any",
+        "out_gate": [
+          "silu"
+        ],
+        "conv": {
+          "absent": false,
+          "fields": {
+            "width": "any",
+            "kernel": "any",
+            "history": "any"
+          }
+        }
+      },
+      "states": [
+        "window",
+        "fixed"
+      ],
+      "notes": [
+        "the recurrence position by position, unrolled by the tracer: exact, and one block per element"
+      ]
     }
   }
 }

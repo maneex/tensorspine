@@ -27,9 +27,11 @@ const parameter_dtypes = [_][]const u8{ "bf16", "f16", "f32" };
 
 /// What `state.zig` implements, not what it names. All three laws are written now —
 /// `append` at a cursor, `window` as a chronological slide, `fixed` written whole.
-/// `Access` has four values and nothing consumes a `selected` state.
+/// `Access` has four values and nothing consumes a `selected` state: attention reads a
+/// KV cache by logical position, gated-delta reads a conv history as a ring and a
+/// recurrent matrix as an aggregate.
 const state_laws = [_][]const u8{ "append", "window", "fixed" };
-const access = [_][]const u8{"logical_position"};
+const access = [_][]const u8{ "logical_position", "ring", "aggregate" };
 
 /// What `loader.zig` assembles. D3 also carries `slice`, which it refuses by name.
 const locations = [_][]const u8{"tensor"};

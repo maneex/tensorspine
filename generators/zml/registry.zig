@@ -20,6 +20,7 @@ pub const all = [_]primitive.Primitive{
     @import("primitives/norm_rms.zig").primitive,
     @import("primitives/pooler.zig").primitive,
     @import("primitives/residual_add.zig").primitive,
+    @import("primitives/sequence_gated_delta.zig").primitive,
 };
 
 pub fn find(name: []const u8, version: []const u8) ?*const primitive.Primitive {
