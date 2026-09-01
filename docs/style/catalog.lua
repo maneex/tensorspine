@@ -1,4 +1,4 @@
--- Pandoc filter for the Tensorspine catalog rendering (docs/style/catalog.sh).
+-- Pandoc filter for the TensorSpine catalog rendering (docs/style/catalog.sh).
 --
 --   * The generator puts an explicit anchor `<a id="X" name="X"></a>` on the
 --     line before headings it cross-references. Pandoc keeps the anchor and

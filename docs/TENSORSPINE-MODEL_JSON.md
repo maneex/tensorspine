@@ -1,9 +1,9 @@
-# Tensorspine model JSON — practical format guide
+# TensorSpine model JSON — practical format guide
 
 > Represent every model as a **finite graph of parameterized primitive occurrences**, then derive
 > everything else from their contracts.
 
-*Tensorspine model schema 2.0 — revised 29 August 2026.*
+*TensorSpine model schema 2.0 — revised 29 August 2026.*
 
 This is the practical, non-normative guide to reading and authoring a `tensorspine/2.0` JSON model.
 The [JSON Schema](../schemas/tensorspine.schema.json) defines the concrete grammar, while the
@@ -17,7 +17,7 @@ specification, the specification wins.
 
 ## §1 — How to use this guide
 
-A Tensorspine model **is a graph**. Its nodes are occurrences of primitives; its edges are explicit
+A TensorSpine model **is a graph**. Its nodes are occurrences of primitives; its edges are explicit
 bindings. State behaviour, parameter inventories, port shapes, logical costs and legal semantic
 partitions are consequences of primitive contracts applied to each occurrence's arguments.
 
@@ -31,7 +31,7 @@ glossary.
 
 ---
 
-## §2 — The Tensorspine 2.0 model document
+## §2 — The TensorSpine 2.0 model document
 
 The schema requires nine top-level fields, plus an optional `version` — the document's version as a
 representation, which a template must carry (§4.6). Fixed-shape objects use
@@ -456,7 +456,7 @@ does not matter.
 
 Four models exercise topology that a homogeneous decoder does not:
 
-| Model | Property exercised | Tensorspine 2.0 representation |
+| Model | Property exercised | TensorSpine 2.0 representation |
 |---|---|---|
 | **Whisper large-v3** | Cross-attention reads a different trunk | `cross: true` and an explicit encoder-to-decoder edge into `source_values`; the contract derives KV state indexed by that port's stream (`audio`, position kind) and frozen once it is complete. |
 | **Gemma 3n** | Non-adjacent layers share cache storage | State bindings merge 30 expanded state slots into 20 identities; shared identities use session and branch key axes but no layer key. |
@@ -527,5 +527,5 @@ blocks obscured:
    slot means, including when it is carried across fragments; bindings describe which occurrences
    share it and how many live identities exist; inputs say whether they are fragmented.
 
-That separation is the point of Tensorspine 2.0: a model remains a compact declaration of structure,
+That separation is the point of TensorSpine 2.0: a model remains a compact declaration of structure,
 while every reusable consequence has one versioned, inspectable source of truth.

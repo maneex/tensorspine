@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tensorspine.dev/schema/2.0/catalog-unit.json",
-  "title": "Tensorspine catalog unit",
+  "title": "TensorSpine catalog unit",
   "description": "One logical vocabulary unit of a catalog base: a primitive contract, a named axis, a precision role, or the base itself. The file path reproduces the unit's identity; a contract's file name is its version (§8.2). Every enumeration here is the closed vocabulary a consumer may implement in advance (§4.3, O0.6); a unit outside it is refused at load time, never read with a guess (I7). Documentation fields are defined once, in documentation.json, and referenced from the site they document.",
   "type": "object",
   "additionalProperties": false,

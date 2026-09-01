@@ -45,7 +45,7 @@ The specification already decides most of the design:
 
 ### 1.2 — OpenAPI as the model
 
-| OpenAPI 3.1 | Tensorspine catalog | Notes |
+| OpenAPI 3.1 | TensorSpine catalog | Notes |
 |---|---|---|
 | `info` (`title`, `summary`, `description`, `contact`, `license`) | Base manifest `catalog.json`: `title`, `summary`, `description`, `contact`, `license` | `info.version` is deliberately absent: a catalog has no global version (§8.2). |
 | `tags` (declared at the top, cited by operations) | Base manifest `tags: [{name, summary, description?, external_docs?}]`; units cite by name | Namespaces (`attention.*`) already group by structure; a tag groups by a property that cuts across them. |

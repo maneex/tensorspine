@@ -2494,7 +2494,7 @@ def run(model_paths, output=None, site_nav=None, bases=None, assignment=None,
         else:
             out = src.with_suffix('.html')
         try:
-            page = build_html(data, derived, note, f"{model_name} \u2013 Tensorspine", nav_html)
+            page = build_html(data, derived, note, f"{model_name} \u2013 TensorSpine", nav_html)
         except RuntimeError as e:
             print(f"  {src.name:34s} failed: {e}", file=sys.stderr)
             failed += 1

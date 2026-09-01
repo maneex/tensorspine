@@ -5,13 +5,13 @@
   "definition": {
     "catalog": "tensorspine/reference",
     "templates": "../models/",
-    "title": "Tensorspine reference catalog",
+    "title": "TensorSpine reference catalog",
     "summary": "Logical primitives, named axes and precision roles that model documents pin by identity.",
     "description": "Every unit of this base is one file whose path reproduces its identity (§8.2). A **contract** declares what a primitive means and what follows from its arguments: ports and shapes, learned tensors, persistent state with its evolution law, logical cost and semantic partitions. An **axis** names a dimension so that shapes unify by identity rather than by position. A **precision role** bounds the storage types a tensor, activation or state component may take.\n\nThe catalog is an open vocabulary of closed elements: a new primitive is a new file, and an existing `{name, version}` never changes meaning. There is deliberately no catalog-wide version.",
     "external_docs": [
       {
         "url": "docs/SPECIFICATION.md",
-        "title": "Tensorspine Language Specification",
+        "title": "TensorSpine Language Specification",
         "kind": "specification",
         "description": "Normative authority on contract contents (§4) and identity (§8.2)."
       }

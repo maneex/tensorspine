@@ -1,6 +1,6 @@
-# Tensorspine glossary
+# TensorSpine glossary
 
-This glossary is the non-normative lookup point for Tensorspine terminology. Each entry gives a
+This glossary is the non-normative lookup point for TensorSpine terminology. Each entry gives a
 reader-facing summary and links to the document that owns the precise definition. The
 [language specification](SPECIFICATION.md) is authoritative for validity and denotation; the
 [JSON Schema](../schemas/tensorspine.schema.json) is authoritative for the concrete model grammar.
@@ -185,7 +185,7 @@ between fragments. See
 
 An output property stating whether a public output participates in generation: each generated
 element is delivered to the output's stream in the next invocation, so a generative output has kind
-`token`. Tensorspine also permits non-generative and per-token outputs. See [Specification
+`token`. TensorSpine also permits non-generative and per-token outputs. See [Specification
 §2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42).
 
 ## I

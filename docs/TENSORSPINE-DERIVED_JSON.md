@@ -1,4 +1,4 @@
-# Tensorspine derived document — the products, as JSON
+# TensorSpine derived document — the products, as JSON
 
 > A valid model document and its contracts make six products computable without inference code
 > (Specification §7). This document is how the repository writes them down: one JSON per model,

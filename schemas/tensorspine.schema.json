@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tensorspine.dev/schema/2.0/model.json",
-  "title": "Tensorspine Model Schema 2.0",
+  "title": "TensorSpine Model Schema 2.0",
   "type": "object",
   "required": [
     "schema",

@@ -34,6 +34,6 @@ pandoc "$in" \
   --lua-filter "$here/catalog.lua" \
   --css "$css" \
   --include-before-body "$nav" \
-  --metadata pagetitle="Tensorspine reference catalog" \
+  --metadata pagetitle="TensorSpine reference catalog" \
   --output "$out"
 echo "wrote $out"

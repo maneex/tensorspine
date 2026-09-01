@@ -1,4 +1,4 @@
-"""Loading and resolution of an Tensorspine catalog.
+"""Loading and resolution of a TensorSpine catalog.
 
 A base is either an exploded directory — with `contracts/`, `axes/`,
 `precision/` and a `catalog.json` manifest — or a single monolithic file, still

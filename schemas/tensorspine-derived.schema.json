@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tensorspine.dev/schema/2.0/derived.json",
-  "title": "Tensorspine derived document 2.0",
+  "title": "TensorSpine derived document 2.0",
   "description": "What a valid model document and its contracts make computable (§7), as one document: the expanded graph D1, required, and the products D2–D6, each optional. Every product refers to D1's identifiers, so one document is one snapshot of one model under one assignment. The encoding is the repository's; the specification leaves it open.",
   "type": "object",
   "additionalProperties": false,
