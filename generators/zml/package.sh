@@ -123,6 +123,10 @@ exec "\$here/tspl" \\
 RUN
 chmod +x "$stage/run.sh"
 
+# Bazel's runfiles are read-only; carried into the archive they leave the recipient a
+# tree they cannot delete without a chmod of their own.
+chmod -R u+w "$stage"
+
 cuda=no; [ -d "$stage/tspl.runfiles" ] && ls "$stage/tspl.runfiles" | grep -q cuda && cuda=yes
 
 cat > "$stage/MANIFEST" <<MANIFEST
