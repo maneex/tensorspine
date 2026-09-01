@@ -2,7 +2,7 @@
 
 The second generator: one Zig type for every document, primitives one file each, the graph traced
 into MLIR through [ZML](https://github.com/zml/zml) and compiled by XLA. It consumes a **derived
-document** (D1–D6) and a checkpoint, and nothing else — no model document, no catalog, no Python.
+document** (D1–D6) and a model artifact, and nothing else — no model document, no catalog, no Python.
 Deriving here would be a second implementation of the language.
 
 The reference generator is the oracle: the same fixtures, the same D6 cuts, the same dumped states.
@@ -20,7 +20,7 @@ The reference generator is the oracle: the same fixtures, the same D6 cuts, the 
 > reference generator's fixture within **1.21e-06** on its embeddings, every row L2-normalised to
 > one, on 0.41 GiB of weights.
 >
-> **`llama3-8b` runs whole.** All 32 layers, from the derived document and the checkpoint alone:
+> **`llama3-8b` runs whole.** All 32 layers, from the derived document and the artifact alone:
 > `[12366, 13, 1102, 374, 7559, 304, 279, 10411]` — the reference generator's own recorded tokens,
 > and `transformers`'. 195 occurrences as 16 programs; 370 MiB to compile, 15.28 GiB resident after
 > loading 14.96 GiB of weights, 18.3 GiB peak.
@@ -52,18 +52,18 @@ The binary lands at `$ZML_HOME/bazel-bin/external/+local_repository+tensorspine/
 Offline, once per model, through the language's own tool — the generator never derives:
 
 ```sh
-export TENSORSPINE_ARTIFACTS=~/somewhere/tensorspine    # your choice; see below
-mkdir -p "$TENSORSPINE_ARTIFACTS/derived"
+export TENSORSPINE_MODEL_ARTIFACTS=~/somewhere/tensorspine    # your choice; see below
+mkdir -p "$TENSORSPINE_MODEL_ARTIFACTS/derived"
 
-tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_ARTIFACTS/derived"
+tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_MODEL_ARTIFACTS/derived"
 ```
 
 ### 3. Run
 
 ```sh
 "$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
-  --derived="$TENSORSPINE_ARTIFACTS/derived/llama3-8b.derived.json" \
-  --checkpoint="$TENSORSPINE_ARTIFACTS/weights/Meta-Llama-3-8B" \
+  --derived="$TENSORSPINE_MODEL_ARTIFACTS/derived/llama3-8b.derived.json" \
+  --checkpoint="$TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B" \
   --steps=8 --compute=bf16 --split=16
 ```
 
@@ -75,8 +75,8 @@ Nothing about that command is llama's. The hybrid is the same invocation against
 
 ```sh
 "$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
-  --derived="$TENSORSPINE_ARTIFACTS/derived/qwen3.5-4b-text.derived.json" \
-  --checkpoint="$TENSORSPINE_ARTIFACTS/weights/Qwen3.5-4B" \
+  --derived="$TENSORSPINE_MODEL_ARTIFACTS/derived/qwen3.5-4b-text.derived.json" \
+  --checkpoint="$TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-4B" \
   --ids=760,6511,314,9338,369 --steps=8 --compute=bf16 --split=8
 ```
 
@@ -91,7 +91,7 @@ tspl --derived=DOC --checkpoint=CK --chat --compute=bf16 --split=16 --capacity=5
 
 A turn is tokenised, fed through the graph, and answered until a stop identifier or
 `--steps` tokens; the session's states are carried from one turn to the next, so the
-conversation *is* the growing state. The tokenizer comes from the checkpoint's
+conversation *is* the growing state. The tokenizer comes from the artifact's
 `tokenizer.json` (`--tokenizer=PATH` overrides it), and the turn ends on whichever of
 `<|end_of_text|>`, `<|eot_id|>`, `</s>` or `<|im_end|>` that tokenizer knows.
 
@@ -132,7 +132,7 @@ same standing as the reference generator's `--max-ram`.
 | Option | What it decides |
 |---|---|
 | `--split=<n>` | compile and run the graph as *n* programs in sequence. XLA CPU upcasts bf16 matmuls to f32, so one program's scratch holds an f32 copy of every weight its matmuls touch; cutting bounds that to the largest group. Measured on 8 layers: 14.3 GiB at 1, 9.3 at 4, 8.5 at 8 — same tokens throughout. |
-| `--compute=<dtype>` | `f32` (default) or `bf16`. bf16 is the checkpoint's own precision, as ZML's hand-written models use; f32 is what makes a comparison against the reference a comparison of the mathematics rather than of two roundings. |
+| `--compute=<dtype>` | `f32` (default) or `bf16`. bf16 is the artifact's own precision, as ZML's hand-written models use; f32 is what makes a comparison against the reference a comparison of the mathematics rather than of two roundings. |
 | `--capacity=<n>` | positions a growing state holds — deployment intent, not a document fact (§7). |
 | `--separate-states` | one buffer per D4 identity instead of one per family. The packed layout is the default; both give identical results. |
 
@@ -162,12 +162,12 @@ The test harness needs neither: it computes its own location and passes the flag
 
 ```sh
 export ZML_HOME=~/somewhere/zml                   # the ZML checkout
-export TENSORSPINE_ARTIFACTS=~/somewhere/tensorspine
+export TENSORSPINE_MODEL_ARTIFACTS=~/somewhere/tensorspine
 generators/zml/tests/run_zml.py
 ```
 
 It builds the target itself, derives all 14 corpus documents, and checks that what `tspl` reads out
-of each equals what `tools/derive.py` put in. Then, for whichever checkpoints it is given — all
+of each equals what `tools/derive.py` put in. Then, for whichever model artifacts it is given — all
 against the reference generator's committed fixtures:
 
 | Document | Checked |
@@ -178,7 +178,7 @@ against the reference generator's committed fixtures:
 | `qwen3.8-27b-text` | the same, at other quantities — 48 value heads against 32, a 10240-wide convolution against 8192 |
 
 The two hybrids are checked because one document could have been fitted and two at different
-sizes cannot: the second needed no code at all, only its checkpoint.
+sizes cannot: the second needed no code at all, only its artifact.
 
 Last, it regenerates the capabilities manifest and diffs it, and asks the language's own reader
 whether the manifest can run the document.
@@ -193,13 +193,13 @@ directories**, none with a default inside the tree:
 |---|---|---|---|
 | `ZML_HOME` | the ZML checkout that is the build root | `--zml` | the harness skips and says so |
 | `TENSORSPINE_GENERATOR` | this directory, absolute, for `--inject_repository` | — | the harness computes it |
-| `TENSORSPINE_ARTIFACTS` | everything a run needs, in one place | `--artifacts` | documents go somewhere temporary, numerical checks skipped |
+| `TENSORSPINE_MODEL_ARTIFACTS` | everything a run needs, in one place | `--model-artifacts` | documents go somewhere temporary, numerical checks skipped |
 
 A run needs the derived document **and** the weights it locates tensors in; they are one deployment,
 so they are one directory:
 
 ```
-$TENSORSPINE_ARTIFACTS/
+$TENSORSPINE_MODEL_ARTIFACTS/
   derived/                 llama3-8b.derived.json, qwen3.5-4b-text.derived.json, …
   weights/                 one directory per artifact — a symlink when they live elsewhere
     Meta-Llama-3-8B/       what `--checkpoint` is pointed at
@@ -212,12 +212,19 @@ $TENSORSPINE_ARTIFACTS/
 holds the documents beside them. Which subdirectory belongs to which document is a table in the
 harness, not a guess: weights that are absent make their checks say so rather than search.
 
+**Two words, and they are not synonyms** — the language uses both. An **artifact** is the container
+the document wraps, format-agnostic: `ARCHITECTURE.md` lists it beside the implementation, the
+deployment intent and the hardware, and `SPECIFICATION.md` I9 says *"the described model and loaded
+artifact are mutually compatible"*. A **checkpoint** is one concrete safetensors directory — what
+`--checkpoint` is pointed at and what V17 is checked against. So the prose here says *artifact*, and
+*checkpoint* appears only where a flag or V17 does.
+
 **Weights are big and shared.** Nothing needs moving: point `weights` at wherever they already are.
 
 ```sh
-export TENSORSPINE_ARTIFACTS=~/somewhere/tensorspine
-mkdir -p "$TENSORSPINE_ARTIFACTS"
-ln -s ~/somewhere/huggingface "$TENSORSPINE_ARTIFACTS/weights"
+export TENSORSPINE_MODEL_ARTIFACTS=~/somewhere/tensorspine
+mkdir -p "$TENSORSPINE_MODEL_ARTIFACTS"
+ln -s ~/somewhere/huggingface "$TENSORSPINE_MODEL_ARTIFACTS/weights"
 ```
 
 ## Why the build is wired this way

@@ -2,7 +2,7 @@
 against a `transformers` dump at every legal cut and state) and the full-model greedy tokens.
 Read by the test and by `ref.py capabilities`."""
 
-FIXTURES = [   # (fixture, model document, artifact directory under $TENSORSPINE_ARTIFACTS/weights[, (atol, rtol) when the dump is not fp32])
+FIXTURES = [   # (fixture, model document, artifact directory under $TENSORSPINE_MODEL_ARTIFACTS/weights[, (atol, rtol) when the dump is not fp32])
     ('llama3-8b.3layers.hf.safetensors', 'llama3-8b', 'Meta-Llama-3-8B'),
     ('qwen3.5-4b-text.4layers.hf.safetensors', 'qwen3.5-4b-text', 'Qwen3.5-4B'),
     ('qwen3.8-27b-text.4layers.hf.safetensors', 'qwen3.8-27b-text', 'Qwen3.8-27B'),

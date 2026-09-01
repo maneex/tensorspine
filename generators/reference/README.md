@@ -1,13 +1,13 @@
 # Reference generator
 
 The reference *generator* — a loader and a reference implementation of the primitives, in PyTorch — turns a model document,
-its derived products and the checkpoint it names into a module with one `forward`, a comparison
+its derived products and the model artifact it names into a module with one `forward`, a comparison
 against the official implementation at every layer boundary, and a small chat. Not a serving
 system. Its plan, and the location plan whose weight locations it loads by, are working notes
 outside the tree.
 
 **Status: M0, M1, M2 and M4; M3 (CUDA) waits for a GPU.** Six models run from their documents
-and the checkpoints they name, with no per-model code, and agree with `transformers` (a seventh
+and the artifacts they name, with no per-model code, and agree with `transformers` (a seventh
 document, the multimodal `qwen3.8-27b`, runs on text and gives `qwen3.8-27b-text`'s logits bit for
 bit — below):
 
@@ -23,7 +23,7 @@ bit — below):
   memory): on its 4-layer fixture within 4e-6 of `transformers` at every cut and state; the full
   model runs under `--max-ram 8` in seven blocks (below).
 - `shieldstral-3b` (Llama's six contracts with YaRN rotary scaling and tied embeddings — the text
-  trunk of a Mistral 3 multimodal checkpoint, `mistralai/Shieldstral-1.0-3B`, one `model.safetensors`
+  trunk of a Mistral 3 multimodal artifact, `mistralai/Shieldstral-1.0-3B`, one `model.safetensors`
   without an index; its Pixtral tower is located but not evaluated on text): on the 3-layer fixture
   within 3.9e-6 of `transformers` at every cut and state; on the full 26-layer model the eight greedy
   tokens after *"Hello! Can you help me plan a birthday party?"* are `transformers`' — *"no</s>no</s>…"*,
@@ -49,7 +49,7 @@ Kernels: `embed`, `embedding.token_position_type`, `norm.rms` (zero-centred scal
 query, Q/K RMS norms), `residual.add`, `ffn.gated`, `ffn.dense`, `moe` (learned softmax routing,
 renormalised or not, fused experts, gated shared experts), `lm_head`, `pooler`,
 `sequence.gated_delta`. A session-based chat (`ref.py chat`), greedy or sampled, streaming, through
-the checkpoint's own chat template when it has one (Qwen 3.5 4B answers with its thinking block;
+the artifact's own chat template when it has one (Qwen 3.5 4B answers with its thinking block;
 when its template strips earlier thinking from the history, the prefix check rebuilds the session
 and says so) or a plain transcript for a base model; `--compile` for the decode step. `--max-ram GIB` runs a model in blocks of layers cut at D6's legal
 cuts, loading and releasing each block every invocation (M4): the same logits bit for bit, the
@@ -75,10 +75,10 @@ Every command takes a model document (derived in-process) or a derived document,
 other document edit before deriving).
 
 Weights, derived documents and dumps are **runtime inputs**, not part of this repository, and one
-shell variable names all of them — `$TENSORSPINE_ARTIFACTS`, the same one the ZML generator reads:
+shell variable names all of them — `$TENSORSPINE_MODEL_ARTIFACTS`, the same one the ZML generator reads:
 
 ```
-$TENSORSPINE_ARTIFACTS/
+$TENSORSPINE_MODEL_ARTIFACTS/
   derived/                 the derived documents
   weights/<artifact>/      what `--checkpoint` is pointed at; a symlink when they live elsewhere
   dumps/<model>/           what a run left behind
@@ -88,8 +88,16 @@ $TENSORSPINE_ARTIFACTS/
 this repository has a default inside the tree, and the test harness says `skip` for whatever is
 absent rather than looking in a home directory.
 
+**Two words, and they are not synonyms** — the language uses both. An **artifact** is the container
+the document wraps, format-agnostic: `ARCHITECTURE.md` lists it beside the implementation, the
+deployment intent and the hardware, and `SPECIFICATION.md` I9 says *"the described model and loaded
+artifact are mutually compatible"*. A **checkpoint** is one concrete safetensors directory — what
+`--checkpoint` is pointed at and what V17 is checked against. So the prose here says *artifact*, and
+*checkpoint* appears only where a flag or V17 does.
+
+
 ```sh
-CK="$TENSORSPINE_ARTIFACTS/weights/Meta-Llama-3-8B"
+CK="$TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B"
 R=generators/reference/ref.py
 
 python3 $R info    data/models/llama3-8b.json --capacity 4096          # bytes from D3/D4, free memory, refusals
@@ -99,7 +107,7 @@ python3 $R run     data/models/llama3-8b.json --random --set quantities.d.source
 python3 $R info    data/models/llama3-8b.json --capacity 4096 --max-ram 6                    # the partition and its traffic
 python3 $R run     data/models/llama3-8b.json --checkpoint $CK --ids 128000,791,6864,315,9822,374 --max-ram 6
 python3 $R chat    data/models/llama3-8b.json --checkpoint $CK --capacity 512 --max-new-tokens 60
-python3 $R chat    data/models/qwen3.5-4b-text.json --checkpoint "$TENSORSPINE_ARTIFACTS/weights/Qwen3.5-4B" \
+python3 $R chat    data/models/qwen3.5-4b-text.json --checkpoint "$TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-4B" \
                    --capacity 1024 --max-new-tokens 200
 # the comparison against transformers, at every legal cut and every state after prefill
 python3 $R run     data/models/llama3-8b.json --checkpoint $CK --truncate decoder.layer=3 \
@@ -107,12 +115,12 @@ python3 $R run     data/models/llama3-8b.json --checkpoint $CK --truncate decode
 python3 generators/reference/fixtures/dump_hf.py --model $CK --layers 3 --ids 128000,791,6864,315,9822,374 \
                    --steps 3 --out /tmp/theirs.safetensors
 python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors [--atol 1e-3 --rtol 1e-2]
-python3 generators/reference/tests/run_reference.py [--compile] [--full]   # M0 on random weights; M1/M2 on the fixtures when the checkpoints are on disk
+python3 generators/reference/tests/run_reference.py [--compile] [--full]   # M0 on random weights; M1/M2 on the fixtures when the artifacts are on disk
 ```
 
 ### Chat
 
-`ref.py chat MODEL --checkpoint DIR` verifies the checkpoint against the document, prints the
+`ref.py chat MODEL --checkpoint DIR` verifies the artifact against the document, prints the
 feasibility line, then prompts `you> `; the reply streams after `bot> `; an empty line quits. The
 session persists across turns — positions accumulate up to `--capacity`, and exceeding it is a
 refusal, not an eviction (eviction is a contract property, `window`, not a runtime policy).
@@ -124,7 +132,7 @@ refusal, not an eviction (eviction is a contract property, `window`, not a runti
 | `--compile` | `torch.compile` of the decode step; the first decode pays ~20 s |
 | `--truncate decoder.layer=4` | a truncated model: loads in seconds, answers garbage — a smoke test of the loop |
 
-The tokenizer and the chat template come from the checkpoint; only the tokenizer is instantiated,
+The tokenizer and the chat template come from the artifact; only the tokenizer is instantiated,
 never the model class. Each turn renders the whole transcript and feeds the suffix beyond what the
 session has consumed; when the template rewrites the history (Qwen 3.5 strips earlier thinking
 blocks), the prefix check says `(the template rewrote the prefix: session restarted)` and rebuilds
@@ -198,4 +206,4 @@ the contract's branches it implements or refuses, and the conventions the contra
 What no fixture here measures: YaRN's extrapolation regime — positions beyond `orig_ctx` (16384 for
 Shieldstral). The arithmetic is position-independent, so a short prompt already exercises the ramp
 and the attention factor; the regime itself is not measured. The frequencies are checked against
-`transformers`' own YaRN parameters in the test, without a checkpoint.
+`transformers`' own YaRN parameters in the test, without an artifact.

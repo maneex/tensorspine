@@ -353,7 +353,7 @@ state; four reproduce its full-model greedy tokens. Multimodal `qwen3.8-27b` on 
 
 ```sh
 python3 generators/reference/ref.py chat data/models/qwen3.5-4b-text.json \
-        --checkpoint "$TENSORSPINE_ARTIFACTS/weights/Qwen3.5-4B" --capacity 1024 --max-new-tokens 200
+        --checkpoint "$TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-4B" --capacity 1024 --max-new-tokens 200
 ```
 
 Slow by design on CPU; see [`generators/reference/README.md`](generators/reference/README.md) for the

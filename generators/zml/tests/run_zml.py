@@ -5,13 +5,13 @@ Builds `@tensorspine//:tspl` in a ZML checkout, then checks the generator agains
 language's own tools: for every corpus document, what `tspl` reads out of the derived
 document must equal what `tools/derive.py` put in it.
 
-    generators/zml/tests/run_zml.py [--zml DIR] [--artifacts DIR] [--model NAME] [--keep]
+    generators/zml/tests/run_zml.py [--zml DIR] [--model-artifacts DIR] [--model NAME] [--keep]
 
 Then, for whichever checkpoints it is given, the numbers against the reference
 generator's committed fixtures: llama3-8b, colbert-v2, and the two hybrids.
 
 Two directories, both shell variables, neither with a default inside the tree:
-$ZML_HOME is the ZML checkout that is the build root, and $TENSORSPINE_ARTIFACTS is the
+$ZML_HOME is the ZML checkout that is the build root, and $TENSORSPINE_MODEL_ARTIFACTS is the
 one runtime directory — `derived/` for the documents, `weights/<artifact>/` for the
 checkpoints they locate tensors in, `dumps/` for what a run leaves behind. Prints `skip`
 and exits 0 for whatever is absent, so the suite runs anywhere and says which checks it
@@ -56,7 +56,7 @@ def derive(out_dir, only=None):
 FIXTURE = 'generators/reference/fixtures/llama3-8b.3layers.hf.safetensors'
 COLBERT_FIXTURE = 'generators/reference/fixtures/colbert-v2.12layers.hf.safetensors'
 
-# The artifact each document's D3 locations name, under `$TENSORSPINE_ARTIFACTS/weights`.
+# The artifact each document's D3 locations name, under `$TENSORSPINE_MODEL_ARTIFACTS/weights`.
 # GLOSSARY calls one of these directories "the artifact the document wraps"; the variable
 # is the plural of that, and holds the derived documents beside them.
 WEIGHTS = {
@@ -339,8 +339,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--zml', default=os.environ.get('ZML_HOME'),
                     help='the ZML checkout that is the build root ($ZML_HOME)')
-    ap.add_argument('--artifacts', default=os.environ.get('TENSORSPINE_ARTIFACTS'),
-                    help='the one runtime directory ($TENSORSPINE_ARTIFACTS): `derived/` holds the '
+    ap.add_argument('--model-artifacts', default=os.environ.get('TENSORSPINE_MODEL_ARTIFACTS'),
+                    help='the one runtime directory ($TENSORSPINE_MODEL_ARTIFACTS): `derived/` holds the '
                          'documents, `weights/<artifact>/` the checkpoints they locate tensors in, '
                          '`dumps/` what a run leaves behind. Without it the documents go to a '
                          'temporary directory and every numerical check is skipped. Weights that '
@@ -383,9 +383,9 @@ def main():
 
     # One directory, three roles. Unset, the documents go somewhere temporary and every
     # check that needs weights says it did not run.
-    if a.artifacts:
-        out_dir = os.path.join(a.artifacts, 'derived')
-        dumps_root = os.path.join(a.artifacts, 'dumps')
+    if a.model_artifacts:
+        out_dir = os.path.join(a.model_artifacts, 'derived')
+        dumps_root = os.path.join(a.model_artifacts, 'dumps')
     else:
         out_dir = tempfile.mkdtemp(prefix='tspl-derived-')
         dumps_root = out_dir
@@ -411,11 +411,11 @@ def main():
             else:
                 print(f'OK   {model}: {got[0]} occurrences, {got[2]} tensors, {got[3]} states')
         checked = len(names)
-        if not a.artifacts:
-            print('\nskip: no artifacts directory (--artifacts or $TENSORSPINE_ARTIFACTS); '
+        if not a.model_artifacts:
+            print('\nskip: no artifacts directory (--artifacts or $TENSORSPINE_MODEL_ARTIFACTS); '
                   'the numerical checks did not run')
 
-        llama = weights(a.artifacts, 'llama3-8b')
+        llama = weights(a.model_artifacts, 'llama3-8b')
         derived_llama = os.path.join(out_dir, 'llama3-8b.derived.json')
         if llama and os.path.isfile(derived_llama):
             print()
@@ -424,14 +424,14 @@ def main():
             checked += more
             failed += bad
 
-        if weights(a.artifacts, 'colbert-v2'):
+        if weights(a.model_artifacts, 'colbert-v2'):
             print()
-            more, bad = colbert(binary, out_dir, weights(a.artifacts, 'colbert-v2'), scratch)
+            more, bad = colbert(binary, out_dir, weights(a.model_artifacts, 'colbert-v2'), scratch)
             checked += more
             failed += bad
 
         for model, fixture_path in HYBRIDS:
-            checkpoint = weights(a.artifacts, model)
+            checkpoint = weights(a.model_artifacts, model)
             if not checkpoint:
                 continue
             print()
@@ -448,7 +448,7 @@ def main():
         return 1 if failed else 0
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
-        if a.keep or a.artifacts:
+        if a.keep or a.model_artifacts:
             print(f'derived documents kept in {out_dir}')
         else:
             shutil.rmtree(out_dir, ignore_errors=True)

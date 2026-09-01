@@ -43,7 +43,7 @@ from compare import compare, read_dump  # noqa: E402
 # `weights/` under the one runtime directory (`generators/zml/README.md` describes the
 # layout; both generators read the same one). No default inside the tree, and no home
 # path written down here: unset, every fixture check says `skip`.
-CHECKPOINTS = os.path.join(os.environ.get('TENSORSPINE_ARTIFACTS', ''), 'weights')
+CHECKPOINTS = os.path.join(os.environ.get('TENSORSPINE_MODEL_ARTIFACTS', ''), 'weights')
 from verified import FIXTURES, FULL   # noqa: E402
 
 TINY = {'quantities.d.source.value': 64, 'quantities.ffn.source.value': 128, 'quantities.heads.source.value': 4,
