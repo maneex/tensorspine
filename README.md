@@ -363,3 +363,15 @@ commands, the options and what to expect.
 
 TensorSpine — the tooling, the specification and documentation, and the catalog and model data — is
 licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Perceval Anichini.
+
+## Disclaimer
+
+TensorSpine is an exploratory project intended to study one possible solution to the premises set
+out at the beginning of this document. It is a working investigation, not a finished or
+production-ready solution.
+
+The project has made extensive use of generative AI, namely Anthropic Fable 5/Opus 5, OpenAI
+GPT-5.6-sol, and Mistral medium-3.5. The underlying architecture, design, and specifications are
+human-made; much of the prose and code, however, was produced by AI and remains in a comparatively
+raw state. It may contain errors, inconsistencies, omissions, or unfinished work and should be
+subject to careful human review.
