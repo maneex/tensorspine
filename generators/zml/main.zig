@@ -25,6 +25,7 @@ const Args = struct {
     until: ?[]const u8 = null,
     ids: ?[]const u8 = null,
     capacity: ?u32 = null,
+    steps: u32 = 8,
     out: ?[]const u8 = null,
     dump: ?[]const u8 = null,
     @"dump-mlir": ?[]const u8 = null,
@@ -40,7 +41,8 @@ const Args = struct {
         \\   --checkpoint=<path>   The safetensors repository or file D3's locations name
         \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
-        \\   --capacity=<n>        Positions a growing state holds (default: as many as there are ids)
+        \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --steps)
+        \\   --steps=<n>           Tokens to generate when --until is absent (default: 8)
         \\   --out=<path>          Write the result's raw bytes here
         \\   --dump=<dir>          Also write every state buffer, named by its D4 identity
         \\   --dump-mlir=<dir>     Ask XLA to dump the emitted IR here
@@ -82,6 +84,25 @@ fn reportRefusals(allocator: std.mem.Allocator, g: *const graph.Graph) !bool {
     return refused == 0;
 }
 
+/// Resident set size, in bytes — what the process actually holds. Reported at each
+/// phase because a generator that cannot say where its memory went cannot be trusted
+/// with a model that barely fits.
+fn rss(io: std.Io) u64 {
+    var buffer: [256]u8 = undefined;
+    const file = std.Io.Dir.cwd().openFile(io, "/proc/self/statm", .{}) catch return 0;
+    defer file.close(io);
+    var reader = file.reader(io, &buffer);
+    const line = reader.interface.takeDelimiterExclusive('\n') catch return 0;
+    var it = std.mem.tokenizeScalar(u8, line, ' ');
+    _ = it.next() orelse return 0;                       // total program size
+    const pages = std.fmt.parseInt(u64, it.next() orelse return 0, 10) catch return 0;
+    return pages * std.heap.pageSize();
+}
+
+fn reportRss(io: std.Io, what: []const u8) void {
+    log.info("  rss after {s}: {Bi:.2}", .{ what, rss(io) });
+}
+
 /// The llama3-8b fixture's prompt: "<|begin_of_text|>The capital of France is".
 const default_ids = [_]i32{ 128000, 791, 6864, 315, 9822, 374 };
 
@@ -94,6 +115,209 @@ fn parseIds(allocator: std.mem.Allocator, spec: ?[]const u8) ![]i32 {
         try list.append(allocator, try std.fmt.parseInt(i32, token, 10));
     }
     return list.toOwnedSlice(allocator);
+}
+
+/// One compiled arity: prefill carries the prompt, decode carries one element. A
+/// compiled graph has static shapes, so the two are two executables over the same
+/// weights and the same states — which is what a session is.
+const Compiled = struct {
+    plan: plan.Plan,
+    exe: zml.Exe,
+
+    fn init(
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        platform: *const zml.Platform,
+        g: *const graph.Graph,
+        target: []const u8,
+        elements: i64,
+        capacity: i64,
+        params: []const zml.Tensor,
+    ) !Compiled {
+        var p = try plan.until(allocator, g, target, elements, capacity, .f32);
+        errdefer p.deinit();
+
+        const publics = try allocator.alloc(zml.Tensor, p.publics.len);
+        defer allocator.free(publics);
+        for (p.public_shapes, publics) |shape, *t| t.* = .fromShape(shape);
+
+        const states = try allocator.alloc(zml.Tensor, p.state_shapes.len);
+        defer allocator.free(states);
+        for (p.state_shapes, states) |shape, *t| t.* = .fromShape(shape);
+
+        const start: zml.Tensor = .fromShape(zml.Shape.init(.{}, .i32));
+        const exe = try zml.module.compile(allocator, io, emit.forward, .{
+            plan.Handle.of(&p), params, publics, start, states,
+        }, platform, .{ .program_name = g.model() });
+        return .{ .plan = p, .exe = exe };
+    }
+
+    fn deinit(self: *Compiled) void {
+        self.exe.deinit();
+        self.plan.deinit();
+    }
+};
+
+
+/// One invocation of a compiled arity: the elements in, the states as they stand, the
+/// value out and the states after. States are functional in the graph, so a session is
+/// just the buffers carried from one call to the next.
+fn invoke(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    platform: *const zml.Platform,
+    c: *const Compiled,
+    params: []zml.Buffer,
+    ids: []const i32,
+    start: i32,
+    states: []zml.Buffer,
+    out: *zml.Buffer,
+) !void {
+    var tokens = try zml.Buffer.fromSlice(
+        io,
+        platform,
+        .init(c.plan.public_shapes[0], std.mem.sliceAsBytes(ids)),
+        platform.replicated_sharding,
+    );
+    defer tokens.deinit();
+
+    var start_buffer = try zml.Buffer.scalar(io, platform, start, .i32);
+    defer start_buffer.deinit();
+
+    var call_args = try c.exe.args(allocator);
+    defer call_args.deinit(allocator);
+    var results = try c.exe.results(allocator);
+    defer results.deinit(allocator);
+
+    call_args.set(.{ params, tokens, start_buffer, states });
+    c.exe.call(call_args, &results);
+
+    const after = try allocator.alloc(zml.Buffer, states.len);
+    defer allocator.free(after);
+    results.fill(.{ out, &after });
+
+    // The states this call produced replace the ones it read.
+    for (states, after) |*before, next| {
+        before.deinit();
+        before.* = next;
+    }
+}
+
+/// The identifier of the largest logit of the last element — greedy decoding. Sampling
+/// is the serving application's, not the document's: nothing in D1–D6 mentions it.
+fn argmaxLast(logits: []align(1) const f32, vocabulary: usize) i32 {
+    const last = logits[logits.len - vocabulary ..];
+    var best: usize = 0;
+    for (last, 0..) |value, i| {
+        if (value > last[best]) best = i;
+    }
+    return @intCast(best);
+}
+
+/// Prefill the prompt, then decode one element at a time, feeding each generated
+/// identifier back into the stream its generative output belongs to (§7).
+fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Graph) !void {
+    const checkpoint = args.checkpoint orelse {
+        log.err("generating needs --checkpoint: the parameters come from where D3 locates them", .{});
+        return error.MissingCheckpoint;
+    };
+    const output = g.generative() orelse {
+        log.err("{s} has no generative output; use --until to evaluate one value", .{g.model()});
+        return error.NotGenerative;
+    };
+    const target = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ output.node, output.port });
+    defer allocator.free(target);
+
+    const ids = try parseIds(allocator, args.ids);
+    defer allocator.free(ids);
+
+    const platform: *zml.Platform = try .auto(allocator, io, .{});
+    defer platform.deinit(allocator, io);
+    log.info("platform: {s}", .{@tagName(platform.target)});
+
+    var tensors: zml.safetensors.TensorRegistry = try .fromPath(allocator, io, checkpoint);
+    defer tensors.deinit();
+    var store: zml.io.TensorStore = .fromRegistry(allocator, &tensors);
+    defer store.deinit();
+
+    // Capacity holds the prompt and everything generated: deployment intent, not a
+    // document fact (§7).
+    const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len + args.steps);
+
+    // The parameters, by D3's locations. Both arities reach the same value, so both
+    // need the same identities in the same order — asserted rather than assumed.
+    var shape_plan = try plan.until(allocator, g, target, @intCast(ids.len), capacity, .f32);
+    const params_used = try allocator.dupe(usize, shape_plan.params_used);
+    defer allocator.free(params_used);
+    shape_plan.deinit();
+
+    var model = try loader.locate(allocator, g, store.view(), params_used);
+    defer model.deinit(allocator);
+    reportRss(io, "locate");
+
+    var prefill = try Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, model.params);
+    defer prefill.deinit();
+    var decode = try Compiled.init(allocator, io, platform, g, target, 1, capacity, model.params);
+    defer decode.deinit();
+    if (!std.mem.eql(usize, prefill.plan.params_used, decode.plan.params_used)) {
+        log.err("the two arities disagree on which parameters they need", .{});
+        return error.InconsistentPlan;
+    }
+    log.info("{d} occurrences, {d} parameter tensors, {d} state buffers, capacity {d}", .{
+        prefill.plan.steps.len, prefill.plan.params_used.len, prefill.plan.state_shapes.len, capacity,
+    });
+    reportRss(io, "compile");
+
+    var buffers = try zml.mem.bufferize(allocator, loader.Model, &model);
+    defer allocator.free(buffers.params);
+    defer for (buffers.params) |*b| b.deinit();
+    {
+        var weights: zml.io.Loader = try .init(allocator, platform, .default);
+        defer weights.deinit();
+        weights.load(io, loader.Model, &model, &buffers, &store, &.{}, .{});
+        try weights.await(io);
+        log.info("{Bi:.2} of weights loaded", .{weights.bytes_loaded.raw});
+    }
+    reportRss(io, "load");
+
+    const states = try allocator.alloc(zml.Buffer, prefill.plan.state_shapes.len);
+    defer allocator.free(states);
+    for (prefill.plan.state_shapes, states) |shape, *b| {
+        const zeros = try allocator.alloc(u8, shape.byteSize());
+        defer allocator.free(zeros);
+        @memset(zeros, 0);
+        b.* = try .fromBytes(io, platform, shape, platform.replicated_sharding, zeros);
+    }
+    defer for (states) |*b| b.deinit();
+
+    var generated: std.ArrayList(i32) = .empty;
+    defer generated.deinit(allocator);
+
+    var out: zml.Buffer = undefined;
+    var start: i32 = 0;
+    var next: [1]i32 = undefined;
+
+    // Prefill, then one element at a time.
+    var step: usize = 0;
+    while (step <= args.steps) : (step += 1) {
+        const elements: []const i32 = if (step == 0) ids else next[0..1];
+        const c = if (step == 0) &prefill else &decode;
+        try invoke(allocator, io, platform, c, buffers.params, elements, start, states, &out);
+        start += @intCast(elements.len);
+
+        const logits = try out.toSliceAlloc(allocator, io);
+        defer allocator.free(logits.bytes);
+        const values = std.mem.bytesAsSlice(f32, logits.bytes);
+        const vocab: usize = @intCast(out.shape().dim(-1));
+        next[0] = argmaxLast(values, vocab);
+        out.deinit();
+
+        if (step < args.steps) try generated.append(allocator, next[0]);
+        reportRss(io, if (step == 0) "prefill" else "decode");
+    }
+
+    log.info("{d} greedy token(s): {any}", .{ generated.items.len, generated.items });
+    if (args.out) |path| try write(io, path, std.mem.sliceAsBytes(generated.items));
 }
 
 fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Graph) !void {
@@ -262,6 +486,7 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
     if (args.until != null) return evaluate(allocator, init.io, args, &g);
+    if (args.checkpoint != null) return generate(allocator, init.io, args, &g);
 
     // Every member of D3 and D4 resolves, and every ordered node is known.
     var located: usize = 0;
