@@ -213,7 +213,7 @@ pub const Handle = struct {
                     const slid = if (n >= span)
                         v.slice(0, .{ .start = n - span })
                     else
-                        zml.Tensor.concatenate(&.{ self.get(self.names[0]).?.slice(0, .{ .start = n }), v }, 0);
+                        zml.Tensor.concatenate(&.{ buffer.slice(0, .single(self.member)).slice(0, .{ .start = n }), v }, 0);
                     break :blk try self.writeAt(allocator, buffer, slid, null);
                 },
                 // A fixed state is written whole, never appended to: §4.3 gives it no
