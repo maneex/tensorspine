@@ -62,9 +62,12 @@ storage-to-decode-to-prefill KV-cache path to use more bandwidth in a disaggrega
 without changing the model.
 
 Could vLLM keep its performance and optimisations while using TensorSpine models and primitives?
-Yes. Its harness would keep its request scheduling, cache management, placement and disaggregation;
-its kernels, fusions and physical layouts would become primitive implementations. TensorSpine
-changes the model-specific glue, not the engine's optimisation surface.
+The [harness guide](docs/HARNESS.md) lists what its harness needs from a model, decision by
+decision, including what is not derivable. Its fusions are rewrites over the explicit graph, keyed
+by contract identity
+([Architecture §3.3](docs/ARCHITECTURE.md#33-make-graph-topology-and-identity-explicit)); its
+kernels, physical layouts, request scheduling, cache management, placement and disaggregation stay
+its own. TensorSpine changes the model-specific glue, not the engine's optimisation surface.
 
 Today, every serving application must reimplement every model to connect its harness to its
 primitive implementations.
@@ -72,7 +75,9 @@ primitive implementations.
 TensorSpine supplies that glue as data. A model document identifies primitive occurrences,
 arguments, value flow, parameters and persistent state. TensorSpine derives the graph, tensor and
 state inventories, lifetimes, logical costs, legal cuts and semantic partitions. The harness reasons
-over these facts and dispatches occurrences to matching primitive implementations. TensorSpine
+over these facts, matches patterns of contract identities and edges to its fused implementations,
+and dispatches the rest occurrence by occurrence
+([Architecture §3.3](docs/ARCHITECTURE.md#33-make-graph-topology-and-identity-explicit)). TensorSpine
 chooses neither serving policy nor kernels.
 
 The model is therefore a weight artifact plus a machine-readable declaration, stable across

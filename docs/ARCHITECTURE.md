@@ -121,6 +121,16 @@ tensors” from “one tensor used twice,” which matters for loading, counting
 and unique after expansion. Compositions and `for_each` reduce repetition, but they never weaken the
 explicit graph semantics.
 
+A third consequence is model-independent fusion. A serving application rewrites D1 by matching
+contract identities and edges—for example, normalisation feeding attention feeding a residual add,
+or a router feeding its experts—then dispatches the group to one fused implementation. Because the
+match never reads the model name, the same rewrite serves every document containing that pattern.
+D6 cuts inside the group remain semantically legal; a fused execution can honour one only by
+decomposing the rewrite, so its execution plan reports the blocks it actually selected. The
+repository generators already expose such blocks through the reference generator's `--max-ram`
+plan and the ZML generator's `--split`. Identity enables the match but does not define kernel
+computation; the serving application relies on the contract witnesses for that (§3.1).
+
 **Alternatives not chosen.** Implicit residual streams, parameter-name conventions, module order,
 and shape equality are not authorities for connectivity or identity. See
 [Specification §3.4](SPECIFICATION.md#34--bindings).
