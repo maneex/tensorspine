@@ -453,23 +453,52 @@ TEMPLATE = r"""<!doctype html>
   .sitebar .name span:last-child { color: var(--logo-teal); }
   .sitebar .sitekind { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sitebar .sitelinks {
-    display: flex; align-self: stretch; flex: 1 1 auto; min-width: 0; overflow: hidden;
+    display: flex; align-self: stretch; flex: 1 1 auto; min-width: 0;
   }
-  .sitebar .nav-main, .sitebar .nav-reports { display: flex; align-self: stretch; gap: 20px; }
+  .sitebar .nav-main { display: flex; align-self: stretch; gap: 20px; }
   .sitebar .nav-main { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .sitebar .nav-main::-webkit-scrollbar { display: none; }
-  .sitebar .nav-reports { position: relative; flex-shrink: 0; margin-left: 24px; padding-left: 24px; }
-  .sitebar .nav-reports::before {
+  .sitebar .nav-guides, .sitebar .nav-reports {
+    position: relative; display: flex; align-self: stretch; flex-shrink: 0;
+    margin-left: 24px; padding-left: 24px;
+  }
+  .sitebar .nav-guides::before, .sitebar .nav-reports::before {
     content: ""; position: absolute; left: 0; top: 50%; width: 1px; height: 28px;
     transform: translateY(-50%); background: var(--rule);
   }
-  .sitebar .sitelinks a {
+  .sitebar .sitelinks > .nav-main > a, .sitebar .nav-menu > summary {
     display: flex; align-items: center; white-space: nowrap;
     margin-bottom: -1px; border-bottom: 2px solid transparent;
     font-size: 13.5px; color: var(--ink-3);
   }
-  .sitebar .sitelinks a:hover { color: var(--ink); text-decoration: none; }
-  .sitebar .sitelinks a.current { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+  .sitebar .sitelinks > .nav-main > a:hover, .sitebar .nav-menu > summary:hover {
+    color: var(--ink); text-decoration: none;
+  }
+  .sitebar .sitelinks > .nav-main > a.current,
+  .sitebar .nav-menu:has(a.current) > summary,
+  .sitebar .nav-menu[open] > summary {
+    color: var(--ink); font-weight: 600; border-bottom-color: var(--accent);
+  }
+  .sitebar .nav-menu { position: relative; display: flex; align-self: stretch; }
+  .sitebar .nav-menu > summary { list-style: none; cursor: pointer; }
+  .sitebar .nav-menu > summary::-webkit-details-marker { display: none; }
+  .sitebar .nav-menu > summary::after {
+    content: "▾"; margin-left: 7px; color: var(--faint); font-size: 10px; transition: transform 120ms ease;
+  }
+  .sitebar .nav-menu[open] > summary::after { transform: rotate(180deg); }
+  .sitebar .nav-menu > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .sitebar .nav-menu-panel {
+    position: absolute; top: calc(100% - 1px); right: 0; z-index: 10;
+    display: flex; flex-direction: column; min-width: 190px; padding: 8px;
+    background: var(--bg); border: 1px solid var(--rule); border-radius: 0 0 8px 8px;
+    box-shadow: 0 14px 32px rgba(18, 51, 72, 0.14);
+  }
+  .sitebar .nav-menu-panel a {
+    display: block; margin: 0; padding: 8px 10px; border: 0; border-radius: 5px;
+    font-size: 13px; color: var(--ink-3); white-space: nowrap;
+  }
+  .sitebar .nav-menu-panel a:hover { color: var(--ink); background: var(--bg-raised); text-decoration: none; }
+  .sitebar .nav-menu-panel a.current { color: var(--ink); background: var(--bg-raised); font-weight: 600; }
 
   /* ---------- page frame ---------- */
   /* Sidebar, then the tool: the same 264px column, the same hairline against
