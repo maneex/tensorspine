@@ -28,7 +28,7 @@ const Args = struct {
     until: ?[]const u8 = null,
     ids: ?[]const u8 = null,
     capacity: ?u32 = null,
-    steps: u32 = 8,
+    @"max-tokens": u32 = 8,
     split: u32 = 1,
     chat: bool = false,
     tokenizer: ?[]const u8 = null,
@@ -55,11 +55,13 @@ const Args = struct {
         \\   --checkpoint=<path>   The safetensors repository or file D3's locations name
         \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
-        \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --steps)
+        \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --max-tokens)
         \\   --chat                Converse: a turn is tokenised, fed, and answered until a stop
         \\                         token, the states carried from one turn to the next
         \\   --tokenizer=<path>    tokenizer.json (default: the checkpoint's own)
-        \\   --steps=<n>           Tokens to generate when --until is absent (default: 8)
+        \\   --max-tokens=<n>      Tokens to answer with: exactly that many when generating,
+        \\                         which has no stopping rule, and at most that many in a chat
+        \\                         turn, which also stops on a stop token (default: 8)
         \\   --split=<n>           Compile and run the graph as n programs in sequence; XLA's
         \\                         scratch holds an f32 copy of every weight one program's
         \\                         matmuls touch, so cutting bounds a run's memory
@@ -179,7 +181,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     // Capacity holds the prompt and everything generated: deployment intent, not a
     // document fact (§7).
-    const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len + args.steps);
+    const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len + args.@"max-tokens");
     const compute = try dtypes.of(args.compute);
     log.info("computing in {s}", .{@tagName(compute)});
 
@@ -245,7 +247,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     // Prefill, then one element at a time.
     var step: usize = 0;
-    while (step <= args.steps) : (step += 1) {
+    while (step <= args.@"max-tokens") : (step += 1) {
         const elements: []const i32 = if (step == 0) ids else next[0..1];
         const c = if (step == 0) &prefill else &decode;
         try session.invoke(allocator, io, platform, c, buffers.params, elements, start, states, &out);
@@ -257,7 +259,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
         next[0] = try session.argmaxLast(logits.bytes, compute, vocab);
         out.deinit();
 
-        if (step < args.steps) try generated.append(allocator, next[0]);
+        if (step < args.@"max-tokens") try generated.append(allocator, next[0]);
         reportRss(io, if (step == 0) "prefill" else "decode");
     }
 
@@ -411,7 +413,7 @@ pub fn main(init: std.process.Init) !void {
             .compute = try dtypes.of(args.compute),
             .split = args.split,
             .packed_states = !args.@"separate-states",
-            .max_tokens = args.steps,
+            .max_tokens = args.@"max-tokens",
         });
     }
     if (args.until != null) return evaluate(allocator, init.io, args, &g);

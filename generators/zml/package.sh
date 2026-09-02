@@ -144,7 +144,7 @@ tens of minutes on an archive this size:
 
 Then run ./run.sh from the unpacked directory; it takes tspl's own options:
 
-    ./run.sh --steps=8 --compute=bf16            # generate
+    ./run.sh --max-tokens=8 --compute=bf16            # generate
     ./run.sh --chat --compute=bf16 --capacity=512
     ./run.sh --until='decoder/mlp_r[layer=0].output' --out=v.bin
 

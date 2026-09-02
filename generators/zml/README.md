@@ -64,7 +64,7 @@ tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_MODEL_ART
 "$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
   --derived="$TENSORSPINE_MODEL_ARTIFACTS/derived/llama3-8b.derived.json" \
   --checkpoint="$TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B" \
-  --steps=8 --compute=bf16 --split=16
+  --max-tokens=8 --compute=bf16 --split=16
 ```
 
 That is the invocation that produced the tokens above. **`--compute=bf16 --split=16` are what make
@@ -77,7 +77,7 @@ Nothing about that command is llama's. The hybrid is the same invocation against
 "$ZML_HOME"/bazel-bin/external/+local_repository+tensorspine/tspl \
   --derived="$TENSORSPINE_MODEL_ARTIFACTS/derived/qwen3.5-4b-text.derived.json" \
   --checkpoint="$TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-4B" \
-  --ids=760,6511,314,9338,369 --steps=8 --compute=bf16 --split=8
+  --ids=760,6511,314,9338,369 --max-tokens=8 --compute=bf16 --split=8
 ```
 
 A full-model run is slow on CPU — 32 layers through 16 programs for every token — so it is worth
@@ -90,14 +90,14 @@ tspl --derived=DOC --checkpoint=CK --chat --compute=bf16 --split=16 --capacity=5
 ```
 
 A turn is tokenised, fed through the graph, and answered until a stop identifier or
-`--steps` tokens; the session's states are carried from one turn to the next, so the
+`--max-tokens` tokens; the session's states are carried from one turn to the next, so the
 conversation *is* the growing state. The tokenizer comes from the artifact's
 `tokenizer.json` (`--tokenizer=PATH` overrides it), and the turn ends on whichever of
 `<|end_of_text|>`, `<|eot_id|>`, `</s>` or `<|im_end|>` that tokenizer knows.
 
 The tokenizer, the stopping rule and the notion of a turn are all the serving
 application's — the language describes a token stream, not what a token is, nor when a
-conversation ends. `llama3-8b` is a base model and will happily run to `--steps`; an
+conversation ends. `llama3-8b` is a base model and will happily run to `--max-tokens`; an
 instruction-tuned mirror stops itself.
 
 Only one arity is compiled, for a single element, and the prompt is fed through it a
@@ -117,7 +117,7 @@ tspl --derived=DOC --refusals
 tspl --derived=DOC --checkpoint=CK --until='decoder/ffn_r[layer=0].output' --out=v.bin
 
 # every state as well, one file per D4 identity whatever layout held it
-tspl --derived=DOC --checkpoint=CK --steps=4 --dump=DIR
+tspl --derived=DOC --checkpoint=CK --max-tokens=4 --dump=DIR
 
 # the emitted IR, for reading what XLA was given and what it made of it
 tspl --derived=DOC --checkpoint=CK --until=VALUE --dump-mlir=DIR
