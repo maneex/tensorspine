@@ -286,7 +286,8 @@ Where a parameter identity's tensor is stored in the artifact the document wraps
 tensor, a `stack` of locations along an axis, a `concat` of locations along an axis, or a `slice`
 of one physical tensor. Declared on the binding, evaluated into D3, checked against a checkpoint's
 headers by V17. See [Specification §3.4](SPECIFICATION.md#34--bindings) and
-[Model guide](TENSORSPINE-MODEL_JSON.md#locating-the-weights).
+[Model guide](TENSORSPINE-MODEL_JSON.md#locating-the-weights). A tensor of a template instance is
+located at the instance's `weights_location_prefix` followed by the template's name for it (§3.4).
 
 ### Model document
 
@@ -499,7 +500,9 @@ ports exist, or their shapes (`heads`, `window`, `kv_heads`). A non-structural a
 A model document with external quantities: it denotes a family of graphs, one per admissible
 assignment, and is instantiated by a template contract. Templates live where the catalog manifest
 says (`templates`), one immutable file per version (`data/models/decoder-causal-yarn/1.0.0.json`).
-See
+A template may locate its identities below a prefix that each instance supplies
+(`weights_location_prefix`), which is how a document written through it locates its weights
+(Specification §3.4, V17). See
 [Specification §4.6](SPECIFICATION.md#46--template-contracts).
 
 ### Template contract

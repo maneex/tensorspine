@@ -358,7 +358,6 @@ The architecture leaves several downstream or future designs open:
 - downstream compilation APIs that consume D1–D6;
 - how implementations advertise physical costs (capabilities are advertised by the manifest in
   `generators/CAPABILITIES.md`);
-- a per-instance location prefix, so that a template instance's tensors can be located;
 - how a compiler combines semantic partitions with a selected topology and workload;
 - which additional normative interfaces are justified when a derivation cannot fit the closed
   scalar algebra.
@@ -368,8 +367,11 @@ argument in an argument expression (an expression yields a value, never absence,
 alternating-layer model needs two sites); indexed literal tables for per-repetition
 hyperparameters; per-occurrence activation dtypes; partial retention of a state's components across
 fragments; a catalog-base steward pin (a release tag or content digest in the model's catalog entry,
-with V1 refusing content that differs); content-digest template pins; a token-id input port on `moe`
-for hash routing; a `sequence`-kind output for a pooler with `reduce`. Sharing across a template boundary is a stated
+with V1 refusing content that differs); content-digest template pins; a `by_fragment` sharing
+granularity for a bidirectional streaming encoder's cache (`mask: none` with `streaming`), whose
+entries depend on their whole fragment rather than a prefix — it is declared `by_position` today
+and exercised by no corpus document; a token-id input port on `moe` for hash routing; a
+`sequence`-kind output for a pooler with `reduce`. Sharing across a template boundary is a stated
 limit of the graph language (Specification §1), not an open question: the flat form exists.
 
 Architecture families parked outside the language's stated scope are mixture-of-depths,
