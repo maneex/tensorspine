@@ -406,6 +406,18 @@ pub fn main(init: std.process.Init) !void {
             log.err("--chat needs --checkpoint", .{});
             return error.MissingCheckpoint;
         };
+        // A chat reads its prompt from the terminal and stops on a stop token, so it has
+        // no use for these four. Taking one and ignoring it is how `--until` came to be
+        // read as a length, accepted, and silently dropped.
+        const unused: ?[]const u8 = if (args.until != null) "--until"
+            else if (args.ids != null) "--ids"
+            else if (args.out != null) "--out"
+            else if (args.dump != null) "--dump"
+            else null;
+        if (unused) |option| {
+            log.err("--chat does not use {s}; the length of a turn is --max-tokens", .{option});
+            return error.UnusedOption;
+        }
         return chat.run(allocator, init.io, &g, .{
             .checkpoint = checkpoint,
             .tokenizer = args.tokenizer,
