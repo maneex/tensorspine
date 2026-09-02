@@ -27,21 +27,36 @@ over contracted primitives.
 **Out of scope:** training; fault tolerance and session recovery; hot reconfiguration; resource
 topology; runtime data structures; placement; and hardware assignment.
 
-**Coverage** is a claim about topology:
+Three statements bound the class, so that "exact" and "derived" below mean what they say:
+
+- **Visits are data-independent.** Which occurrences an element visits, and how often a state is
+  visited, is fixed by the graph and the delivery of its inputs (§7), never by the value of an
+  element. A model whose per-token visits depend on the data — a mixture of depths, an early exit
+  — is out of scope until a status for visits exists.
+- **The generative model is autoregressive.** A generative output delivers one element per
+  invocation to its stream, consumed by the next (§7); a model that regenerates every position at
+  each invocation — a diffusion language model — is out of scope.
+- **The state laws are three.** A state evolves by `append`, `window` or `fixed` (O5.2); a state
+  that evolves otherwise — a retained prefix kept beside a sliding window — has no representation
+  and is a new law: a capability every consumer must implement (§8.1), not a rearrangement.
+
+**Coverage** is closure of that class over the available contracts:
 
 > Every graph of the class above whose occurrences use available contracts — any wiring, any sharing
 > pattern, any set of public inputs and outputs, any periodic or irregular repetition — has **at
 > least one** representation.
 
-New nodes come from new contracts (§8.1); the claim is about the graph language. The reference
-corpus (`data/models/`, §10.1) is the evidence for the claim and the regression set; it is not part
-of the definition. A graph of the class with no representation is a counter-example.
+The claim is about the graph language and holds by construction of the class; it says nothing
+about the contracts. A node with no contract is not a counter-example but a new contract (§8.1),
+and a document is only as expressive as the catalog it pins. The reference corpus
+(`data/models/`, §10.1) is the evidence for the claim and the regression set; it is not part of
+the definition. A graph of the class with no representation would be a counter-example.
 
-Three limits of the graph language are stated, not discovered: sharing across a template boundary
-is not expressible (the flat form of the same graph is); a contract's port set is static, so a
-variable number of operands is expressed by chaining or by stacking along an axis; there are no
-indexed literal tables, so a per-repetition hyperparameter is an `if/then/else` over the index or
-one site per value.
+Three authoring conveniences the graph language does without, stated rather than discovered:
+sharing across a template boundary is not expressible (the flat form of the same graph is); a
+contract's port set is static, so a variable number of operands is expressed by chaining or by
+stacking along an axis; there are no indexed literal tables, so a per-repetition hyperparameter
+is an `if/then/else` over the index or one site per value.
 
 ### 1.1 — Required properties
 
@@ -249,7 +264,7 @@ language.
 
 | Element | Content |
 |---|---|
-| **Semantic identity** | The operation's meaning and immutable reference identity. |
+| **Semantic identity** | The operation's meaning — stated by the unit in prose and the sources it cites, and fixed by its witness (below) — and its immutable reference identity. |
 | **Arguments** | Types, allowed values, required status, declared defaults, conditional presence (`present_when`). |
 | **Value ports** | Inputs and outputs with shape functions. |
 | **Logical tensors** | A symbolic learned-parameter inventory derived from arguments: shapes, roles, and sharing rules (O6.1). |
@@ -258,6 +273,7 @@ language.
 | **Logical cost** | Derived from the inventory: for every parameter slot, two operations per weight element per element of the occurrence's output domain, scaled by the activated fraction of a sparse unit (§4.5); the bytes of the inventory, in full for residency. A contract declares only **corrections**: an ordered list of entries, each guarded by a condition over the arguments, each stating an expression, a status (O0.5) and what it is counted per — `element` of the output domain, `cached_position` of a state, `sequence`, or `invocation`. Every entry whose condition holds contributes. Never operations actually executed. Known approximations are documented, not modelled: a strided convolution's first kernel (per input frame), a per-head normalisation scale, a pooler with `reduce`. |
 | **Semantic partitions** | Axes whose partition preserves meaning — an argument axis, an instance-key axis, a state payload axis, `any_axis`, or `none` — with the logical communication each implies (O7.1); at least one entry. |
 | **Domain transforms** | How a port's domain relates to the occurrence's own: `merge`, `align`, `insert` (§5.3). |
+| **Witness** | For every published `{name, version}`, one reference kernel of the reference generator is the authority for what the primitive computes (O1.3), at a tolerance stated per compute dtype; every other implementation is a **conformer**, checked against the witness on the unit fixtures the witness produces. The witness is not part of the unit — a field no reading consumes would be a comment (§10.2) — but of the reference generator's manifest, which binds a kernel, its tolerances and its fixtures to the identity (Architecture §2); the unit's prose and cited sources are the meaning the witness must agree with (§10.2). |
 
 Anything a contract does not declare it cannot interpret, and is rejected (§8.1): the closed
 vocabulary is the rejection condition.
@@ -280,13 +296,21 @@ A contract never contains a generator, a backend, a kernel, a memory layout, a f
 an executed-operation count, an implementation-supported partition, or an actual collective. Those
 belong to a **generator** — the implementation that builds and runs the graph over its own primitives,
 on the **backends** (the hardware) it targets — which is outside this specification. Several correct
-generators may have different costs without changing the logical graph.
+generators may have different costs without changing the logical graph. One of them, the reference
+generator, carries the witness of every contract version (above); being the authority for the
+computation does not make its costs, layouts or fusions the contract's.
 
 ### 4.2 — Computation may be delegated; identity may not
 
 An implementation may provide computation, but the contract still fixes semantic identity, ports,
 types, shapes, arguments, effects, and rejection conditions. Otherwise wiring cannot be checked,
 candidates compared, or costs derived safely.
+
+The delegate is checked against the witness (§4.1): an implementation of a contract version
+conforms when its outputs and states agree with the witness's, within the tolerance stated for its
+compute dtype, on the witness's unit fixtures. Two conformers therefore agree with each other
+within the sum of their tolerances, and the agreement of two generators is a statement about the
+contract's meaning, not about an oracle outside the language.
 
 The computation provider may itself be a parameterized model document: the template contract
 defined by §4.6. Delegation relaxes none of these obligations.
@@ -630,9 +654,9 @@ file whose digits classify the change:
 
 | Digit | The publisher asserts |
 |---|---|
-| **patch** | No product (D1–D6) changes for any existing occurrence: documentation, notes, a template rewritten to the same family. |
-| **minor** | Additive only; existing occurrences unchanged: an argument with a declared default, an optional port, a new partition entry, a correction that did not apply before. |
-| **major** | An existing valid occurrence would denote or derive something different. |
+| **patch** | The declared meaning is unchanged — the unit's prose and cited sources — and no product (D1–D6) changes for any existing occurrence: documentation, notes, a template rewritten to the same family. The witness may change only where it was wrong against the declared meaning or against the integration fixtures of a model that uses the contract (§10.2); its unit fixtures are then re-recorded, and a conformer that matched the old witness may now disagree — the accepted cost of a patch, stated in the version note. |
+| **minor** | Additive only: an argument with a declared default, an optional port, a new enum value, a new partition entry, a correction that did not apply before. Every existing occurrence denotes, derives and computes the same, and no implementation of the previous version breaks. |
+| **major** | An existing valid occurrence would denote, derive or compute something different, or an implementation of the previous version breaks. |
 
 Pins stay exact for reproducibility. A consumer implementing `name X.Y` may accept any pin `X.Y'`,
 `Y' ≤ Y`, and rejects the rest explicitly (§8.1). A template is versioned the same way, in its own
@@ -727,6 +751,15 @@ a sparsity policy names an argument or input port the contract does not declare;
 carries a `sequence.position` axis under a rule that is not `fixed` (§4.3); if a template
 contract's template is absent from the declared location or carries another name, version or id.
 
+**Release rule.** A catalog is released — its base tagged — only when every contract version it
+publishes has a witness (§4.1); until then it is at the specification stage (§8.2), and the
+reference generator's coverage report lists the versions without one. The witness is the authority
+for what a primitive computes; the authority for whether the witness is *right* stands above it:
+the contract's declared meaning — its description and the sources it cites — and the integration
+fixtures recorded from the delivery implementation of a model that uses the contract. A witness
+corrected toward that authority is a patch of the contract (§8.2); a witness that changes what a
+contract means is a new identity.
+
 **Mutation test:** for every normative construction, removing a field, breaking its reference, or
 changing its value must either change the expanded denotation or cause rejection. A field ignored by
 every conforming implementation is a comment, even if the document remains valid.
@@ -758,6 +791,7 @@ carries the requirement; this appendix is the requirement. Gaps in the numbering
 | **O0.6** | Every language of this specification is closed and decidable, or uses a normative interface. |
 | **O1.1** | A contract is referenced through an immutable identity, `{name, version}`, whose meaning never changes (§8.2). |
 | **O1.2** | A model document carries a stable, authoritative identifier. |
+| **O1.3** | Every published contract version has one witness — a reference kernel of the reference generator, bound to the identity by that generator's manifest with a tolerance per compute dtype — that is the authority for what the primitive computes; every other implementation is a conformer, checked against it (§4.1, §4.2). |
 | **O2.1** | Every quantity and every occurrence has one stable identifier, unique after expansion. |
 | **O2.2** | Every quantity declares its regime: a model constant, or a variable with a declared domain. |
 | **O2.3** | Every quantity declares its dimensional type; physical quantities carry a unit. |
