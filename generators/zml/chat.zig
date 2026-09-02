@@ -156,10 +156,11 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
         const line = opts.prompt orelse line: {
             try out.writeAll("> ");
             try out.flush();
-            break :line stdin.interface.takeDelimiterExclusive('\n') catch |err| switch (err) {
-                error.EndOfStream => break,
-                else => return err,
-            };
+            // `takeDelimiterExclusive` tosses the line and leaves the newline behind, so
+            // the second turn read an empty line and the empty-line rule ended the
+            // session after one answer. `takeDelimiter` consumes the delimiter and says
+            // null at end of stream, which is the other way out.
+            break :line (try stdin.interface.takeDelimiter('\n')) orelse break;
         };
         const prompt = std.mem.trim(u8, line, " \t\r");
         if (prompt.len == 0) break;
