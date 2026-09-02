@@ -49,7 +49,7 @@ digraph language_pipeline {
       penwidth=1.6,
       margin=18,
       labeljust=l,
-      labelloc=t,
+      labelloc=b,
       label=<<FONT COLOR="#34737E" POINT-SIZE="15"><B>TENSORSPINE  /  VALIDATE AND DERIVE</B></FONT>>
     ];
 
