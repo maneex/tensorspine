@@ -29,7 +29,8 @@ citing an undeclared argument, a tag no base declares — go to the findings
 appendix and never block.
 
 The output is deterministic: the same catalog gives the same bytes at the
-same location, so the rendered file can be committed and diffed.
+same logical location. The site build writes it to temporary storage; the
+generated Markdown is never tracked.
 """
 import collections
 import glob
@@ -1285,7 +1286,7 @@ class Renderer:
 # --- entry point --------------------------------------------------------------------------
 
 def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None,
-        models_base=None):
+        models_base=None, output_dir=None):
     """Render the catalog of the given bases to Markdown. Returns the exit status:
     0 written, 1 refused (malformed documentation, unreadable catalog), with the
     causes on stderr. Templates are resolved where each base declares them."""
@@ -1305,7 +1306,8 @@ def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None,
     target = None
     if output is not None:
         target = os.path.join(output, 'catalog.md') if os.path.isdir(output) else output
-    output_dir = os.path.dirname(os.path.abspath(target)) if target else None
+    output_dir = (os.path.abspath(output_dir) if output_dir else
+                  os.path.dirname(os.path.abspath(target)) if target else None)
     renderer = Renderer(manifests, units, cat, model_paths, docs, report, catalog_bases,
                         relative_to, output_dir)
     text = renderer.render()

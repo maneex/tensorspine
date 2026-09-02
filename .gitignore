@@ -4,6 +4,7 @@ __pycache__/
 
 # Generated documentation (built by tools/site.sh / docs/style/catalog.sh)
 /_site/
+/docs/CATALOG-REFERENCE.md
 /docs/CATALOG-REFERENCE.html
 
 # Working notes (plans, reviews) — never part of the tree

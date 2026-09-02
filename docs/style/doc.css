@@ -30,6 +30,9 @@ td code { white-space: normal; }
 /* Blockquotes in the guides are ordinary quotations. */
 blockquote strong:first-child { display: inline; font-size: inherit; letter-spacing: 0; text-transform: none; color: inherit; font-weight: 600; margin: 0; }
 
+/* Wide command output and schematics stay inside the content column. */
+pre { overflow-x: auto; }
+
 /* Model index. */
 ul.models { list-style: none; padding: 0; gap: 0; }
 ul.models li { padding: 10px 0; border-bottom: 1px solid var(--rule); }

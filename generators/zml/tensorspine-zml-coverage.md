@@ -23,7 +23,7 @@ numerical APIs and the tracked model implementations of the ZML checkout
 Primary sources:
 
 - [TensorSpine catalog metadata](../../data/catalog/catalog.json)
-- [TensorSpine generated catalog reference](../../docs/CATALOG-REFERENCE.md)
+- [TensorSpine generated catalog reference](https://maneex.github.io/tensorspine/catalog/)
 - ZML NN helpers — `$ZML_HOME/zml/nn.zig`
 - ZML tensor operations — `$ZML_HOME/zml/tensor.zig`
 - ZML higher-order operations — `$ZML_HOME/zml/ops.zig`

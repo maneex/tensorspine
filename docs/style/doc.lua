@@ -35,6 +35,8 @@ local function site_target(path)
     return 'spec/' .. file:gsub('%.md$', '.html'):lower()
   end
   if dir == '' and file == 'README.md' then return 'index.html' end
+  if path == 'status' or path == 'status/' then return 'status/index.html' end
+  if path == 'branch-ledger' or path == 'branch-ledger/' then return 'branch-ledger/index.html' end
   if dir:match('^schemas/') or dir:match('^data/') then return path end
   return nil
 end

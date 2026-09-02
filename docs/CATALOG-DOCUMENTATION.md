@@ -5,7 +5,7 @@
 > with `tensorspine --document catalog`.
 
 *Proposal, 28 August 2026. Companion to `schemas/tensorspine-documentation.schema.json`,
-`tools/document.py` and the generated [catalog reference](CATALOG-REFERENCE.md). Non-normative:
+`tools/document.py` and the generated [catalog reference](https://maneex.github.io/tensorspine/catalog/). Non-normative:
 the [specification](SPECIFICATION.md) remains the authority on what a catalog unit means.*
 
 ---
@@ -131,7 +131,7 @@ generator renders a well-formed one.
 ## 3 — The generator: `tensorspine --document catalog`
 
 ```sh
-python3 tools/tensorspine --document catalog -o docs/CATALOG-REFERENCE.md
+python3 tools/tensorspine --document catalog -o /tmp/CATALOG-REFERENCE.md
 python3 tools/tensorspine --document catalog                                 # to stdout
 python3 tools/tensorspine --document catalog --catalog other/catalog -o out/  # writes out/catalog.md
 ```
@@ -142,8 +142,8 @@ python3 tools/tensorspine --document catalog --catalog other/catalog -o out/  # 
   the catalog is loaded. The model documents given as `PATH`s are not read by this command.
 - **Output.** `-o FILE`, `-o DIR` (writes `DIR/catalog.md`), or stdout when `-o` is omitted; the
   status line then goes to stderr so the page can be piped. The output is **deterministic**: the
-  same catalog gives the same bytes at the same location, with no timestamp, so the file can be
-  committed and diffed.
+  same catalog gives the same bytes at the same logical location, with no timestamp. The site
+  build generates it in temporary storage; it is never committed.
 - **Exit status.** `0` written; `1` refused — an unreadable catalog, a malformed documentation
   field — with every cause on stderr and nothing written. Findings that are legal but worth knowing
   (a tag no base declares, a condition citing an argument the contract does not declare) go to the
@@ -177,11 +177,9 @@ python3 tools/tensorspine --document catalog --catalog other/catalog -o out/  # 
 
 ### 3.3 — Where the output lives
 
-`docs/CATALOG-REFERENCE.md`, regenerated whenever a unit changes and committed, so the reference is
-readable on the repository without running anything. The documentation plan reserves
-`docs/CATALOG.md` for a hand-written guide to the catalog's *organisation* — resolution order, how
-to add a unit, versioning. That guide should link to the generated reference for the lists rather
-than carry them: a list maintained by hand drifts.
+The [catalog reference](https://maneex.github.io/tensorspine/catalog/) is generated from the catalog
+at site build and never committed. A hand-written guide to catalog organisation should link to the
+generated reference for lists rather than copy them: a list maintained by hand drifts.
 
 ## 4 — What this change contains
 
@@ -197,7 +195,8 @@ port, payload component, state operation, state rule, partition, cost entry and 
   contracts concerned cite. Contracts whose primitive has a canonical paper cite it in
   `external_docs`; those that describe a single model's construction (Gemma 3n conditioning, the
   Mistral patch merger, the residual helpers) cite nothing rather than something approximate.
-- `docs/CATALOG-REFERENCE.md` — the rendered catalog.
+- [Catalog reference](https://maneex.github.io/tensorspine/catalog/) — the rendered catalog,
+  generated only at site build.
 
 Rendering the whole catalog once surfaced a defect the validator of the time did not see: two
 slots of `attention.dense` guarded by arguments the contract never declared. The catalog loader now
