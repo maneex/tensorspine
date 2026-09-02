@@ -1,7 +1,6 @@
-# TensorSpine fixture — what a generator is checked against, as one file
+# TensorSpine fixture format
 
-> A fixture is recorded once and run by every generator's harness: the language owns the format,
-> not the harness that happened to write it first.
+> Record conformance evidence once; run the same schema-checked file against every implementation.
 
 *Companion to `schemas/tensorspine-fixture.schema.json` (`$id`
 `https://tensorspine.dev/schema/2.0/fixture.json`). Non-normative: the
@@ -12,34 +11,30 @@ a conformer owes it (§4.2); this document is how the evidence is written down.*
 
 ## 1 — Why a format, and why one
 
-Two kinds of evidence say that an implementation of the language is right. At the **unit** level a
-contract version has one witness — the reference generator's kernel for it — and every other
-implementation is a conformer, checked against what the witness computes (Specification §4.1,
-§4.2). At the **integration** level a whole model is compared with the implementation that
-delivered it, `transformers` by usage, at the legal cuts of its document and at every state after
-the prefill: the check that a transcribed document's wiring is right. Both kinds were already
-produced and consumed — the reference generator dumped `transformers` at its cuts, and the ZML
-generator read those dumps — as a naming convention two harnesses shared. A convention is not a
-format: nothing said what a file had to contain, nothing refused a file that lacked it, and a third
-generator would have had to read one harness's code to learn what the other wrote.
+Two kinds of evidence cover different boundaries:
+
+- A **unit fixture** records the reference implementation supplied with one contract version. The
+  reference generator executes it; every optimized implementation of that contract is a conformer
+  checked against the result (Specification §4.1–§4.2).
+- An **integration fixture** records a model's delivery implementation at the legal cuts and states
+  of its TensorSpine model document. It checks that the document reproduces the delivered model's
+  wiring.
 
 The fixture schema is that statement. A fixture is a safetensors file; its `__metadata__` is the
 document below, one JSON value per key, and its tensors are named by the grammar of its kind. The
-container is safetensors because every generator already reads it — the checkpoints are — and
-because a header can be read without loading a tensor. A file whose metadata is off the schema is
-not a fixture: the reference generator refuses to write one and refuses to read one.
+container matches the model-artifact ecosystem and lets readers inspect metadata without loading a
+tensor. TensorSpine's conformance tooling refuses a file whose metadata or tensor names are outside
+the schema.
 
 ## 2 — The two kinds
 
 | Kind | Produced by | What it holds | Who runs it |
 |---|---|---|---|
-| `unit` | the witness of one contract version, on random parameters and inputs (`ref.py witness NAME@VERSION`) | the one-occurrence document it ran, its parameters, and the inputs, positions, states and outputs of each invocation | every conformer of that contract version, at the tolerance of its compute dtype |
-| `integration` | the delivery implementation of a whole model at the document's legal cuts (`fixtures/dump_hf.py`) | the output of every layer, every state after the prefill, the logits, the greedy tokens, and the provenance of the weights | every generator that runs the document |
+| `unit` | Contract reference implementation, on generated parameters and inputs (`ref.py witness NAME@VERSION`) | One-occurrence document, parameters, inputs, positions, states and outputs for each invocation | Every conformer of that contract version, at the tolerance for its compute dtype |
+| `integration` | Model delivery implementation at the document's legal cuts (`fixtures/dump_hf.py`) | Cut values, post-prefill states, exposed outputs, generated tokens and artifact provenance | Every implementation that runs the document |
 
-A unit fixture is small — the witness runs at small arguments (a width of 64, a vocabulary of 256)
-— and there are several per contract, one per branch worth a case. An integration fixture is a
-truncated model (the first few layers), because that is what fits beside `transformers` on one
-machine; the untruncated greedy tokens are recorded separately by the generator's test.
+Unit fixtures use deliberately small arguments and cover distinct contract branches. An integration
+fixture may truncate a composition; its metadata records that boundary, so no reader guesses it.
 
 ## 3 — The metadata
 
@@ -94,10 +89,10 @@ python3 generators/reference/tests/run_reference.py               # every integr
 python3 tests/run_fixtures.py                                     # every committed fixture is on the schema and its keys on the grammar
 ```
 
-A harness reads the metadata first (`compare.read_fixture` refuses a file off the schema), takes
-the ids, the truncation and the tolerance from it, runs its own generator, and compares key by
-key. Nothing about a fixture is written in a harness: the ZML harness reads the same files as the
-reference generator's, and a generator that is not in this repository reads them the same way.
+A conformance runner reads the metadata first (`compare.read_fixture` refuses a file off the
+schema), takes the ids, truncation and tolerance from it, runs the implementation under test, and
+compares key by key. The reference and ZML runners consume the same files; another implementation
+does not need repository-specific fixture knowledge.
 
 ## 5 — Regenerating one
 

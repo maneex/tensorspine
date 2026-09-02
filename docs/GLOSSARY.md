@@ -42,10 +42,17 @@ distinct. See [Specification §4.3](SPECIFICATION.md#43--state-derivation).
 
 ### Backend
 
-The hardware a generator executes on — cpu, nvidia, neuron, tpu. Outside the language: a model
-document never names one, and a generator may target several. When a serving application must say
-which, it does so through the opaque parameters it passes to the generator's primitives, of which
-the backend is one optional key (`generators/CAPABILITIES.md`).
+The hardware a primitive implementation targets — cpu, nvidia, neuron, tpu. Outside the language: a
+model document never names one, and a serving application may target several. When it must select
+one, it does so through opaque physical parameters passed beside the contract arguments; `backend`
+is one optional key ([Capabilities](../generators/CAPABILITIES.md)).
+
+### Branch
+
+A separately admitted choice within one contract version: an enum value, a record field, or an
+optional argument. An implementation may support some branches before others; its capabilities
+manifest states which, and the generated branch ledger lists what remains for one model and one
+implementation. See [Capabilities](../generators/CAPABILITIES.md).
 
 ### Binding
 
@@ -93,15 +100,24 @@ this consequence independently of physical collectives, topology, or measured tr
 ### Constant
 
 A non-learned numeric tensor or buffer with explicit identity, shape, and dtype, optionally located
-by a URI and identified by content digest. It is distinct from a quantity whose regime is
-`model_constant`. See [Model guide §2.2](TENSORSPINE-MODEL_JSON.md#22--external-constants) and
+by a URI and identified by content digest. It is distinct from a scalar quantity. See
+[Model guide §2.2](TENSORSPINE-MODEL_JSON.md#22--external-constants) and
 [Specification §3](SPECIFICATION.md#3--occurrences).
+
+### Conformer
+
+An implementation of a contract version whose outputs and states agree with that version's witness
+on its unit fixtures, within the tolerance stated for the implementation's compute dtype. Primitive
+implementations in serving applications and the ZML example are conformers; they do not redefine
+the primitive. See
+[Specification §4.2](SPECIFICATION.md#42--computation-may-be-delegated-identity-may-not).
 
 ### Contract
 
 The immutable, versioned semantic definition of a primitive. An occurrence pins a contract by name
 and version; the contract declares arguments and derives ports, logical tensors, state, effects,
-costs, and legal partitions. It describes meaning, not a kernel or a generator's implementation. See
+costs, and legal partitions. Its reference implementation is the witness that fixes what the
+primitive computes; all optimized implementations are conformers. See
 [Specification §4](SPECIFICATION.md#4--primitive-semantic-contracts) and
 [Model guide §3](TENSORSPINE-MODEL_JSON.md#3--catalog-contracts).
 
@@ -111,6 +127,13 @@ A cost entry a contract declares because the inventory rule cannot see it: a con
 arguments, an expression, a status, and what it is counted per — an element of the output domain, a
 cached position of a state, a sequence, or an invocation. Every entry whose condition holds
 contributes. See [Specification §4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part).
+
+### Coverage
+
+Closure of the in-scope graph class over the contracts available in the pinned catalog: every such
+graph has at least one representation. It is not a claim that every architecture has a contract or
+that every implementation supports every contract. See
+[Specification §1](SPECIFICATION.md#1--scope-and-authority).
 
 ### Cut
 
@@ -179,25 +202,35 @@ A public input whose elements arrive over several invocations, declared on the i
 between fragments. See
 [Specification §5.3](SPECIFICATION.md#53--indexing-domains-streams-and-fragmentation).
 
+### Fixture
+
+A safetensors file carrying reproducible conformance evidence and schema-checked metadata. A
+**unit fixture** records one contract witness on generated inputs, parameters and states; every
+conformer runs it. An **integration fixture** records a delivery implementation at a model's legal
+cuts and states; every implementation running that model compares against it. See the
+[fixture-format guide](TENSORSPINE-FIXTURE.md).
+
 ## G
 
 ### Generative
 
 An output property stating whether a public output participates in generation: each generated
 element is delivered to the output's stream in the next invocation, so a generative output has kind
-`token`. TensorSpine also permits non-generative and per-token outputs. See [Specification
+`token`. Generation is autoregressive; diffusion-style regeneration of every position is outside
+the current scope. TensorSpine also permits non-generative and per-token outputs. See [Specification
 §2.3](SPECIFICATION.md#23--public-inputs-and-outputs-o81-o82-o83-o42).
 
 ## I
 
 ### Generator
 
-The implementation that builds and runs a model's graph — or an extract of it, between legal cuts
-— over its own implementation of the primitives: the reference generator, ZML. What
-[Specification §4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part) keeps outside the
-language. A generator advertises what it can evaluate in a manifest derived from its code
-(`generators/CAPABILITIES.md`). Not to be confused with a *generative* output, which feeds its
-stream back.
+A repository executable that builds and runs a model graph—or an extract between legal cuts—over
+primitive implementations. The reference generator is the repository's target generator: it runs
+the contract reference implementations and carries their witnesses. The ZML generator is an
+example conformer. A serving application does not embed a TensorSpine generator; it implements the
+subset of TensorSpine contracts it supports and may consume TensorSpine's derived facts and tooling
+directly. See [Capabilities](../generators/CAPABILITIES.md). Not to be confused with a *generative*
+output, which feeds its stream back.
 
 ### Identity
 
@@ -336,6 +369,13 @@ A reusable semantic operation kind, such as an embedding, attention operation, f
 operation, or residual addition. A contract defines the primitive; an occurrence places one use of
 it in a model graph. See [Specification §4](SPECIFICATION.md#4--primitive-semantic-contracts).
 
+### Primitive implementation
+
+Application-owned code that executes a contract version or one of its branches: kernels, fusions,
+layouts, collectives and data paths optimized for target hardware. A capabilities manifest states
+the implemented subset; conformance means its outputs and states match the contract's witness. It
+does not define the primitive. See [Capabilities](../generators/CAPABILITIES.md).
+
 ### `present_when`
 
 See [`when` and `present_when`](#when-and-present_when).
@@ -344,20 +384,13 @@ See [`when` and `present_when`](#when-and-present_when).
 
 ### Quantity
 
-A named scalar fact or variable in a model document. Its regime, type, and source are independent:
-for example, an externally assigned cardinality and a literal model constant are both quantities.
-Runtime load variables such as active batch size do not belong here. See
+A named scalar in a model document, with a type and a literal, external or derived source. It is
+variable when its source is external or depends transitively on an external quantity; a variable
+declares its admissible domain. Runtime load variables such as active batch size do not belong here. See
 [Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04) and
 [Model guide §2.1](TENSORSPINE-MODEL_JSON.md#21--quantities-and-expressions).
 
 ## R
-
-### Regime
-
-Whether a quantity is a `model_constant` or a `model_variable`. Regime does not say where the value
-comes from; that is the quantity's source. See
-[Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04) and
-[Model guide §2.1](TENSORSPINE-MODEL_JSON.md#21--quantities-and-expressions).
 
 ### Role
 
@@ -374,6 +407,22 @@ identity must be admissible for every member's role (V14); absent, the default a
 A precision role's advice on quantisation — `quantizable`, `reduced` or `full_precision` — carried
 into D3 with every tensor's role and selected dtype. See
 [Specification §7](SPECIFICATION.md#7--required-derived-products).
+
+### Semantics
+
+The rules that determine what a document and its primitives mean. The specification governs
+validity and graph denotation; each contract version's reference implementation—the witness—governs
+what that primitive computes. Prose in the README, guides and glossary is explanatory. See
+[Specification §1](SPECIFICATION.md#1--scope-and-authority) and
+[§4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part).
+
+### Serving application
+
+The system that connects a model, requests and target infrastructure. Its harness maps derived
+model facts to admission, cache, batching, routing, placement and scheduling decisions; its
+primitive implementations execute the supported TensorSpine contracts with application-specific
+optimizations. See [README §1](../README.md#1-why-tensorspine) and the
+[harness guide](HARNESS.md).
 
 ### Sharing
 
@@ -398,13 +447,6 @@ The word is qualified by context:
 These are not interchangeable fields. See [Model guide
 §2](TENSORSPINE-MODEL_JSON.md#2--the-tensorspine-20-model-document).
 
-### Semantics
-
-The rules that determine what a document means, including expansion, validity, and derived
-consequences. In this repository, semantics are defined only by the language specification; prose
-in the README, model guide, and glossary is explanatory. See
-[Specification §1](SPECIFICATION.md#1--scope-and-authority).
-
 ### Sparsity unit
 
 A contract's declaration that only some of its parameters are activated per element: the slots and
@@ -418,7 +460,9 @@ and worst-case transfer. See [Specification §4.5](SPECIFICATION.md#45--structur
 
 Logical storage exposed through a state port and preserved across invocations. The contract derives
 its payload, evolution, access geometry, permitted operations and carrying condition; model state
-bindings declare identity, members and dtype; keys, liveness, visits and carrying are derived. See
+bindings declare identity, members and dtype; keys, liveness, visits and carrying are derived. The
+closed evolution vocabulary is `append`, `window` and `fixed`; another evolution is a new state law.
+See
 [Specification §§4.3–4.4](SPECIFICATION.md#43--state-derivation).
 
 ### State identity
@@ -426,6 +470,12 @@ bindings declare identity, members and dtype; keys, liveness, visits and carryin
 A model binding that declares which state-port members name the same logical storage. It is a graph
 fact, separate from the state descriptor derived by a contract. See
 [Specification §3.4](SPECIFICATION.md#34--bindings).
+
+### Status page
+
+The generated, untracked page reporting catalog and corpus state, implementation coverage and recorded
+verification for the commit from which the site was built. It reports project state, never language
+validity or primitive meaning. See the [status page](https://maneex.github.io/tensorspine/status/).
 
 ### Stream
 
@@ -475,8 +525,8 @@ and a trunk may carry no state. See
 ### Type
 
 The declared kind of a quantity, such as cardinality, real, physical, enum, or boolean. Type is
-independent of regime and source. Ports and tensors separately carry shape and precision-role
-information. See [Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04).
+independent of source. Ports and tensors separately carry shape and precision-role information. See
+[Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04).
 
 ## V
 
@@ -485,9 +535,21 @@ information. See [Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o
 How often a state is visited per indexing domain and phase — once per element for a decoder cache,
 once per source element for a frozen cross-attention cache, once per fragment for a streaming
 encoder. The rate is derived from the value graph, the generative outputs and the fragmentation of
-inputs; the counts (tokens per request, fragments per stream) are deployment intent. Visits size computation;
-state liveness sizes memory. See
+inputs and is data-independent; a graph whose visits depend on element values is outside the
+current scope. Counts (tokens per request, fragments per stream) are deployment intent. Visit rates
+size computation; state liveness sizes memory. See
 [Specification §4.4](SPECIFICATION.md#44--information-supplied-by-the-graph).
+
+## W
+
+### Witness
+
+The reference implementation supplied with one immutable contract version and run by the reference
+generator, bound to that identity with a tolerance per compute dtype and unit fixture ids. It is the
+authority for what the primitive computes; every other implementation is a conformer. The
+contract's description, cited sources and integration fixtures remain the authority for whether a
+witness is correct. See
+[Specification §4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part).
 
 ### `when` and `present_when`
 
