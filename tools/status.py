@@ -126,16 +126,15 @@ def generator(manifest_path, cat, model_paths):
     if errors:
         raise ValueError(f"{manifest_path}: " + '; '.join(errors))
     missing, branches, verdicts = capabilities_mod.coverage(manifest, cat, model_paths)
-    witnessed = {identity for identity, entry in manifest['contracts'].items()
-                 if entry.get('witness')}
-    catalog_contracts = {f'{name}@{version}' for name, version in cat['by_id']}
     return {
         'path': manifest_path,
         'manifest': manifest,
         'missing': missing,
         'branches': branches,
         'verdicts': verdicts,
-        'unwitnessed': sorted(catalog_contracts - witnessed),
+        # the reader's own definition (§10.2): None for a conformer, which witnesses nothing;
+        # a template contract is realised by its template and has no witness to lack
+        'unwitnessed': capabilities_mod.unwitnessed(manifest, cat),
     }
 
 
@@ -263,8 +262,10 @@ def render_status(state):
         out += _table(
             ['Contract entries', 'Contracts without an entry', 'Entries with branch gaps',
              'Corpus documents runnable', 'Contracts without a witness'],
-            [[len(manifest['contracts']), len(item['missing']), len(item['branches']),
-              f"{can_run}/{len(item['verdicts'])}", len(item['unwitnessed'])]],
+            [[len(manifest['contracts']), len(item['missing']),
+              len([c for c in item['branches'] if c not in item['missing']]),   # the ledger lists absent contracts too
+              f"{can_run}/{len(item['verdicts'])}",
+              len(item['unwitnessed']) if item['unwitnessed'] is not None else 'not applicable']],
         )
         gaps = [[f'`{identity}`', ', '.join(f'`{gap}`' for gap in values)]
                 for identity, values in sorted(item['branches'].items())]
