@@ -1,7 +1,7 @@
 """Generated project state for ``tensorspine --document``.
 
 The status page and branch ledger contain only facts read from the catalog,
-model corpus, generator manifests, validation/derivation tools, and verification
+model corpus, implementation manifests, validation/derivation tools, and verification
 records.  They are site-build products, not tracked documentation.
 """
 
@@ -166,12 +166,24 @@ def _default_tolerance(record):
     return (match.group(1), match.group(2)) if match else ('recorded by the suite', '')
 
 
+def _tolerance(meta, fallback):
+    """Render the fixture schema's per-compute-dtype tolerances."""
+    values = meta.get('tolerance', {})
+    if isinstance(values, dict) and values:
+        return '; '.join(
+            f"{dtype_name}: atol {rule.get('atol', '—')} / rtol {rule.get('rtol', '—')}"
+            for dtype_name, rule in values.items()
+            if isinstance(rule, dict)
+        )
+    return f"atol {fallback[0]}" + (f" / rtol {fallback[1]}" if fallback[1] else '')
+
+
 def _verification_lines(item):
     manifest = item['manifest']
     record, source = _record(item['path'])
     out = [f"### `{manifest['generator']['name']}`", '']
     if not source:
-        return out + ['No verification record is published by this generator.', '']
+        return out + ['No verification record is published by this implementation.', '']
 
     out += [f"Record: `{os.path.relpath(source, ROOT)}`.", '']
     fixtures = record.get('FIXTURES', [])
@@ -179,20 +191,24 @@ def _verification_lines(item):
         default_atol, default_rtol = _default_tolerance(record)
         rows = []
         fixture_dir = os.path.join(os.path.dirname(source), 'fixtures')
-        checkpoint_ids = record.get('CHECKPOINT_IDS', {})
         for entry in fixtures:
             fixture, model, artifact = entry[:3]
             tolerance = entry[3] if len(entry) > 3 else (default_atol, default_rtol)
             meta = _metadata(os.path.join(fixture_dir, fixture))
+            artifact_meta = meta.get('artifact', {})
+            delivery = meta.get('delivery', {})
+            versions = delivery.get('versions', {}) if isinstance(delivery, dict) else {}
             provenance = ', '.join(
                 value for value in (
-                    checkpoint_ids.get(artifact, artifact),
-                    f"transformers {meta.get('transformers')}" if meta.get('transformers') else None,
-                    f"torch {meta.get('torch')}" if meta.get('torch') else None,
+                    artifact_meta.get('id', artifact) if isinstance(artifact_meta, dict) else artifact,
+                    (f"delivery: {delivery.get('implementation')}"
+                     if isinstance(delivery, dict) and delivery.get('implementation') else None),
+                    f"transformers: {versions.get('transformers')}" if versions.get('transformers') else None,
+                    f"torch: {versions.get('torch')}" if versions.get('torch') else None,
                 ) if value)
             rows.append([
-                f'`{model}`', f'`{fixture}`', f"`{meta.get('dtype', '—')}`",
-                f"atol {tolerance[0]}" + (f" / rtol {tolerance[1]}" if tolerance[1] else ''),
+                f"`{meta.get('document', model)}`", f'`{fixture}`', f"`{meta.get('compute', '—')}`",
+                _tolerance(meta, tolerance),
                 f"`{json.dumps(meta.get('tokens', []), separators=(',', ':'))}`",
                 provenance or '—',
             ])
@@ -235,7 +251,8 @@ def render_status(state):
         f"*Generated from commit `{state['commit']}` on {state['date']}. Not tracked; rebuilt by the documentation action.*",
         '',
         'This page reports what the repository validates, derives and runs at build time. '
-        'The specification remains the authority on validity and meaning.', '',
+        'The specification remains the authority on validity and denotation; each contract '
+        "version's witness is the authority on primitive computation.", '',
         '## Catalog and corpus', '',
     ]
     out += _table(
@@ -250,9 +267,10 @@ def render_status(state):
         [[f"`{row['name']}`", row['validation'], row['located'], row['detail'] or '—']
          for row in corpus_rows],
     )
-    out += ['## Generator coverage', '',
+    out += ['## Implementation coverage', '',
             'A manifest is checked against the catalog before its coverage is reported. '
-            'The detailed model-and-generator to-do list is the [branch ledger](../branch-ledger/).', '']
+            'The detailed model-and-implementation to-do list is the '
+            '[branch ledger](../branch-ledger/).', '']
     for item in state['generators']:
         manifest = item['manifest']
         gen = manifest['generator']
@@ -280,7 +298,7 @@ def render_status(state):
              for name, (ok, reasons) in item['verdicts'].items()],
         )
     out += ['## Verification', '',
-            'Verification data comes from the records consumed by each generator test suite; '
+            'Verification data comes from the records consumed by each implementation test suite; '
             'the site build does not rerun weight-dependent measurements.', '']
     for item in state['generators']:
         out += _verification_lines(item)
@@ -295,7 +313,7 @@ def render_ledger(state, selected=None):
         '# TensorSpine branch ledger', '',
         f"*Generated from commit `{state['commit']}` on {state['date']}. Not tracked; rebuilt by the documentation action.*",
         '',
-        'For each model-and-generator pair, this is the implementation to-do list: absent contract '
+        'For each model-and-implementation pair, this is the to-do list: absent contract '
         'entries, unadmitted enum values, record fields and optional arguments, followed by the '
         'admission result for every corpus document.', '',
     ]
@@ -336,6 +354,6 @@ def run(kind, model_paths, catalog_bases, schema_dir, manifest_paths, output=Non
     else:
         with open(target, 'w', encoding='utf-8') as destination:
             destination.write(text)
-    print(f"  {len(state['corpus'])} documents, {len(state['generators'])} generator(s) -> {target}",
+    print(f"  {len(state['corpus'])} documents, {len(state['generators'])} manifest(s) -> {target}",
           file=stream)
     return 0

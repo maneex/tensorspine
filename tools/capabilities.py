@@ -202,7 +202,7 @@ def evaluated(doc, cat, delivered):
 
 
 def can_run(manifest, doc, cat, delivered=None):
-    """(ok, reasons) — the first reasons a generator cannot evaluate this document for this delivery."""
+    """(ok, reasons) — why an implementation cannot evaluate this document for this delivery."""
     d1, d2, d3, d4 = doc['d1'], doc['d2'], doc['d3'], doc['d4']
     generative = [n for n, o in d1['interfaces']['outputs'].items() if o.get('generative')]
     if delivered is None:

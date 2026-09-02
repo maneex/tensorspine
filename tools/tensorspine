@@ -84,7 +84,7 @@ def build_parser():
                          help='render WHAT as Markdown. `catalog`: the catalog reference; '
                               '`status`: catalog, corpus, coverage and verification state; '
                               '`branch-ledger`: missing contract branches and model admission '
-                              'per generator. Writes to -o, or to stdout.')
+                              'per implementation. Writes to -o, or to stdout.')
 
     parser.add_argument('paths', nargs='*', metavar='PATH',
                         help=f'model documents, or a directory of them '
@@ -95,9 +95,9 @@ def build_parser():
                              'omitted, --d1, --derive and --view land beside their model and '
                              '--document writes to stdout.')
     parser.add_argument('--capabilities', metavar='MANIFEST', action='append',
-                         help='read a generator\'s capabilities manifest (generators/CAPABILITIES.md): validate it '
+                         help='read an implementation\'s capabilities manifest (generators/CAPABILITIES.md): validate it '
                               'against its schema and the catalog, then say for each document whether the '
-                              'generator can run it for the inputs --inputs names (default: those required for '
+                              'implementation can run it for the inputs --inputs names (default: those required for '
                               'the generative output); --coverage adds what the catalog and the corpus still need. '
                               'Repeat for --document status or branch-ledger.')
     parser.add_argument('--inputs', metavar='NAMES', help='for --capabilities: the public inputs delivered, comma-separated')

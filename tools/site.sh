@@ -7,7 +7,7 @@
 #   _site/spec/*.html          docs/*.md, hand-written documents
 #   _site/catalog/index.html   catalog reference, generated from data/catalog
 #   _site/status/index.html    generated catalog, corpus and verification state
-#   _site/branch-ledger/       generated work remaining per model and generator
+#   _site/branch-ledger/       generated work remaining per model and implementation
 #   _site/models/*.html        one --view page per data/models/*.json
 #   _site/schemas, _site/data  copies, so links to them resolve
 set -eu
