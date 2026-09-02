@@ -296,6 +296,34 @@
           },
           "description": "The greedy tokens the delivery implementation produced after the prompt; empty for a document without a generative output."
         },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source",
+              "sha256",
+              "processor"
+            ],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "What was recorded: a file name (`jfk.wav`), never a path of the machine that made the fixture."
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "description": "The hash of that file."
+              },
+              "processor": {
+                "type": "string",
+                "description": "How the tensor was made from it — the extractor and its configuration, in words (`WhisperFeatureExtractor` from the checkpoint's `preprocessor_config.json`: 128 log-mel bins per 10 ms frame, zero-padded to 30 s). The delivery's preprocessing is outside the document, as a tokenizer is; the fixture holds its result and says how it was made."
+              }
+            }
+          },
+          "description": "The provenance of every non-token public input the prefill delivered, keyed by the input's name: one entry per `in/<input>` tensor key, and no other. Absent when the prompt is the only input."
+        },
         "hook_map": {
           "type": "object",
           "additionalProperties": {
@@ -304,7 +332,7 @@
           "description": "How the delivery implementation's names were mapped onto D1 values and D4 states: data, the only place they meet."
         }
       },
-      "description": "Tensor keys: `value/<D1 value>` for the output of every layer (the values crossing D6's layer cuts) and every exposed output; `state/<D4 identity>/<component>` for every state after the prefill; `logits/last` and `logits/argmax` for a generative document."
+      "description": "Tensor keys: `in/<input>` for every public input the prefill delivered other than the token input `ids` names — element-major, one row per element, the input value's D2 shape per row (`[3000, 128]` for Whisper's `audio`); `value/<D1 value>` for the output of every layer (the values crossing D6's layer cuts) and every exposed output; `state/<D4 identity>/<component>` for every state after the prefill; `logits/last` and `logits/argmax` for a generative document."
     }
   }
 }

@@ -31,7 +31,7 @@ the schema.
 | Kind | Produced by | What it holds | Who runs it |
 |---|---|---|---|
 | `unit` | Contract reference implementation, on generated parameters and inputs (`ref.py witness NAME@VERSION`) | One-occurrence document, parameters, inputs, positions, states and outputs for each invocation | Every conformer of that contract version, at the tolerance for its compute dtype |
-| `integration` | Model delivery implementation at the document's legal cuts (`fixtures/dump_hf.py`) | Cut values, post-prefill states, exposed outputs, generated tokens and artifact provenance | Every implementation that runs the document |
+| `integration` | Model delivery implementation at the document's legal cuts (`fixtures/dump_hf.py`) | Cut values, post-prefill states, exposed outputs, generated tokens, the non-token inputs the prefill delivered, and artifact provenance | Every implementation that runs the document |
 
 Unit fixtures use deliberately small arguments and cover distinct contract branches. An integration
 fixture may truncate a composition; its metadata records that boundary, so no reader guesses it.
@@ -75,11 +75,15 @@ payload.
 | `delivery` | `implementation` (`transformers`), the `program` that dumped it, the library `versions`. |
 | `truncation` | `composition` and `layers`: the document is truncated to as many layers of that composition before it is compared. |
 | `ids`, `tokens` | The prompt, and the greedy tokens the delivery implementation produced after it (empty for a document without a generative output). |
+| `inputs` | The provenance of every non-token public input the prefill delivered, keyed by the input's name — one entry per `in/<input>` tensor key, and no other: `source` (what was recorded: a file name, never a path), `sha256` of that file, `processor` (how the tensor was made from it — the extractor and its configuration, in words). Absent when the prompt is the only input. The delivery's preprocessing is outside the document, as a tokenizer is; the fixture holds its result and says how it was made. |
 | `hook_map` | How the delivery implementation's names met D1 values and D4 states — data, and the only place they meet. |
 
-Tensor keys: `value/<D1 value>` for the output of every layer (the values crossing D6's layer
-cuts) and every exposed output; `state/<D4 identity>/<component>` for every state after the
-prefill; `logits/last` and `logits/argmax` for a generative document.
+Tensor keys: `in/<input>` for every public input the prefill delivered other than the token input
+`ids` names — element-major, one row per element, the input value's D2 shape per row (`[3000, 128]`
+for Whisper's `audio`; what `Session.run` checks a delivered input against); `value/<D1 value>` for
+the output of every layer (the values crossing D6's layer cuts) and every exposed output;
+`state/<D4 identity>/<component>` for every state after the prefill; `logits/last` and
+`logits/argmax` for a generative document.
 
 ## 4 — Reading one
 

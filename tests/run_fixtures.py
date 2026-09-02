@@ -5,12 +5,14 @@ tensor keys are on the grammar of its kind. Nothing is loaded but the headers.
 
   1. metadata on the schema, read from the safetensors header alone;
   2. integration: the `document` is a corpus document and `truncation.composition` one
-     of its compositions; every key is a `value/`, `state/` or `logits/` key;
+     of its compositions; every key is an `in/`, `value/`, `state/` or `logits/` key; every
+     `in/<input>` names a public input of the document other than the token input, and the
+     `inputs` provenance has one entry per such key and no other;
   3. unit: the embedded document is on the model schema and pins the fixture's contract
      with its arguments; every key is a `param/`, `in/`, `out/`, `positions/` or `state/` key,
      one `in/` per public input and one `out/` per public output for every invocation.
 
-    python3 tests/run_fixtures.py
+    python3 tests/run_fixtures.py [FIXTURE ...]      # every committed fixture, or the files named
 """
 import glob
 import json
@@ -29,7 +31,7 @@ import schema as schema_mod            # noqa: E402
 SCHEMAS = os.path.join(ROOT, 'schemas')
 MODELS = os.path.join(ROOT, 'data', 'models')
 GRAMMAR = {
-    'integration': re.compile(r'^(value/.+|state/[^/]+/[^/]+|logits/(last|argmax))$'),
+    'integration': re.compile(r'^(in/[^/]+|value/.+|state/[^/]+/[^/]+|logits/(last|argmax))$'),
     'unit': re.compile(r'^(param/[^/]+|in/\d+/[^/]+|out/\d+/[^/]+|positions/\d+/[^/]+|state/\d+/[^/]+/[^/]+)$'),
 }
 
@@ -56,12 +58,12 @@ def fixtures():
     return sorted(glob.glob(os.path.join(ROOT, 'generators', '*', 'fixtures', '**', '*.safetensors'), recursive=True))
 
 
-def main():
+def main(paths=None):
     reg = schema_mod.registry(SCHEMAS)
     fixture_schema = schema_mod.locate(SCHEMAS, 'fixture')
     model_schema = schema_mod.locate(SCHEMAS, 'model')
     ok = check("a fixture schema is in the tree", fixture_schema is not None)
-    files = fixtures()
+    files = [os.path.abspath(p) for p in paths] if paths else fixtures()
     ok &= check(f"{len(files)} committed fixture(s) found", bool(files))
     for path in files:
         name = os.path.relpath(path, ROOT)
@@ -78,9 +80,18 @@ def main():
             ok &= check(f"{name}: document {meta['document']} is in the corpus", os.path.isfile(doc))
             if os.path.isfile(doc):
                 with open(doc, encoding='utf-8') as f:
-                    comps = json.load(f).get('compositions', {})
+                    model = json.load(f)
+                comps = model.get('compositions', {})
                 ok &= check(f"{name}: truncation names a composition of it", meta['truncation']['composition'] in comps,
                             str(sorted(comps)))
+                # the non-token inputs the prefill delivered (docs/TENSORSPINE-FIXTURE.md §3): a key per
+                # public input other than the one `ids` names, and a provenance entry per key
+                public = model['interfaces']['inputs']
+                recorded = {k[len('in/'):] for k in keys if k.startswith('in/')}
+                bad = sorted(i for i in recorded if i not in public or public[i].get('kind') == 'token')
+                ok &= check(f"{name}: every in/ key names a public input of {meta['document']} other than the token input", not bad, str(bad))
+                ok &= check(f"{name}: the inputs provenance has one entry per in/ key and no other",
+                            set(meta.get('inputs', {})) == recorded, str(sorted(set(meta.get('inputs', {})) ^ recorded)))
             ok &= check(f"{name}: a tolerance for f32", 'f32' in meta['tolerance'])
         else:
             document = meta['document']
@@ -111,4 +122,4 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
