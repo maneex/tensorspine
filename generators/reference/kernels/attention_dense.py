@@ -58,6 +58,24 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
 # `|a − b| ≤ atol + rtol·|b|`. The manifest's witness block is written from it.
 TOLERANCE = {'f32': {'atol': 1e-5, 'rtol': 1e-4}, 'bf16': {'atol': 1e-1, 'rtol': 2e-2}}
 
+# The unit fixtures this kernel produces (docs/TENSORSPINE-FIXTURE.md): one case per branch
+# worth its own evidence, at small quantities.
+FIXTURES = [
+    {"case": "causal-rope-gqa", "seed": 11, "invocations": [{"input": 5}, {"input": 3}],
+     "arguments": {"width": 64, "heads": 4, "kv_heads": 2, "head_dim": 16, "mask": "causal", "rope": {"theta": 10000.0}}},
+    {"case": "bidirectional-biased", "seed": 12, "invocations": [{"input": 6}, {"input": 2}],
+     "arguments": {"width": 64, "heads": 4, "head_dim": 16, "mask": "none",
+                   "q_bias": True, "k_bias": True, "v_bias": True, "out_bias": True}},
+    {"case": "gated-qknorm-partial-mrope", "seed": 13, "invocations": [{"input": 5}, {"input": 1}],
+     "arguments": {"width": 64, "heads": 4, "kv_heads": 2, "head_dim": 16, "mask": "causal", "output_gate": True,
+                   "qk_norm": {"kind": "rms", "eps": 1e-6, "scale": {"zero_centered": True}},
+                   "rope": {"theta": 10000000.0, "partial": 0.5, "mrope": {"t": 2, "h": 1, "w": 1, "sections": "interleaved"}}}},
+    {"case": "yarn", "seed": 14, "invocations": [{"input": 5}, {"input": 3}],
+     "arguments": {"width": 64, "heads": 4, "head_dim": 16, "mask": "causal",
+                   "rope": {"theta": 1000000.0, "scaling": {"kind": "yarn", "factor": 16.0, "orig_ctx": 16384,
+                                                             "beta_fast": 32.0, "beta_slow": 1.0, "attention_factor": 1.0}}}},
+]
+
 
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)

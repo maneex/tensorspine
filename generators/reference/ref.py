@@ -7,6 +7,7 @@
     ref.py run     MODEL --random [--seed N] …               parameters drawn from the D3 shapes
     ref.py chat    MODEL --checkpoint DIR [--max-new-tokens N] [--temperature T --top-p P --seed N]
     ref.py compare OURS FIXTURE [--atol A --rtol R]          a dump against a fixture, at every cut and state
+    ref.py witness NAME@VERSION|all [--record]               the unit fixtures of a contract version: regenerated and compared, or written
 
 Common options: --device cpu|cuda[:i], --compute f32|bf16, --capacity N, --truncate decoder.layer=N,
 --set path=value. MODEL is a model document (derived here) or a derived document. In a chat, an
@@ -243,6 +244,11 @@ def cmd_capabilities(args):
     return 0
 
 
+def cmd_witness(args):
+    import witness
+    return witness.main(args.contract, args.record)
+
+
 def cmd_verify(args):
     g = open_graph(args)
     errors, advisories, stats = loader.verify(g, args.checkpoint)
@@ -354,6 +360,10 @@ def main(argv=None):
     p.add_argument('--out', default=os.path.join(HERE, 'capabilities.json'))
     p.add_argument('--check', action='store_true', help='also validate the manifest against its schema and the catalog')
     p.set_defaults(fn=cmd_capabilities)
+    p = sub.add_parser('witness')
+    p.add_argument('contract', help='NAME@VERSION, or all')
+    p.add_argument('--record', action='store_true', help='write the fixtures under fixtures/contracts/ (else regenerate and compare)')
+    p.set_defaults(fn=cmd_witness)
     p = sub.add_parser('verify'); common(p)
     p.add_argument('--checkpoint', metavar='DIR', required=True)
     p.set_defaults(fn=cmd_verify)

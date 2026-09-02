@@ -115,6 +115,8 @@ python3 $R run     data/models/llama3-8b.json --checkpoint $CK --truncate decode
 python3 generators/reference/fixtures/dump_hf.py --model $CK --document llama3-8b --layers 3 \
                    --ids 128000,791,6864,315,9822,374 --steps 3 --out /tmp/theirs.safetensors
 python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors     # at the fixture's own tolerance; --atol/--rtol override
+python3 $R witness attention.dense@1.0.0            # the unit fixtures of a contract version, regenerated and compared; --record writes them
+python3 $R witness all --record                       # every case every kernel declares (docs/TENSORSPINE-FIXTURE.md)
 python3 generators/reference/tests/run_reference.py [--compile] [--full]   # M0 on random weights; M1/M2 on the fixtures when the artifacts are on disk
 ```
 

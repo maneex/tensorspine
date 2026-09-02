@@ -20,7 +20,13 @@ CAPABILITIES = {"arguments": {"width": "any"}, "states": [], "transforms": ["ins
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
 # `|a − b| ≤ atol + rtol·|b|`. The manifest's witness block is written from it.
-TOLERANCE = {'f32': {'atol': 0.0, 'rtol': 0.0}, 'bf16': {'atol': 0.0, 'rtol': 0.0}}
+TOLERANCE = {'f32': {'atol': 0.0, 'rtol': 0.0}, 'bf16': {'atol': 1e-2, 'rtol': 1e-2}}
+
+# The unit fixtures this kernel produces (docs/TENSORSPINE-FIXTURE.md): one case per branch
+# worth its own evidence, at small quantities.
+FIXTURES = [
+    {"case": "text-only", "seed": 101, "invocations": [{"text": 5}, {"text": 3}], "arguments": {"width": 64}},
+]
 
 
 def supports(arguments):

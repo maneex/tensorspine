@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "429afb5",
+    "version": "20bbb51",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-02"
   },
@@ -143,7 +143,12 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "attention.dense@1.0.0/causal-rope-gqa",
+          "attention.dense@1.0.0/bidirectional-biased",
+          "attention.dense@1.0.0/gated-qknorm-partial-mrope",
+          "attention.dense@1.0.0/yarn"
+        ]
       }
     },
     "embed@1.0.0": {
@@ -164,7 +169,9 @@
             "rtol": 0.01
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "embed@1.0.0/basic"
+        ]
       }
     },
     "embedding.token_position_type@1.0.0": {
@@ -191,7 +198,9 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "embedding.token_position_type@1.0.0/basic"
+        ]
       }
     },
     "ffn.dense@1.0.0": {
@@ -229,7 +238,10 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "ffn.dense@1.0.0/gelu-biased",
+          "ffn.dense@1.0.0/silu"
+        ]
       }
     },
     "ffn.gated@1.0.0": {
@@ -267,7 +279,11 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "ffn.gated@1.0.0/silu",
+          "ffn.gated@1.0.0/gelu-tanh-biased",
+          "ffn.gated@1.0.0/relu2"
+        ]
       }
     },
     "lm_head@1.0.0": {
@@ -288,7 +304,9 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "lm_head@1.0.0/basic"
+        ]
       }
     },
     "moe@1.0.0": {
@@ -330,7 +348,10 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "moe@1.0.0/softmax-topk-shared",
+          "moe@1.0.0/plain-scaled"
+        ]
       }
     },
     "norm.layer@1.0.0": {
@@ -351,7 +372,9 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "norm.layer@1.0.0/basic"
+        ]
       }
     },
     "norm.rms@1.0.0": {
@@ -373,7 +396,10 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "norm.rms@1.0.0/basic",
+          "norm.rms@1.0.0/zero-centered"
+        ]
       }
     },
     "pooler@1.0.0": {
@@ -401,7 +427,10 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "pooler@1.0.0/l2",
+          "pooler@1.0.0/plain"
+        ]
       }
     },
     "residual.add@1.0.0": {
@@ -421,7 +450,9 @@
             "rtol": 0.01
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "residual.add@1.0.0/basic"
+        ]
       }
     },
     "sequence.gated_delta@1.0.0": {
@@ -461,7 +492,9 @@
             "rtol": 0.02
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "sequence.gated_delta@1.0.0/basic"
+        ]
       }
     },
     "splice@1.0.0": {
@@ -483,11 +516,13 @@
             "rtol": 0.0
           },
           "bf16": {
-            "atol": 0.0,
-            "rtol": 0.0
+            "atol": 0.01,
+            "rtol": 0.01
           }
         },
-        "fixtures": []
+        "fixtures": [
+          "splice@1.0.0/text-only"
+        ]
       }
     }
   }

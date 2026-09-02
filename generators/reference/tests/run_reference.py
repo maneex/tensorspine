@@ -162,6 +162,7 @@ def main(compile_step=False, full=False):
     for m in (fresh, committed):
         m['generator'] = {k: v for k, v in m['generator'].items() if k not in ('version', 'generated')}
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
+    ok &= witness_case(check)
     ok &= moe_random_case(check, tmp)
     ok &= m1(check)
     if full:
@@ -177,6 +178,24 @@ TINY_MOE = {'quantities.d.source.value': 64, 'quantities.attn_q.source.value': 4
             'quantities.d_vis.source.value': 64, 'quantities.vit_heads.source.value': 4, 'quantities.vit_hd.source.value': 16,
             'quantities.vit_ffn.source.value': 128, 'quantities.vit_layers.source.value': 2,
             'compositions.vision.indices.layer.stop.literal': 2}      # the tower is not evaluated on text, but it is partitioned
+
+
+def witness_case(check):
+    """The witness did not change silently (docs/TENSORSPINE-FIXTURE.md §5): every committed unit
+    fixture regenerates from its seed and its run repeats within its own tolerance at every dtype
+    the kernel declares one for, with the parameters loaded from the fixture as a conformer loads
+    them; and every case a kernel declares is recorded."""
+    import witness
+    kernels = registry.load_kernels()
+    ok = True
+    ids = witness.committed()
+    for fid in ids:
+        good, lines = witness.verify(fid, kernels)
+        ok &= check(f"witness {fid}: regenerated and repeated within tolerance", good, '\n         '.join(lines))
+    declared = {f"{n}@{v}/{c['case']}" for n, v, _k, c in witness.cases(kernels)}
+    ok &= check(f"witness: the {len(declared)} cases the kernels declare are the {len(ids)} fixtures committed",
+                declared == set(ids), str(sorted(declared ^ set(ids))[:3]))
+    return ok
 
 
 def moe_random_case(check, tmp):

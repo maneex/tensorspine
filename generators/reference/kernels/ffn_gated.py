@@ -29,6 +29,15 @@ CAPABILITIES = {"arguments": {"width": "any", "inner": "any", "activation": ["si
 # `|a − b| ≤ atol + rtol·|b|`. The manifest's witness block is written from it.
 TOLERANCE = {'f32': {'atol': 1e-5, 'rtol': 1e-4}, 'bf16': {'atol': 1e-1, 'rtol': 2e-2}}
 
+# The unit fixtures this kernel produces (docs/TENSORSPINE-FIXTURE.md): one case per branch
+# worth its own evidence, at small quantities.
+FIXTURES = [
+    {"case": "silu", "seed": 33, "invocations": [{"input": 5}, {"input": 3}], "arguments": {"width": 64, "inner": 128, "activation": "silu"}},
+    {"case": "gelu-tanh-biased", "seed": 34, "invocations": [{"input": 5}],
+     "arguments": {"width": 64, "inner": 128, "activation": "gelu_tanh", "in_bias": True, "out_bias": True}},
+    {"case": "relu2", "seed": 35, "invocations": [{"input": 5}], "arguments": {"width": 64, "inner": 128, "activation": "relu2"}},
+]
+
 
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
