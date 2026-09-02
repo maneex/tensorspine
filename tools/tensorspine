@@ -102,6 +102,7 @@ def build_parser():
                               'Repeat for --document status or branch-ledger.')
     parser.add_argument('--inputs', metavar='NAMES', help='for --capabilities: the public inputs delivered, comma-separated')
     parser.add_argument('--coverage', action='store_true', help='for --capabilities: the coverage report over the catalog and the corpus')
+    parser.add_argument('--strict', action='store_true', help='for --capabilities --coverage on a witness manifest: exit 1 while any contract version of the catalog has no witness (the release rule, §10.2)')
     parser.add_argument('--catalog', metavar='DIR', action='append',
                         help='a catalog base, repeatable, overriding the bases a document '
                              'declares in its `catalog` field (which are resolved relative to '
@@ -195,7 +196,7 @@ def dispatch(args, documents, bases, assignment, parser):
         import capabilities
         corpus = sorted(glob.glob(os.path.join(DEFAULT_MODELS, '*.json'))) if args.coverage else []
         return capabilities.run(args.capabilities[0], documents, bases, args.inputs.split(',') if args.inputs else None,
-                                args.coverage, corpus)
+                                args.coverage, corpus, strict=args.strict)
 
     if args.lint:
         import lint

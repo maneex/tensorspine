@@ -25,6 +25,21 @@ def read_header(path):
     return header
 
 
+def read_metadata(path):
+    """The JSON-valued `__metadata__` of one safetensors file — a fixture's document
+    (docs/TENSORSPINE-FIXTURE.md) — from the header alone."""
+    with open(path, 'rb') as f:
+        n = struct.unpack('<Q', f.read(8))[0]
+        header = json.loads(f.read(n))
+    out = {}
+    for k, v in (header.get('__metadata__') or {}).items():
+        try:
+            out[k] = json.loads(v)
+        except (TypeError, json.JSONDecodeError):
+            out[k] = v
+    return out
+
+
 def read_headers(checkpoint):
     """name -> {'dtype', 'shape', 'file'} over the index's shards, or every
     `*.safetensors` in the directory, or one file."""

@@ -27,6 +27,8 @@ written by `ref.py capabilities`.
 | `sessions_per_invocation` | 1 for a sequential runtime; more for a batching one (D4's `instance.session` axis) | §7, D4 instance keys |
 | `locations` | the location forms the loader assembles | §3.4 |
 | `contracts` | per contract version: the argument values implemented, combinations refused, the state ports' laws, the transforms realised, notes | the contract's own arguments and enums |
+| `role` | `witness` for the one generator whose kernels are the authority for what each contract version computes (Specification §4.1, O1.3); absent, or `conformer`, for an implementation checked against the witness's fixtures | — |
+| `contracts.*.witness` | in a witness manifest, per contract version: the `kernel` file (relative to the manifest), the `tolerance` a conformer must meet per compute dtype, and the unit `fixtures` the kernel produced, each at `fixtures/contracts/<id>.safetensors` beside the manifest; the reader refuses a kernel or a fixture that is not there, and a witness block in a conformer's manifest | the fixture schema (`docs/TENSORSPINE-FIXTURE.md`) |
 
 ## The argument rules
 
@@ -73,3 +75,7 @@ the evaluated occurrences use are in `domains`. The first failure is the answer.
 **What is left to cover?** Every catalog contract without an entry; for every entry, the enum
 values, booleans and records of the contract the rules do not admit; every corpus document that
 cannot run, with its first reason. The report is computed, never written.
+For a contract without an entry, every branch of its arguments is listed, so the to-do list per
+model-and-generator pair is complete. On a witness manifest the report ends with the contract
+versions still without a witness — a catalog is released only when there is none (§10.2) — and
+`--strict` exits 1 while there is one, for the tag workflow.

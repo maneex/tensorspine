@@ -22,6 +22,13 @@
     "schema": {
       "const": "tensorspine-capabilities/1"
     },
+    "role": {
+      "enum": [
+        "witness",
+        "conformer"
+      ],
+      "description": "`witness` for the one generator whose kernels are the authority for what each contract version computes (Specification §4.1, O1.3): its entries carry a `witness` block. Absent, `conformer`: an implementation checked against the witness's fixtures, which carries no witness block."
+    },
     "generator": {
       "type": "object",
       "additionalProperties": false,
@@ -287,8 +294,65 @@
             ]
           },
           "description": "the domain transforms of the contract the kernel realises"
+        },
+        "witness": {
+          "$ref": "#/$defs/witness"
         }
       }
+    },
+    "witness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kernel",
+        "tolerance",
+        "fixtures"
+      ],
+      "properties": {
+        "kernel": {
+          "type": "string",
+          "description": "The kernel that is the authority for this contract version: its file, relative to the manifest's directory."
+        },
+        "tolerance": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "enum": [
+              "f32",
+              "bf16",
+              "f16"
+            ]
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "atol",
+              "rtol"
+            ],
+            "properties": {
+              "atol": {
+                "type": "number",
+                "minimum": 0
+              },
+              "rtol": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "description": "Per compute dtype of a conformer: the tolerance its outputs and states must meet against the witness's unit fixtures, `|a − b| ≤ atol + rtol·|b|`; a dtype without an entry is not covered."
+        },
+        "fixtures": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*@[0-9]+\\.[0-9]+\\.[0-9]+/[a-z0-9][a-z0-9-]*$"
+          },
+          "description": "The unit fixtures the kernel produced (docs/TENSORSPINE-FIXTURE.md), by id, each at `fixtures/contracts/<id>.safetensors` beside the manifest."
+        }
+      },
+      "description": "The binding of a contract version to its witness (Specification §4.1): the language declares the role, the witness generator's manifest names the kernel, its tolerances and its fixtures, and the reader checks that each exists. Derived from the kernels' own tables, never written by hand."
     }
   },
   "description": "A manifest per generator: what it can evaluate, in the language's vocabulary — so that a runtime infers whether it can run a document, and a maintainer reads what is not covered yet. Generated from the generator's code. Physical parameters and the targeted backend are opaque and not described here."

@@ -193,7 +193,9 @@ def cmd_chat(args):
 
 
 def manifest():
-    """The reference generator's capabilities, from its code (generators/CAPABILITIES.md)."""
+    """The reference generator's capabilities, from its code (generators/CAPABILITIES.md): the
+    witness manifest, each entry binding the contract version to its kernel, the tolerances the
+    kernel declares and the unit fixtures its cases name (docs/TENSORSPINE-FIXTURE.md)."""
     import datetime
     import subprocess
     import state as state_mod
@@ -210,8 +212,12 @@ def manifest():
         for key in ('excluding', 'transforms', 'notes'):
             if cap.get(key):
                 entry[key] = list(cap[key])
+        entry['witness'] = {'kernel': os.path.relpath(k.__file__, HERE),
+                            'tolerance': {d: dict(t) for d, t in k.TOLERANCE.items()},
+                            'fixtures': [f"{name}@{ver}/{case['case']}" for case in getattr(k, 'FIXTURES', [])]}
         contracts[f"{name}@{ver}"] = entry
     return {'schema': 'tensorspine-capabilities/1',
+            'role': 'witness',
             'generator': {'name': 'reference', 'version': version, 'generator': 'generators/reference/ref.py capabilities',
                           'generated': datetime.date.today().isoformat()},
             'compute_dtypes': ['f32', 'bf16'],

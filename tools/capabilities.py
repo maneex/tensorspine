@@ -1,14 +1,19 @@
 """Capabilities of a generator (generators/CAPABILITIES.md): can a generator run a document, and
 what does it still not cover.
 
-    tensorspine --capabilities MANIFEST [MODEL ...] [--inputs a,b] [--coverage]
+    tensorspine --capabilities MANIFEST [MODEL ...] [--inputs a,b] [--coverage [--strict]]
 
 A manifest is validated against `generators/capabilities.schema.json` and its names against the
 catalog before anything is inferred: a claim outside the vocabulary is an error, not a capability.
+A witness manifest (Specification §4.1, O1.3) binds each contract version to the kernel that is
+the authority for it and to the unit fixtures that kernel produced; the reader checks that both
+exist, `--coverage` lists the contract versions still without a witness — the release rule of
+§10.2 — and `--strict` exits 1 on any, for a tag workflow.
 """
 import json
 import os
 
+import artifact as artifact_mod
 import catalog as catalog_mod
 import derive
 from expr import contract_condition
@@ -104,6 +109,40 @@ def _rule_names(rule, decl, where, errors):
             for v in literals:
                 if v not in allowed:
                     errors.append(f"{where}: value {v!r} is not one of {allowed}")
+
+
+def witness_problems(manifest, base_dir):
+    """Errors of the witness blocks (§4.1): only a witness manifest carries them; the kernel each
+    names exists beside the manifest; each fixture it names exists there too, under
+    `fixtures/contracts/<id>.safetensors`, and is a unit fixture of that contract version."""
+    errors = []
+    role = manifest.get('role', 'conformer')
+    for cid, entry in manifest['contracts'].items():
+        w = entry.get('witness')
+        if w is None:
+            continue
+        if role != 'witness':
+            errors.append(f"{cid}: a witness block in a manifest whose role is {role}")
+            continue
+        if not os.path.isfile(os.path.join(base_dir, w['kernel'])):
+            errors.append(f"{cid}: witness kernel '{w['kernel']}' is not beside the manifest")
+        for fid in w['fixtures']:
+            if not fid.startswith(cid + '/'):
+                errors.append(f"{cid}: fixture '{fid}' is another contract's")
+                continue
+            path = os.path.join(base_dir, 'fixtures', 'contracts', fid + '.safetensors')
+            if not os.path.isfile(path):
+                errors.append(f"{cid}: fixture '{fid}' is not at fixtures/contracts/ beside the manifest")
+                continue
+            try:
+                meta = artifact_mod.read_metadata(path)
+            except (OSError, ValueError) as e:
+                errors.append(f"{cid}: fixture '{fid}' is not readable: {e}")
+                continue
+            name, version = cid.rsplit('@', 1)
+            if meta.get('kind') != 'unit' or meta.get('id') != fid or meta.get('contract') != {'name': name, 'version': version}:
+                errors.append(f"{cid}: '{fid}' is not a unit fixture of this contract version")
+    return errors
 
 
 def names(manifest, cat):
@@ -234,11 +273,43 @@ def _missing_values(rule, decl):
     return out
 
 
+def _branches(decl, prefix=''):
+    """Every branch of an argument declaration: the values of an enum or boolean, a record's
+    presence and its fields' branches; an argument that takes any number has none."""
+    t = decl.get('type', {})
+    allowed = _enum_values(t)
+    if allowed is not None:
+        return [f"{prefix}={v}" for v in allowed]
+    if t.get('kind') == 'record':
+        out = [f"{prefix}=present"]
+        for k, sub in t['fields'].items():
+            out += _branches(sub, f"{prefix}.{k}")
+        return out
+    return []
+
+
+def unwitnessed(manifest, cat):
+    """For a witness manifest, the contract versions of the catalog without a witness — no entry,
+    or an entry without a witness block; None for a conformer, which witnesses nothing."""
+    if manifest.get('role', 'conformer') != 'witness':
+        return None
+    return sorted(f"{n}@{v}" for (n, v), d in cat['by_id'].items() if 'template' not in d
+                  and not manifest['contracts'].get(f"{n}@{v}", {}).get('witness'))
+
+
 def coverage(manifest, cat, documents):
-    """(contracts without an entry, per entry the branches not admitted, per document the verdict)."""
+    """(contracts without an entry, per contract the branches not admitted — every branch, for
+    a contract without an entry — per document the verdict): the branch ledger, the to-do list
+    of the generator over the catalog and the corpus."""
     missing = sorted(f"{n}@{v}" for (n, v), d in cat['by_id'].items()
                      if f"{n}@{v}" not in manifest['contracts'] and 'template' not in d)
     branches = {}
+    for cid in missing:
+        name, version = cid.rsplit('@', 1)
+        gaps = []
+        for arg, decl in cat['by_id'][(name, version)]['arguments'].items():
+            gaps += _branches(decl, arg) or [arg]
+        branches[cid] = gaps
     for cid, entry in manifest['contracts'].items():
         name, version = cid.rsplit('@', 1)
         definition = cat['by_id'][(name, version)]
@@ -272,11 +343,13 @@ def condensed(reasons):
     return [f"{msg} (x{n})" if n > 1 else msg for msg, n in counts.items()]
 
 
-def run(manifest_path, documents, catalog_bases=None, inputs=None, report_coverage=False, corpus=None):
+def run(manifest_path, documents, catalog_bases=None, inputs=None, report_coverage=False, corpus=None, strict=False):
     manifest, errors = load(manifest_path)
     cat = catalog_mod.load(*(catalog_bases or [os.path.join(ROOT, 'data', 'catalog')]))
     errors += names(manifest, cat)
-    print(f"capabilities  {manifest['generator']['name']} ({manifest['generator']['version']}), {len(manifest['contracts'])} contracts")
+    errors += witness_problems(manifest, os.path.dirname(os.path.abspath(manifest_path)))
+    role = manifest.get('role', 'conformer')
+    print(f"capabilities  {manifest['generator']['name']} ({manifest['generator']['version']}), {len(manifest['contracts'])} contracts, {role}")
     for e in errors[:20]:
         print(f"  [manifest] {e}")
     if errors:
@@ -297,12 +370,22 @@ def run(manifest_path, documents, catalog_bases=None, inputs=None, report_covera
         print(f"coverage  {len(missing)} contract(s) without an entry:")
         for cid in missing:
             print(f"    {cid}")
-        print(f"  branches not admitted in {len(branches)} entr{'y' if len(branches) == 1 else 'ies'}:")
+        print(f"  branch ledger: branches not admitted in {len(branches)} contract(s), {len(missing)} of them without an entry:")
         for cid, gaps in branches.items():
-            print(f"    {cid}: {', '.join(gaps)}")
+            print(f"    {cid}{' (no entry)' if cid in missing else ''}: {', '.join(gaps)}")
         if verdicts:
             print(f"  corpus: {sum(1 for ok, _ in verdicts.values() if ok)}/{len(verdicts)} documents can run")
             for name, (ok, reasons) in verdicts.items():
                 if not ok:
                     print(f"    {name:34s} {condensed(reasons)[0]}")
+        without = unwitnessed(manifest, cat)
+        if without is None:
+            print("  witness: a conformer's manifest witnesses nothing")
+        else:
+            print(f"  witness: {len(without)} contract version(s) without a witness (§10.2: a catalog is released fully witnessed)")
+            for cid in without:
+                print(f"    {cid}")
+            if without and strict:
+                print("  --strict: refused")
+                return 1
     return 1 if failed else 0

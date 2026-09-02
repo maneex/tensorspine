@@ -31,6 +31,11 @@ CAPABILITIES = {"arguments": {"width": "any", "experts": "any", "top_k": "any", 
                 "notes": ["an expert's activation is SiLU; one activated expert at a time"]}
 
 
+# What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
+# `|a − b| ≤ atol + rtol·|b|`. The manifest's witness block is written from it.
+TOLERANCE = {'f32': {'atol': 1e-5, 'rtol': 1e-4}, 'bf16': {'atol': 1e-1, 'rtol': 2e-2}}
+
+
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 

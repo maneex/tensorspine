@@ -1,10 +1,11 @@
 {
   "schema": "tensorspine-capabilities/1",
+  "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "b40688f",
+    "version": "429afb5",
     "generator": "generators/reference/ref.py capabilities",
-    "generated": "2026-08-30"
+    "generated": "2026-09-02"
   },
   "compute_dtypes": [
     "f32",
@@ -129,14 +130,42 @@
       ],
       "notes": [
         "mrope for one position stream only: an image would need the sections to differ"
-      ]
+      ],
+      "witness": {
+        "kernel": "kernels/attention_dense.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "embed@1.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any"
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/embed.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-06,
+            "rtol": 1e-05
+          },
+          "bf16": {
+            "atol": 0.01,
+            "rtol": 0.01
+          }
+        },
+        "fixtures": []
+      }
     },
     "embedding.token_position_type@1.0.0": {
       "arguments": {
@@ -149,7 +178,21 @@
       "states": [],
       "notes": [
         "the segment type is 0 for every token, as the contract states for this version"
-      ]
+      ],
+      "witness": {
+        "kernel": "kernels/embedding_token_position_type.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "ffn.dense@1.0.0": {
       "arguments": {
@@ -173,7 +216,21 @@
           ]
         }
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/ffn_dense.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "ffn.gated@1.0.0": {
       "arguments": {
@@ -197,14 +254,42 @@
           ]
         }
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/ffn_gated.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "lm_head@1.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any"
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/lm_head.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "moe@1.0.0": {
       "arguments": {
@@ -232,14 +317,42 @@
       "states": [],
       "notes": [
         "an expert's activation is SiLU; one activated expert at a time"
-      ]
+      ],
+      "witness": {
+        "kernel": "kernels/moe.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "norm.layer@1.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any"
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/norm_layer.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "norm.rms@1.0.0": {
       "arguments": {
@@ -247,7 +360,21 @@
         "eps": "any",
         "zero_centered": "any"
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/norm_rms.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "pooler@1.0.0": {
       "arguments": {
@@ -261,13 +388,41 @@
           "none"
         ]
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/pooler.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "residual.add@1.0.0": {
       "arguments": {
         "width": "any"
       },
-      "states": []
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_add.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-06,
+            "rtol": 1e-05
+          },
+          "bf16": {
+            "atol": 0.01,
+            "rtol": 0.01
+          }
+        },
+        "fixtures": []
+      }
     },
     "sequence.gated_delta@1.0.0": {
       "arguments": {
@@ -293,7 +448,21 @@
       ],
       "notes": [
         "the recurrent form, position by position: exact and slow"
-      ]
+      ],
+      "witness": {
+        "kernel": "kernels/sequence_gated_delta.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": []
+      }
     },
     "splice@1.0.0": {
       "arguments": {
@@ -305,7 +474,21 @@
       ],
       "notes": [
         "source must deliver nothing: the language does not yet say where inserted elements go"
-      ]
+      ],
+      "witness": {
+        "kernel": "kernels/splice.py",
+        "tolerance": {
+          "f32": {
+            "atol": 0.0,
+            "rtol": 0.0
+          },
+          "bf16": {
+            "atol": 0.0,
+            "rtol": 0.0
+          }
+        },
+        "fixtures": []
+      }
     }
   }
 }

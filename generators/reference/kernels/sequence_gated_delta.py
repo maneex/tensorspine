@@ -32,6 +32,11 @@ CAPABILITIES = {"arguments": {"width": "any", "key_heads": "any", "value_heads":
                 "notes": ["the recurrent form, position by position: exact and slow"]}
 
 
+# What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
+# `|a − b| ≤ atol + rtol·|b|`. The manifest's witness block is written from it.
+TOLERANCE = {'f32': {'atol': 1e-5, 'rtol': 1e-4}, 'bf16': {'atol': 1e-1, 'rtol': 2e-2}}
+
+
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 

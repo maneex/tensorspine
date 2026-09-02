@@ -18,6 +18,11 @@ CAPABILITIES = {"arguments": {"width": "any"}, "states": [], "transforms": ["ins
                 "notes": ["source must deliver nothing: the language does not yet say where inserted elements go"]}
 
 
+# What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
+# `|a − b| ≤ atol + rtol·|b|`. The manifest's witness block is written from it.
+TOLERANCE = {'f32': {'atol': 0.0, 'rtol': 0.0}, 'bf16': {'atol': 0.0, 'rtol': 0.0}}
+
+
 def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
