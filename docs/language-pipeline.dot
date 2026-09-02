@@ -9,15 +9,7 @@ digraph language_pipeline {
     splines=ortho,
     compound=true,
     newrank=true,
-    fontname="Arial",
-    fontcolor="#123348",
-    labeljust=l,
-    labelloc=t,
-    label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="0">
-      <TR><TD ALIGN="LEFT"><FONT COLOR="#477180" POINT-SIZE="11"><B>LANGUAGE PIPELINE  /  LOGICAL FACTS IN, PHYSICAL POLICY OUT</B></FONT></TD></TR>
-      <TR><TD HEIGHT="7"></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT COLOR="#123348" POINT-SIZE="22"><B>One denotation. Many implementation-owned execution plans.</B></FONT></TD></TR>
-    </TABLE>>
+    fontname="Arial"
   ];
 
   node [

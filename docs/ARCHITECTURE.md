@@ -21,7 +21,9 @@ TensorSpine sits between model authorship and execution. Its output is logical i
 compiler or runtime can combine with an implementation, an artifact, deployment intent, and actual
 hardware.
 
-![TensorSpine language and execution pipeline](language-pipeline.svg)
+**Language pipeline: one denotation; many implementation-owned execution plans**
+
+![TensorSpine language and execution pipeline](language-pipeline.svg)<!-- Title above. -->
 
 The specification governs the meaning of this pipeline. The schema automates the grammar gate; it
 does not replace semantic validation. Likewise, emitting D1 does not choose kernels, memory layouts,
