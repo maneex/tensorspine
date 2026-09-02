@@ -88,6 +88,24 @@ class StateInstance:
         self.length = 0
         self.cursor = 0
 
+    def clone(self):
+        """An independent copy: the buffers, the length and the cursor as they stand."""
+        other = StateInstance.__new__(StateInstance)
+        other.__dict__.update(self.__dict__)
+        other.components = {c: buf.clone() for c, buf in self.components.items()}
+        return other
+
+    def truncate(self, at):
+        """An `append` state cut back to its first `at` positions (sharing `by_position`, §4.3):
+        what a session forked at `at` may read of its parent. The tail is zeroed, never read."""
+        if self.law != 'append':
+            raise Refusal(f"{self.identity}: only an append state holds positions to truncate to")
+        if at > self.length:
+            raise Refusal(f"{self.identity}: position {at} is beyond the {self.length} held")
+        for c, buf in self.components.items():
+            buf[at:self.length].zero_()
+        self.length = at
+
 
 def allocate(graph, capacity, device, dtype):
     return {ident: StateInstance(entry, capacity, device, dtype) for ident, entry in graph.states.items()}

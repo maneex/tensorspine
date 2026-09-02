@@ -200,6 +200,7 @@ def manifest():
     import datetime
     import subprocess
     import state as state_mod
+    import session as session_mod
     from graph import DTYPES
     kernels = registry.load_kernels()
     try:
@@ -223,7 +224,8 @@ def manifest():
                           'generated': datetime.date.today().isoformat()},
             'compute_dtypes': ['f32', 'bf16'],
             'parameter_dtypes': sorted(DTYPES),
-            'state_laws': list(state_mod.LAWS), 'access': list(state_mod.ACCESS), 'sharing': [], 'partitions': [],
+            'state_laws': list(state_mod.LAWS), 'access': list(state_mod.ACCESS),
+            'sharing': list(session_mod.SHARING), 'partitions': [],
             'domains': {'kinds': ['sequence', 'token', 'position', 'patch'],
                         'transforms': sorted({t for k in kernels.values() for t in k.CAPABILITIES.get('transforms', [])}),
                         'fragmented': True},

@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "20bbb51",
+    "version": "def3f28",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-02"
   },
@@ -26,7 +26,11 @@
     "ring",
     "aggregate"
   ],
-  "sharing": [],
+  "sharing": [
+    "by_position",
+    "within_span",
+    "at_fork_point"
+  ],
   "partitions": [],
   "domains": {
     "kinds": [

@@ -164,6 +164,7 @@ def main(compile_step=False, full=False):
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
     ok &= witness_case(check)
     ok &= moe_random_case(check, tmp)
+    ok &= sharing_case(check, tmp)
     ok &= m1(check)
     if full:
         ok &= m1_full(check)
@@ -195,6 +196,84 @@ def witness_case(check):
     declared = {f"{n}@{v}/{c['case']}" for n, v, _k, c in witness.cases(kernels)}
     ok &= check(f"witness: the {len(declared)} cases the kernels declare are the {len(ids)} fixtures committed",
                 declared == set(ids), str(sorted(declared ^ set(ids))[:3]))
+    return ok
+
+
+def sharing_case(check, tmp):
+    """The sharing granularities as §4.3 defines them, exercised by `Session.fork` on the tiny
+    hybrid (an `append` KV cache, `window` convolution rings, `fixed` recurrent matrices) and the
+    tiny Llama (`append` alone), on random weights:
+
+      1. a child forked at the end of the prefill and continued gives, bit for bit, what a fresh
+         session gives on the concatenation; the parent continued otherwise likewise;
+      2. a fork behind the current position is served for `append` (`by_position`: the prefix is
+         copied entry by entry) and refused for `window` and `fixed`, naming the granularity;
+      3. two sessions with different prefixes and the same last three tokens hold equal conv
+         rings at layer 0 and different ones at layer 1: a ring's content depends on the whole
+         prefix past the first layer, so a runtime sharing `within_span` proves the prefix, not
+         the span."""
+    ok = True
+    kernels = registry.load_kernels()
+    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'qwen3.5-35b-a3b.json'), 'decoder.layer=4', tmp)
+    path, _ = graph_mod.edited(path, TINY_MOE, tmp, 'tiny-fork')
+    g = graph_mod.load(path)
+    laws = {s['law'] for s in g.states.values()}
+    ok &= check("sharing: the tiny hybrid carries all three laws", laws == {'append', 'window', 'fixed'}, str(laws))
+    params = loader.random_parameters(g, 'cpu', seed=5)
+
+    def session():
+        return Session(TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu'), 64, 'cpu', torch.float32)
+
+    prefix, b, c = [1, 2, 3, 4, 5, 6], [7, 8], [9]
+    fresh = session()
+    fresh.prefill(prefix)
+    wanted_b = [fresh.decode(t)[g.generative[0]].clone() for t in b]
+    fresh = session()
+    fresh.prefill(prefix)
+    wanted_c = fresh.decode(c[0])[g.generative[0]].clone()
+    parent = session()
+    parent.prefill(prefix)
+    child = parent.fork()
+    got_b = [child.decode(t)[g.generative[0]].clone() for t in b]
+    got_c = parent.decode(c[0])[g.generative[0]].clone()
+    ok &= check("sharing: a child forked at the end of the prefill continues as a fresh session on the concatenation, bit for bit",
+                all(torch.equal(x, y) for x, y in zip(got_b, wanted_b)) and child.consumed['tokens'] == len(prefix) + len(b))
+    ok &= check("sharing: the parent, continued otherwise after the fork, is unaffected by the child",
+                torch.equal(got_c, wanted_c) and parent.consumed['tokens'] == len(prefix) + 1)
+    try:
+        parent.fork(at=3)
+        ok &= check("sharing: a fork behind the current position is refused where a ring or a matrix would have to serve it", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("sharing: a fork behind the current position is refused where a ring or a matrix would have to serve it",
+                    'within_span' in str(e) or 'at_fork_point' in str(e), str(e)[:160])
+    # append alone (the tiny Llama): a fork behind the current position is served by_position
+    lpath, _ = graph_mod.edited(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'), TINY, tmp, 'tiny-fork')
+    lg = graph_mod.load(lpath)
+    lparams = loader.random_parameters(lg, 'cpu', seed=6)
+    lfresh = Session(TensorspineModel(lg, Plan(lg, kernels), lparams, torch.float32, 'cpu'), 32, 'cpu', torch.float32)
+    lfresh.prefill(prefix[:3])
+    lwant = lfresh.decode(prefix[3])[lg.generative[0]].clone()
+    lparent = Session(TensorspineModel(lg, Plan(lg, kernels), lparams, torch.float32, 'cpu'), 32, 'cpu', torch.float32)
+    lparent.prefill(prefix)
+    lchild = lparent.fork(at=3)
+    lgot = lchild.decode(prefix[3])[lg.generative[0]].clone()
+    # within f32 rounding, not bit for bit: the parent's prefill of six rows and the fresh session's
+    # of three round each row's projections differently, and the copied entries carry that
+    ok &= check("sharing: by_position — a child forked behind the parent's position reads the copied prefix and continues as a fresh session would, within f32 rounding",
+                torch.allclose(lgot, lwant, atol=1e-5, rtol=1e-5)
+                and all(s.length == 4 for s in lchild.states.values()) and all(s.length == 6 for s in lparent.states.values()),
+                f"max |d| {float((lgot - lwant).abs().max()):.1e}, child lengths {sorted({s.length for s in lchild.states.values()})}, "
+                f"parent lengths {sorted({s.length for s in lparent.states.values()})}")
+    # the ring's content depends on the prefix past the first layer
+    x, y = session(), session()
+    x.prefill([1, 2, 3, 7, 8, 9])
+    y.prefill([4, 5, 6, 7, 8, 9])
+    ring0 = 'decoder.gdn.conv[layer=0]'
+    ring1 = 'decoder.gdn.conv[layer=1]'
+    r0x, _ = x.states[ring0].read(); r0y, _ = y.states[ring0].read()
+    r1x, _ = x.states[ring1].read(); r1y, _ = y.states[ring1].read()
+    ok &= check("sharing: within_span — the same last three tokens give equal rings at layer 0 and different rings at layer 1: a runtime proves the prefix, not the span",
+                torch.equal(r0x['w'], r0y['w']) and not torch.equal(r1x['w'], r1y['w']))
     return ok
 
 

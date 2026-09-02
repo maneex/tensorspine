@@ -1,8 +1,15 @@
 """A session: the state instances of one (session, branch) key, the positions
-consumed per stream, prefill and decode (R08)."""
+consumed per stream, prefill and decode (R08) — and a fork, by the sharing granularity
+each state's contract declares (§4.3)."""
 import torch
 
 import state as state_mod
+
+# The sharing granularities `fork` realises across sessions (§4.3), as the manifest declares them:
+# by_position, the positions before the fork are copied; within_span and at_fork_point, the state
+# is copied whole at the parent's current position and nowhere earlier. by_source is not realised:
+# no kernel serves a source-indexed state yet.
+SHARING = ('by_position', 'within_span', 'at_fork_point')
 
 
 class Session:
@@ -52,6 +59,46 @@ class Session:
         for s in self.states.values():
             s.reset()
         self.consumed = {}
+
+    def fork(self, at=None):
+        """A new session over the same model, forked from this one at position `at` of the
+        forked stream (the generative output's; default: the current position), its states
+        copied by the granularity each contract declares (§4.3):
+
+          by_position    the entries before `at` are copied: a shared prefix, entry by entry;
+          within_span    the ring is copied whole, only when `at` is the current position — the
+                         ring holds the last `span` positions and serves no older one;
+          at_fork_point  the payload is copied whole, only at the current position, and is
+                         shared by nothing afterwards;
+          by_source      refused: nothing here serves a source-indexed state.
+
+        A fork the granularity excludes is a refusal naming it, never a stale state."""
+        stream = self.graph.generative[1] if self.graph.generative else next(iter(self.consumed), None)
+        length = self.consumed.get(stream, 0)
+        at = length if at is None else at
+        if at > length:
+            raise state_mod.Refusal(f"fork at {at}: the session has consumed {length} positions of '{stream}'")
+        child = Session.__new__(Session)
+        child.model, child.decode_model, child.graph = self.model, self.decode_model, self.graph
+        child.capacity, child.device = self.capacity, self.device
+        child.consumed = dict(self.consumed)
+        child.consumed[stream] = at
+        child.states = {}
+        for ident, st in self.states.items():
+            entry = self.graph.states[ident]
+            on_stream = (entry.get('stream') or {}).get('stream') == stream
+            sharing = entry.get('sharing')
+            if not on_stream or at == length:
+                child.states[ident] = st.clone()
+            elif sharing == 'by_position':
+                child.states[ident] = st.clone()
+                child.states[ident].truncate(at)
+            elif sharing in ('within_span', 'at_fork_point'):
+                raise state_mod.Refusal(f"{ident}: sharing {sharing} — the state is copied whole at the current "
+                                        f"position {length} and serves no fork at {at} (§4.3)")
+            else:
+                raise state_mod.Refusal(f"{ident}: sharing {sharing} is not realised by this generator")
+        return child
 
 
 def greedy(outputs, graph):
