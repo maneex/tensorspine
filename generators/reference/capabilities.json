@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "c4c6220",
+    "version": "fb605a0",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-02"
   },
@@ -28,6 +28,7 @@
   ],
   "sharing": [
     "by_position",
+    "by_source",
     "within_span",
     "at_fork_point"
   ],

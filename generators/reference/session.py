@@ -7,9 +7,9 @@ import state as state_mod
 
 # The sharing granularities `fork` realises across sessions (§4.3), as the manifest declares them:
 # by_position, the positions before the fork are copied; within_span and at_fork_point, the state
-# is copied whole at the parent's current position and nowhere earlier. by_source is not realised:
-# no kernel serves a source-indexed state yet.
-SHARING = ('by_position', 'within_span', 'at_fork_point')
+# is copied whole at the parent's current position and nowhere earlier; by_source, the state is
+# copied whole once its source stream is complete — a cross-attention cache after the audio arrived.
+SHARING = ('by_position', 'by_source', 'within_span', 'at_fork_point')
 
 
 class Session:
@@ -80,7 +80,12 @@ class Session:
                          ring holds the last `span` positions and serves no older one;
           at_fork_point  the payload is copied whole, only at the current position, and is
                          shared by nothing afterwards;
-          by_source      refused: nothing here serves a source-indexed state.
+          by_source      the whole state, copied once its source stream is complete — delivered
+                         whole by an input that is not fragmented, as the audio is in one prefill
+                         (sessions whose complete source streams are identical share it, §4.3);
+                         a fragmented source that has started delivering is refused, since the
+                         session cannot tell its completion; one that has delivered nothing copies
+                         an empty state, and the child takes its own delivery.
 
         A fork the granularity excludes is a refusal naming it, never a stale state."""
         stream = self.graph.generative[1] if self.graph.generative else next(iter(self.consumed), None)
@@ -98,7 +103,14 @@ class Session:
             entry = self.graph.states[ident]
             on_stream = (entry.get('stream') or {}).get('stream') == stream
             sharing = entry.get('sharing')
-            if not on_stream or at == length:
+            if sharing == 'by_source':
+                source = entry['stream']['stream']
+                fragmented = any(self.graph.interfaces['inputs'][n].get('fragmented') for n, s in self.graph.input_stream.items() if s == source)
+                if fragmented and self.consumed.get(source):
+                    raise state_mod.Refusal(f"{ident}: sharing by_source — the state is shared whole once its source stream "
+                                            f"'{source}' is complete, and a fragmented stream still delivering is not (§4.3)")
+                child.states[ident] = st.clone()
+            elif not on_stream or at == length:
                 child.states[ident] = st.clone()
             elif sharing == 'by_position':
                 child.states[ident] = st.clone()

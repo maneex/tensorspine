@@ -170,6 +170,7 @@ def main(compile_step=False, full=False):
     ok &= sharing_case(check, tmp)
     ok &= m1(check)
     ok &= composite_case(check)
+    ok &= by_source_case(check)
     if full:
         ok &= m1_full(check)
     print("reference: all good" if ok else "reference: FAILED")
@@ -570,6 +571,61 @@ def composite_case(check):
     a, b = runs['shieldstral-3b'], runs['shieldstral-3b-composite']
     ok &= check(f"composite: the template form gives the flat document's logits bit for bit and its tokens {a[1]}",
                 torch.equal(a[0], b[0]) and a[1] == b[1])
+    return ok
+
+
+def by_source_case(check):
+    """§4.3's `by_source`, realised: on the three-layer Whisper against the checkpoint, the audio
+    delivered whole in the prefill completes the source stream, so the cross-attention caches are
+    shared whole — a child forked after the prefill holds them as the parent does and continues,
+    bit for bit, as a fresh session on the same audio and prompt would; the parent continued
+    otherwise is unaffected; a child forked before any delivery copies empty caches and takes its
+    own audio."""
+    fixture = os.path.join(REF, 'fixtures', 'whisper-large-v3.3layers.hf.safetensors')
+    ck = os.path.join(CHECKPOINTS, 'whisper-large-v3')
+    if not os.path.isfile(fixture) or not os.path.isdir(ck):
+        print("  skip by_source (the Whisper fixture or checkpoint is not on disk)")
+        return True
+    theirs, header = read_fixture(fixture)
+    recorded = {k[len('in/'):]: v for k, v in theirs.items() if k.startswith('in/')}
+    ids = header['ids']
+    tmp = tempfile.mkdtemp(prefix='tensorspine-ref-bysource-')
+    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'whisper-large-v3.json'), 'decoder.layer=3', tmp)
+    g = graph_mod.load(path)
+    kernels = registry.load_kernels()
+    params = loader.load_parameters(g, ck, 'cpu')
+    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    capacity = stream_capacity(g, recorded)
+    cross = [ident for ident, s in g.states.items() if s['sharing'] == 'by_source']
+    ok = check(f"by_source: the three-layer Whisper carries {len(cross)} by_source states, on the audio stream",
+               len(cross) == 3 and all(g.states[i]['stream']['stream'] == 'audio' for i in cross))
+
+    def session():
+        return Session(model, capacity, 'cpu', torch.float32)
+
+    b, c = [header['tokens'][0], header['tokens'][1]], [header['tokens'][0]]
+    fresh = session()
+    fresh.prefill(ids, inputs=recorded)
+    wanted_b = [fresh.decode(t)[g.generative[0]].clone() for t in b]
+    fresh = session()
+    fresh.prefill(ids, inputs=recorded)
+    wanted_c = fresh.decode(c[0])[g.generative[0]].clone()
+    parent = session()
+    first = parent.prefill(ids, inputs=recorded)[g.generative[0]].clone()
+    child = parent.fork()
+    ok &= check("by_source: the child's cross caches are the parent's, whole — 1500 source positions each, equal buffers",
+                all(child.states[i].length == 1500 and torch.equal(child.states[i].components['k'], parent.states[i].components['k']) for i in cross))
+    got_b = [child.decode(t)[g.generative[0]].clone() for t in b]
+    got_c = parent.decode(c[0])[g.generative[0]].clone()
+    ok &= check("by_source: a child forked after the prefill continues as a fresh session on the same audio and prompt, bit for bit",
+                all(torch.equal(x, y) for x, y in zip(got_b, wanted_b)) and child.consumed == {'audio': 3000, 'tokens': len(ids) + len(b)})
+    ok &= check("by_source: the parent, continued otherwise, is unaffected by the child",
+                torch.equal(got_c, wanted_c) and parent.consumed == {'audio': 3000, 'tokens': len(ids) + 1})
+    early = session().fork()
+    ok &= check("by_source: a child forked before any delivery copies empty caches and takes its own audio: the prefill's logits",
+                all(early.states[i].length == 0 for i in cross)
+                and torch.equal(early.prefill(ids, inputs=recorded)[g.generative[0]], first)
+                and all(early.states[i].length == 1500 for i in cross))
     return ok
 
 
