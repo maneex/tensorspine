@@ -313,8 +313,14 @@ def _expand(graph, prefix=''):
         for key, ex in inner.items():
             weights_prefix = graph.get('weights_prefixes', {}).get(key)
             for inst in ex[kind]:
-                if kind == 'tensor_instances' and weights_prefix is not None and inst.get('location') is not None:
-                    inst = dict(inst, location=_prefixed(inst['location'], weights_prefix))
+                if kind == 'tensor_instances' and inst.get('location') is not None:
+                    # an instance's tensor is located at the instance's prefix followed by the
+                    # template's name (§3.4); without a prefix the template's names alone locate
+                    # nothing, and the tensor is unlocated like every other of the document
+                    if weights_prefix is None:
+                        inst = {k: v for k, v in inst.items() if k != 'location'}
+                    else:
+                        inst = dict(inst, location=_prefixed(inst['location'], weights_prefix))
                 out.append(inst)
         return out
 

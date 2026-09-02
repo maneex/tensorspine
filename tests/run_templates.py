@@ -9,6 +9,9 @@
      optional at the call site, and the default is applied.
   3. Assignment: the template validated alone under an admissible assignment
      passes; under an inadmissible one it is refused with its reason.
+  4. An unlocated document instantiating a located template: accepted as
+     unlocated, and D3 carries no location at all — the template's names alone
+     locate nothing (§3.4).
 
     python3 tests/run_templates.py
 """
@@ -152,6 +155,52 @@ def defaults():
         shutil.rmtree(tmp)
 
 
+def unlocated_instance():
+    """The composite with every location removed and no prefix on its instance,
+    over the located template: valid and unlocated, with a D3 that carries no
+    location — the instance's tensors are not left at the template's bare names."""
+    tmp = tempfile.mkdtemp(prefix='tensorspine-templates-')
+    try:
+        os.makedirs(os.path.join(tmp, 'decoder-causal-yarn'))
+        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json'),
+                    os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json'))
+        path = os.path.join(tmp, 'shieldstral-3b-composite.json')
+        with open(os.path.join(MODELS, 'shieldstral-3b-composite.json'), encoding='utf-8') as f:
+            composite = json.load(f)
+        del composite['occurrences']['text']['weights_location_prefix']
+        removed = 0
+
+        def strip(node):
+            nonlocal removed
+            if isinstance(node, dict):
+                if 'location' in node and 'dtype' in node:
+                    del node['location']
+                    removed += 1
+                for v in node.values():
+                    strip(v)
+            elif isinstance(node, list):
+                for v in node:
+                    strip(v)
+        strip(composite['bindings'])
+        strip(composite['compositions'])
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(composite, f, indent=2)
+        cat = catalog_mod.load(REFERENCE, models_base=tmp)
+        errors, stats = validate.semantic(path, cat)
+        ok = check(f"unlocated instance: the composite without its {removed} locations and prefix is valid and unlocated",
+                   removed > 0 and not errors and stats.get('located') == 0,
+                   errors[:1] and errors[0] or str(stats.get('located')))
+        doc = derive.products(path, cat)
+        located = [t['location'] for t in doc['d3']['tensors'] if t.get('location')]
+        ok &= check(f"unlocated instance: D3 lists {len(doc['d3']['tensors'])} tensors and no location",
+                    len(doc['d3']['tensors']) == 458 and not located, str(located[:1]))
+        ok &= check("unlocated instance: D1 records no prefix for the instance",
+                    'weights_location_prefix' not in doc['d1']['instances']['text'], str(doc['d1']['instances']['text']))
+        return ok
+    finally:
+        shutil.rmtree(tmp)
+
+
 def assignment(cat):
     path = os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json')
     with open(path, encoding='utf-8') as f:
@@ -175,6 +224,7 @@ def main():
     ok &= derived_parity(cat)
     ok &= located_parity(cat)
     ok &= defaults()
+    ok &= unlocated_instance()
     ok &= assignment(cat)
     print("templates: all good" if ok else "templates: FAILED")
     return 0 if ok else 1

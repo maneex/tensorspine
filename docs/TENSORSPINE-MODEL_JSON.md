@@ -237,8 +237,10 @@ identities below a prefix, and an instance supplies it: `"weights_location_prefi
 on the invoking occurrence, literal strings and `{"index": …}` of the enclosing composition, `[]`
 allowed; the template's names are written without it (`["layers.", {"index": "layer"}, ".self_attn.q_proj.weight"]`),
 and the instance's tensors are located at the prefix followed by those names. A located document
-gives every instance a prefix; a prefix on an unlocated document, on an unlocated template's
-instance or on a primitive occurrence is refused (V17). The evaluated locations — every name
+gives every instance a prefix; an unlocated document may still instantiate a located template, its
+instance's tensors then unlocated like every other identity, the template's names alone locating
+nothing; a prefix on an unlocated document, on an unlocated template's instance or on a primitive
+occurrence is refused (V17). The evaluated locations — every name
 written out, stacks expanded — are in D3, which is what a loader reads.
 
 

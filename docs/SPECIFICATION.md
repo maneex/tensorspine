@@ -237,7 +237,9 @@ identities or none (V17); a tied identity has one location. A template locates a
 or none, its names written below a **weights location prefix** that each instance supplies
 (`weights_location_prefix`, literal strings and indices of the enclosing composition): the location
 of an instance's tensor is the instance's evaluated prefix followed by the template's evaluated name,
-in every form. A template thereby commits to one naming scheme below the prefix; an artifact named
+in every form; an instance that supplies no prefix, in a document that locates none of its
+identities, is unlocated like every other identity of that document, the template's names alone
+locating nothing. A template thereby commits to one naming scheme below the prefix; an artifact named
 otherwise is written flat.
 
 **Parameter identities** are compatible only between slots whose contracts declare them
@@ -597,7 +599,7 @@ implicit default.
 | **V14** | A dtype selected for a parameter identity is admissible for the role of every member; one selected for a state identity, for the role of every payload component of every member; absent, each role's default applies. |
 | **V15** | Parameter identity compatibility (§3.4). |
 | **V16** | An occurrence whose state is carried across fragments (its contract's `carried_across` condition holds) sits on a fragmented stream. |
-| **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat. A document that locates its weights instantiates only templates that locate their identities, and gives each instance a `weights_location_prefix` (`[]` is one); a prefix locates the instance's tensors, so a document carrying one locates its weights and every other identity needs its location; a located template instance without a prefix, a prefix on an instance of an unlocated template, or on an occurrence that is not a template instance, is a rejection; the prefixed names of an instance are bound once like every other, so two instances under one prefix collide. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
+| **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat. A document that locates its weights instantiates only templates that locate their identities, and gives each instance a `weights_location_prefix` (`[]` is one); a prefix locates the instance's tensors, so a document carrying one locates its weights and every other identity needs its location; a template instance without a prefix in a document that locates its weights, a prefix on an instance of an unlocated template, or on an occurrence that is not a template instance, is a rejection; the prefixed names of an instance are bound once like every other, so two instances under one prefix collide. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
 | **V18** | An occurrence whose contract reads across positions (§4.1), on a fragmented stream, carries a state across the fragments of that stream (§5.3). |
 
 ## §7 — Required derived products
