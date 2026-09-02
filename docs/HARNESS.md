@@ -203,12 +203,16 @@ def prefix_share_key(state, runtime):
     if mode == "by_source":
         return mode, stream, need(runtime, "source_digest")
     if mode == "within_span":
-        return (mode, stream, need(state, "span"), need(runtime, "retained_span_digest"),
+        return (mode, stream, need(state, "span"), need(runtime, "prefix_digest"),
                 need(runtime, "right_edge"))
     if mode == "at_fork_point":
         return mode, stream, need(runtime, "lineage"), need(runtime, "fork_position")
     raise ValueError(f"unknown D4 sharing mode: {mode!r}")
 ```
+
+The span bounds which positions exist to share, not when they are equal. A ring's content at any
+layer past the first depends on the whole prefix through the residual, so the proof is the prefix
+up to the right edge, as for `by_position`.
 
 The key is an equality witness for harness policy, not a prescribed storage key. An engine may use a
 collision-resistant digest, verified token sequence, source object identity or another proof with

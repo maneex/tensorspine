@@ -132,7 +132,7 @@ One entry per state identity instance.
 | Field | Content |
 |---|---|
 | `identity`, `members`, `contract`, `state` | As for tensors; `members` are `node.state`. |
-| `law`, `access`, `sharing` | Of the rule that applies to the members' arguments (§4.3): `append`/`window`/`fixed`; `logical_position`/`ring`/`aggregate`/`selected`; `by_position`/`by_source`/`within_span`/`at_fork_point`. |
+| `law`, `access`, `sharing` | Of the rule that applies to the members' arguments (§4.3): `append`/`window`/`fixed`; `logical_position`/`ring`/`aggregate`/`selected`; `by_position`/`by_source`/`within_span`/`at_fork_point`. The four sharing granularities are defined in [Specification §4.3](SPECIFICATION.md#43--state-derivation): per position, whole by source, the retained span, or a copy at the fork. |
 | `stream` | The stream the state grows along `{kind, stream}` — the occurrence's own, or the stream of the port it is indexed by. |
 | `indexed_by_source` | True for a state indexed by an input port's stream (cross-attention, a convolution's history): it is frozen once that stream is complete (§5.3). |
 | `indexed_by_port` | That input port, when `indexed_by_source`; null for a self-indexed state. An `append` state so indexed holds the port's delivered elements in full, so the port may deliver nothing in a later invocation (§7); a `window` holds a suffix and exempts nothing. |
