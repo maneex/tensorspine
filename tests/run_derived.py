@@ -18,6 +18,7 @@ facts known independently.
     python3 tests/run_derived.py
 """
 import glob
+import json
 import os
 import sys
 
@@ -133,6 +134,17 @@ def main():
                 len(shared) == 2 and all(s['instance_key'] == ['instance.session', 'instance.branch'] for s in shared))
     ok &= check("llama3-8b: no O5.10 information loss once every flattened axis declares its factors",
                 l3['d6']['information_loss'] == [])
+    parts = {(p['node'], json.dumps(p['target'], sort_keys=True)): p for p in l3['d6']['partitions']}
+    heads = parts.get(('decoder/attn[layer=0]', json.dumps({'argument_axis': 'attention.heads'}, sort_keys=True)))
+    ok &= check("llama3-8b: the head partition keeps whole KV groups — granularity 32 / 8 = 4 — and every partition lists its communications",
+                heads is not None and heads['granularity'] == 4 and heads['communication'] == ['all_reduce']
+                and all(isinstance(p['communication'], list)
+                        and p['granularity'] == (4 if p['target'] == {'argument_axis': 'attention.heads'} else 1)
+                        for p in l3['d6']['partitions']),
+                str(heads))
+    vocab = parts.get(('embed', json.dumps({'argument_axis': 'model.vocabulary'}, sort_keys=True)))
+    ok &= check("llama3-8b: the embedding's vocabulary partition admits two patterns, a gather of owned rows or a sum of masked partials",
+                vocab is not None and vocab['communication'] == ['all_gather', 'all_reduce'], str(vocab))
     located = {t['identity']: t.get('location') for t in l3['d3']['tensors']}
     ok &= check("llama3-8b: decoder.attn.q[layer=3] is stored as model.layers.3.self_attn.q_proj.weight",
                 located.get('decoder.attn.q[layer=3]') == {'tensor': 'model.layers.3.self_attn.q_proj.weight'})

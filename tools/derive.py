@@ -15,7 +15,8 @@ without inference code — as one file, validated against the derived schema.
       divide, inserts add), the payload of every structural cut, and the peak
       of live values along D1's order.
   D6  legal cuts of the expanded graph, the partitions every occurrence's
-      contract declares where their condition holds, and the information
+      contract declares where their condition holds — the communications each
+      admits and the granularity a shard keeps whole — and the information
       loss of flattened axes without factors (O5.10).
 
 Encodings are outside the specification (§7); this one is the repository's.
@@ -645,8 +646,10 @@ def d6(graph, cat, products2):
         for p in definition.get('partitions', []):
             if 'when' in p and not contract_condition(p['when'], args):
                 continue
+            communication = p['communication'] if isinstance(p['communication'], list) else [p['communication']]
+            granularity = _num(contract_value(p['granularity'], args)) if 'granularity' in p else 1
             partitions.append({"node": ident(key), "contract": name, "target": p['target'],
-                               "communication": p['communication']})
+                               "communication": communication, "granularity": granularity})
         for pname, param in definition['parameters'].items():
             if 'present_when' in param and not contract_condition(param['present_when'], args):
                 continue

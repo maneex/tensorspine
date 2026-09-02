@@ -3,7 +3,7 @@
   "kind": "contract",
   "name": "attention.dense",
   "definition": {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
     "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; `qk_norm` declares its learned scales inside itself (`qk_norm.scale`), so that a scale cannot be declared without the normalization it belongs to. Each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.\n\nThe projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).",
     "tags": [
@@ -1539,15 +1539,7 @@
         "communication": "all_reduce",
         "description": "Tensor parallelism across query heads, by whole KV groups: a shard keeps `heads / kv_heads` consecutive query heads, the ones that read one KV head, so its queries find their keys on the shard; the output projection needs an all-reduce. A finer cut would replicate or move keys and values, a different communication.",
         "granularity": {
-          "op": "floor_divide",
-          "args": [
-            {
-              "argument": "heads"
-            },
-            {
-              "argument": "kv_heads"
-            }
-          ]
+          "argument": "groupz"
         }
       },
       {

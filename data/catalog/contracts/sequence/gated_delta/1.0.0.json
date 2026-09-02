@@ -573,7 +573,18 @@
           "argument_axis": "deltanet.value_heads"
         },
         "communication": "all_reduce",
-        "description": "Partition across value heads; the output projection needs an all-reduce."
+        "description": "Partition across value heads, by whole key-head groups: a shard keeps `value_heads / key_heads` consecutive value heads, the ones that read one key head, so its queries and keys stay on the shard; the output projection needs an all-reduce.",
+        "granularity": {
+          "op": "floor_divide",
+          "args": [
+            {
+              "argument": "value_heads"
+            },
+            {
+              "argument": "key_heads"
+            }
+          ]
+        }
       },
       {
         "target": {

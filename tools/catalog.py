@@ -480,6 +480,9 @@ def contract_references(d, cat):
                            f"'{pa['state']}.{pa['component']}'")
         if 'when' in part:
             conditions.append((f"partition {i}", part['when'], set()))
+        for pth in _expression_paths(part.get('granularity', {})):
+            if pth not in paths:
+                out.append(f"partition {i}: granularity reads undeclared argument '{pth}'")
     for i, tr in enumerate(d.get('domain_transforms', [])):
         if ports.get(tr['from_port']) != 'inputs':
             out.append(f"domain_transform {i}: from_port '{tr['from_port']}' is not an input port")
@@ -524,7 +527,8 @@ def contract_references(d, cat):
             out.append(f"{label}: compares '{pth}', which may be absent, outside a present test "
                        f"of it (§4.3)")
     for i, part in enumerate(d['partitions']):
-        if 'none' in part['target'] and part['communication'] != 'none':
+        communications = part['communication'] if isinstance(part['communication'], list) else [part['communication']]
+        if 'none' in part['target'] and communications != ['none']:
             out.append(f"partition {i}: a `none` target implies no communication")
         if 'none' in part['target'] and len(d['partitions']) > 1:
             out.append(f"partition {i}: `none` cannot stand beside other partitions")

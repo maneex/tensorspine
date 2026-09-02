@@ -122,8 +122,11 @@
         "target": {
           "argument_axis": "model.vocabulary"
         },
-        "communication": "all_gather",
-        "description": "Vocabulary parallelism: each shard holds a slice of the table; the looked-up rows are gathered."
+        "communication": [
+          "all_gather",
+          "all_reduce"
+        ],
+        "description": "Vocabulary parallelism: each shard holds a slice of the table. Two patterns realise it — gather each looked-up row from the shard that owns it (`all_gather`), or let every shard produce a masked partial lookup and sum them (`all_reduce`, the Megatron form); the contract admits both, the implementation's manifest says which."
       }
     ],
     "sparsity": [

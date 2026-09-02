@@ -1617,13 +1617,13 @@ function derivedSections(sel) {
   const partitions = partitionsOf(nodes);
   const seen = new Set(), unique = [];
   for (const x of partitions) {
-    const k = `${partitionTarget(x.target)}→${x.communication}`;
+    const k = `${partitionTarget(x.target)}→${[].concat(x.communication).join(' or ')}`;
     if (!seen.has(k)) { seen.add(k); unique.push(x); }
   }
   L.push(head('D6', 'partitions', unique.length ? String(unique.length) : null));
   if (!unique.length) L.push(none('partition declared'));
   for (const x of unique) {
-    L.push(`<div class="field"><span class="k">${esc(partitionTarget(x.target))}</span><span class="v">${esc(x.communication)}</span></div>`);
+    L.push(`<div class="field"><span class="k">${esc(partitionTarget(x.target))}</span><span class="v">${esc([].concat(x.communication).join(' or '))}${x.granularity > 1 ? ' · groups of ' + esc(String(x.granularity)) : ''}</span></div>`);
   }
   const loss = lossOf(nodes);
   if (loss.length) {
@@ -1695,7 +1695,7 @@ function cutBody(name) {
   const nodes = block ? [...block] : [];
   const loss = lossOf(nodes).length;
   const comms = {};
-  for (const x of partitionsOf(nodes)) comms[x.communication] = (comms[x.communication] || 0) + 1;
+  for (const x of partitionsOf(nodes)) for (const c of [].concat(x.communication)) comms[c] = (comms[c] || 0) + 1;
   if (why) {
     return `<h4 class="insp"><span class="dnum">D2</span>legal cut</h4>` + fields([
         ['kind', c.kind],
@@ -2147,7 +2147,7 @@ function productBody(which) {
   const parts = foldedRows((d6.partitions || []).map(x => ({ ...x, identity: x.node })), x => x.node,
     (x, label, n, open) =>
       `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.contract)}</td>` +
-      `<td class="m">${esc(partitionTarget(x.target))}</td><td class="m">${esc(x.communication)}</td>`,
+      `<td class="m">${esc(partitionTarget(x.target))}</td><td class="m">${esc([].concat(x.communication).join(' or '))}${x.granularity > 1 ? ' · groups of ' + esc(String(x.granularity)) : ''}</td>`,
     x => ({ kind: 'd1node', id: x.node }));
   const loss = foldedRows((d6.information_loss || []).map(x => ({ ...x, identity: x.node })), x => x.node,
     (x, label, n, open) =>

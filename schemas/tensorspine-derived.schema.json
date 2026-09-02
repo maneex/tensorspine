@@ -1237,14 +1237,27 @@
                 "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/partition_target"
               },
               "communication": {
-                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/partition/properties/communication"
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/communication"
+                },
+                "description": "The logical communications the partition admits, always a list: one, or the several patterns the contract declares."
+              },
+              "granularity": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The number of consecutive coordinates of the target axis a shard keeps whole, evaluated; one unless the contract declares otherwise (attention's heads: the KV group)."
               }
             },
             "required": [
               "node",
               "contract",
               "target",
-              "communication"
+              "communication",
+              "granularity"
             ]
           }
         },

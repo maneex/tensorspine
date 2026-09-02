@@ -68,7 +68,7 @@ GRAMMAR = {
     'operation': {'effect', 'note'},
     'cost': {'when', 'expression', 'status', 'per', 'note'},
     'sparsity': {'unit', 'policy', 'activated_per_element', 'union_per_invocation', 'note'},
-    'partition': {'target', 'communication', 'when', 'note'},
+    'partition': {'target', 'communication', 'granularity', 'when', 'note'},
     'transform': {'from_port', 'to_port', 'relation', 'factor', 'note'},
     'axis': {'space', 'note'},
     'precision_role': {'admissible', 'default', 'sensitivity', 'note'},
@@ -1016,10 +1016,13 @@ class Renderer:
                 target = "none: no cut preserves meaning"
                 kind = 'none'
             self.vocab.add('partition target', kind, who)
-            self.vocab.add('partition communication', p['communication'], who)
-            rows.append([target, p['communication'],
+            communications = p['communication'] if isinstance(p['communication'], list) else [p['communication']]
+            for c in communications:
+                self.vocab.add('partition communication', c, who)
+            rows.append([target, ' or '.join(communications),
+                         expr(p['granularity']) if 'granularity' in p else '1',
                          cond(p['when']) if 'when' in p else 'always', describe(pdocs, p)])
-        out += table(['Target', 'Communication', 'When', 'Description'], rows)
+        out += table(['Target', 'Communication', 'Granularity', 'When', 'Description'], rows)
         return out
 
     def sparsity(self, d, where, label):

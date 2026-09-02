@@ -130,6 +130,11 @@
       "base": "catalog/payload-position-axis",
       "match": "state 'conv'.w: a sequence.position axis under a window rule",
       "note": "A state payload is declared per position (§4.3): the positions of a window are the law's span, not an axis of the payload — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/partition-granularity-undeclared",
+      "match": "partition 0: granularity reads undeclared argument 'groupz'",
+      "note": "A partition's granularity is an expression over the contract's arguments, like a span: one over an undeclared argument is refused at load — the fixture unit is version 1.0.1, a new identity beside the reference's."
     }
   ]
 }

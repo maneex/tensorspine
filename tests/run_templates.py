@@ -89,7 +89,7 @@ def derived_parity(cat):
     def placement(doc):
         d = doc['d6']
         return (sorted((strip(c['cut']), c['kind'], c['crossing_values']) for c in d['cuts']),
-                sorted((strip(p['node']), canon(p['target']), p['communication']) for p in d['partitions']),
+                sorted((strip(p['node']), canon(p['target']), canon(p['communication']), p['granularity']) for p in d['partitions']),
                 sorted((strip(l['node']), l['slot'], l['axis']) for l in d['information_loss']))
 
     ok = True

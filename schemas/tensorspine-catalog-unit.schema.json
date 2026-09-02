@@ -1216,12 +1216,24 @@
           "$ref": "#/$defs/partition_target"
         },
         "communication": {
-          "enum": [
-            "none",
-            "all_reduce",
-            "all_gather",
-            "all_to_all"
-          ]
+          "oneOf": [
+            {
+              "$ref": "#/$defs/communication"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/communication"
+              }
+            }
+          ],
+          "description": "The logical communication the partition implies — one pattern, or the several a partition admits (`embed`: gather the rows from the shard that owns them, or sum the masked partial lookups of every shard). Which an implementation realises is the manifest's to say."
+        },
+        "granularity": {
+          "$ref": "#/$defs/expression",
+          "description": "The number of consecutive coordinates of the target axis a shard keeps whole, an expression over the arguments; absent, one. `attention.dense` partitions its heads by KV group, `heads / kv_heads`, so that a shard's queries find their keys on the shard."
         },
         "when": {
           "$ref": "#/$defs/condition"
@@ -1237,7 +1249,15 @@
         "target",
         "communication"
       ],
-      "description": "One axis along which partition preserves meaning, with the logical communication it implies (O7.1). A contract declares at least one entry: `none` when no cut preserves meaning."
+      "description": "One axis along which partition preserves meaning, with the logical communication it implies — several when the partition admits several patterns — and the granularity a shard keeps whole (O7.1). A contract declares at least one entry: `none` when no cut preserves meaning. Partitions are declared per occurrence; their consistency across occurrences is compilation's (Specification §7, §10.3)."
+    },
+    "communication": {
+      "enum": [
+        "none",
+        "all_reduce",
+        "all_gather",
+        "all_to_all"
+      ]
     },
     "domain_transform": {
       "type": "object",

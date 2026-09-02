@@ -164,7 +164,7 @@ the specification and not modelled here.
 | Field | Content |
 |---|---|
 | `cuts` | The D2 cuts by name, with their block sizes and the number of crossing values. |
-| `partitions` | For every node — template instances expanded — every partition its contract declares whose condition holds: `target` (an argument axis, an instance-key axis, a state payload axis, `any_axis`, `none`) and the logical `communication` (`none`, `all_reduce`, `all_gather`, `all_to_all`). |
+| `partitions` | For every node — template instances expanded — every partition its contract declares whose condition holds: `target` (an argument axis, an instance-key axis, a state payload axis, `any_axis`, `none`), the logical `communication` it admits, always a list (`none`, `all_reduce`, `all_gather`, `all_to_all`; `embed` lists two, a gather of the owned rows or a sum of masked partial lookups), and its `granularity`, the number of consecutive coordinates of the axis a shard keeps whole, evaluated (attention's heads: `heads / kv_heads`, the KV group; one elsewhere). A partition is the node's own; consistency across nodes is the engine's (§7, §10.3). |
 | `information_loss` | Every parameter slot axis whose extent is a product and that declares no factors (O5.10): partitionability along its factors is unknown and is reported as such, never as non-partitionability. |
 
 Each partition entry applies to its named node, not to the whole graph. Axis identities along D1
