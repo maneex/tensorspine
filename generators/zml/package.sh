@@ -151,7 +151,20 @@ Then run ./run.sh from the unpacked directory; it takes tspl's own options:
 The first line of output names the backend it chose. It reads 'platform: cuda' only on
 a machine with a device this plugin supports; anything else falls back to the CPU and
 says so.
+
+Check the unpack before trusting what comes out of it. A transfer or an extraction that
+dropped a file leaves a package that still starts, still loads and still answers — with
+nonsense, and with nothing in the log to say why:
+
+    sha256sum -c SHA256SUMS
 MANIFEST
+
+# The weights are the bulk of the archive and the part whose corruption is silent: a
+# missing shard stops the loader, but a truncated one does not, and neither does a
+# runfile the extraction never wrote. Hashing the tree costs a minute here and a minute
+# on the far side; not being able to tell a bad unpack from a bad port costs a day.
+echo "  hashing $(du -shL "$stage" | cut -f1)"
+(cd "$stage" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
 echo "  compressing with ${compressor%% *}"
 tar -C "$staging" -cf - "$name" | $compressor > "$out"
