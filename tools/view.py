@@ -452,8 +452,17 @@ TEMPLATE = r"""<!doctype html>
   .sitebar .name span:first-child { color: var(--logo-blue); }
   .sitebar .name span:last-child { color: var(--logo-teal); }
   .sitebar .sitekind { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-  .sitebar .sitelinks { display: flex; align-self: stretch; gap: 20px; overflow-x: auto; scrollbar-width: none; }
-  .sitebar .sitelinks::-webkit-scrollbar { display: none; }
+  .sitebar .sitelinks {
+    display: flex; align-self: stretch; flex: 1 1 auto; min-width: 0; overflow: hidden;
+  }
+  .sitebar .nav-main, .sitebar .nav-reports { display: flex; align-self: stretch; gap: 20px; }
+  .sitebar .nav-main { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .sitebar .nav-main::-webkit-scrollbar { display: none; }
+  .sitebar .nav-reports { position: relative; flex-shrink: 0; margin-left: 24px; padding-left: 24px; }
+  .sitebar .nav-reports::before {
+    content: ""; position: absolute; left: 0; top: 50%; width: 1px; height: 28px;
+    transform: translateY(-50%); background: var(--rule);
+  }
   .sitebar .sitelinks a {
     display: flex; align-items: center; white-space: nowrap;
     margin-bottom: -1px; border-bottom: 2px solid transparent;
@@ -793,7 +802,7 @@ TEMPLATE = r"""<!doctype html>
     .measurebar { gap: 8px; padding: 0 20px 0 24px; }
     /* Past this width the sections start to run off the bar; fade the edge
        they scroll past rather than let them end mid-word. */
-    .sitebar .sitelinks {
+    .sitebar .nav-main {
       -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
       mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
     }
