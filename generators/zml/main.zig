@@ -245,9 +245,11 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     var start: i32 = 0;
     var next: [1]i32 = undefined;
 
-    // Prefill, then one element at a time.
+    // Prefill, then one element at a time. The prefill's own argmax is already the first
+    // token, so n tokens are n invocations and not n + 1: the wider bound ran a whole
+    // forward pass at the end and threw its token away.
     var step: usize = 0;
-    while (step <= args.@"max-tokens") : (step += 1) {
+    while (step < args.@"max-tokens") : (step += 1) {
         const elements: []const i32 = if (step == 0) ids else next[0..1];
         const c = if (step == 0) &prefill else &decode;
         try session.invoke(allocator, io, platform, c, buffers.params, elements, start, states, &out);
@@ -259,7 +261,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
         next[0] = try session.argmaxLast(logits.bytes, compute, vocab);
         out.deinit();
 
-        if (step < args.@"max-tokens") try generated.append(allocator, next[0]);
+        try generated.append(allocator, next[0]);
         reportRss(io, if (step == 0) "prefill" else "decode");
     }
 
