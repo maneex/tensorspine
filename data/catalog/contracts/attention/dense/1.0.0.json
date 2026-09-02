@@ -1523,7 +1523,13 @@
       ],
       "writes": [
         "output"
-      ]
+      ],
+      "across_positions": {
+        "when": {
+          "boolean": true
+        },
+        "description": "every query reads the keys and values of earlier positions of its stream"
+      }
     },
     "partitions": [
       {

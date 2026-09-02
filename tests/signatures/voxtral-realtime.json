@@ -12,13 +12,14 @@
   "residual.add": 116,
   "splice": 1
  },
- "wl": "c02b778a05850a90",
+ "wl": "c48cd839a63637a9",
  "parameter_slots": 712,
  "tensors": 711,
  "shared": 1,
- "state_slots": 58,
- "state_identities": 58,
+ "state_slots": 60,
+ "state_identities": 60,
  "instance_keys": {
+  "instance.session\u00d7instance.branch": 2,
   "layer\u00d7instance.session\u00d7instance.branch": 58
  }
 }

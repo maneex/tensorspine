@@ -559,7 +559,13 @@
       ],
       "writes": [
         "output"
-      ]
+      ],
+      "across_positions": {
+        "when": {
+          "boolean": true
+        },
+        "description": "the recurrence carries every earlier position into the state, and the convolution reads `conv.history` earlier inputs"
+      }
     },
     "partitions": [
       {

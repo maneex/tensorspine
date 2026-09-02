@@ -5,7 +5,8 @@
   2. gemma3n-kvshare: 20 identities from 30 slots; the two shared identities carry
      no layer index — sharing is several members under one identity, nothing else.
   3. voxtral-realtime: the encoder state is carried across the fragments of `audio` — derived
-     from the contract's carrying condition and the input's fragmentation, declared nowhere.
+     from the contract's carrying condition and the input's fragmentation, declared nowhere —
+     and so are the front end's two convolution histories, indexed by the frames' stream (V18).
 
     python3 tests/run_states.py
 """
@@ -46,8 +47,9 @@ def main():
     ok &= check("gemma3n: exactly the two shared identities have no layer index",
                 sorted(shared) == ['shared.full.kv', 'shared.sliding.kv'], str(shared))
     r = validate.analyse(os.path.join(MODELS, 'voxtral-realtime.json'), cat)
-    ok &= check("voxtral: the encoder attention state is carried across the fragments of `audio`",
-                r['carried'] == {'encoder.attn.kv': ('position', 'audio')}, str(r['carried']))
+    ok &= check("voxtral: the encoder attention state and the front end's two histories are carried across the fragments of `audio`",
+                r['carried'] == {'encoder.attn.kv': ('position', 'audio'), 'conv_frontend.conv1_history': ('position', 'audio'),
+                                 'conv_frontend.conv2_history': ('position', 'audio')}, str(r['carried']))
     ok &= check("voxtral: nothing else is carried, and no advisory: the decoder stream is not fragmented",
                 not r['advisories'], str(r['advisories']))
     print("states: all good" if ok else "states: FAILED")

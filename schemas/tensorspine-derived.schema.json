@@ -394,6 +394,11 @@
               },
               "count": {
                 "$ref": "#/$defs/count"
+              },
+              "fragment_alignment": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "For a fragmented stream: the number of elements every fragment delivers a multiple of, so that every merge on the stream sees whole groups — the least common multiple of the cumulative merge factors of the values on it (§5.3). A deployment obligation, derived and reported, never declared."
               }
             },
             "required": [
@@ -797,6 +802,13 @@
               "indexed_by_source": {
                 "type": "boolean"
               },
+              "indexed_by_port": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The input port whose stream indexes the state, when `indexed_by_source`; null for a self-indexed state. An `append` state so indexed holds the port's delivered elements in full, so the port may deliver nothing in a later invocation (§7); a `window` holds a suffix and exempts nothing."
+              },
               "instance_key": {
                 "type": "array",
                 "items": {
@@ -901,6 +913,7 @@
               "sharing",
               "stream",
               "indexed_by_source",
+              "indexed_by_port",
               "instance_key",
               "carried_across_fragments",
               "span",

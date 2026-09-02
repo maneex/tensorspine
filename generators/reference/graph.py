@@ -141,13 +141,15 @@ class Graph:
         # emitted; the contract's transform is visible through the value domains: a `source` port
         # of `splice` — the language's only insert today — is recognised by its contract)
         self.insert_sources = {n: ['source'] for n, e in self.nodes.items() if e['contract']['name'] == 'splice'}
-        # ports whose elements a source-indexed state of the occurrence holds (D4 `indexed_by_source`)
+        # ports whose delivered elements an `append` state of the occurrence indexed by them holds in
+        # full (D4 `indexed_by_port`, §7): such a port may deliver nothing in a later invocation; a
+        # window holds a suffix and exempts nothing
         self.state_indexed_by = {}
         for st in doc['d4']['states']:
-            if st.get('indexed_by_source'):
+            if st.get('indexed_by_port') and st['law'] == 'append':
                 for m in st['members']:
                     node, sname = m.rsplit('.', 1)
-                    self.state_indexed_by.setdefault(node, {})['source_values'] = sname
+                    self.state_indexed_by.setdefault(node, {})[st['indexed_by_port']] = sname
         self.generative = None     # (output name, stream) — the element fed back at decode
         for name, o in self.interfaces['outputs'].items():
             if o.get('generative'):

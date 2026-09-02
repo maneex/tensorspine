@@ -134,7 +134,13 @@
       ],
       "writes": [
         "output"
-      ]
+      ],
+      "across_positions": {
+        "when": {
+          "boolean": true
+        },
+        "description": "`next_embedding` is the embedding of the element after `hidden`'s: a read one position ahead"
+      }
     },
     "partitions": [
       {

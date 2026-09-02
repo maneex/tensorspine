@@ -169,7 +169,10 @@ def d4(graph, cat):
         rule = rules[0] if rules else None
         source_indexed = rule is not None and 'port' in rule['indexed_by']
         stream = (own.get(key) if not source_indexed else domains.get((key, rule['indexed_by']['port']))) if rule else None
-        carried = 'carried_across' in port and contract_condition(port['carried_across']['when'], args)
+        # carried across fragments (§5.3): the contract's carrying condition holds, or the state is
+        # indexed by a port whose stream is a fragmented input, which carries it by definition
+        carried = ('carried_across' in port and contract_condition(port['carried_across']['when'], args)) \
+            or (source_indexed and stream is not None and stream[1] in _fragmented_streams(graph))
         payload = []
         for cname, comp in port['payload'].items():
             dtype = _dtype(graph, cat, inst['dtype'], comp['role'])
@@ -186,6 +189,7 @@ def d4(graph, cat):
                  "sharing": rule['sharing'] if rule else None,
                  "stream": {"kind": stream[0], "stream": stream[1]} if stream else None,
                  "indexed_by_source": source_indexed,
+                 "indexed_by_port": rule['indexed_by'].get('port') if rule else None,
                  "instance_key": list(inst['indices']) + list(port['key_axes']),
                  "carried_across_fragments": carried,
                  "span": span,
@@ -202,6 +206,12 @@ def d4(graph, cat):
               "fixed_bytes": sum(s['bytes_per_cached_position'] for s in states if s['law'] == 'fixed'),
               "carried": [s['identity'] for s in states if s['carried_across_fragments']]}
     return {"states": states, "totals": totals}
+
+
+def _fragmented_streams(graph):
+    """The streams the fragmented public inputs introduce or join (§5.3)."""
+    return {decl.get('stream', name) for name, decl in graph['model']['interfaces']['inputs'].items()
+            if decl.get('fragmented')}
 
 
 # --- D2 and the cuts ---------------------------------------------------------
@@ -493,6 +503,18 @@ def d2(graph, cat):
                            "count": counts.get((key, oport))}
         if vid in values:
             values[vid].setdefault('exposed', []).append(oname)
+    # the fragment alignment of a fragmented stream (§5.3): every fragment delivers a multiple of
+    # the cumulative merge factors of the values on it, so that every merge sees whole groups
+    import math
+    for sname in _fragmented_streams(graph):
+        if sname not in streams:
+            continue
+        alignment = 1
+        for v in values.values():
+            dom, c = v.get('domain'), v.get('count') or {}
+            if dom and dom['stream'] == sname and c.get(sname):
+                alignment = math.lcm(alignment, max(1, round(1 / c[sname])))
+        streams[sname]['fragment_alignment'] = alignment
     cuts = []
     for cid, kind, block in _structural_cuts(graph):
         crossing = {}

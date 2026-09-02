@@ -324,6 +324,12 @@
       "expect": "V4",
       "match": "shapes differ",
       "note": "A public input is an edge like any other (§5.3): the ports it feeds must compose (V4). Here `tokens` feeds a token-index port and a width-vector port."
+    },
+    {
+      "document": "models/v18-fragmented-stateless-frontend.json",
+      "expect": "V18",
+      "match": "conv_frontend@conv_frontend reads across positions of the fragmented stream 'audio'",
+      "note": "Voxtral Realtime's front end without `streaming`: a causal convolution reads neighbouring frames of a fragmented stream and carries nothing across its fragments, so the fragments would not compute what the whole stream does (V18). The corpus document declares `streaming: true` and the two history rings."
     }
   ]
 }

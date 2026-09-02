@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Audio front end: two temporal convolutions over mel frames, the second strided, plus optional learned positions.",
-    "description": "`frames` carries `mels` features per frame; `conv1_weight` maps them to `width` with a kernel of `kernel` frames, and `conv2_weight` applies a second convolution with stride `stride`, which sets the ratio between input frames and output positions. `position` adds a learned position table when the encoder does not use rotary positions. Output positions are in the `position` domain of the audio stream.",
+    "description": "`frames` carries `mels` features per frame; `conv1_weight` maps them to `width` with a kernel of `kernel` frames, and `conv2_weight` applies a second convolution with stride `stride`, which sets the ratio between input frames and output positions. `position` adds a learned position table when the encoder does not use rotary positions. Output positions are in the `position` domain of the audio stream. The padding is symmetric (`kernel − 1` over two, each side, as the Whisper stem) unless `causal`, when it is on the left alone (`kernel − stride` frames, as Voxtral Realtime's); a causal front end on a fragmented stream declares `streaming` and keeps, per convolution, the frames its next output needs from the previous fragment — `conv1_history`, `kernel − 1` input frames, and `conv2_history`, `kernel − stride` frames of the first convolution's output — so that the fragments compute what the whole signal would (§5.3). The output of each convolution is followed by an activation the witness fixes.",
     "tags": [
       "multimodal"
     ],
@@ -72,6 +72,36 @@
         "structural": true,
         "note": "number of learned positions; absent for RoPE",
         "description": "Number of learned positions; absent when positions are rotary."
+      },
+      "causal": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "description": "Left-only padding of both convolutions, `kernel − stride` frames before the first: each output reads its own frames and earlier ones only (Voxtral Realtime). Absent or false, the padding is symmetric (Whisper)."
+      },
+      "streaming": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "causal"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "The front end reads a fragmented stream and keeps, per convolution, the history its next output needs from the previous fragment (V18, §5.3). Applicable to a causal front end only: a symmetric window would need frames that have not arrived."
       }
     },
     "ports": {
@@ -287,14 +317,249 @@
       }
     },
     "constants": {},
-    "state_ports": {},
+    "state_ports": {
+      "conv1_history": {
+        "present_when": {
+          "all": [
+            {
+              "present": "streaming"
+            },
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "streaming"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
+            },
+            {
+              "compare": {
+                "operator": "greater",
+                "left": {
+                  "argument": "kernel"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          ]
+        },
+        "payload": {
+          "w": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "mels",
+                  "axis": "audio.mels",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "mels"
+                  }
+                }
+              ]
+            },
+            "role": "state.conv",
+            "description": "One input frame: `mels` features."
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "carried_across": {
+          "when": {
+            "all": [
+              {
+                "present": "streaming"
+              },
+              {
+                "compare": {
+                  "operator": "equal",
+                  "left": {
+                    "argument": "streaming"
+                  },
+                  "right": {
+                    "literal": true
+                  }
+                }
+              }
+            ]
+          },
+          "description": "With `streaming`, the ring survives between the invocations that deliver successive fragments of the frames' stream: the next fragment's first outputs read it."
+        },
+        "operations": {
+          "append": {
+            "effect": "append",
+            "description": "Push the frames of this invocation."
+          },
+          "read": {
+            "effect": "read",
+            "description": "Read the history the first outputs of a fragment need."
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "port": "frames"
+            },
+            "span": {
+              "op": "subtract",
+              "args": [
+                {
+                  "argument": "kernel"
+                },
+                {
+                  "literal": 1
+                }
+              ]
+            },
+            "description": "A ring of the last frames of the `frames` stream, indexed by that stream: grown across its fragments, frozen when it is complete."
+          }
+        ],
+        "description": "Input history of the first convolution (stride one): the `kernel − 1` frames before the fragment, so that its first outputs read the frames the whole signal would give them."
+      },
+      "conv2_history": {
+        "present_when": {
+          "all": [
+            {
+              "present": "streaming"
+            },
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "streaming"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
+            },
+            {
+              "compare": {
+                "operator": "greater",
+                "left": {
+                  "argument": "kernel"
+                },
+                "right": {
+                  "argument": "stride"
+                }
+              }
+            }
+          ]
+        },
+        "payload": {
+          "w": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "feature",
+                  "axis": "model.width",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "width"
+                  }
+                }
+              ]
+            },
+            "role": "state.conv",
+            "description": "One frame of the first convolution's output: `width` channels."
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "carried_across": {
+          "when": {
+            "all": [
+              {
+                "present": "streaming"
+              },
+              {
+                "compare": {
+                  "operator": "equal",
+                  "left": {
+                    "argument": "streaming"
+                  },
+                  "right": {
+                    "literal": true
+                  }
+                }
+              }
+            ]
+          },
+          "description": "With `streaming`, the ring survives between the invocations that deliver successive fragments of the frames' stream: the next fragment's first outputs read it."
+        },
+        "operations": {
+          "append": {
+            "effect": "append",
+            "description": "Push the frames of this invocation."
+          },
+          "read": {
+            "effect": "read",
+            "description": "Read the history the first outputs of a fragment need."
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "window",
+            "access": "ring",
+            "sharing": "within_span",
+            "indexed_by": {
+              "port": "frames"
+            },
+            "span": {
+              "op": "subtract",
+              "args": [
+                {
+                  "argument": "kernel"
+                },
+                {
+                  "argument": "stride"
+                }
+              ]
+            },
+            "description": "A ring of the last frames of the `frames` stream, indexed by that stream: grown across its fragments, frozen when it is complete."
+          }
+        ],
+        "description": "History of the second, strided convolution: the `kernel − stride` frames of the first convolution's output before the fragment — and no more, or the stride's phase would shift by a frame at the boundary."
+      }
+    },
     "effects": {
       "reads": [
         "frames"
       ],
       "writes": [
         "output"
-      ]
+      ],
+      "across_positions": {
+        "when": {
+          "compare": {
+            "operator": "greater",
+            "left": {
+              "argument": "kernel"
+            },
+            "right": {
+              "literal": 1
+            }
+          }
+        },
+        "description": "each output reads `kernel` frames, across the boundary of the `stride` frames that are its own; a kernel of one reads nothing but its own frame"
+      }
     },
     "partitions": [
       {
@@ -313,7 +578,7 @@
         "factor": {
           "argument": "stride"
         },
-        "description": "The second convolution is strided: one output position per `stride` input frames, in the same stream."
+        "description": "The second convolution is strided: one output position per `stride` input frames, in the same stream. On a fragmented stream, every fragment delivers a multiple of `stride` frames (§5.3: the fragment alignment the merge implies)."
       }
     ],
     "sparsity": [

@@ -183,7 +183,10 @@ def evaluated(doc, cat, delivered):
         entry = d1['nodes'][node]
         definition = catalog_mod.contract(cat, entry['contract'])
         inserts = {t['from_port'] for t in definition.get('domain_transforms', []) if t.get('relation') == 'insert'}
-        source_held = {t for t in ('source_values',) if any(s.get('indexed_by_source') and any(m.rsplit('.', 1)[0] == node for m in s['members']) for s in doc['d4']['states'])}
+        # a port whose delivered elements an `append` state of the occurrence indexed by it holds in
+        # full (§7); a window holds a suffix and exempts nothing
+        source_held = {s['indexed_by_port'] for s in doc['d4']['states']
+                       if s.get('indexed_by_port') and s['law'] == 'append' and any(m.rsplit('.', 1)[0] == node for m in s['members'])}
         ok = True
         for pname, port in definition['ports']['inputs'].items():
             present = contract_condition(port['present_when'], entry['arguments']) if 'present_when' in port else True

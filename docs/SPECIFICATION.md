@@ -269,7 +269,7 @@ language.
 | **Value ports** | Inputs and outputs with shape functions. |
 | **Logical tensors** | A symbolic learned-parameter inventory derived from arguments: shapes, roles, and sharing rules (O6.1). |
 | **State ports** | Ports conditional on arguments, with their derivation function (§4.3). |
-| **Effects** | The ports the operation reads and writes. |
+| **Effects** | The ports the operation reads and writes; and whether, under a condition over the arguments, the operation reads positions of its stream beyond those of the element it produces — **across positions** (O9.5): a convolution reads neighbouring frames, attention every earlier position, a pooler with a reduction the whole sequence, while a merge reads only the group its transform declares. |
 | **Logical cost** | Derived from the inventory: for every parameter slot, two operations per weight element per element of the occurrence's output domain, scaled by the activated fraction of a sparse unit (§4.5); the bytes of the inventory, in full for residency. A contract declares only **corrections**: an ordered list of entries, each guarded by a condition over the arguments, each stating an expression, a status (O0.5) and what it is counted per — `element` of the output domain, `cached_position` of a state, `sequence`, or `invocation`. Every entry whose condition holds contributes. Never operations actually executed. Known approximations are documented, not modelled: a strided convolution's first kernel (per input frame), a per-head normalisation scale, a pooler with `reduce`. |
 | **Semantic partitions** | Axes whose partition preserves meaning — an argument axis, an instance-key axis, a state payload axis, `any_axis`, or `none` — with the logical communication each implies (O7.1); at least one entry. |
 | **Domain transforms** | How a port's domain relates to the occurrence's own: `merge`, `align`, `insert` (§5.3). |
@@ -554,6 +554,17 @@ of its stream; the graph stays finite per invocation. A state indexed by a sourc
 is complete. A self-indexed state that is not carried is reset at each fragment of its stream. An
 occurrence whose state is carried must sit on a fragmented stream (V16); nothing is declared twice.
 
+An occurrence that reads across positions of a fragmented stream (its contract's `across_positions`
+condition holds, §4.1) must carry a state across that stream's fragments — a present state port
+on that stream, self-indexed with its carrying condition holding, or indexed by the port that
+carries the stream — or the fragments would compute something the whole stream would not; the
+document is rejected (V18). A `merge` transform on a fragmented stream reads whole groups of
+`factor` elements and nothing across them: its invariance under fragmentation holds when every
+fragment delivers whole groups, so a fragmented stream has a **fragment alignment** — the least
+common multiple of the cumulative merge factors of the values on it — that every fragment
+delivers a multiple of. It is a deployment obligation derived by the language and reported with
+the stream (D2), never declared: a declared alignment would copy that rule (§4.4).
+
 ## §6 — Static semantics
 
 A document is valid only if every rule below holds. Failure produces a reasoned rejection, never an
@@ -578,6 +589,7 @@ implicit default.
 | **V15** | Parameter identity compatibility (§3.4). |
 | **V16** | An occurrence whose state is carried across fragments (its contract's `carried_across` condition holds) sits on a fragmented stream. |
 | **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat; a document that locates its weights does not instantiate a template. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
+| **V18** | An occurrence whose contract reads across positions (§4.1), on a fragmented stream, carries a state across the fragments of that stream (§5.3). |
 
 ## §7 — Required derived products
 
@@ -587,7 +599,8 @@ each generated element is delivered to the output's stream in the next invocatio
 deliver zero elements in an invocation — its stream complete, or unused by that invocation. An
 occurrence is evaluated in an invocation when every input port receives elements, excepting a
 port that is the source of an `insert` transform of its contract, and a port whose elements a
-state of the occurrence indexed by that port already holds; an occurrence not evaluated delivers
+state of the occurrence indexed by that port already holds in full (an `append` state; a `window`
+holds a suffix and exempts nothing); an occurrence not evaluated delivers
 nothing downstream, and a state indexed by a stream that delivered nothing is not visited. An
 input is **required** for an output when, on a first delivery, the output is not evaluated without it. A generative
 document has two **phases**: the invocations consuming supplied elements (prefill) and those
@@ -607,7 +620,7 @@ code or human knowledge of a named mechanism:
 | Product | Content |
 |---|---|
 | **D1** | **Expanded graph:** occurrences, edges, and families. |
-| **D2** | **Values:** the value and shape inventory, and the payload of every legal cut — the values live at it, sized per invocation. |
+| **D2** | **Values:** the value and shape inventory; the payload of every legal cut — the values live at it, sized per invocation; the peak of live values along one order of the graph, the activation peak of an invocation; and the fragment alignment of every fragmented stream (§5.3). |
 | **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor; when the document locates its weights, the evaluated location of every tensor. |
 | **D4** | **Complete state:** descriptors, instances, keys, state liveness, visits per phase, and permitted operations. |
 | **D5** | **Logical costs:** parameters, activations, state per element, computation — derived from the inventory and the declared corrections (§4.1) — and the payload crossing each legal cut per invocation. |
@@ -743,7 +756,8 @@ a port or slot fed or bound twice (V7); meaningless combination (V8); state iden
 incompatible ports (V9); unresolvable repetition, guard or derivation (V10); a literal quantity
 disagreeing with its declared derivation (V11); duplicate member names in an object (V12); an
 output consumed by nothing (V13); an inadmissible dtype (V14); incompatible members of a parameter
-identity (V15); and a carried state on a stream that is not fragmented (V16).
+identity (V15); a carried state on a stream that is not fragmented (V16); and an occurrence
+reading across positions of a fragmented stream with no state carried across its fragments (V18).
 
 A catalog is refused when loaded if a contract compares or computes with an optional argument that
 has no default outside a `present` test of it; if a precision role's default is not admissible; if
@@ -821,5 +835,6 @@ carries the requirement; this appendix is the requirement. Gaps in the numbering
 | **O9.1** | A model names primitives and supplies arguments; it never describes a primitive's computation. |
 | **O9.2** | A contract declares the elements of §4.1: arguments, ports, logical tensors, state ports, effects, corrections, partitions and transforms. |
 | **O9.4** | An argument is a scalar, an enum, or a record of such values; inline numeric tensors are forbidden. |
+| **O9.5** | A contract declares, as a condition over its arguments, whether the primitive reads positions of its stream beyond those of the element it produces; an occurrence that does so on a fragmented stream carries a state across the fragments (V18). |
 
 The I‑ and N‑ series are stated in §9. O2.4 and O5.9 are withdrawn; their numbers are reserved.

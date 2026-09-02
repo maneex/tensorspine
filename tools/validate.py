@@ -21,8 +21,10 @@ bindings, state slots included; V9 member compatibility; V10 resolvable
 ranges, guards and derivations; V11 a literal quantity against its declared
 derivation; V13 no dangling output; V14 precision admissibility on parameter
 and state identities; V15 tying compatibility; V16 a carried state on a
-fragmented stream. Bindings inherit the presence of the occurrences they name
-(§5.2 rule 3). Template contracts are expanded at every call site (§4.6).
+fragmented stream; V18 an occurrence reading across positions of a fragmented
+stream carries a state across its fragments. Bindings inherit the presence of
+the occurrences they name (§5.2 rule 3). Template contracts are expanded at
+every call site (§4.6).
 """
 import itertools
 import json
@@ -629,7 +631,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     stats['edges'] = len(edges)
 
     # --- interfaces: edges like any other, seeds of the streams -----------
-    fragmented = {n for n, i in model['interfaces']['inputs'].items() if i.get('fragmented')}
+    fragmented = {i.get('stream', n) for n, i in model['interfaces']['inputs'].items() if i.get('fragmented')}   # the streams
     seeds = {}
     fed_shapes = {}
     for name, decl in model['interfaces']['inputs'].items():
@@ -1016,6 +1018,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 instance_keys[sid + (f"{env}" if env else "")] = (
                     tuple(binding['identity'].get('indices', {})) + key_axes)
     stats['precisions_checked'] = checked
+    carried_on = defaultdict(set)         # occurrence key -> the streams its states carry across fragments
     for key, (name, definition, args) in resolved.items():
         for state_name, port in definition['state_ports'].items():
             if not contract_condition(port['present_when'], args):
@@ -1023,20 +1026,45 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             if (key, state_name) not in state_slots:
                 fail('V7', f"unbound state port: {name}@{where(key)}.{state_name}")
             ca = port.get('carried_across')
-            mine = own.get(key)
+            applicable = [r for r in port['rules'] if contract_condition(r['when'], args)]
+            rule = applicable[0] if applicable else None
+            # the state's own stream (§4.3): the occurrence's, or the port's it is indexed by
+            mine = (own.get(key) if rule is None or 'self' in rule['indexed_by']
+                    else domains.get((key, rule['indexed_by']['port'])))
+            by_port = rule is not None and 'port' in rule['indexed_by']
             if ca and contract_condition(ca['when'], args):
                 if mine is None or mine[1] not in fragmented:
                     fail('V16', f"{name}@{where(key)}.{state_name}: carried across fragments, "
                                 f"but its stream {mine} is not a fragmented input")
                 carried.setdefault(state_slots.get((key, state_name), where(key)), mine)
-            elif mine is not None and mine[1] in fragmented:
-                applicable = [r for r in port['rules'] if contract_condition(r['when'], args)]
-                if applicable and 'self' in applicable[0]['indexed_by']:
-                    advisories.append(f"{name}@{where(key)}.{state_name}: a self-indexed state "
-                                      f"on the fragmented stream '{mine[1]}' that is not carried "
-                                      f"— reset at every fragment")
+                if mine is not None:
+                    carried_on[key].add(mine[1])
+            elif by_port and mine is not None and mine[1] in fragmented:
+                # indexed by a port whose stream is fragmented: carried by definition (§5.3)
+                carried.setdefault(state_slots.get((key, state_name), where(key)), mine)
+                carried_on[key].add(mine[1])
+            elif mine is not None and mine[1] in fragmented and rule is not None and 'self' in rule['indexed_by']:
+                advisories.append(f"{name}@{where(key)}.{state_name}: a self-indexed state "
+                                  f"on the fragmented stream '{mine[1]}' that is not carried "
+                                  f"— reset at every fragment")
     stats['state_slots'] = len(state_slots)
     stats['state_identities'] = state_identities
+
+    # --- V18: reading across positions of a fragmented stream needs a state carried across it
+    for key, (name, definition, args) in resolved.items():
+        across = definition.get('effects', {}).get('across_positions')
+        if not across or not contract_condition(across['when'], args):
+            continue
+        for port_name, port in definition['ports']['inputs'].items():
+            if not _present(port, args):
+                continue
+            dm = domains.get((key, port_name))
+            if dm is None or dm[1] not in fragmented:
+                continue
+            if dm[1] not in carried_on.get(key, ()):
+                fail('V18', f"{name}@{where(key)} reads across positions of the fragmented stream "
+                            f"'{dm[1]}' (port '{port_name}') and carries no state across its fragments: "
+                            f"the fragments would not compute what the whole stream does")
 
     # What this document exposes to a caller: its interface ports, resolved.
     ports = {'inputs': {}, 'outputs': {}}

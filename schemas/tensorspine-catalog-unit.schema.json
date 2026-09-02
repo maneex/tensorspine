@@ -1099,6 +1099,25 @@
           "items": {
             "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           }
+        },
+        "across_positions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "when"
+          ],
+          "properties": {
+            "when": {
+              "$ref": "#/$defs/condition"
+            },
+            "description": {
+              "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "description": "The condition over the arguments under which the primitive reads positions of its stream beyond those of the element it produces (O9.5): a convolution reads neighbouring frames, attention every earlier position, a pooler with a reduction the whole sequence; a merge reads only the group its transform declares and does not qualify. Absent, the primitive reads its own element alone. An occurrence that reads across positions of a fragmented stream must carry a state across that stream's fragments (V18)."
         }
       },
       "required": [

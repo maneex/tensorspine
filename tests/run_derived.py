@@ -114,9 +114,19 @@ def main():
                 len(cross) == 32 and all(s['stream'] == {'kind': 'position', 'stream': 'audio'}
                                          and s['indexed_by_source'] for s in cross))
     v = docs['voxtral-realtime']
-    ok &= check("voxtral: 32 encoder states carried across fragments, rings of 750 frames",
-                len(v['d4']['totals']['carried']) == 32
-                and all(s['law'] == 'window' and s['span'] == 750 for s in v['d4']['states'] if s['carried_across_fragments']))
+    ok &= check("voxtral: 34 states carried across fragments — 32 encoder rings of 750 frames and the front end's two histories",
+                len(v['d4']['totals']['carried']) == 34
+                and all(s['law'] == 'window' and s['span'] == 750 for s in v['d4']['states']
+                        if s['carried_across_fragments'] and s['contract'] == 'attention.dense'))
+    rings = {s['identity']: s for s in v['d4']['states'] if s['contract'] == 'conv_frontend'}
+    ok &= check("voxtral: the front end's histories are windows of kernel − 1 and kernel − stride frames, indexed by the frames port on the audio stream (V18)",
+                rings['conv_frontend.conv1_history']['span'] == 2 and rings['conv_frontend.conv2_history']['span'] == 1
+                and all(s['indexed_by_port'] == 'frames' and s['indexed_by_source'] and s['carried_across_fragments']
+                        and s['stream'] == {'kind': 'position', 'stream': 'audio'} for s in rings.values()), str(rings)[:300])
+    ok &= check("voxtral: the audio stream's fragment alignment is 8 frames — a stride of 2, then 4 positions per token (§5.3)",
+                v['d2']['streams']['audio'].get('fragment_alignment') == 8 and 'fragment_alignment' not in v['d2']['streams']['tokens'],
+                str(v['d2']['streams']))
+    ok &= check("llama3-8b: an unfragmented stream states no alignment", 'fragment_alignment' not in l3['d2']['streams']['tokens'])
     g = docs['gemma3n-kvshare']
     shared = [s for s in g['d4']['states'] if s['identity'].startswith('shared.')]
     ok &= check("gemma3n: the shared identities carry no layer in their instance key",

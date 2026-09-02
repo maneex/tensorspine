@@ -157,7 +157,23 @@
       ],
       "writes": [
         "output"
-      ]
+      ],
+      "across_positions": {
+        "when": {
+          "not": {
+            "compare": {
+              "operator": "equal",
+              "left": {
+                "argument": "reduce"
+              },
+              "right": {
+                "literal": "none"
+              }
+            }
+          }
+        },
+        "description": "a reduction reads the whole sequence; with `reduce: none` each token is its own"
+      }
     },
     "partitions": [
       {

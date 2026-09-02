@@ -1254,7 +1254,13 @@
       ],
       "writes": [
         "output"
-      ]
+      ],
+      "across_positions": {
+        "when": {
+          "boolean": true
+        },
+        "description": "every query reads the cached latents of earlier positions"
+      }
     },
     "partitions": [
       {

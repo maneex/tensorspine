@@ -1,9 +1,9 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "voxtral_realtime",
+  "model": "voxtral_realtime_stateless_frontend",
   "catalog": [
     {
-      "base": "../catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {
@@ -175,9 +175,6 @@
           "literal": true
         },
         "causal": {
-          "literal": true
-        },
-        "streaming": {
           "literal": true
         }
       },
@@ -1526,36 +1523,7 @@
       }
     },
     "constants": {},
-    "states": {
-      "conv_frontend.conv1_history": {
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "conv_frontend"
-            },
-            "state": "conv1_history"
-          }
-        ],
-        "identity": {
-          "name": "conv_frontend.conv1_history"
-        }
-      },
-      "conv_frontend.conv2_history": {
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "conv_frontend"
-            },
-            "state": "conv2_history"
-          }
-        ],
-        "identity": {
-          "name": "conv_frontend.conv2_history"
-        }
-      }
-    }
+    "states": {}
   },
   "interfaces": {
     "inputs": {
