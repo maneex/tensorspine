@@ -8,17 +8,17 @@ is on the [status page](https://maneex.github.io/tensorspine/status/).*
 
 ## How a model reaches serving applications
 
-**Today**
+**Today: each model becomes a separate implementation inside every serving application**
 
-![Today, each model becomes a separate implementation inside every serving application](docs/serving-today.svg)
+![Today, each model becomes a separate implementation inside every serving application](docs/serving-today.svg)<!-- Title above. -->
 
 <a id="with-tensorspine"></a>
-**With TensorSpine**
-
 TensorSpine provides the model-document schema, a reference primitive catalog, and the tooling that
 validates documents, derives portable logical model facts, and checks compatibility.
 
-![With TensorSpine, model structure is shared data and serving applications implement their supported contract subset](docs/serving-with-tensorspine.svg)
+**With TensorSpine: model structure becomes shared data; serving optimizations stay application-owned**
+
+![With TensorSpine, model structure is shared data and serving applications implement their supported contract subset](docs/serving-with-tensorspine.svg)<!-- Title above. -->
 
 *One model integration; reusable implementations per primitive branch.*
 

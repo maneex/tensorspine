@@ -8,15 +8,7 @@ digraph serving_with_tensorspine {
     ranksep="0.46",
     splines=ortho,
     compound=true,
-    fontname="Arial",
-    fontcolor="#123348",
-    labeljust=l,
-    labelloc=t,
-    label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="0">
-      <TR><TD ALIGN="LEFT"><FONT COLOR="#34737E" POINT-SIZE="11"><B>WITH TENSORSPINE  /  DOCUMENT ONCE, OPTIMIZE INSIDE EACH SERVING APPLICATION</B></FONT></TD></TR>
-      <TR><TD HEIGHT="7"></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT COLOR="#123348" POINT-SIZE="22"><B>Model structure becomes shared data. Serving optimizations stay application-owned.</B></FONT></TD></TR>
-    </TABLE>>
+    fontname="Arial"
   ];
 
   node [

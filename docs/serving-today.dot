@@ -8,15 +8,7 @@ digraph serving_today {
     ranksep="0.46",
     splines=ortho,
     compound=true,
-    fontname="Arial",
-    fontcolor="#123348",
-    labeljust=l,
-    labelloc=t,
-    label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="0">
-      <TR><TD ALIGN="LEFT"><FONT COLOR="#7D654F" POINT-SIZE="11"><B>TODAY  /  ARCHITECTURE-SPECIFIC INTEGRATION</B></FONT></TD></TR>
-      <TR><TD HEIGHT="7"></TD></TR>
-      <TR><TD ALIGN="LEFT"><FONT COLOR="#123348" POINT-SIZE="22"><B>Each model becomes a separate implementation inside every serving application.</B></FONT></TD></TR>
-    </TABLE>>
+    fontname="Arial"
   ];
 
   node [
