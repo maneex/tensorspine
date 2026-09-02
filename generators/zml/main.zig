@@ -41,6 +41,8 @@ const Args = struct {
     out: ?[]const u8 = null,
     dump: ?[]const u8 = null,
     @"dump-mlir": ?[]const u8 = null,
+    unit: ?[]const u8 = null,
+    invocations: ?[]const u8 = null,
 
     pub const help =
         \\ Use tspl --derived=<path> [--refusals] [--checkpoint=<dir> --until=<value>]
@@ -77,6 +79,12 @@ const Args = struct {
         \\   --out=<path>          Write the result's raw bytes here
         \\   --dump=<dir>          Also write every state buffer, named by its D4 identity
         \\   --dump-mlir=<dir>     Ask XLA to dump the emitted IR here
+        \\   --unit=<dir>          Run a unit fixture's document as a conformer (docs/TENSORSPINE-FIXTURE.md):
+        \\                         --checkpoint is the fixture itself, the inputs of invocation k are read
+        \\                         from <dir>/in.<k>.<name>.bin (f32 for a value stream, i32 for
+        \\                         identifiers), the result is written to <dir>/out.<k>.bin and every
+        \\                         state to <dir>/state.<k>.<identity>.<component>.bin, in the compute dtype
+        \\   --invocations=<n,..>  With --unit: the elements each invocation delivers, states carried
         \\
     ;
 };
@@ -256,7 +264,9 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     while (step < args.@"max-tokens") : (step += 1) {
         const elements: []const i32 = if (step == 0) ids else next[0..1];
         const c = if (step == 0) &prefill else &decode;
-        try session.invoke(allocator, io, platform, c, buffers.params, elements, start, states, &out);
+        var publics = [_]zml.Buffer{try session.tokens(io, platform, c, elements)};
+        defer publics[0].deinit();
+        try session.invoke(allocator, io, platform, c, buffers.params, &publics, start, states, &out);
         start += @intCast(elements.len);
 
         const logits = try out.toSliceAlloc(allocator, io);
@@ -271,6 +281,185 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     log.info("{d} greedy token(s): {any}", .{ generated.items.len, generated.items });
     if (args.out) |path| try write(io, path, std.mem.sliceAsBytes(generated.items));
+}
+
+fn readFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
+    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch |err| {
+        log.err("cannot read {s}: {s}", .{ path, @errorName(err) });
+        return err;
+    };
+    defer file.close(io);
+    var reader = file.reader(io, &.{});
+    return reader.interface.readAlloc(allocator, try file.length(io));
+}
+
+/// A fixture's raw input — f32 for a value stream, i32 for identifiers — as the bytes of
+/// the public's dtype: bf16 by rounding to nearest even, the conversion a conformer at
+/// bf16 performs on the recorded f32 inputs.
+fn asDtype(allocator: std.mem.Allocator, raw: []const u8, dt: zml.DataType) ![]u8 {
+    switch (dt) {
+        .f32, .i32 => return allocator.dupe(u8, raw),
+        .bf16 => {
+            const n = raw.len / 4;
+            const out = try allocator.alloc(u8, n * 2);
+            for (0..n) |i| {
+                const u: u64 = std.mem.readInt(u32, raw[i * 4 ..][0..4], .little);
+                const lsb = (u >> 16) & 1;
+                const rounded: u16 = @truncate((u + 0x7FFF + lsb) >> 16);
+                std.mem.writeInt(u16, out[i * 2 ..][0..2], rounded, .little);
+            }
+            return out;
+        },
+        else => {
+            log.err("a unit input in {s}: only f32, bf16 and i32 are fed", .{@tagName(dt)});
+            return error.UnsupportedComputeDtype;
+        },
+    }
+}
+
+/// A unit fixture's document run as a conformer (docs/TENSORSPINE-FIXTURE.md): the
+/// parameters from the fixture, which is its own checkpoint; the inputs of each invocation
+/// from files the harness wrote; one compiled arity per distinct element count; the states
+/// carried from one invocation to the next; after each, the result and every state written
+/// where the harness reads them. What the reference witness recorded, this generator
+/// recomputes, and the harness compares the two within the fixture's tolerance.
+fn unit(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Graph) !void {
+    const checkpoint = args.checkpoint orelse {
+        log.err("--unit needs --checkpoint: the fixture is its own", .{});
+        return error.MissingCheckpoint;
+    };
+    const dir = args.unit.?;
+    const counts = try parseIds(allocator, args.invocations orelse {
+        log.err("--unit needs --invocations=n,n,...: the elements each invocation delivers", .{});
+        return error.MissingInvocations;
+    });
+    defer allocator.free(counts);
+
+    const outputs = g.doc().d1.interfaces.outputs;
+    if (outputs.map.count() != 1) {
+        log.err("--unit runs a document with one public output; {s} has {d}", .{ g.model(), outputs.map.count() });
+        return error.NotAUnitDocument;
+    }
+    const o = outputs.map.values()[0];
+    const target = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ o.node, o.port });
+    defer allocator.free(target);
+
+    const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
+    defer platform.deinit(allocator, io);
+
+    var tensors: zml.safetensors.TensorRegistry = try .fromPath(allocator, io, checkpoint);
+    defer tensors.deinit();
+    var store: zml.io.TensorStore = .fromRegistry(allocator, &tensors);
+    defer store.deinit();
+
+    const compute = try dtypes.of(args.compute);
+    var capacity: i64 = 0;
+    for (counts) |n| capacity += n;
+
+    var shape_plan = try plan.until(allocator, g, target, counts[0], capacity, compute, !args.@"separate-states");
+    const params_used = try allocator.dupe(usize, shape_plan.params_used);
+    defer allocator.free(params_used);
+    shape_plan.deinit();
+
+    var model = try loader.locate(allocator, g, store.view(), params_used);
+    defer model.deinit(allocator);
+
+    // One compiled arity per distinct element count; every arity must want the same
+    // parameters, as `generate` asserts of its two.
+    const arities = try allocator.alloc(session.Compiled, counts.len);
+    defer allocator.free(arities);
+    var compiled: usize = 0;
+    defer for (arities[0..compiled]) |*c| c.deinit(allocator);
+    const which = try allocator.alloc(usize, counts.len);
+    defer allocator.free(which);
+    for (counts, 0..) |n, k| {
+        var found: ?usize = null;
+        for (counts[0..k], 0..) |m, j| {
+            if (m == n) found = which[j];
+        }
+        if (found) |f| {
+            which[k] = f;
+            continue;
+        }
+        arities[compiled] = try session.Compiled.init(allocator, io, platform, g, target, n, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
+        if (!std.mem.eql(usize, arities[compiled].plan.params_used, params_used)) {
+            log.err("the arities disagree on which parameters they need", .{});
+            return error.InconsistentPlan;
+        }
+        which[k] = compiled;
+        compiled += 1;
+    }
+
+    var buffers = try zml.mem.bufferize(allocator, loader.Model, &model);
+    defer allocator.free(buffers.params);
+    defer for (buffers.params) |*b| b.deinit();
+    {
+        var weights: zml.io.Loader = try .init(std.heap.page_allocator, platform, .default);
+        defer weights.deinit();
+        weights.load(io, loader.Model, &model, &buffers, &store, &.{}, .{});
+        try weights.await(io);
+    }
+
+    const first = &arities[0];
+    const states = try allocator.alloc(zml.Buffer, first.plan.state_shapes.len);
+    defer allocator.free(states);
+    for (first.plan.state_shapes, states) |shape, *b| {
+        const zeros = try allocator.alloc(u8, shape.byteSize());
+        defer allocator.free(zeros);
+        @memset(zeros, 0);
+        b.* = try .fromBytes(io, platform, shape, platform.replicated_sharding, zeros);
+    }
+    defer for (states) |*b| b.deinit();
+
+    var start: i32 = 0;
+    for (counts, 0..) |n, k| {
+        const c = &arities[which[k]];
+        const publics = try allocator.alloc(zml.Buffer, c.plan.publics.len);
+        defer allocator.free(publics);
+        var made: usize = 0;
+        defer for (publics[0..made]) |*b| b.deinit();
+        for (c.plan.publics, c.plan.public_shapes) |name, shape| {
+            const path = try std.fmt.allocPrint(allocator, "{s}/in.{d}.{s}.bin", .{ dir, k, name });
+            defer allocator.free(path);
+            const raw = try readFile(allocator, io, path);
+            defer allocator.free(raw);
+            const bytes = try asDtype(allocator, raw, shape.dtype());
+            defer allocator.free(bytes);
+            if (bytes.len != shape.byteSize()) {
+                log.err("{s}: {d} bytes, the public input {s} is {f}", .{ path, bytes.len, name, shape });
+                return error.InputSize;
+            }
+            publics[made] = try .fromBytes(io, platform, shape, platform.replicated_sharding, bytes);
+            made += 1;
+        }
+
+        var out: zml.Buffer = undefined;
+        try session.invoke(allocator, io, platform, c, buffers.params, publics, start, states, &out);
+        defer out.deinit();
+        start += @intCast(n);
+
+        const slice = try out.toSliceAlloc(allocator, io);
+        defer slice.free(allocator);
+        const out_path = try std.fmt.allocPrint(allocator, "{s}/out.{d}.bin", .{ dir, k });
+        defer allocator.free(out_path);
+        try write(io, out_path, slice.bytes);
+
+        var q: usize = 0;
+        for (c.plan.states) |instance| {
+            for (instance.components) |component| {
+                const bytes = try states[q].toSliceAlloc(allocator, io);
+                defer bytes.free(allocator);
+                const portion = bytes.bytes.len / instance.members;
+                for (instance.identities, 0..) |identity, m| {
+                    const name = try std.fmt.allocPrint(allocator, "{s}/state.{d}.{s}.{s}.bin", .{ dir, k, identity, component.name });
+                    defer allocator.free(name);
+                    try write(io, name, bytes.bytes[m * portion ..][0..portion]);
+                }
+                q += 1;
+            }
+        }
+        log.info("invocation {d}: {d} element(s), {s} = {f}, {d} state buffer(s) written to {s}", .{ k, n, target, out.shape(), q, dir });
+    }
 }
 
 fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Graph) !void {
@@ -330,7 +519,9 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer for (states) |*b| b.deinit();
 
     var out: zml.Buffer = undefined;
-    try session.invoke(allocator, io, platform, &c, buffers.params, ids, 0, states, &out);
+    var publics = [_]zml.Buffer{try session.tokens(io, platform, &c, ids)};
+    defer publics[0].deinit();
+    try session.invoke(allocator, io, platform, &c, buffers.params, &publics, 0, states, &out);
     defer out.deinit();
 
     const slice = try out.toSliceAlloc(allocator, io);
@@ -441,6 +632,7 @@ pub fn main(init: std.process.Init) !void {
             .prompt = args.prompt,
         });
     }
+    if (args.unit != null) return unit(allocator, init.io, args, &g);
     if (args.until != null) return evaluate(allocator, init.io, args, &g);
     if (args.checkpoint != null) return generate(allocator, init.io, args, &g);
 

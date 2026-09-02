@@ -78,24 +78,33 @@ pub const Compiled = struct {
         self.plan.deinit();
     }
 };
+/// The one public input a token stream is: the identifiers, as the plan's first public.
+pub fn tokens(io: std.Io, platform: *const zml.Platform, c: *const Compiled, ids: []const i32) !zml.Buffer {
+    return zml.Buffer.fromSlice(
+        io,
+        platform,
+        .init(c.plan.public_shapes[0], std.mem.sliceAsBytes(ids)),
+        platform.replicated_sharding,
+    );
+}
+
+/// One invocation: the public inputs in the plan's order — a token stream is one, a unit
+/// fixture's document has one per input port — the states as they stand, and the result.
 pub fn invoke(
     allocator: std.mem.Allocator,
     io: std.Io,
     platform: *const zml.Platform,
     c: *const Compiled,
     params: []zml.Buffer,
-    ids: []const i32,
+    publics: []zml.Buffer,
     start: i32,
     states: []zml.Buffer,
     out: *zml.Buffer,
 ) !void {
-    var tokens = try zml.Buffer.fromSlice(
-        io,
-        platform,
-        .init(c.plan.public_shapes[0], std.mem.sliceAsBytes(ids)),
-        platform.replicated_sharding,
-    );
-    defer tokens.deinit();
+    if (publics.len != c.plan.publics.len) {
+        log.err("{d} public input(s) given, the plan takes {d}", .{ publics.len, c.plan.publics.len });
+        return error.PublicInputs;
+    }
 
     var start_buffer = try zml.Buffer.scalar(io, platform, start, .i32);
     defer start_buffer.deinit();
@@ -124,7 +133,7 @@ pub fn invoke(
         var results = try exe.results(allocator);
         defer results.deinit(allocator);
 
-        call_args.set(.{ group_params, tokens, carried, start_buffer, states });
+        call_args.set(.{ group_params, publics, carried, start_buffer, states });
         exe.call(call_args, &results);
 
         const produced = try allocator.alloc(zml.Buffer, group.outputs.len);

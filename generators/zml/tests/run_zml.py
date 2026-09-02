@@ -18,6 +18,7 @@ and exits 0 for whatever is absent, so the suite runs anywhere and says which ch
 did not make.
 """
 import argparse
+import glob
 import json
 import os
 import re
@@ -180,6 +181,116 @@ def evaluate(binary, derived, checkpoint, scratch, dumps):
 
 
 MANIFEST = os.path.join(GENERATOR, 'capabilities.json')
+UNIT_FIXTURES = os.path.join(ROOT, 'generators', 'reference', 'fixtures', 'contracts')
+
+
+def _raw(path, compute, shape):
+    """Bytes tspl wrote in the compute dtype, as an f32 array on `shape`; an append state's
+    buffer is longer than the positions the fixture recorded, so the leading rows are taken."""
+    import numpy as np
+    if compute == 'bf16':
+        got = (np.fromfile(path, dtype=np.uint16).astype(np.uint32) << 16).view(np.float32)
+    else:
+        got = np.fromfile(path, dtype=np.float32)
+    if got.size == int(np.prod(shape)):
+        return got.reshape(shape)
+    return got.reshape([-1] + list(shape[1:]))[:shape[0]]
+
+
+def unit_fixtures(binary, scratch):
+    """This generator as a conformer (Specification §4.2): every unit fixture the reference
+    witness recorded (docs/TENSORSPINE-FIXTURE.md) whose contract and arguments this
+    generator's manifest admits, run by tspl from the fixture's own document with the
+    fixture as its checkpoint, at f32 and at bf16, and compared — every output and every
+    state after every invocation — within the tolerance the fixture states for that dtype.
+    A fixture the manifest refuses is skipped and says why: the manifest is the authority on
+    what is claimed, and the fixtures are the check on what is claimed."""
+    try:
+        import numpy as np
+        from safetensors.numpy import load_file
+    except ImportError as e:
+        print(f'skip: unit fixtures need numpy and safetensors ({e})')
+        return 0, 0
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import artifact
+    import capabilities as capabilities_mod
+    with open(MANIFEST, encoding='utf-8') as f:
+        manifest = json.load(f)
+    fixtures = sorted(glob.glob(os.path.join(UNIT_FIXTURES, '*', '*.safetensors')))
+    if not fixtures:
+        print(f'skip: no unit fixtures under {os.path.relpath(UNIT_FIXTURES, ROOT)}')
+        return 0, 0
+    checked = failed = 0
+    for fixture in fixtures:
+        meta = artifact.read_metadata(fixture)
+        cid = f"{meta['contract']['name']}@{meta['contract']['version']}"
+        entry = manifest['contracts'].get(cid)
+        if entry is None:
+            print(f"skip {meta['id']}: no entry for {cid} in the manifest")
+            continue
+        reasons = capabilities_mod.supports(entry, meta['arguments'])
+        if reasons:
+            print(f"skip {meta['id']}: the manifest does not admit {reasons[0]}")
+            continue
+        work = tempfile.mkdtemp(prefix='tspl-unit-', dir=scratch)
+        doc = dict(meta['document'], catalog=[{'base': os.path.join(ROOT, 'data', 'catalog') + os.sep}])
+        model_path = os.path.join(work, doc['model'] + '.json')
+        with open(model_path, 'w', encoding='utf-8') as f:
+            json.dump(doc, f)
+        run = subprocess.run([os.path.join(ROOT, 'tools', 'tensorspine'), '--derive', model_path, '-o', work],
+                             capture_output=True, text=True)
+        derived = os.path.join(work, doc['model'] + '.derived.json')
+        if run.returncode != 0 or not os.path.isfile(derived):
+            print(f"FAIL {meta['id']}: the fixture's document does not derive: {run.stdout[-300:]}")
+            checked += 1
+            failed += 1
+            continue
+        fx = load_file(fixture)
+        counts = []
+        for k, delivered in enumerate(meta['invocations']):
+            n = {v for v in delivered.values()}
+            assert len(n) == 1, f"{meta['id']}: an invocation delivers one element count to every input"
+            counts.append(str(n.pop()))
+            for name in delivered:
+                t = fx[f'in/{k}/{name}']
+                (t.astype(np.int32) if t.dtype.kind in 'iu' else t.astype(np.float32)).tofile(os.path.join(work, f'in.{k}.{name}.bin'))
+        output = next(iter(doc['interfaces']['outputs']))
+        for compute, tol in sorted(meta['tolerance'].items()):
+            if compute not in manifest['compute_dtypes']:
+                continue
+            out_dir = os.path.join(work, compute)
+            os.makedirs(out_dir, exist_ok=True)
+            for f in os.listdir(work):
+                if f.startswith('in.'):
+                    shutil.copy(os.path.join(work, f), out_dir)
+            run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={fixture}', f'--unit={out_dir}',
+                                  f'--invocations={",".join(counts)}', f'--compute={compute}'], capture_output=True)
+            checked += 1
+            if run.returncode != 0:
+                print(f"FAIL {meta['id']} at {compute}: {run.stderr.decode(errors='replace')[-500:]}")
+                failed += 1
+                continue
+            worst, bad = 0.0, []
+            for k in range(len(counts)):
+                want = fx[f'out/{k}/{output}']
+                pairs = [(f'out/{k}/{output}', os.path.join(out_dir, f'out.{k}.bin'), want)]
+                for key in fx:
+                    if key.startswith(f'state/{k}/'):
+                        _, _, identity, component = key.split('/')
+                        pairs.append((key, os.path.join(out_dir, f'state.{k}.{identity}.{component}.bin'), fx[key]))
+                for key, path, want in pairs:
+                    if not os.path.isfile(path):
+                        bad.append(f'{key}: nothing written')
+                        continue
+                    got = _raw(path, compute, want.shape)
+                    d = np.abs(got - want)
+                    worst = max(worst, float(d.max()) if d.size else 0.0)
+                    if bool((d > tol['atol'] + tol['rtol'] * np.abs(want)).any()):
+                        bad.append(f'{key}: max |d| {float(d.max()):.2e}')
+            failed += 1 if bad else 0
+            print(f"{'FAIL' if bad else 'OK  '} {meta['id']} at {compute}: {len(counts)} invocation(s), max |d| {worst:.2e} "
+                  f"(atol {tol['atol']:g} rtol {tol['rtol']:g})" + (f"  {bad[:2]}" if bad else ''))
+    return checked, failed
 
 
 def manifest(binary):
@@ -456,6 +567,11 @@ def main():
 
         print()
         more, bad = manifest(binary)
+        checked += more
+        failed += bad
+
+        print()
+        more, bad = unit_fixtures(binary, scratch)
         checked += more
         failed += bad
         print(f'\n{checked - failed} passed, {failed} failed')

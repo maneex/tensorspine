@@ -221,7 +221,9 @@ fn feed(
     compute: zml.DataType,
 ) !i32 {
     var logits: zml.Buffer = undefined;
-    try session.invoke(allocator, io, platform, step, params, &.{id}, position, states, &logits);
+    var publics = [_]zml.Buffer{try session.tokens(io, platform, step, &.{id})};
+    defer publics[0].deinit();
+    try session.invoke(allocator, io, platform, step, params, &publics, position, states, &logits);
     defer logits.deinit();
 
     const slice = try logits.toSliceAlloc(allocator, io);

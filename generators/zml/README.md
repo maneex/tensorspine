@@ -132,6 +132,10 @@ tspl --derived=DOC --checkpoint=CK --max-tokens=4 --dump=DIR
 
 # the emitted IR, for reading what XLA was given and what it made of it
 tspl --derived=DOC --checkpoint=CK --until=VALUE --dump-mlir=DIR
+
+# a unit fixture (docs/TENSORSPINE-FIXTURE.md) as a conformer: the fixture is the checkpoint, the
+# inputs of invocation k are read from DIR/in.<k>.<name>.bin, the result and every state written back
+tspl --derived=DOC --checkpoint=FIXTURE --unit=DIR --invocations=5,3 --compute=f32
 ```
 
 ### Serving choices
@@ -187,6 +191,7 @@ against the reference generator's committed fixtures:
 | `colbert-v2` | two layer cuts and the embeddings |
 | `qwen3.5-4b-text` | four layer cuts, and **every state**: three convolution histories, three recurrent matrices, one KV cache |
 | `qwen3.8-27b-text` | the same, at other quantities — 48 value heads against 32, a 10240-wide convolution against 8192 |
+| the unit fixtures | every committed unit fixture of the reference witness whose contract and arguments the manifest admits, run from the fixture's own document with the fixture as checkpoint, at f32 and bf16: every output and every state after every invocation, within the fixture's tolerance |
 
 The two hybrids are checked because one document could have been fitted and two at different
 sizes cannot: the second needed no code at all, only its artifact.

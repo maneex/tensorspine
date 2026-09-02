@@ -224,6 +224,14 @@ fn splitLast(name: []const u8) struct { []const u8, []const u8 } {
     return .{ name[0..i], name[i + 1 ..] };
 }
 
+/// A public input's dtype: identifiers keep D2's integer type; a value stream is fed in
+/// the compute dtype — D2's dtype for an activation is its role's default, and the
+/// language selects dtypes on identities, never on activations (§7). A unit fixture's
+/// input is such a stream, and a primitive computes in the dtype it is handed.
+fn publicDtype(declared: zml.DataType, compute: zml.DataType) zml.DataType {
+    return if (declared.isFloat()) compute else declared;
+}
+
 /// The shape of a value for this invocation: D2's per-element extents behind the
 /// element count. D2 sizes payloads per element; how many elements an invocation
 /// carries is deployment intent, so it arrives here as `elements`.
@@ -318,7 +326,7 @@ pub fn until(
                     const v = g.valueNamed(name) orelse return Error.UnknownValue;
                     index = publics.items.len;
                     try publics.append(a, name);
-                    try public_shapes.append(a, shapeOf(v, elements, try dtypes.of(v.dtype)));
+                    try public_shapes.append(a, shapeOf(v, elements, publicDtype(try dtypes.of(v.dtype), compute)));
                 }
                 try inputs.append(a, .{ .port = t.port, .source = .{ .public = index.? } });
             }
