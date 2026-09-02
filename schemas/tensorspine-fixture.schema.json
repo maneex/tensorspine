@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tensorspine.dev/schema/2.0/fixture.json",
+  "title": "TensorSpine fixture",
+  "description": "The metadata of a fixture: a safetensors file whose `__metadata__` is this document, JSON-encoded value by value, and whose tensors are named by the key grammar of its kind. A **unit** fixture is produced by a contract version's witness (Specification §4.1, O1.3) on random parameters and inputs — the one-occurrence document it ran, its parameters, the inputs, states and outputs of each invocation — and is what a conformer of that contract version is checked against, at the tolerance stated for its compute dtype. An **integration** fixture is dumped from the delivery implementation of a whole model at the legal cuts of its document: the values crossing every layer cut, every state after the prefill, the logits and the greedy tokens. One format, read by every generator's harness: a fixture recorded once is run by all of them.",
+  "type": "object",
+  "required": [
+    "schema",
+    "kind",
+    "compute",
+    "tolerance"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tensorspine-fixture/1"
+    },
+    "kind": {
+      "enum": [
+        "unit",
+        "integration"
+      ]
+    },
+    "compute": {
+      "$ref": "#/$defs/compute_dtype",
+      "description": "The dtype the recorded tensors were computed in. Tensors are stored as f32 whatever the compute dtype, so a comparison never rounds twice."
+    },
+    "tolerance": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/compute_dtype"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/tolerance"
+      },
+      "minProperties": 1,
+      "description": "Per compute dtype of the implementation being checked: the tolerance its outputs and states must meet against the recorded tensors, element by element, `|a − b| ≤ atol + rtol·|b|` with `b` the recorded value. A dtype without an entry is not covered by the fixture."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "unit"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/$defs/unit"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "integration"
+          }
+        }
+      },
+      "then": {
+        "$ref": "#/$defs/integration"
+      }
+    }
+  ],
+  "$defs": {
+    "compute_dtype": {
+      "enum": [
+        "f32",
+        "bf16",
+        "f16"
+      ]
+    },
+    "tolerance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "atol",
+        "rtol"
+      ],
+      "properties": {
+        "atol": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rtol": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "torch"
+      ],
+      "properties": {
+        "torch": {
+          "type": "string"
+        },
+        "transformers": {
+          "type": "string"
+        }
+      },
+      "description": "The libraries that produced the tensors. A drift beyond tolerance after an upgrade is a patch with re-recorded fixtures, never silent (§8.2)."
+    },
+    "unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "id",
+        "contract",
+        "arguments",
+        "document",
+        "invocations",
+        "seed",
+        "witness",
+        "compute",
+        "tolerance"
+      ],
+      "properties": {
+        "schema": true,
+        "kind": true,
+        "compute": true,
+        "tolerance": true,
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*@[0-9]+\\.[0-9]+\\.[0-9]+/[a-z0-9][a-z0-9-]*$",
+          "description": "`<name>@<version>/<case>`: the fixture's identity, as the witness's manifest lists it."
+        },
+        "contract": {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/contract_reference"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "https://tensorspine.dev/schema/2.0/derived.json#/$defs/argument_value"
+          },
+          "description": "The occurrence's resolved arguments, declared defaults applied — D1's, for the one occurrence of `document`."
+        },
+        "document": {
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json",
+          "description": "The one-occurrence model document the witness ran: the occurrence under its arguments, one public input per input port, one public output per output port, every slot bound. Its catalog base is relative to the fixture's own directory; a harness writes the document beside the fixture, or rewrites the base, and derives it with the language's tools."
+        },
+        "invocations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "description": "One entry per invocation, in order: the elements each public input delivers, by input name; an input absent from an entry delivers nothing in that invocation (§7). The states carry over from one invocation to the next, positions continuing per stream."
+        },
+        "seed": {
+          "type": "integer",
+          "description": "The seed of the random parameters and inputs, so that the witness regenerates the fixture and the regeneration check can refuse a silent change."
+        },
+        "witness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "generator",
+            "version",
+            "kernel",
+            "versions"
+          ],
+          "properties": {
+            "generator": {
+              "type": "string",
+              "description": "The generator whose kernel is the witness (`reference`)."
+            },
+            "version": {
+              "type": "string",
+              "description": "That generator's version when the fixture was produced (a commit)."
+            },
+            "kernel": {
+              "type": "string",
+              "description": "The kernel's file, relative to the generator's directory."
+            },
+            "versions": {
+              "$ref": "#/$defs/versions"
+            }
+          }
+        }
+      },
+      "description": "Tensor keys: `param/<identity>` for every D3 identity of `document` — the document locates each identity at that key, so the fixture is its own checkpoint; `in/<k>/<input>` for every input delivering in invocation `k` (from 0) and `out/<k>/<output>` for every output it produced; `positions/<k>/<stream>` the positions of each stream's elements in invocation `k`; `state/<k>/<identity>/<component>` every D4 state after invocation `k` — a growing state holds its written positions, a window its span in chronological order, zero-padded before the first write, a fixed state its whole payload."
+    },
+    "integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "document",
+        "artifact",
+        "delivery",
+        "truncation",
+        "ids",
+        "tokens",
+        "hook_map",
+        "compute",
+        "tolerance"
+      ],
+      "properties": {
+        "schema": true,
+        "kind": true,
+        "compute": true,
+        "tolerance": true,
+        "document": {
+          "type": "string",
+          "description": "The corpus document the fixture is for, by name (`llama3-8b`)."
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The artifact's directory name — never a path of the machine that made the fixture."
+            },
+            "id": {
+              "type": "string",
+              "description": "The published identifier of the artifact (a Hub repository)."
+            },
+            "index_sha256": {
+              "type": "string",
+              "description": "The hash of the checkpoint's index file, for a sharded checkpoint."
+            },
+            "header_sha256": {
+              "type": "string",
+              "description": "The hash of the safetensors header, for a checkpoint that is one file without an index."
+            }
+          }
+        },
+        "delivery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "implementation",
+            "program",
+            "versions"
+          ],
+          "properties": {
+            "implementation": {
+              "type": "string",
+              "description": "The delivery implementation the tensors were dumped from (`transformers`)."
+            },
+            "program": {
+              "type": "string",
+              "description": "The program that dumped them, relative to the repository."
+            },
+            "versions": {
+              "$ref": "#/$defs/versions"
+            }
+          }
+        },
+        "truncation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "composition",
+            "layers"
+          ],
+          "properties": {
+            "composition": {
+              "type": "string",
+              "description": "The composition whose index range was shortened (`decoder`)."
+            },
+            "layers": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "The number of layers kept; the document is truncated to as many before it is compared."
+            }
+          }
+        },
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "The prompt's token identifiers."
+        },
+        "tokens": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "The greedy tokens the delivery implementation produced after the prompt; empty for a document without a generative output."
+        },
+        "hook_map": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "How the delivery implementation's names were mapped onto D1 values and D4 states: data, the only place they meet."
+        }
+      },
+      "description": "Tensor keys: `value/<D1 value>` for the output of every layer (the values crossing D6's layer cuts) and every exposed output; `state/<D4 identity>/<component>` for every state after the prefill; `logits/last` and `logits/argmax` for a generative document."
+    }
+  }
+}

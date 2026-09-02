@@ -112,9 +112,9 @@ python3 $R chat    data/models/qwen3.5-4b-text.json --checkpoint "$TENSORSPINE_M
 # the comparison against transformers, at every legal cut and every state after prefill
 python3 $R run     data/models/llama3-8b.json --checkpoint $CK --truncate decoder.layer=3 \
                    --ids 128000,791,6864,315,9822,374 --steps 3 --dump /tmp/ours.safetensors
-python3 generators/reference/fixtures/dump_hf.py --model $CK --layers 3 --ids 128000,791,6864,315,9822,374 \
-                   --steps 3 --out /tmp/theirs.safetensors
-python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors [--atol 1e-3 --rtol 1e-2]
+python3 generators/reference/fixtures/dump_hf.py --model $CK --document llama3-8b --layers 3 \
+                   --ids 128000,791,6864,315,9822,374 --steps 3 --out /tmp/theirs.safetensors
+python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors     # at the fixture's own tolerance; --atol/--rtol override
 python3 generators/reference/tests/run_reference.py [--compile] [--full]   # M0 on random weights; M1/M2 on the fixtures when the artifacts are on disk
 ```
 

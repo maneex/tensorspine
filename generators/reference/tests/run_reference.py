@@ -38,7 +38,7 @@ from kernels import attention_dense  # noqa: E402
 from module import TensorspineModel  # noqa: E402
 from plan import Plan            # noqa: E402
 from session import Session, greedy  # noqa: E402
-from compare import compare, read_dump  # noqa: E402
+from compare import compare, read_fixture, tolerance_for  # noqa: E402
 
 # `weights/` under the one runtime directory (`generators/zml/README.md` describes the
 # layout; both generators read the same one). No default inside the tree, and no home
@@ -220,7 +220,7 @@ def m1(check):
     for entry in FIXTURES:
         fixture, document, checkpoint = entry[:3]
         ok &= fixture_case(check, os.path.join(REF, 'fixtures', fixture), document, os.path.join(CHECKPOINTS, checkpoint),
-                           tolerance=entry[3] if len(entry) > 3 else (1e-3, 1e-2))
+                           tolerance=entry[3] if len(entry) > 3 else None)
     ok &= text_only_case(check)
     return ok
 
@@ -262,21 +262,32 @@ def text_only_case(check):
     return ok
 
 
-def fixture_case(check, fixture, document, checkpoint, tolerance=(1e-3, 1e-2)):
-    atol, rtol = tolerance
+def fixture_case(check, fixture, document, checkpoint, tolerance=None):
+    """One integration fixture (docs/TENSORSPINE-FIXTURE.md): the document it names, truncated
+    as it says, run on the artifact it names, compared at the tolerance it states for fp32;
+    `tolerance` is verified.py's record of that tolerance, which must agree."""
     tag = os.path.basename(fixture).replace('.hf.safetensors', '').rsplit('.', 1)[-1]
-    label = document if tolerance == (1e-3, 1e-2) else f"{document} ({tag}, atol {atol:g} rtol {rtol:g})"
-    if not (os.path.isdir(checkpoint) and os.path.exists(fixture)):
-        print(f"  skip {label} (checkpoint or fixture not on disk)")
+    if not os.path.exists(fixture):
+        print(f"  skip {document} ({tag}): fixture not on disk")
         return True
-    theirs, header = read_dump(fixture)
+    theirs, header = read_fixture(fixture)          # refused when off the fixture schema
+    ok = check(f"{document} ({tag}): the fixture is for this document, on {header['artifact']['name']}",
+               header['document'] == document and header['artifact']['name'] == os.path.basename(checkpoint))
+    atol, rtol = tolerance_for(header, 'f32')
+    if tolerance is not None:
+        ok &= check(f"{document} ({tag}): verified.py records the fixture's own tolerance", tuple(tolerance) == (atol, rtol),
+                    f"verified.py {tolerance}, fixture {(atol, rtol)}")
+    label = document if (atol, rtol) == (1e-3, 1e-2) else f"{document} ({tag}, atol {atol:g} rtol {rtol:g})"
+    if not os.path.isdir(checkpoint):
+        print(f"  skip {label} (checkpoint not on disk)")
+        return ok
     ids = header['ids']
     tmp = tempfile.mkdtemp(prefix='tensorspine-ref-fixture-')
     path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', f'{document}.json'),
-                                  f"{header.get('composition', 'decoder')}.layer={header['layers']}", tmp)
+                                  f"{header['truncation']['composition']}.layer={header['truncation']['layers']}", tmp)
     g = graph_mod.load(path)
     errors, _, stats = loader.verify(g, checkpoint)
-    ok = check(f"{label}: the {header['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
+    ok &= check(f"{label}: the {header['truncation']['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
     kernels = registry.load_kernels()
     plan = Plan(g, kernels)
     active = plan.evaluable({g.feedback_input})      # the fixture delivers the token input alone (§7)

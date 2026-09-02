@@ -37,6 +37,20 @@ COUNTS = re.compile(
     r'(\d+) states, (\d+) edges, (\d+) ordered')
 
 
+def fixture_metadata(path):
+    """A fixture's metadata (docs/TENSORSPINE-FIXTURE.md), from its header alone: the prompt,
+    the truncation and the tolerance are the fixture's, never written down here."""
+    import json as json_mod
+    import struct
+    with open(path, 'rb') as f:
+        n = struct.unpack('<Q', f.read(8))[0]
+        header = json_mod.loads(f.read(n))
+    meta = {k: json_mod.loads(v) for k, v in (header.get('__metadata__') or {}).items()}
+    if meta.get('schema') != 'tensorspine-fixture/1' or meta.get('kind') != 'integration':
+        raise ValueError(f'{path}: not an integration fixture on tensorspine-fixture/1')
+    return meta
+
+
 def expected(path):
     """What the language put in the document, counted here."""
     with open(path, encoding='utf-8') as f:
@@ -115,7 +129,7 @@ def evaluate(binary, derived, checkpoint, scratch, dumps):
 
     with open(derived, encoding='utf-8') as f:
         doc = json.load(f)
-    ids = [128000, 791, 6864, 315, 9822, 374]          # the fixture's own prompt
+    ids = fixture_metadata(fixture)['ids']              # the fixture's own prompt
     eps = doc['d1']['nodes']['decoder/attn_n[layer=0]']['arguments']['eps']
     rows = weight('model.embed_tokens.weight')[ids]
     scale = weight('model.layers.0.input_layernorm.weight')
@@ -135,7 +149,7 @@ def evaluate(binary, derived, checkpoint, scratch, dumps):
     for value, want, tol in wanted:
         path = os.path.join(scratch, 'value.bin')
         run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
-                              f'--until={value}', f'--out={path}', f'--dump={dumps}'],
+                              f'--until={value}', f'--ids={",".join(map(str, ids))}', f'--out={path}', f'--dump={dumps}'],
                              capture_output=True)
         checked += 1
         if run.returncode != 0:
@@ -230,7 +244,7 @@ def colbert(binary, derived_dir, checkpoint, scratch):
     if not os.path.isfile(derived):
         return 0, 0
     fx = load_file(fixture)
-    ids = '101,1,2054,2003,1996,3007,1997,2605,1029,102'      # the fixture's own prompt
+    ids = ','.join(map(str, fixture_metadata(fixture)['ids']))      # the fixture's own prompt
 
     checked = failed = 0
     for value, key in [(f'enc/ffn_n[layer={i}].output', f'value/enc/ffn_n[layer={i}].output') for i in (0, 11)] \
@@ -289,7 +303,7 @@ def qwen(binary, derived_dir, checkpoint, model, fixture_path, scratch, dumps):
     if not os.path.isfile(derived):
         return 0, 0
     fx = load_file(fixture)
-    ids = '760,6511,314,9338,369'                            # the fixture's own prompt
+    ids = ','.join(map(str, fixture_metadata(fixture)['ids']))      # the fixture's own prompt
     os.makedirs(dumps, exist_ok=True)
 
     checked = failed = 0

@@ -1,25 +1,30 @@
 # Fixtures
 
-Dumps of the official implementation at the boundaries the reference generator dumps at
-(reference-generator plan R07, R11): `value/<D1 value>` for the output of every decoder layer,
-`state/<D4 identity>/<component>` for the KV cache after prefill, `logits/last` and
-`logits/argmax` for the prefill logits; the greedy tokens (none for an encoder) and the run's provenance (model id,
-the index file's hash — or the safetensors header's, for a checkpoint that is one file — library
-versions, dtype, ids, hook map) in the file's metadata.
+Integration fixtures on the language's fixture schema (`schemas/tensorspine-fixture.schema.json`,
+[`docs/TENSORSPINE-FIXTURE.md`](../../../docs/TENSORSPINE-FIXTURE.md)): the delivery implementation
+dumped at the boundaries the reference generator dumps at — `value/<D1 value>` for the output of
+every decoder layer, `state/<D4 identity>/<component>` for every state after the prefill,
+`logits/last` and `logits/argmax` for the prefill logits — with the fixture's metadata naming the
+corpus document, the artifact (its directory name, published id and index or header hash), the
+truncation, the delivery implementation and library versions, the prompt, the greedy tokens (none
+for an encoder), the hook map and the tolerance a conformer must meet per compute dtype. Every
+generator's harness reads the same files the same way; `tests/run_fixtures.py` checks that each is
+on the schema. Unit fixtures — one contract version, produced by its witness — live under
+`contracts/`.
 
 | Fixture | Produced by |
 |---|---|
-| `llama3-8b.3layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B --layers 3 --ids 128000,791,6864,315,9822,374 --steps 3 --dtype f32 --out …` — `NousResearch/Meta-Llama-3-8B`, the first three layers, fp32, torch 2.13 / transformers 5.14 |
+| `llama3-8b.3layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B --document llama3-8b --artifact-id NousResearch/Meta-Llama-3-8B --layers 3 --ids 128000,791,6864,315,9822,374 --steps 3 --dtype f32 --out …` — `NousResearch/Meta-Llama-3-8B`, the first three layers, fp32, torch 2.13 / transformers 5.14 |
 | `qwen3.8-27b-text.4layers.hf.safetensors` | the same command on `$TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.8-27B` (`Qwen/Qwen3.8-27B`, 51.7 GiB, 18 shards): the first four layers, fp32 — the fixture of the model larger than this machine's memory |
-| `shieldstral-3b.3layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Shieldstral-1.0-3B --layers 3 --ids 1,1784,8961,1307,5498,1395 --steps 3 --dtype f32 --out …` — `mistralai/Shieldstral-1.0-3B` (one `model.safetensors`, no index; the Mistral-format twin excluded), the first three decoder layers of the text trunk, fp32, loaded through the image-text-to-text class since `mistral3` has no causal-LM entry; the ids are `<s>` + *"The capital of France is"* — the tokenizer adds no BOS by itself |
-| `colbert-v2.12layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/colbertv2.0 --encoder --head linear.weight:pooler.output --composition enc --layer-output ffn_n --ids 101,1,2054,2003,1996,3007,1997,2605,1029,102 --dtype f32 --out …` — `colbert-ir/colbertv2.0` (fp32, one file; ONNX and `.bin` twins excluded), the **whole** model: `--encoder` loads the base model (`AutoModel`, BERT's `encoder.layer`), one invocation, no cache; `--head` applies ColBERT's `linear.weight` to the last hidden state and L2-normalises it — the head `transformers` has no class for — under the D1 value `pooler.output`; ids are `[CLS] [Q] what is the capital of france ? [SEP]` |
-| `qwen3.5-35b-a3b.2layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-35B-A3B --layers 2 --ids 760,6511,314,9338,369 --steps 3 --dtype f32 --layer-output mlp_r --out …` — `Qwen/Qwen3.5-35B-A3B` (72 GB, 14 shards), the first two layers (both gated-delta, each with its 256-expert MoE), fp32; a truncation without a full-attention layer gets its positions and an empty mask mapping from the dumper, since `transformers`' mask builder would ask an attention cache it does not have |
-| `qwen3.5-35b-a3b.4layers.hf.safetensors` | the same with `--layers 4 --dtype bf16`: the attention layer at index 3 included; **bf16**, because four layers in fp32 need more memory than this machine has free — the recorded tolerance (`verified.py`) is 0.1 absolute / 0.02 relative, measured 8.2e-2 |
-| `qwen3.5-4b-text.4layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-4B --layers 4 --ids 760,6511,314,9338,369 --steps 3 --dtype f32 --layer-output mlp_r --out …` — `Qwen/Qwen3.5-4B`, the first four layers (three gated-delta, one attention), fp32; the gated-delta states are `conv_states[0][0][:, -3:].T` and `recurrent_states[0][0]` after prefill |
+| `shieldstral-3b.3layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Shieldstral-1.0-3B --document shieldstral-3b --artifact-id mistralai/Shieldstral-1.0-3B --layers 3 --ids 1,1784,8961,1307,5498,1395 --steps 3 --dtype f32 --out …` — `mistralai/Shieldstral-1.0-3B` (one `model.safetensors`, no index; the Mistral-format twin excluded), the first three decoder layers of the text trunk, fp32, loaded through the image-text-to-text class since `mistral3` has no causal-LM entry; the ids are `<s>` + *"The capital of France is"* — the tokenizer adds no BOS by itself |
+| `colbert-v2.12layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/colbertv2.0 --document colbert-v2 --artifact-id colbert-ir/colbertv2.0 --encoder --head linear.weight:pooler.output --composition enc --layer-output ffn_n --ids 101,1,2054,2003,1996,3007,1997,2605,1029,102 --dtype f32 --out …` — `colbert-ir/colbertv2.0` (fp32, one file; ONNX and `.bin` twins excluded), the **whole** model: `--encoder` loads the base model (`AutoModel`, BERT's `encoder.layer`), one invocation, no cache; `--head` applies ColBERT's `linear.weight` to the last hidden state and L2-normalises it — the head `transformers` has no class for — under the D1 value `pooler.output`; ids are `[CLS] [Q] what is the capital of france ? [SEP]` |
+| `qwen3.5-35b-a3b.2layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-35B-A3B --document qwen3.5-35b-a3b --artifact-id Qwen/Qwen3.5-35B-A3B --layers 2 --ids 760,6511,314,9338,369 --steps 3 --dtype f32 --layer-output mlp_r --out …` — `Qwen/Qwen3.5-35B-A3B` (72 GB, 14 shards), the first two layers (both gated-delta, each with its 256-expert MoE), fp32; a truncation without a full-attention layer gets its positions and an empty mask mapping from the dumper, since `transformers`' mask builder would ask an attention cache it does not have |
+| `qwen3.5-35b-a3b.4layers.hf.safetensors` | the same with `--layers 4 --dtype bf16`: the attention layer at index 3 included; **bf16**, because four layers in fp32 need more memory than this machine has free — the tolerance the fixture states for an fp32 conformer is the bf16 one, 0.1 absolute / 0.02 relative, measured 8.2e-2 |
+| `qwen3.5-4b-text.4layers.hf.safetensors` | `python3 fixtures/dump_hf.py --model $TENSORSPINE_MODEL_ARTIFACTS/weights/Qwen3.5-4B --document qwen3.5-4b-text --artifact-id Qwen/Qwen3.5-4B --layers 4 --ids 760,6511,314,9338,369 --steps 3 --dtype f32 --layer-output mlp_r --out …` — `Qwen/Qwen3.5-4B`, the first four layers (three gated-delta, one attention), fp32; the gated-delta states are `conv_states[0][0][:, -3:].T` and `recurrent_states[0][0]` after prefill |
 
 The reference side is regenerated by the test:
 `ref.py run data/models/<document>.json --checkpoint DIR --truncate decoder.layer=N --ids … --dump …`,
-then `ref.py compare ours theirs`. Every captured tensor is cloned at capture time: both sides
+then `ref.py compare ours fixture`, at the tolerance the fixture states for the dump's compute dtype. Every captured tensor is cloned at capture time: both sides
 update their gated-delta states in place during decode, and a view dumped after the fact would
 describe the wrong moment. The hook map in the metadata is the only place HF names meet
 D1 names, and it is data: `model.layers.i` → `value/decoder/ffn_r[layer=i].output`,

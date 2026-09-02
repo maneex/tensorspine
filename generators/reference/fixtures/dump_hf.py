@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""The official implementation at the same boundaries (R07, R11): `transformers` runs the
-checkpoint — optionally with `num_hidden_layers` overridden so the dump stays small — and
-writes, under the keys the reference generator's `--dump` uses, the output of every decoder
-layer, the KV cache after prefill, the last position's logits, the argmax per position and
-the greedy tokens. The hook → D1-value map is data in the header: the only place HF names
-meet D1 names.
+"""An integration fixture (docs/TENSORSPINE-FIXTURE.md): the delivery implementation at the
+same boundaries as the reference generator's `--dump`. `transformers` runs the checkpoint —
+optionally with `num_hidden_layers` overridden so the fixture stays small — and the file holds
+the output of every decoder layer, the KV cache after prefill, the last position's logits, the
+argmax per position and the greedy tokens, under the language's fixture schema: the corpus
+document it is for, the artifact and its hash, the truncation, the library versions and the
+tolerance a conformer must meet. The hook → D1-value map is data in the metadata: the only
+place HF names meet D1 names.
 
-    python3 fixtures/dump_hf.py --model DIR --layers 3 --ids 128000,791,… --steps 3 --out F
+    python3 fixtures/dump_hf.py --model DIR --document llama3-8b --layers 3 --ids 128000,791,… --steps 3 --out F
 """
 import argparse
 import json
@@ -18,12 +20,21 @@ import torch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
-from compare import write_dump   # noqa: E402
+from compare import write_fixture   # noqa: E402
+
+PROGRAM = 'generators/reference/fixtures/dump_hf.py'
+# What a conformer must meet against a fixture, per compute dtype: fp32 against an fp32 dump
+# holds to a few 1e-6 in practice; bf16 was measured at 8.2e-2 absolute on the MoE fixture.
+TOLERANCE = {'f32': {'atol': 1e-3, 'rtol': 1e-2}, 'bf16': {'atol': 0.1, 'rtol': 0.02}}
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--model', required=True)
+    ap.add_argument('--model', required=True, help='the checkpoint directory (the artifact)')
+    ap.add_argument('--document', required=True, help='the corpus document this fixture is for, by name (llama3-8b)')
+    ap.add_argument('--artifact-id', help='the published identifier of the artifact (NousResearch/Meta-Llama-3-8B)')
+    ap.add_argument('--atol', type=float, help='an f32 conformer\'s absolute tolerance against this fixture (default: the f32 entry of TOLERANCE)')
+    ap.add_argument('--rtol', type=float, help='its relative tolerance')
     ap.add_argument('--layers', type=int, help='num_hidden_layers override (the truncated fixture)')
     ap.add_argument('--ids', required=True)
     ap.add_argument('--steps', type=int, default=3)
@@ -89,10 +100,7 @@ def main(argv=None):
             print(f"encoded {len(ids)} ({time.time() - t0:.1f}s)")
             for h_ in hooks:
                 h_.remove()
-            header = {'model': artifact_name(args.model), 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids,
-                      'tokens': tokens, 'hook_map': hook_map, 'torch': torch.__version__,
-                      'transformers': __import__('transformers').__version__, **_provenance(args.model)}
-            write_dump(args.out, dump, header)
+            write_fixture(args.out, dump, metadata(args, n_layers, ids, tokens, hook_map))
             print(f"dumped {len(dump)} tensors -> {args.out}")
             return
         # positions given explicitly, and — for a truncation without full-attention layers — the mask mapping
@@ -136,12 +144,28 @@ def main(argv=None):
         print("tokens:", tokens)
     for h in hooks:
         h.remove()
-    header = {'model': artifact_name(args.model), 'layers': n_layers, 'composition': args.composition, 'dtype': args.dtype, 'ids': ids, 'tokens': tokens,
-              'hook_map': hook_map, 'torch': torch.__version__,
-              'transformers': __import__('transformers').__version__,
-              **_provenance(args.model)}
-    write_dump(args.out, dump, header)
+    write_fixture(args.out, dump, metadata(args, n_layers, ids, tokens, hook_map))
     print(f"dumped {len(dump)} tensors -> {args.out}")
+
+
+def metadata(args, n_layers, ids, tokens, hook_map):
+    """The fixture's metadata on the language's schema (docs/TENSORSPINE-FIXTURE.md)."""
+    tolerance = {k: dict(v) for k, v in TOLERANCE.items()}
+    if args.atol is not None or args.rtol is not None:
+        tolerance['f32'] = {'atol': args.atol if args.atol is not None else TOLERANCE['f32']['atol'],
+                            'rtol': args.rtol if args.rtol is not None else TOLERANCE['f32']['rtol']}
+    if args.dtype == 'bf16':
+        tolerance['f32'] = dict(TOLERANCE['bf16'])     # an fp32 conformer against a bf16 dump: the dump's rounding
+    artifact = {'name': artifact_name(args.model), **_provenance(args.model)}
+    if args.artifact_id:
+        artifact['id'] = args.artifact_id
+    return {'schema': 'tensorspine-fixture/1', 'kind': 'integration', 'document': args.document,
+            'artifact': artifact,
+            'delivery': {'implementation': 'transformers', 'program': PROGRAM,
+                         'versions': {'torch': torch.__version__, 'transformers': __import__('transformers').__version__}},
+            'truncation': {'composition': args.composition, 'layers': n_layers},
+            'ids': ids, 'tokens': tokens, 'hook_map': hook_map,
+            'compute': args.dtype, 'tolerance': tolerance}
 
 
 def _read_tensor(model_dir, name):
@@ -172,7 +196,7 @@ def _provenance(model_dir):
         with open(single, 'rb') as f:
             n = struct.unpack('<Q', f.read(8))[0]
             return {'header_sha256': hashlib.sha256(f.read(n)).hexdigest()}
-    return {'index_sha256': None}
+    return {}
 
 
 if __name__ == '__main__':

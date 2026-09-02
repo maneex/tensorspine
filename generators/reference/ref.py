@@ -6,7 +6,7 @@
     ref.py run     MODEL --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--compile]
     ref.py run     MODEL --random [--seed N] …               parameters drawn from the D3 shapes
     ref.py chat    MODEL --checkpoint DIR [--max-new-tokens N] [--temperature T --top-p P --seed N]
-    ref.py compare OURS THEIRS [--atol A --rtol R]           two dumps, at every cut and state
+    ref.py compare OURS FIXTURE [--atol A --rtol R]          a dump against a fixture, at every cut and state
 
 Common options: --device cpu|cuda[:i], --compute f32|bf16, --capacity N, --truncate decoder.layer=N,
 --set path=value. MODEL is a model document (derived here) or a derived document. In a chat, an
@@ -27,7 +27,7 @@ sys.path.insert(0, HERE)
 import graph as graph_mod      # noqa: E402
 import loader                  # noqa: E402
 import registry                # noqa: E402
-from compare import write_dump  # noqa: E402
+from compare import read_fixture, read_dump, tolerance_for, write_dump  # noqa: E402
 from module import TensorspineModel  # noqa: E402
 from plan import Plan          # noqa: E402
 from session import Session, greedy  # noqa: E402
@@ -121,11 +121,18 @@ def cmd_info(args):
 
 
 def cmd_compare(args):
-    from compare import compare, read_dump
+    """A dump of this generator against a fixture (docs/TENSORSPINE-FIXTURE.md): the tolerance is
+    the fixture's, for the dump's compute dtype, unless both --atol and --rtol override it."""
+    from compare import compare
     ours, ho = read_dump(args.ours)
-    theirs, ht = read_dump(args.theirs)
-    rows, failures, only = compare(ours, theirs, args.atol, args.rtol)
-    print(f"{len(rows)} keys compared (atol {args.atol}, rtol {args.rtol}); tokens ours {ho.get('tokens')} theirs {ht.get('tokens')}")
+    theirs, ht = read_fixture(args.theirs)
+    compute = {'torch.float32': 'f32', 'torch.bfloat16': 'bf16', 'torch.float16': 'f16'}.get(ho.get('compute'), 'f32')
+    atol, rtol = tolerance_for(ht, compute)
+    if args.atol is not None or args.rtol is not None:
+        atol = args.atol if args.atol is not None else atol
+        rtol = args.rtol if args.rtol is not None else rtol
+    rows, failures, only = compare(ours, theirs, atol, rtol)
+    print(f"{len(rows)} keys compared (atol {atol}, rtol {rtol} for {compute}); tokens ours {ho.get('tokens')} theirs {ht.get('tokens')}")
     for key, mabs, mrel, note in rows:
         print(f"  {key:60s} " + (f"max|d| {mabs:.3e}  max rel {mrel:.3e}  {note}" if mabs is not None else note))
     for k in only[:10]:
@@ -335,7 +342,7 @@ def main(argv=None):
     p = sub.add_parser('info'); common(p); p.set_defaults(fn=cmd_info)
     p = sub.add_parser('compare')
     p.add_argument('ours'); p.add_argument('theirs')
-    p.add_argument('--atol', type=float, default=1e-3); p.add_argument('--rtol', type=float, default=1e-2)
+    p.add_argument('--atol', type=float, help='override the fixture\'s tolerance'); p.add_argument('--rtol', type=float)
     p.set_defaults(fn=cmd_compare)
     p = sub.add_parser('capabilities')
     p.add_argument('--out', default=os.path.join(HERE, 'capabilities.json'))
