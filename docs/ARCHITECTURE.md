@@ -25,9 +25,33 @@ hardware.
 
 ![TensorSpine language and execution pipeline](language-pipeline.svg)<!-- Title above. -->
 
+### 1.1. What D1–D6 expose
+
+A **derived product** is a logical view computed from one valid TensorSpine model document, its
+resolved contracts, and one assignment of its external quantities. D1 supplies the common
+identifier space: D2–D6 refer back to its occurrences, values, and cuts.
+
+The normative definition is reproduced from
+[Specification §7](SPECIFICATION.md#7--required-derived-products); section references in this table
+point to the specification.
+
+| Product | Content |
+|---|---|
+| **D1** | **Expanded graph:** occurrences, edges, and families. |
+| **D2** | **Values:** the value and shape inventory; the payload of every legal cut — the values live at it, sized per invocation; the peak of live values along one order of the graph, the activation peak of an invocation; and the fragment alignment of every fragmented stream (§5.3). |
+| **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor; when the document locates its weights, the evaluated location of every tensor. |
+| **D4** | **Complete state:** descriptors, instances, keys, state liveness, visits per phase, and permitted operations. |
+| **D5** | **Logical costs:** parameters, activations, state per element, computation — derived from the inventory and the declared corrections (§4.1) — and the payload crossing each legal cut per invocation. |
+| **D6** | **Legal cuts and semantic partition axes:** the legal cuts of the expanded graph, and for every occurrence the partitions its contract declares with their communications and granularity; a flattened axis without factors is reported as information loss (O5.10). Partitions are declared per occurrence; their consistency across occurrences — the residual width through norm, add and feed-forward, a head partition aligned to the KV groups of its layer — is compilation's (§10.3), the axis identities on D1's edges being what a compiler aligns. |
+
+`tensorspine --d1` emits only D1: the expanded graph, without the values, tensors,
+state, costs, or partition facts in D2–D6. `tensorspine --derive` emits all six in one
+[TensorSpine derived document](TENSORSPINE-DERIVED_JSON.md), where the later products join directly
+to D1 identifiers.
+
 The specification governs the meaning of this pipeline. The schema automates the grammar gate; it
-does not replace semantic validation. Likewise, emitting D1 does not choose kernels, memory layouts,
-shards, devices, or a scheduling policy. Those decisions occur downstream.
+does not replace semantic validation. Likewise, D1–D6 do not choose kernels, memory layouts, shards,
+devices, or a scheduling policy. Those decisions occur downstream.
 
 ## 2. Ownership of facts
 
