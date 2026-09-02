@@ -35,6 +35,7 @@ pub const Options = struct {
     split: u32,
     packed_states: bool,
     max_tokens: u32,
+    dump_mlir: ?[]const u8,
 };
 
 fn tokenizerBytes(allocator: std.mem.Allocator, io: std.Io, opts: Options) ![]u8 {
@@ -94,7 +95,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
 
     var step = try session.Compiled.init(
         allocator, io, platform, g, target, 1,
-        opts.capacity, opts.compute, opts.packed_states, opts.split, model.params,
+        opts.capacity, opts.compute, opts.packed_states, opts.split, opts.dump_mlir, model.params,
     );
     defer step.deinit(allocator);
 

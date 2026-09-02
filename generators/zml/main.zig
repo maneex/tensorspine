@@ -196,9 +196,9 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer model.deinit(allocator);
     reportRss(io, "locate");
 
-    var prefill = try session.Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, model.params);
+    var prefill = try session.Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
     defer prefill.deinit(allocator);
-    var decode = try session.Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, !args.@"separate-states", args.split, model.params);
+    var decode = try session.Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
     defer decode.deinit(allocator);
     if (!std.mem.eql(usize, prefill.plan.params_used, decode.plan.params_used)) {
         log.err("the two arities disagree on which parameters they need", .{});
@@ -296,7 +296,7 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     var model = try loader.locate(allocator, g, store.view(), params_used);
     defer model.deinit(allocator);
 
-    var c = try session.Compiled.init(allocator, io, platform, g, args.until.?, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, model.params);
+    var c = try session.Compiled.init(allocator, io, platform, g, args.until.?, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
     defer c.deinit(allocator);
     log.info("{d} step(s) to reach {s} in {d} program(s), {d} parameter tensor(s), {d} state buffer(s)", .{
         c.plan.steps.len, args.until.?, c.plan.groups.len, c.plan.params_used.len, c.plan.state_shapes.len,
@@ -414,6 +414,7 @@ pub fn main(init: std.process.Init) !void {
             .split = args.split,
             .packed_states = !args.@"separate-states",
             .max_tokens = args.@"max-tokens",
+            .dump_mlir = args.@"dump-mlir",
         });
     }
     if (args.until != null) return evaluate(allocator, init.io, args, &g);

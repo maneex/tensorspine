@@ -33,6 +33,8 @@ pub const Compiled = struct {
         compute: zml.DataType,
         packed_states: bool,
         split: usize,
+        /// Where XLA writes the IR it compiled, when `--dump-mlir` asks for it.
+        dump_mlir: ?[]const u8,
         params: []const zml.Tensor,
     ) !Compiled {
         var p = try plan.until(allocator, g, target, elements, capacity, compute, packed_states);
@@ -65,7 +67,7 @@ pub const Compiled = struct {
             });
             exe.* = try zml.module.compile(allocator, io, emit.forward, .{
                 plan.Handle.ofGroup(&p, i), group_params, publics, carried, start, states,
-            }, platform, .{ .program_name = g.model() });
+            }, platform, .{ .program_name = g.model(), .xla_dump_to = dump_mlir });
         }
         return .{ .plan = p, .exes = exes };
     }
