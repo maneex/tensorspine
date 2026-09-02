@@ -77,6 +77,8 @@ python3 $R info    $MODEL --capacity "$CAPACITY"                 # D3/D4 bytes, 
 python3 $R verify  $MODEL --checkpoint "$CK"                     # V17 from headers; no tensor read
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --steps "$STEPS"
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --input audio="$FIXTURE"   # a non-token input, delivered with the prompt from a fixture's in/audio
+python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --audio "$WAV" --stop --steps 64 --capacity tokens=448,audio=1500
+                   # a WAV through the artifact's own feature extractor into the audio input; decoding stops at the artifact's end-of-text
 python3 $R info    $MODEL --capacity "$CAPACITY" --max-ram "$RAM_GIB"
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --max-ram "$RAM_GIB"
 python3 $R chat    $MODEL --checkpoint "$CK" --capacity "$CAPACITY" --max-new-tokens "$STEPS"
@@ -153,9 +155,14 @@ An input the document declares may deliver nothing in an invocation (§7): the o
 would reach are not evaluated and need no kernel, `splice` keeps its `text`, and only the inputs D2
 marks `required_for` the output at hand are refused when absent. A public input that is not a token
 stream (Whisper's `audio`: mel frames, kind `position`) is delivered with the prompt in the one
-prefill — `--input NAME=FILE[:KEY]` on the command line, a fixture's `in/` tensors in the harness —
-and the states indexed by its stream are frozen from then on: a decode step delivers nothing on it,
-and a cross-attention cache appends nothing. The suite compares a multimodal
+prefill — `--input NAME=FILE[:KEY]` on the command line, `--audio WAV` for a sound file the
+artifact's own feature extractor turns into frames (the delivery's preprocessing, from the artifact
+as the tokenizer is), a fixture's `in/` tensors in the harness — and the states indexed by its
+stream are frozen from then on: a decode step delivers nothing on it, and a cross-attention cache
+appends nothing. The prompt stays `--ids`: for Whisper the four ids of
+`<|startoftranscript|><|en|><|transcribe|><|notimestamps|>` from the checkpoint's
+`generation_config.json`, another language by its `lang_to_id` entry. With `--checkpoint`, `run`
+prints the tokens' text after their ids, and `--stop` ends decoding at the artifact's end-of-text. The suite compares a multimodal
 document's text-only path with its text-trunk document. Sending an image waits on the language saying
 where the inserted elements go (`splice`
 placement, a parked finding).

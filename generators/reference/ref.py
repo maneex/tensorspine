@@ -6,6 +6,8 @@
     ref.py run     MODEL --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--compile]
     ref.py run     MODEL --random [--seed N] …               parameters drawn from the D3 shapes
     ref.py run     MODEL … --input audio=FIXTURE[:in/audio]  a safetensors tensor delivered to a non-token input with the prompt
+    ref.py run     MODEL --checkpoint DIR --audio WAV --ids … [--stop]   a WAV through the checkpoint's own feature extractor, into the
+                                                             document's audio input; --stop ends decoding at the artifact's end-of-text
     ref.py chat    MODEL --checkpoint DIR [--max-new-tokens N] [--temperature T --top-p P --seed N]
     ref.py compare OURS FIXTURE [--atol A --rtol R]          a dump against a fixture, at every cut and state
     ref.py witness NAME@VERSION|all [--record]               the unit fixtures of a contract version: regenerated and compared, or written
@@ -29,6 +31,7 @@ sys.path.insert(0, HERE)
 import graph as graph_mod      # noqa: E402
 import loader                  # noqa: E402
 import registry                # noqa: E402
+from chat import load_tokenizer, stop_ids  # noqa: E402
 from compare import read_fixture, read_dump, tolerance_for, write_dump  # noqa: E402
 from module import TensorspineModel  # noqa: E402
 from plan import Plan          # noqa: E402
@@ -61,6 +64,39 @@ def load_inputs(specs, device, dtype):
         t = tensors[key]
         out[name] = t.to(device, dtype) if t.is_floating_point() else t.to(device)
     return out
+
+
+def audio_frames(path, checkpoint, g, device, dtype):
+    """`--audio WAV`: the checkpoint's own feature extractor turns a mono 16-bit WAV at its rate into
+    the frames the document's audio input takes (the public input whose value has the role
+    `activation.audio_frames`), element-major — the delivery's preprocessing, taken from the
+    artifact as the tokenizer is, the model class never instantiated. The extractor's window
+    bounds the signal: what lies beyond it is cut, and silence pads a shorter one."""
+    import wave
+    import numpy as np
+    from transformers import AutoFeatureExtractor
+    name = next((n for n, v in g.input_values.items() if v.get('role') == 'activation.audio_frames'), None)
+    if name is None:
+        raise SystemExit(f"--audio: {g.model} has no public input of audio frames")
+    extractor = AutoFeatureExtractor.from_pretrained(checkpoint)
+    with wave.open(path) as wav:
+        channels, width, rate, n = wav.getnchannels(), wav.getsampwidth(), wav.getframerate(), wav.getnframes()
+        if (channels, width, rate) != (1, 2, extractor.sampling_rate):
+            raise SystemExit(f"--audio {path}: {channels} channel(s), {8 * width}-bit, {rate} Hz — the extractor takes mono 16-bit at {extractor.sampling_rate} Hz")
+        pcm = np.frombuffer(wav.readframes(n), dtype='<i2').astype(np.float32) / 32768.0
+    x = extractor(pcm, sampling_rate=rate, return_tensors='pt').input_features[0].T.contiguous()
+    window = getattr(extractor, 'n_samples', None)
+    cut = f"; cut to the extractor's {window // rate} s window" if window and n > window else ''
+    print(f"  audio: {os.path.basename(path)}, {n / rate:.1f} s -> {x.shape[0]} frames of {x.shape[1]} on input {name} ({type(extractor).__name__}{cut})")
+    return {name: x.to(device, dtype)}
+
+
+def artifact_tokenizer(checkpoint):
+    """The artifact's tokenizer, for the text of the tokens and its end-of-text ids; None when it has none."""
+    try:
+        return load_tokenizer(checkpoint)
+    except Exception:  # noqa: BLE001  a checkpoint without a tokenizer: the ids are printed alone
+        return None
 
 
 def common(p):
@@ -303,6 +339,11 @@ def cmd_run(args):
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
     extra = load_inputs(args.input, args.device, dtype)
+    if args.audio:
+        if not args.checkpoint:
+            print("refused: --audio takes the feature extractor from the artifact, so it needs --checkpoint DIR")
+            return 1
+        extra.update(audio_frames(args.audio, args.checkpoint, g, args.device, dtype))
     r = registry.refusals(g, kernels, Plan(g, kernels).evaluable(delivery(g, extra)))
     if r:
         print(f"refused: {len(r)} reason(s)")
@@ -369,15 +410,24 @@ def cmd_run(args):
             bufs, length = st.read()
             for c, buf in bufs.items():
                 dump[f"state/{ident}/{c}"] = (buf[:length] if length is not None else buf).detach().to('cpu', torch.float32).clone()
+    tokenizer = artifact_tokenizer(args.checkpoint) if args.checkpoint else None
+    stops = stop_ids(args.checkpoint, tokenizer) if args.stop else set()
     tokens = [nxt]
     for _ in range(args.steps):
+        if nxt in stops:
+            print(f"  stop: {nxt} is an end-of-text id of the artifact")
+            break
         t0 = time.time()
         out = session.decode(nxt)
         nxt = greedy(out, g)
         tokens.append(nxt)
         print(f"  decode -> {nxt} ({time.time() - t0:.2f}s)")
     print("tokens:", tokens)
+    if tokenizer is not None:
+        print("text:", repr(tokenizer.decode(tokens, skip_special_tokens=True)))
     if args.dump:
+        for name, t in extra.items():                # the non-token inputs delivered, as a fixture records them
+            dump[f"in/{name}"] = t.detach().to('cpu', torch.float32).clone()
         dump['logits/last'] = first_logits[-1].detach().to('cpu', torch.float32).clone()
         dump['logits/argmax'] = first_logits.argmax(-1).detach().cpu().clone()
         write_dump(args.dump, dump, {'model': g.model, 'ids': ids, 'tokens': tokens, 'capacity': args.capacity,
@@ -414,6 +464,9 @@ def main(argv=None):
     p.add_argument('--input', action='append', default=[], metavar='NAME=FILE[:KEY]',
                    help='a safetensors tensor delivered to the public input NAME with the prompt (audio=FIXTURE:in/audio); '
                         'KEY defaults to in/NAME, else the only tensor of the file')
+    p.add_argument('--audio', metavar='WAV', help='a mono 16-bit WAV at the extractor\'s rate, turned into frames by the checkpoint\'s own '
+                                                  'feature extractor and delivered to the document\'s audio input with the prompt (needs --checkpoint)')
+    p.add_argument('--stop', action='store_true', help='end decoding at an end-of-text id of the artifact (generation_config.json, the tokenizer), before --steps')
     p.add_argument('--steps', type=int, default=4)
     p.add_argument('--dump', help='write the values at every layer cut and the states to this safetensors file')
     p.add_argument('--compile', action='store_true', help='torch.compile the decode step (prefill stays eager)')

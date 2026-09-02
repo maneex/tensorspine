@@ -21,8 +21,9 @@ def load_tokenizer(checkpoint):
 
 
 def stop_ids(checkpoint, tokenizer):
+    """The artifact's end-of-text ids: the tokenizer's (when there is one) and generation_config.json's."""
     ids = set()
-    if tokenizer.eos_token_id is not None:
+    if tokenizer is not None and tokenizer.eos_token_id is not None:
         ids.add(int(tokenizer.eos_token_id))
     path = os.path.join(checkpoint, 'generation_config.json')
     if os.path.exists(path):
