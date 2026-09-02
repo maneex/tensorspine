@@ -9,6 +9,13 @@ tolerance a conformer must meet. The hook → D1-value map is data in the metada
 place HF names meet D1 names.
 
     python3 fixtures/dump_hf.py --model DIR --document llama3-8b --layers 3 --ids 128000,791,… --steps 3 --out F
+    python3 fixtures/dump_hf.py --model DIR --document whisper-large-v3 --audio jfk.wav --attn-site self_attn \
+                                --layers 3 --ids 50258,50259,50360,50364 --steps 7 --out F     # an encoder–decoder
+
+An encoder–decoder (`--audio`) records the audio frames it was fed as `in/audio` with their
+provenance, and the encoder's output — the cross source every decoder layer reads — beside the
+decoder's layer outputs and self-attention cache; its cross-attention cache is not recorded
+(`hook_map` says so).
 """
 import argparse
 import json
@@ -48,8 +55,15 @@ def main(argv=None):
                                                        "its encoder layers, one invocation, no cache, no tokens")
     ap.add_argument('--head', metavar='TENSOR:VALUE', help="with --encoder: a physical tensor applied to the final hidden state and "
                                                         "L2-normalised — a head transformers has no class for — recorded as the D1 value VALUE")
+    ap.add_argument('--audio', metavar='WAV', help="an encoder–decoder (Whisper): a mono 16-bit WAV at the extractor's rate, turned into the "
+                                                   "`audio` frames by the checkpoint's own feature extractor and recorded as in/audio with its "
+                                                   "provenance; --layers truncates the decoder (decoder_layers); the encoder runs whole")
+    ap.add_argument('--encoder-output', default='enc_final_n.output', help="with --audio: the D1 value of the encoder's output, the cross source")
+    ap.add_argument('--cross-site', default='cross_attn', help="with --audio: the D1 site of the cross attention (its kv state is not recorded)")
     ap.add_argument('--out', required=True)
     args = ap.parse_args(argv)
+    if args.audio:
+        return dump_encoder_decoder(args)
     from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForImageTextToText
     from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
     dtype = {'f32': torch.float32, 'bf16': torch.bfloat16}[args.dtype]
@@ -148,7 +162,95 @@ def main(argv=None):
     print(f"dumped {len(dump)} tensors -> {args.out}")
 
 
-def metadata(args, n_layers, ids, tokens, hook_map):
+def _capture(dump, key):
+    """A forward hook recording the module's output at `key` once: the prefill's."""
+    def hook(module, inputs, output):
+        out = output[0] if isinstance(output, tuple) else output
+        if key not in dump:
+            dump[key] = out[0].detach().to(torch.float32).cpu().clone()
+    return hook
+
+
+def dump_encoder_decoder(args):
+    """An encoder–decoder with an audio input (Whisper). The checkpoint's feature extractor turns
+    the WAV into the frames the document's `audio` input takes — the delivery's preprocessing,
+    outside the document as a tokenizer is — recorded element-major as `in/audio` with its
+    provenance (docs/TENSORSPINE-FIXTURE.md §3). `--layers` truncates the decoder through
+    `decoder_layers`, never the config's `num_hidden_layers`, which on Whisper names the encoder;
+    the encoder runs whole and its final layer norm — the cross source every decoder layer reads —
+    is recorded at `value/<--encoder-output>`. The decoder layers' outputs, the self-attention cache
+    after the prefill, the logits and the greedy tokens follow the causal-LM path. The
+    cross-attention cache is not recorded: a projection of the recorded encoder output that every
+    decoder output exercises; `hook_map` states the omission."""
+    import hashlib
+    import wave
+    import numpy as np
+    from transformers import AutoConfig, AutoFeatureExtractor, AutoModelForSpeechSeq2Seq
+    dtype = {'f32': torch.float32, 'bf16': torch.bfloat16}[args.dtype]
+    config = AutoConfig.from_pretrained(args.model)
+    if args.layers:
+        config.decoder_layers = args.layers
+    n_layers = config.decoder_layers
+    t0 = time.time()
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(args.model, config=config, dtype=dtype)
+    model.eval()
+    print(f"loaded {args.model}: {config.encoder_layers} encoder and {n_layers} decoder layers in {dtype} ({time.time() - t0:.0f}s)")
+    extractor = AutoFeatureExtractor.from_pretrained(args.model)
+    with wave.open(args.audio) as wav:
+        channels, width, rate, frames = wav.getnchannels(), wav.getsampwidth(), wav.getframerate(), wav.getnframes()
+        if (channels, width, rate) != (1, 2, extractor.sampling_rate):
+            raise SystemExit(f"{args.audio}: {channels} channel(s), {8 * width}-bit, {rate} Hz — the extractor takes mono 16-bit at {extractor.sampling_rate} Hz")
+        pcm = np.frombuffer(wav.readframes(frames), dtype='<i2').astype(np.float32) / 32768.0
+    features = extractor(pcm, sampling_rate=rate, return_tensors='pt').input_features.to(dtype)     # [1, mels, frames]
+    with open(args.audio, 'rb') as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    inputs = {'audio': {'source': os.path.basename(args.audio), 'sha256': digest,
+                        'processor': f"{type(extractor).__name__} from the checkpoint's preprocessor_config.json: "
+                                     f"{extractor.feature_size} log-mel bins per frame of {extractor.hop_length} samples at {rate} Hz, "
+                                     f"the {frames / rate:.1f} s signal zero-padded to {extractor.n_samples // rate} s "
+                                     f"({features.shape[-1]} frames); one row per frame"}}
+    dump = {'in/audio': features[0].T.to(torch.float32).cpu().clone()}
+    hooks, hook_map = [], {'input_features[0].T': 'in/audio'}
+    inner = model.model
+    for i, layer in enumerate(inner.decoder.layers):
+        key = f"value/{args.composition}/{args.layer_output}[layer={i}].output"
+        hook_map[f"model.decoder.layers.{i}"] = key
+        hooks.append(layer.register_forward_hook(_capture(dump, key)))
+    hook_map['model.encoder.layer_norm'] = f"value/{args.encoder_output}"
+    hooks.append(inner.encoder.layer_norm.register_forward_hook(_capture(dump, f"value/{args.encoder_output}")))
+    ids = [int(x) for x in args.ids.split(',')]
+    with torch.no_grad():
+        t0 = time.time()
+        out = model(input_features=features, decoder_input_ids=torch.tensor([ids]), use_cache=True)
+        cache = out.past_key_values
+        self_cache = getattr(cache, 'self_attention_cache', cache)
+        logits = out.logits[0].to(torch.float32)
+        dump['logits/last'] = logits[-1].cpu().clone()
+        dump['logits/argmax'] = logits.argmax(-1).cpu().clone()
+        for i in range(n_layers):
+            layer = self_cache.layers[i]
+            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/k"] = layer.keys[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/v"] = layer.values[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+        hook_map['past_key_values.self_attention_cache.layers[i].keys[0].permute(1,0,2)'] = f"state/{args.composition}.{args.attn_site}.kv[layer=i]/k"
+        hook_map['past_key_values.cross_attention_cache'] = (f"not recorded: state/{args.composition}.{args.cross_site}.kv[layer=i] is a projection of "
+                                                             f"value/{args.encoder_output}, which the fixture holds, and every decoder layer output exercises it")
+        nxt = int(logits[-1].argmax())
+        tokens = [nxt]
+        print(f"encoded {features.shape[-1]} frames, prefill {len(ids)} -> {nxt} ({time.time() - t0:.1f}s)")
+        encoder_outputs = (out.encoder_last_hidden_state,)
+        for _ in range(args.steps):
+            out = model(encoder_outputs=encoder_outputs, decoder_input_ids=torch.tensor([[nxt]]), past_key_values=cache, use_cache=True)
+            cache = out.past_key_values
+            nxt = int(out.logits[0, -1].argmax())
+            tokens.append(nxt)
+        print("tokens:", tokens)
+    for h in hooks:
+        h.remove()
+    write_fixture(args.out, dump, metadata(args, n_layers, ids, tokens, hook_map, inputs))
+    print(f"dumped {len(dump)} tensors -> {args.out}")
+
+
+def metadata(args, n_layers, ids, tokens, hook_map, inputs=None):
     """The fixture's metadata on the language's schema (docs/TENSORSPINE-FIXTURE.md)."""
     tolerance = {k: dict(v) for k, v in TOLERANCE.items()}
     if args.atol is not None or args.rtol is not None:
@@ -159,13 +261,16 @@ def metadata(args, n_layers, ids, tokens, hook_map):
     artifact = {'name': artifact_name(args.model), **_provenance(args.model)}
     if args.artifact_id:
         artifact['id'] = args.artifact_id
-    return {'schema': 'tensorspine-fixture/1', 'kind': 'integration', 'document': args.document,
-            'artifact': artifact,
-            'delivery': {'implementation': 'transformers', 'program': PROGRAM,
-                         'versions': {'torch': torch.__version__, 'transformers': __import__('transformers').__version__}},
-            'truncation': {'composition': args.composition, 'layers': n_layers},
-            'ids': ids, 'tokens': tokens, 'hook_map': hook_map,
-            'compute': args.dtype, 'tolerance': tolerance}
+    out = {'schema': 'tensorspine-fixture/1', 'kind': 'integration', 'document': args.document,
+           'artifact': artifact,
+           'delivery': {'implementation': 'transformers', 'program': PROGRAM,
+                        'versions': {'torch': torch.__version__, 'transformers': __import__('transformers').__version__}},
+           'truncation': {'composition': args.composition, 'layers': n_layers},
+           'ids': ids, 'tokens': tokens, 'hook_map': hook_map,
+           'compute': args.dtype, 'tolerance': tolerance}
+    if inputs:
+        out['inputs'] = inputs          # the non-token inputs the prefill delivered, with their provenance
+    return out
 
 
 def _read_tensor(model_dir, name):

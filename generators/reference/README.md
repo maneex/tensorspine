@@ -39,9 +39,11 @@ a maintainer asks `--coverage` what the catalog and the corpus still need. `ref.
 
 Every command takes a model document (derived in-process) or a derived document, and the options
 `--device cpu|cuda[:i]` (default `cpu`), `--compute f32|bf16` (default fp32 on CPU, bf16 on CUDA),
-`--capacity N` positions per session (default 1024), `--max-ram GIB` (blocks at legal cuts, below),
-`--truncate decoder.layer=N` (a truncated document, for smoke tests) and `--set path=value` (any
-other document edit before deriving).
+`--capacity N` positions per session (default 1024) — or `--capacity STREAM=N,…` per stream, since
+a state's positions are its stream's and a cross-attention cache holds the source stream's, not the
+tokens' — `--max-ram GIB` (blocks at legal cuts, below), `--truncate decoder.layer=N` (a truncated
+document, for smoke tests: the index range and every literal that names its old extent follow) and
+`--set path=value` (any other document edit before deriving).
 
 Weights, derived documents and dumps are **runtime inputs**, not part of this repository, and one
 shell variable names all of them — `$TENSORSPINE_MODEL_ARTIFACTS`, the same one the ZML generator reads:
@@ -74,6 +76,7 @@ R=generators/reference/ref.py
 python3 $R info    $MODEL --capacity "$CAPACITY"                 # D3/D4 bytes, free memory, refusals
 python3 $R verify  $MODEL --checkpoint "$CK"                     # V17 from headers; no tensor read
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --steps "$STEPS"
+python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --input audio="$FIXTURE"   # a non-token input, delivered with the prompt from a fixture's in/audio
 python3 $R info    $MODEL --capacity "$CAPACITY" --max-ram "$RAM_GIB"
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --max-ram "$RAM_GIB"
 python3 $R chat    $MODEL --checkpoint "$CK" --capacity "$CAPACITY" --max-new-tokens "$STEPS"
@@ -148,7 +151,11 @@ edit the *document* before deriving and are a test convenience.
 
 An input the document declares may deliver nothing in an invocation (§7): the occurrences it alone
 would reach are not evaluated and need no kernel, `splice` keeps its `text`, and only the inputs D2
-marks `required_for` the output at hand are refused when absent. The suite compares a multimodal
+marks `required_for` the output at hand are refused when absent. A public input that is not a token
+stream (Whisper's `audio`: mel frames, kind `position`) is delivered with the prompt in the one
+prefill — `--input NAME=FILE[:KEY]` on the command line, a fixture's `in/` tensors in the harness —
+and the states indexed by its stream are frozen from then on: a decode step delivers nothing on it,
+and a cross-attention cache appends nothing. The suite compares a multimodal
 document's text-only path with its text-trunk document. Sending an image waits on the language saying
 where the inserted elements go (`splice`
 placement, a parked finding).
@@ -156,5 +163,9 @@ placement, a parked finding).
 Conventions: a value's tensor has the element axis first, then the port's axes in the contract's
 order; one sequence, no batch axis; parameters stay at their D3 dtype and are upcast per
 operation (`--compute f32` on CPU, `bf16` on CUDA); `append` states are buffers of `--capacity`
-positions written at a cursor, and a kernel masks beyond the length. Each kernel's docstring lists
+positions written at a cursor, and a kernel masks beyond the length. Positions are the stream's,
+scaled by the D2 `count` of the value a node works on (§5.3's merge, applied where the runtime
+needs it): behind a strided front end, n frames make n/stride positions and every encoder node
+receives those, integers because the delivery is aligned — an unaligned delivery is refused, never
+rounded. Each kernel's docstring lists
 the contract's branches it implements or refuses, and the conventions the contract leaves open.

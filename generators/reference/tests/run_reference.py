@@ -13,9 +13,11 @@ M0 — random weights, no checkpoint:
 M1, M2 — for each committed fixture whose checkpoint is on disk (else `skip`): the truncated
 document loaded by location, every layer output, every state after prefill (KV; and for Qwen 3.5
 the convolution history and the recurrent matrix) and the logits within tolerance of the
-`transformers` dump, and the same greedy tokens. With `--full`, the whole models: the eight greedy
-tokens `transformers` produced in bf16 on 29 Aug 2026 (minutes on CPU; ~16 GB of page cache for
-Llama 3 8B, ~8 GB for Qwen 3.5 4B).
+`transformers` dump, and the same greedy tokens. A fixture's `in/` tensors — the non-token inputs
+the delivery received (Whisper's audio frames) — are delivered with the prompt in the one prefill,
+the caches on their streams sized by what they deliver. With `--full`, the whole models: the eight
+greedy tokens `transformers` produced (minutes on CPU; ~16 GB of page cache for Llama 3 8B, ~8 GB
+for Qwen 3.5 4B), a `FULL` entry naming a fixture taking its audio from it.
 
     python3 generators/reference/tests/run_reference.py [--compile] [--full]
 """
@@ -459,6 +461,7 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
         print(f"  skip {label} (checkpoint not on disk)")
         return ok
     ids = header['ids']
+    recorded = {k[len('in/'):]: theirs[k] for k in theirs if k.startswith('in/')}   # the non-token inputs the prefill delivered (WL1)
     tmp = tempfile.mkdtemp(prefix='tensorspine-ref-fixture-')
     path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', f'{document}.json'),
                                   f"{header['truncation']['composition']}.layer={header['truncation']['layers']}", tmp)
@@ -467,22 +470,23 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     ok &= check(f"{label}: the {header['truncation']['layers']}-layer document verifies against the checkpoint", not errors, errors[:1])
     kernels = registry.load_kernels()
     plan = Plan(g, kernels)
-    active = plan.evaluable({g.feedback_input})      # the fixture delivers the token input alone (§7)
+    active = plan.evaluable({g.token_input} | set(recorded))      # what the fixture delivers (§7)
     refused = registry.refusals(g, kernels, active)
     ok &= check(f"{label}: every contract the delivery evaluates has a kernel for its arguments", not refused, refused[:2])
     params = loader.load_parameters(g, checkpoint, 'cpu')
     model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
-    session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+    capacity = stream_capacity(g, recorded)
+    session = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
     ours = {}
     encoder = g.generative is None                # no generative output: one invocation, the exposed outputs compared
     if encoder:
-        out = session.run({g.token_input: torch.as_tensor(ids, dtype=torch.long)}, ours)
+        out = session.run({g.token_input: torch.as_tensor(ids, dtype=torch.long), **recorded}, ours)
         for oname, o in g.interfaces['outputs'].items():
             ours[f"value/{o['node']}.{o['port']}"] = out[oname].detach().to('cpu', torch.float32).clone()
         primary = out[next(iter(g.interfaces['outputs']))]
         tokens = []
     else:
-        out = session.prefill(ids, ours)
+        out = session.prefill(ids, ours, inputs=recorded)
         for ident, st in session.states.items():
             bufs, length = st.read()
             for c, buf in bufs.items():
@@ -499,16 +503,16 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     rows, failures, _ = compare(ours, theirs, atol=atol, rtol=rtol)
     worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
     # the same fixture in blocks: identical logits and tokens, and the traffic is the model (M4)
-    resident = loader.state_bytes(g, 64, torch.float32) + loader.largest_temporary(g, torch.float32)
+    resident = loader.state_bytes(g, capacity, torch.float32) + loader.largest_temporary(g, torch.float32)
     finest = max(b.bytes + b.payload_bytes_per_element * 64 for b in Plan(g, kernels).minimal)
     blocked = Plan(g, kernels, max_bytes=resident + finest, elements=64, resident_bytes=resident)
     bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.Source(g, checkpoint, 'cpu').materialise)
-    bsession = Session(bmodel, capacity=64, device='cpu', dtype=torch.float32)
+    bsession = Session(bmodel, capacity=capacity, device='cpu', dtype=torch.float32)
     if encoder:
-        bl = bsession.run({g.token_input: torch.as_tensor(ids, dtype=torch.long)})[next(iter(g.interfaces['outputs']))]
+        bl = bsession.run({g.token_input: torch.as_tensor(ids, dtype=torch.long), **recorded})[next(iter(g.interfaces['outputs']))]
         bt = []
     else:
-        bl = bsession.prefill(ids)[g.generative[0]]
+        bl = bsession.prefill(ids, inputs=recorded)[g.generative[0]]
         bt = [greedy({g.generative[0]: bl}, g)]
         for _ in range(len(header['tokens']) - 1):
             bt.append(greedy(bsession.decode(bt[-1]), g))
@@ -523,6 +527,18 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     else:
         ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
     return ok
+
+
+def stream_capacity(g, recorded, tokens=64):
+    """The positions the caches may hold, per stream: `tokens` on the token input's stream, and on
+    the stream of every recorded input at most the elements it delivers — a source stream's cache
+    holds those positions or fewer (a merge only reduces them), and nothing is delivered on it
+    afterwards."""
+    capacity = {g.input_stream[g.token_input]: tokens}
+    for name, t in recorded.items():
+        stream = g.input_stream[name]
+        capacity[stream] = max(capacity.get(stream, 0), t.shape[0])
+    return capacity
 
 
 def composite_case(check):
@@ -559,18 +575,24 @@ def composite_case(check):
 
 def m1_full(check):
     ok = True
-    for document, checkpoint, ids, expected in FULL:
+    for entry in FULL:
+        document, checkpoint, ids, expected = entry[:4]
+        fixture = entry[4] if len(entry) > 4 else None       # the fixture whose in/ tensors the prompt is delivered with
         ck = os.path.join(CHECKPOINTS, checkpoint)
         if not os.path.isdir(ck):
             print(f"  skip {document} full (checkpoint not on disk)")
             continue
         g = graph_mod.load(os.path.join(ROOT, 'data', 'models', f'{document}.json'))
         kernels = registry.load_kernels()
+        recorded = {}
+        if fixture:
+            theirs, _ = read_fixture(os.path.join(REF, 'fixtures', fixture))
+            recorded = {k[len('in/'):]: v for k, v in theirs.items() if k.startswith('in/')}
         params = loader.load_parameters(g, ck, 'cpu')
         model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
-        session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+        session = Session(model, capacity=stream_capacity(g, recorded), device='cpu', dtype=torch.float32)
         t0 = time.time()
-        nxt = greedy(session.prefill(ids), g)
+        nxt = greedy(session.prefill(ids, inputs=recorded), g)
         tokens = [nxt]
         for _ in range(len(expected) - 1):
             nxt = greedy(session.decode(nxt), g)

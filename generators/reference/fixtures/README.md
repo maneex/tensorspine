@@ -31,10 +31,17 @@ python3 generators/reference/fixtures/dump_hf.py \
   --out /tmp/<model>.hf.safetensors
 ```
 
-The dumper records cut values, post-prefill state, exposed outputs and generated tokens. Its
-`hook_map` is the only mapping between delivery-implementation names and TensorSpine D1/D4 names.
-Captured tensors are cloned immediately because delivery implementations may update state in
-place.
+For an encoder–decoder with an audio input, `--audio "$TENSORSPINE_MODEL_ARTIFACTS/audio/<sample>.wav"`
+(mono 16-bit at the extractor's rate) replaces the causal-LM path: the checkpoint's own feature
+extractor turns the sample into the frames the document's `audio` input takes, recorded as
+`in/audio` with their provenance (`inputs`), the encoder runs whole and its output is recorded as
+the cross source, and `--layers` truncates the decoder; `--attn-site` names the decoder's
+self-attention site. The cross-attention cache is not recorded, and `hook_map` says so.
+
+The dumper records cut values, post-prefill state, exposed outputs, generated tokens and the
+non-token inputs the prefill delivered. Its `hook_map` is the only mapping between
+delivery-implementation names and TensorSpine D1/D4 names. Captured tensors are cloned
+immediately because delivery implementations may update state in place.
 
 ## Compare and validate
 
@@ -43,6 +50,7 @@ python3 generators/reference/ref.py run data/models/<model>.json \
   --checkpoint "$TENSORSPINE_MODEL_ARTIFACTS/weights/<artifact>" \
   --truncate <composition>.<layer-site>=<count> \
   --ids <comma-separated-token-ids> \
+  --input <input>=/tmp/<model>.hf.safetensors      # a non-token input, from the fixture's own in/<input>
   --dump /tmp/reference.safetensors
 
 python3 generators/reference/ref.py compare \
