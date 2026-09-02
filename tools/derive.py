@@ -12,7 +12,8 @@ without inference code — as one file, validated against the derived schema.
       bytes, and the payload crossing each legal cut.
   D2  values: every value with its shape, role, dtype and domain, the element
       count of every stream as a combination of the inputs' counts (merges
-      divide, inserts add), and the payload of every structural cut.
+      divide, inserts add), the payload of every structural cut, and the peak
+      of live values along D1's order.
   D6  legal cuts of the expanded graph, the partitions every occurrence's
       contract declares where their condition holds, and the information
       loss of flattened axes without factors (O5.10).
@@ -508,7 +509,63 @@ def d2(graph, cat):
                                  for k, v in sorted(crossing.items())],
                      "bytes_per_element": sum(v['bytes_per_element'] or 0 for v in crossing.values()),
                      "bytes_per_invocation": dict(per_invocation)})
-    return {"streams": streams, "values": list(values.values()), "cuts": cuts}
+    return {"streams": streams, "values": list(values.values()), "cuts": cuts,
+            "peak_live": _peak_live(graph, values)}
+
+
+def _peak_live(graph, values):
+    """The peak of live values along D1's topological order: at each node, the values
+    produced so far and not yet consumed by every consumer — its own outputs included, its
+    inputs still held while it runs — sized per element and per invocation like a cut's
+    payload. A value a public output exposes is live to the end. The peak is a property of
+    this one order (another legal order may peak lower), stated as such."""
+    resolved, edges, order = graph['resolved'], graph['edges'], graph['order']
+    remaining = Counter()
+    for src, sp, dst, dp, bid in edges:
+        remaining[_value_id(src, sp)] += 1
+    for oname, (key, oport) in graph['outputs_at'].items():
+        remaining[_value_id(key, oport)] += 1              # exposed: consumed at the end
+    consumes = defaultdict(list)
+    for src, sp, dst, dp, bid in edges:
+        consumes[dst].append(_value_id(src, sp))
+    produces = defaultdict(list)
+    for vid in values:
+        if 'input' in values[vid]:
+            continue
+        node, port = vid.rsplit('.', 1)
+        produces[node].append(vid)
+    for name in graph['model']['interfaces']['inputs']:            # a public input's value is live from the start
+        remaining[name] += len(values[name]['to']) if name in values else 0
+    live = {name for name in graph['model']['interfaces']['inputs'] if remaining[name]}
+    consumers_of_input = defaultdict(list)
+    for name, decl in graph['model']['interfaces']['inputs'].items():
+        for key, port in graph['inputs_at'][name]:
+            consumers_of_input[key].append(name)
+
+    def size(vids):
+        per_element = sum(values[v]['bytes_per_element'] or 0 for v in vids)
+        per_invocation = Counter()
+        for v in vids:
+            for inp, mult in (values[v]['count'] or {}).items():
+                per_invocation[inp] += (values[v]['bytes_per_element'] or 0) * mult
+        return per_element, dict(per_invocation)
+
+    peak = None
+    for key in order:
+        node = ident(key)
+        live |= set(produces[node])
+        per_element, per_invocation = size(sorted(live))
+        total = sum(per_invocation.values())
+        if peak is None or total > peak[0]:
+            peak = (total, node, sorted(live), per_element, per_invocation)
+        for vid in consumes[key] + consumers_of_input[key]:
+            remaining[vid] -= 1
+            if remaining[vid] <= 0:
+                live.discard(vid)
+    if peak is None:
+        return {"node": None, "values": [], "bytes_per_element": 0, "bytes_per_invocation": {}}
+    _total, node, vids, per_element, per_invocation = peak
+    return {"node": node, "values": vids, "bytes_per_element": per_element, "bytes_per_invocation": per_invocation}
 
 
 # --- D5 ---------------------------------------------------------------------

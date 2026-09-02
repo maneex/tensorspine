@@ -534,14 +534,59 @@
               "bytes_per_invocation"
             ]
           }
+        },
+        "peak_live": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "node": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/node_identifier"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The node of `d1.topological_order` at which the live values peak: its outputs just produced, its inputs still held."
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/value_reference"
+                  },
+                  {
+                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                  }
+                ]
+              },
+              "description": "The values live at the peak: produced (or delivered by a public input) and not yet consumed by every consumer, a value a public output exposes being live to the end."
+            },
+            "bytes_per_element": {
+              "type": "number"
+            },
+            "bytes_per_invocation": {
+              "$ref": "#/$defs/bytes_by_input"
+            }
+          },
+          "required": [
+            "node",
+            "values",
+            "bytes_per_element",
+            "bytes_per_invocation"
+          ],
+          "description": "The peak of live values along `d1.topological_order` — the activation peak of one invocation, sized like a cut's payload: per element, and per invocation as a combination of the public inputs' counts. Exact for this order; another legal order may peak lower."
         }
       },
       "required": [
         "streams",
         "values",
-        "cuts"
+        "cuts",
+        "peak_live"
       ],
-      "description": "Values (§7): every value with its shape, role, dtype and domain; the element count of every stream; the payload of every structural legal cut."
+      "description": "Values (§7): every value with its shape, role, dtype and domain; the element count of every stream; the payload of every structural legal cut; the peak of live values along D1's order."
     },
     "d3": {
       "type": "object",

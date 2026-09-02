@@ -8,9 +8,12 @@ facts known independently.
   2. Agreement: D3 elements = the validator's resident count; D5 operations per element =
      the validator's; D1 nodes = D3 members' occurrences ∪ stateless occurrences.
   3. Facts: Llama 3 8B — 4 KiB per cached position per layer, 128 KiB per token, one value of
-     8 KiB per element crossing a layer boundary; Whisper — the cross-attention cache grows
-     along the audio stream; Voxtral — 32 encoder states carried across fragments; every
-     structural cut is legal (no crossing edge points backwards).
+     8 KiB per element crossing a layer boundary, and the live-value peak at the head: the f32
+     logits beside the normed hidden state, by hand; ColBERT — the peak inside a layer, three
+     residual-width values; Whisper — the cross-attention cache grows along the audio stream;
+     Voxtral — 32 encoder states carried across fragments; every structural cut is legal (no
+     crossing edge points backwards); every document's peak is a set of D2 values at a D1
+     node whose bytes add up.
 
     python3 tests/run_derived.py
 """
@@ -65,6 +68,14 @@ def main():
         members = {m.rsplit('.', 1)[0] for t in doc['d3']['tensors'] for m in t['members']}
         ok &= check(f"{name}: every D3 member is a D1 node", members <= nodes,
                     str(sorted(members - nodes)[:3]))
+        # the live-value peak (D2 `peak_live`): D2 values at a D1 node, their bytes adding up
+        peak = doc['d2']['peak_live']
+        by_value = {v['value']: v for v in doc['d2']['values']}
+        ok &= check(f"{name}: peak_live is a set of D2 values at a D1 node whose bytes add up",
+                    peak['node'] in nodes and all(v in by_value for v in peak['values'])
+                    and peak['bytes_per_element'] == sum(by_value[v]['bytes_per_element'] for v in peak['values'])
+                    and peak['bytes_per_element'] >= max((v['bytes_per_element'] or 0) for v in doc['d2']['values']),
+                    str(peak)[:200])
         # every structural cut is legal: block A is closed under ancestors
         blocks = {}
         for c in doc['d2']['cuts']:
@@ -86,6 +97,17 @@ def main():
                 and cut['bytes_per_invocation'] == {'tokens': 8192.0}, str(cut['payload']))
     ok &= check("llama3-8b: 14.96 GiB of parameters in bf16",
                 round(l3['d3']['totals']['bytes'] / 2**30, 2) == 14.96)
+    # by hand: the peak is at the head, where the f32 logits (128256 × 4) sit beside the normed
+    # hidden state (4096 × 2) — 521216 bytes per element; the layers hold three residual-width
+    # values at most (24 KiB), so nothing inside them comes close
+    peak = l3['d2']['peak_live']
+    ok &= check("llama3-8b: the live-value peak is at lm_head — the f32 logits beside the normed hidden state, 521216 bytes per element",
+                peak['node'] == 'lm_head' and peak['values'] == ['final_n.output', 'lm_head.logits']
+                and peak['bytes_per_element'] == 128256 * 4 + 4096 * 2 == 521216
+                and peak['bytes_per_invocation'] == {'tokens': 521216.0}, str(peak))
+    cbv = docs['colbert-v2']['d2']['peak_live']
+    ok &= check("colbert-v2: the peak is inside the first layer — the residual, the attention output and their sum, three 768-wide bf16 values, 4608 bytes",
+                cbv['node'] == 'enc/attn_r[layer=0]' and cbv['bytes_per_element'] == 3 * 768 * 2 and len(cbv['values']) == 3, str(cbv))
     w = docs['whisper-large-v3']
     cross = [s for s in w['d4']['states'] if 'cross' in s['identity']]
     ok &= check("whisper: the cross-attention cache grows along the audio stream and is frozen after it",
