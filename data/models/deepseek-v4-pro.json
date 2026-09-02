@@ -8,7 +8,6 @@
   ],
   "quantities": {
     "d": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -18,7 +17,6 @@
       }
     },
     "vocab": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -28,7 +26,6 @@
       }
     },
     "eps": {
-      "regime": "model_constant",
       "type": {
         "kind": "real"
       },
@@ -38,7 +35,6 @@
       }
     },
     "heads": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -48,7 +44,6 @@
       }
     },
     "hd": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -58,7 +53,6 @@
       }
     },
     "kv_heads": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -68,7 +62,6 @@
       }
     },
     "q_rank": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -78,7 +71,6 @@
       }
     },
     "o_groups": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -88,7 +80,6 @@
       }
     },
     "o_rank": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -98,7 +89,6 @@
       }
     },
     "rope_dims": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -108,7 +98,6 @@
       }
     },
     "win_n": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -118,7 +107,6 @@
       }
     },
     "csa_m": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -128,7 +116,6 @@
       }
     },
     "hca_m": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -138,7 +125,6 @@
       }
     },
     "idx_hd": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -148,7 +134,6 @@
       }
     },
     "idx_topk": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -158,7 +143,6 @@
       }
     },
     "experts": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -168,7 +152,6 @@
       }
     },
     "shared_n": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -178,7 +161,6 @@
       }
     },
     "top_k": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -188,7 +170,6 @@
       }
     },
     "expert_ffn": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -198,7 +179,6 @@
       }
     },
     "hc_mult": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -208,7 +188,6 @@
       }
     },
     "hc_iters": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -218,7 +197,6 @@
       }
     },
     "idx_heads": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },

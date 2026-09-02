@@ -9,7 +9,6 @@
   ],
   "quantities": {
     "width": {
-      "regime": "model_variable",
       "type": {
         "kind": "cardinality"
       },
@@ -27,7 +26,6 @@
       }
     },
     "layers": {
-      "regime": "model_variable",
       "type": {
         "kind": "cardinality"
       },
@@ -45,7 +43,6 @@
       }
     },
     "heads": {
-      "regime": "model_variable",
       "type": {
         "kind": "cardinality"
       },
@@ -63,7 +60,6 @@
       }
     },
     "kv_heads": {
-      "regime": "model_variable",
       "type": {
         "kind": "cardinality"
       },
@@ -81,7 +77,6 @@
       }
     },
     "head_dim": {
-      "regime": "model_variable",
       "type": {
         "kind": "cardinality"
       },
@@ -99,7 +94,6 @@
       }
     },
     "inner": {
-      "regime": "model_variable",
       "type": {
         "kind": "cardinality"
       },
@@ -117,7 +111,6 @@
       }
     },
     "eps": {
-      "regime": "model_variable",
       "type": {
         "kind": "real"
       },
@@ -141,7 +134,6 @@
       }
     },
     "precision": {
-      "regime": "model_variable",
       "type": {
         "kind": "enum",
         "values": [

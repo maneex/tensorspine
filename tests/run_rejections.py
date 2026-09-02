@@ -32,7 +32,8 @@ def model_cases():
         else:
             lines = validate.structural(path, SCHEMAS)
             if not lines:
-                lines, _stats = validate.semantic(path, cat)
+                # a template case names the assignment it is read under (§4.6)
+                lines, _stats = validate.semantic(path, cat, case.get('assign'))
                 lines = [l for l in lines if l.startswith(f"[{case['expect']}]")]
         hit = [l for l in lines if case['match'] in l]
         yield case['document'], bool(hit), lines[:3]

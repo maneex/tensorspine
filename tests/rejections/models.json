@@ -330,6 +330,22 @@
       "expect": "V18",
       "match": "conv_frontend@conv_frontend reads across positions of the fragmented stream 'audio'",
       "note": "Voxtral Realtime's front end without `streaming`: a causal convolution reads neighbouring frames of a fragmented stream and carries nothing across its fragments, so the fragments would not compute what the whole stream does (V18). The corpus document declares `streaming: true` and the two history rings."
+    },
+    {
+      "document": "models/v3-derived-variable-without-domain.json",
+      "expect": "V3",
+      "match": "quantity 'inner_twice' depends on an external quantity and declares no domain",
+      "note": "A derived quantity that reads an external one is variable (§2.1) and must declare a domain: the rule regime used to copy, now checked from source.",
+      "assign": {
+        "width": 3072,
+        "layers": 26,
+        "heads": 32,
+        "kv_heads": 8,
+        "head_dim": 128,
+        "inner": 9216,
+        "eps": 1e-05,
+        "precision": "bf16"
+      }
     }
   ]
 }

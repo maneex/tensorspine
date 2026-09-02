@@ -1098,15 +1098,36 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                       'state_instances': state_instances, 'order': order}}
 
 
+def variable_quantities(model):
+    """The quantities whose value depends on the assignment (§2.1): the external ones, and the
+    derived ones that read one, transitively. Derived from `source`, never declared."""
+    qs = model['quantities']
+    variable = {n for n, q in qs.items() if q['source']['kind'] == 'external'}
+    changed = True
+    while changed:
+        changed = False
+        for n, q in qs.items():
+            if n not in variable and q['source']['kind'] == 'derived' \
+                    and quantity_references(q['source']['expression']) & variable:
+                variable.add(n)
+                changed = True
+    return variable
+
+
 def check_quantities(model, quantities):
     """Every quantity resolves (V10), reads only declared quantities (V1),
-    conforms to its declared type and domain (V3), and — when a literal
-    declares how it follows from the others — agrees with that derivation
-    (V11). Returns (code, message) problems."""
+    conforms to its declared type and domain (V3), declares a domain when it
+    depends on the assignment (V3), and — when a literal declares how it
+    follows from the others — agrees with that derivation (V11). Returns
+    (code, message) problems."""
     problems = []
     declared = set(model['quantities'])
+    variable = variable_quantities(model)
     for name, q in model['quantities'].items():
         src = q['source']
+        if name in variable and 'domain' not in q:
+            problems.append(('V3', f"quantity '{name}' depends on an external quantity and declares no domain "
+                                   f"(a variable quantity declares one, §2.1)"))
         expression = src.get('expression') if src['kind'] == 'derived' else src.get('derivation')
         if expression is not None:
             for ref in sorted(quantity_references(expression) - declared):

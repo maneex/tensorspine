@@ -8,7 +8,6 @@
   ],
   "quantities": {
     "d": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -18,7 +17,6 @@
       }
     },
     "ffn": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -28,7 +26,6 @@
       }
     },
     "heads": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -38,7 +35,6 @@
       }
     },
     "kv_heads": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -48,7 +44,6 @@
       }
     },
     "head_dim": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -68,7 +63,6 @@
       }
     },
     "layers": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -78,7 +72,6 @@
       }
     },
     "vocab": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -88,7 +81,6 @@
       }
     },
     "eps": {
-      "regime": "model_constant",
       "type": {
         "kind": "real"
       },
@@ -98,7 +90,6 @@
       }
     },
     "precision": {
-      "regime": "model_constant",
       "type": {
         "kind": "enum",
         "values": [

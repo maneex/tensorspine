@@ -1811,13 +1811,33 @@ function interfaceBody(dir, spec) {
     <div class="field"><span class="k">generative</span><span class="v">${spec.generative}</span></div>`;
 }
 
+// Whether a quantity depends on the assignment follows from its source (§2.1): external, or
+// derived from an external one, is variable; a literal, or a derivation over literals, constant.
+function quantityRefs(e) {
+  if (!e || typeof e !== 'object') return [];
+  let out = e.quantity ? [e.quantity] : [];
+  for (const k of ['args', 'all', 'any']) if (Array.isArray(e[k])) for (const x of e[k]) out = out.concat(quantityRefs(x));
+  for (const k of ['then', 'else', 'if', 'not', 'left', 'right', 'compare']) if (e[k]) out = out.concat(quantityRefs(e[k]));
+  return out;
+}
+
+function regimeOf(name, qs, seen) {
+  seen = seen || new Set();
+  const q = qs[name];
+  if (!q || seen.has(name)) return 'constant';
+  seen.add(name);
+  if (q.source.kind === 'external') return 'variable';
+  if (q.source.kind === 'literal') return 'constant';
+  return quantityRefs(q.source.expression).some(r => regimeOf(r, qs, seen) === 'variable') ? 'variable' : 'constant';
+}
+
 function qtyRow(name, q) {
   let val;
   if (q.source.kind === 'literal') val = JSON.stringify(q.source.value);
   else if (q.source.kind === 'external') val = `external "${q.source.name}"`;
   else val = `${exprStr(q.source.derivation.expression)} (${q.source.derivation.status})`;
   if (q.domain) val += ` \u2208 ${domainStr(q.domain)}`;
-  return { regime: q.regime, kind: q.type.kind, val };
+  return { regime: regimeOf(name, RAW.quantities), kind: q.type.kind, val };
 }
 
 function selLabel(sel) {

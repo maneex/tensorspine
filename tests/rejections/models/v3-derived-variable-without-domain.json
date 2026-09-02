@@ -1,164 +1,181 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "llama3-8b",
+  "model": "decoder_causal_yarn_variable_without_domain",
+  "version": "1.0.0",
   "catalog": [
     {
-      "base": "../catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {
-    "d": {
+    "width": {
       "type": {
         "kind": "cardinality"
       },
-      "source": {
-        "kind": "literal",
-        "value": 4096
-      }
-    },
-    "ffn": {
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 14336
-      }
-    },
-    "heads": {
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 32
-      }
-    },
-    "kv_heads": {
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 8
-      }
-    },
-    "head_dim": {
-      "type": {
-        "kind": "cardinality"
-      },
-      "source": {
-        "kind": "literal",
-        "value": 128,
-        "derivation": {
-          "op": "floor_divide",
-          "args": [
-            {
-              "quantity": "d"
-            },
-            {
-              "quantity": "heads"
-            }
-          ]
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 1
+          },
+          "inclusive": true
         }
+      },
+      "source": {
+        "kind": "external"
       }
     },
     "layers": {
       "type": {
         "kind": "cardinality"
       },
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 1
+          },
+          "inclusive": true
+        }
+      },
       "source": {
-        "kind": "literal",
-        "value": 32
+        "kind": "external"
       }
     },
-    "vocab": {
+    "heads": {
       "type": {
         "kind": "cardinality"
       },
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 1
+          },
+          "inclusive": true
+        }
+      },
       "source": {
-        "kind": "literal",
-        "value": 128256
+        "kind": "external"
+      }
+    },
+    "kv_heads": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 1
+          },
+          "inclusive": true
+        }
+      },
+      "source": {
+        "kind": "external"
+      }
+    },
+    "head_dim": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 1
+          },
+          "inclusive": true
+        }
+      },
+      "source": {
+        "kind": "external"
+      }
+    },
+    "inner": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 1
+          },
+          "inclusive": true
+        }
+      },
+      "source": {
+        "kind": "external"
       }
     },
     "eps": {
       "type": {
         "kind": "real"
       },
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 0
+          },
+          "inclusive": false
+        },
+        "upper": {
+          "value": {
+            "literal": 1
+          },
+          "inclusive": false
+        }
+      },
       "source": {
-        "kind": "literal",
-        "value": 1e-05
+        "kind": "external"
       }
     },
     "precision": {
       "type": {
         "kind": "enum",
         "values": [
-          "bf16"
+          "bf16",
+          "f16",
+          "f32"
+        ]
+      },
+      "domain": {
+        "kind": "set",
+        "values": [
+          "bf16",
+          "f16",
+          "f32"
         ]
       },
       "source": {
-        "kind": "literal",
-        "value": "bf16"
+        "kind": "external"
+      }
+    },
+    "inner_twice": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "derived",
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 2
+            },
+            {
+              "quantity": "inner"
+            }
+          ]
+        }
       }
     }
   },
   "constants": {},
-  "occurrences": {
-    "embed": {
-      "contract": {
-        "name": "embed",
-        "version": "1.0.0"
-      },
-      "arguments": {
-        "width": {
-          "quantity": "d"
-        },
-        "vocabulary": {
-          "quantity": "vocab"
-        }
-      },
-      "families": [
-        "input",
-        "embedding"
-      ]
-    },
-    "final_n": {
-      "contract": {
-        "name": "norm.rms",
-        "version": "1.0.0"
-      },
-      "arguments": {
-        "width": {
-          "quantity": "d"
-        },
-        "eps": {
-          "quantity": "eps"
-        }
-      },
-      "families": [
-        "norm"
-      ]
-    },
-    "lm_head": {
-      "contract": {
-        "name": "lm_head",
-        "version": "1.0.0"
-      },
-      "arguments": {
-        "width": {
-          "quantity": "d"
-        },
-        "vocabulary": {
-          "quantity": "vocab"
-        }
-      },
-      "families": [
-        "output",
-        "head"
-      ]
-    }
-  },
+  "occurrences": {},
   "compositions": {
     "decoder": {
       "indices": {
@@ -167,7 +184,7 @@
             "literal": 0
           },
           "stop": {
-            "literal": 32
+            "quantity": "layers"
           },
           "step": {
             "literal": 1
@@ -185,7 +202,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "d"
+              "quantity": "width"
             },
             "eps": {
               "quantity": "eps"
@@ -202,7 +219,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "d"
+              "quantity": "width"
             },
             "heads": {
               "quantity": "heads"
@@ -219,15 +236,31 @@
             "rope": {
               "record": {
                 "theta": {
-                  "literal": 500000
+                  "literal": 1000000
                 },
-                "layout": {
-                  "literal": "split"
+                "scaling": {
+                  "record": {
+                    "kind": {
+                      "literal": "yarn"
+                    },
+                    "factor": {
+                      "literal": 16
+                    },
+                    "beta_fast": {
+                      "literal": 32
+                    },
+                    "beta_slow": {
+                      "literal": 1
+                    },
+                    "attention_factor": {
+                      "literal": 1.0
+                    },
+                    "orig_ctx": {
+                      "literal": 16384
+                    }
+                  }
                 }
               }
-            },
-            "streaming": {
-              "literal": true
             }
           },
           "families": [
@@ -241,7 +274,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "d"
+              "quantity": "width"
             }
           },
           "families": [
@@ -255,7 +288,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "d"
+              "quantity": "width"
             },
             "eps": {
               "quantity": "eps"
@@ -272,10 +305,10 @@
           },
           "arguments": {
             "width": {
-              "quantity": "d"
+              "quantity": "width"
             },
             "inner": {
-              "quantity": "ffn"
+              "quantity": "inner"
             },
             "activation": {
               "literal": "silu"
@@ -292,7 +325,7 @@
           },
           "arguments": {
             "width": {
-              "quantity": "d"
+              "quantity": "width"
             }
           },
           "families": [
@@ -546,52 +579,47 @@
     }
   },
   "bindings": {
-    "values": {
-      "decoder.entry": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "decoder",
-            "occurrence": "attn_n",
-            "indices": {
-              "layer": {
-                "literal": 0
+    "values": {},
+    "parameters": {},
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "hidden": {
+        "to": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_n",
+              "indices": {
+                "layer": {
+                  "literal": 0
+                }
               }
-            }
+            },
+            "port": "input"
           },
-          "port": "input"
-        }
-      },
-      "decoder.entry.a": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "embed"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "generated",
-            "composition": "decoder",
-            "occurrence": "attn_r",
-            "indices": {
-              "layer": {
-                "literal": 0
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_r",
+              "indices": {
+                "layer": {
+                  "literal": 0
+                }
               }
-            }
-          },
-          "port": "a"
-        }
-      },
-      "final_n.in": {
+            },
+            "port": "a"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "hidden_out": {
         "from": {
           "occurrence": {
             "kind": "generated",
@@ -613,112 +641,7 @@
           },
           "port": "output"
         },
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "final_n"
-          },
-          "port": "input"
-        }
-      },
-      "lm_head.in": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "final_n"
-          },
-          "port": "output"
-        },
-        "to": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "lm_head"
-          },
-          "port": "input"
-        }
-      }
-    },
-    "parameters": {
-      "embed.weight": {
-        "tensor": {
-          "name": "embed.weight"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "embed"
-            },
-            "parameter": "weight"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "final_n.weight": {
-        "tensor": {
-          "name": "final_n.weight"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "final_n"
-            },
-            "parameter": "weight"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      },
-      "lm_head.weight": {
-        "tensor": {
-          "name": "lm_head.weight"
-        },
-        "members": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "lm_head"
-            },
-            "parameter": "weight"
-          }
-        ],
-        "dtype": {
-          "quantity": "precision"
-        }
-      }
-    },
-    "constants": {},
-    "states": {}
-  },
-  "interfaces": {
-    "inputs": {
-      "tokens": {
-        "to": [
-          {
-            "occurrence": {
-              "kind": "root",
-              "occurrence": "embed"
-            },
-            "port": "tokens"
-          }
-        ],
-        "kind": "token"
-      }
-    },
-    "outputs": {
-      "logits": {
-        "from": {
-          "occurrence": {
-            "kind": "root",
-            "occurrence": "lm_head"
-          },
-          "port": "logits"
-        },
-        "generative": true
+        "generative": false
       }
     }
   }

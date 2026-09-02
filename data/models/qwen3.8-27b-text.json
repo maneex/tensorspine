@@ -8,7 +8,6 @@
   ],
   "quantities": {
     "d": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -18,7 +17,6 @@
       }
     },
     "vocab": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -28,7 +26,6 @@
       }
     },
     "eps": {
-      "regime": "model_constant",
       "type": {
         "kind": "real"
       },
@@ -38,7 +35,6 @@
       }
     },
     "precision": {
-      "regime": "model_constant",
       "type": {
         "kind": "enum",
         "values": [
@@ -51,7 +47,6 @@
       }
     },
     "gdn_k": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -61,7 +56,6 @@
       }
     },
     "gdn_v": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -71,7 +65,6 @@
       }
     },
     "gdn_hd": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -81,7 +74,6 @@
       }
     },
     "gdn_conv": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -120,7 +112,6 @@
       }
     },
     "attn_q": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -130,7 +121,6 @@
       }
     },
     "attn_kv": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -140,7 +130,6 @@
       }
     },
     "attn_hd": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },
@@ -150,7 +139,6 @@
       }
     },
     "inner": {
-      "regime": "model_constant",
       "type": {
         "kind": "cardinality"
       },

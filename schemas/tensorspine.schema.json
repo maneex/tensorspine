@@ -742,18 +742,11 @@
     "quantity_definition": {
       "type": "object",
       "required": [
-        "regime",
         "type",
         "source"
       ],
       "additionalProperties": false,
       "properties": {
-        "regime": {
-          "enum": [
-            "model_constant",
-            "model_variable"
-          ]
-        },
         "type": {
           "$ref": "#/$defs/quantity_type"
         },
@@ -764,63 +757,29 @@
           "$ref": "#/$defs/quantity_source"
         }
       },
-      "allOf": [
-        {
-          "if": {
+      "if": {
+        "properties": {
+          "source": {
             "properties": {
-              "regime": {
-                "const": "model_constant"
+              "kind": {
+                "const": "external"
               }
             },
             "required": [
-              "regime"
+              "kind"
             ]
-          },
-          "then": {
-            "properties": {
-              "source": {
-                "oneOf": [
-                  {
-                    "$ref": "#/$defs/literal_source"
-                  },
-                  {
-                    "$ref": "#/$defs/derived_source"
-                  }
-                ]
-              }
-            }
           }
         },
-        {
-          "if": {
-            "properties": {
-              "regime": {
-                "const": "model_variable"
-              }
-            },
-            "required": [
-              "regime"
-            ]
-          },
-          "then": {
-            "required": [
-              "domain"
-            ],
-            "properties": {
-              "source": {
-                "oneOf": [
-                  {
-                    "$ref": "#/$defs/external_source"
-                  },
-                  {
-                    "$ref": "#/$defs/derived_source"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      ]
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "required": [
+          "domain"
+        ]
+      },
+      "description": "A quantity declares its type and its source (O2.2). Whether it is a model constant or a variable follows from the source: external, or derived from an external one, is variable and declares a domain — the external case here, the derived case by V3, which sees the dependency; a literal, or a derivation over literals, is a constant. There is no regime field: it would copy that rule (§4.4)."
     },
     "quantity_map": {
       "type": "object",

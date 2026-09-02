@@ -94,10 +94,9 @@ A model document contains exactly:
 
 ### 2.1 — Quantities *(O2.1, O2.2, O2.3, O0.4)*
 
-Quantities form one flat namespace, declared once and referenced everywhere. Each quantity has three
-independent properties:
+Quantities form one flat namespace, declared once and referenced everywhere. Each quantity declares
+two independent properties, and a third follows from them:
 
-- **Regime:** a model constant known when written, or a variable with a declared domain.
 - **Dimensional type:** a cardinality (non-negative integer); a ratio or real hyperparameter bounded
   by contract; a physical quantity with a **unit** (bytes, elements, tokens, seconds, operations);
   or an enum or boolean, which participates in arithmetic only through an allowed conditional.
@@ -106,7 +105,11 @@ independent properties:
   by an assignment (§4.6), with a declared domain and optionally a declared default; or a
   **derived** value, an expression of the algebra of §2.2 over other quantities.
 
-Regime and type are independent: a model constant need not be an integer.
+**Regime** is derived, never declared (O2.2): a quantity is a *model variable* when its source is
+external or is a derivation that reads a variable quantity, transitively, and then declares a
+domain (V3); otherwise it is a *model constant*, known when the document is written. A field
+stating it would copy that rule (§4.4). Regime and type are independent: a model constant need not
+be an integer.
 
 Load variables such as batch size and sequence count do **not** belong in the model document.
 
@@ -807,7 +810,7 @@ carries the requirement; this appendix is the requirement. Gaps in the numbering
 | **O1.2** | A model document carries a stable, authoritative identifier. |
 | **O1.3** | Every published contract version has one witness — a reference kernel of the reference generator, bound to the identity by that generator's manifest with a tolerance per compute dtype — that is the authority for what the primitive computes; every other implementation is a conformer, checked against it (§4.1, §4.2). |
 | **O2.1** | Every quantity and every occurrence has one stable identifier, unique after expansion. |
-| **O2.2** | Every quantity declares its regime: a model constant, or a variable with a declared domain. |
+| **O2.2** | Every quantity declares its type and its source; it is a model variable when its source is external or reads one, transitively, and then declares a domain; otherwise a model constant. |
 | **O2.3** | Every quantity declares its dimensional type; physical quantities carry a unit. |
 | **O3.2** | The rate at which a state is visited, per indexing domain and phase, is derived from the graph; counts are deployment intent (§4.4, §7). |
 | **O3.3** | Several trunks may coexist in one document; a trunk may carry no state. |
