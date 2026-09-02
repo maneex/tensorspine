@@ -5,12 +5,13 @@
     ref.py verify  MODEL --checkpoint DIR                    V17 against the file headers; nothing is read
     ref.py run     MODEL --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--compile]
     ref.py run     MODEL --random [--seed N] …               parameters drawn from the D3 shapes
+    ref.py run     MODEL … --input audio=FIXTURE[:in/audio]  a safetensors tensor delivered to a non-token input with the prompt
     ref.py chat    MODEL --checkpoint DIR [--max-new-tokens N] [--temperature T --top-p P --seed N]
     ref.py compare OURS FIXTURE [--atol A --rtol R]          a dump against a fixture, at every cut and state
     ref.py witness NAME@VERSION|all [--record]               the unit fixtures of a contract version: regenerated and compared, or written
 
-Common options: --device cpu|cuda[:i], --compute f32|bf16, --capacity N, --truncate decoder.layer=N,
---set path=value. MODEL is a model document (derived here) or a derived document. In a chat, an
+Common options: --device cpu|cuda[:i], --compute f32|bf16, --capacity N|STREAM=N,… (positions per append state,
+for every stream or per stream: tokens=64,audio=1500), --truncate decoder.layer=N, --set path=value. MODEL is a model document (derived here) or a derived document. In a chat, an
 empty line quits; the session persists across turns. See generators/reference/README.md.
 """
 import argparse
@@ -36,12 +37,39 @@ from session import Session, greedy  # noqa: E402
 COMPUTE = {'f32': torch.float32, 'bf16': torch.bfloat16, 'f16': torch.float16}
 
 
+def parse_capacity(text):
+    """`N`: every stream; `STREAM=N,…`: per stream — a cross-attention cache holds the source
+    stream's positions, and one number cannot size it and the token caches alike."""
+    if '=' not in text:
+        return int(text)
+    return {k.strip(): int(v) for k, v in (item.split('=', 1) for item in text.split(','))}
+
+
+def load_inputs(specs, device, dtype):
+    """`NAME=FILE[:KEY]`: a tensor of a safetensors file (a fixture's `in/NAME`, by default, else
+    the file's only tensor), delivered to the public input NAME with the prompt."""
+    from safetensors.torch import load_file
+    out = {}
+    for spec in specs:
+        name, rest = spec.split('=', 1)
+        file, key = rest.rsplit(':', 1) if ':' in rest else (rest, None)
+        tensors = load_file(file)
+        if key is None:
+            key = f"in/{name}" if f"in/{name}" in tensors else (next(iter(tensors)) if len(tensors) == 1 else None)
+            if key is None:
+                raise SystemExit(f"--input {spec}: name the tensor, {file} holds {sorted(tensors)[:5]}")
+        t = tensors[key]
+        out[name] = t.to(device, dtype) if t.is_floating_point() else t.to(device)
+    return out
+
+
 def common(p):
     p.add_argument('model')
     p.add_argument('--truncate', help='shorten one composition index range, e.g. decoder.layer=3')
     p.add_argument('--set', action='append', default=[], metavar='PATH=VALUE',
                    help='edit the document before deriving, e.g. quantities.d.source.value=64 (JSON value)')
-    p.add_argument('--capacity', type=int, default=1024)
+    p.add_argument('--capacity', type=parse_capacity, default=1024, metavar='N|STREAM=N,…',
+                   help='positions every append state may hold: one number for every stream, or per stream (tokens=64,audio=1500)')
     p.add_argument('--device', default='cpu')
     p.add_argument('--compute', default=None, help='f32 (CPU default) | bf16 (CUDA default)')
     p.add_argument('--physical', metavar='FILE', help='opaque parameters for the primitives (generators/CAPABILITIES.md): '
@@ -86,16 +114,24 @@ def compute_dtype(args):
 def make_plan(g, kernels, args, dtype):
     resident = loader.state_bytes(g, args.capacity, dtype) + loader.largest_temporary(g, dtype)
     max_bytes = int(args.max_ram * 2**30) if args.max_ram else None
-    plan = Plan(g, kernels, max_bytes=max_bytes, elements=args.capacity, resident_bytes=resident)
+    elements = loader.largest_capacity(args.capacity)
+    plan = Plan(g, kernels, max_bytes=max_bytes, elements=elements, resident_bytes=resident)
     if max_bytes is not None:
-        for line in plan.summary(args.capacity, max_bytes, resident):
+        for line in plan.summary(elements, max_bytes, resident):
             print("  " + line)
     return plan
 
 
+def delivery(g, extra=()):
+    """The inputs a first invocation delivers: the token input and whatever `--input` names, so
+    that refusals are computed over the occurrences that delivery evaluates (§7)."""
+    return ({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])) | set(extra)
+
+
 def report(g, plan, i, args, dtype):
+    capacity = args.capacity if isinstance(args.capacity, int) else ', '.join(f"{k}={v}" for k, v in args.capacity.items())
     print(f"  parameters {loader.gib(i['parameter_bytes'])} at the declared dtypes; states {loader.gib(i['state_bytes'])} "
-          f"at {dtype} for a capacity of {args.capacity}; largest per-operation temporary {loader.gib(i['temporary_bytes'])}")
+          f"at {dtype} for a capacity of {capacity}; largest per-operation temporary {loader.gib(i['temporary_bytes'])}")
     print(f"  resident   {loader.gib(i['resident_bytes'])} — {i['mode']}; free on {args.device}: "
           f"{loader.gib(i['free_bytes']) if i['free_bytes'] is not None else 'unknown'}; activations not budgeted")
 
@@ -105,7 +141,7 @@ def cmd_info(args):
     g = open_graph(args)
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
-    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])))
+    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable(g.required_inputs()))
     print(f"{g.model}: {len(g.nodes)} nodes, {len(g.tensors)} tensors, {len(g.states)} states")
     if r:
         print(f"  refusals: {len(r)}")
@@ -155,7 +191,7 @@ def compiled(model, args):
 def build(args, g):
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
-    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])))
+    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable(g.required_inputs()))
     if r:
         print(f"refused: {len(r)} reason(s)")
         for line in r[:20]:
@@ -266,7 +302,8 @@ def cmd_run(args):
     g = open_graph(args)
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
-    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])))
+    extra = load_inputs(args.input, args.device, dtype)
+    r = registry.refusals(g, kernels, Plan(g, kernels).evaluable(delivery(g, extra)))
     if r:
         print(f"refused: {len(r)} reason(s)")
         for line in r[:20]:
@@ -312,7 +349,7 @@ def cmd_run(args):
     dump = {} if args.dump else None
     t0 = time.time()
     if g.generative is None:                      # an encoder: one invocation, the exposed outputs, nothing to decode
-        out = session.run({g.token_input: torch.as_tensor(ids, device=args.device, dtype=torch.long)}, dump)
+        out = session.run({g.token_input: torch.as_tensor(ids, device=args.device, dtype=torch.long), **extra}, dump)
         for oname, t in out.items():
             print(f"  {oname}: {list(t.shape)}, mean norm {float(t.float().norm(dim=-1).mean()):.6f} ({time.time() - t0:.1f}s)")
         if args.dump:
@@ -323,7 +360,7 @@ def cmd_run(args):
                                          'cuts': [c['cut'] for c in g.layer_cuts()]})
             print(f"  dumped {len(dump)} tensors -> {args.dump}")
         return 0
-    out = session.prefill(ids, dump)
+    out = session.prefill(ids, dump, inputs=extra)
     first_logits = out[g.generative[0]]
     nxt = greedy(out, g)
     print(f"  prefill {len(ids)} elements -> next {nxt} ({time.time() - t0:.1f}s)")
@@ -363,7 +400,7 @@ def main(argv=None):
     p.add_argument('--check', action='store_true', help='also validate the manifest against its schema and the catalog')
     p.set_defaults(fn=cmd_capabilities)
     p = sub.add_parser('witness')
-    p.add_argument('contract', help='NAME@VERSION, or all')
+    p.add_argument('contract', help='NAME@VERSION, NAME@VERSION/CASE, or all')
     p.add_argument('--record', action='store_true', help='write the fixtures under fixtures/contracts/ (else regenerate and compare)')
     p.set_defaults(fn=cmd_witness)
     p = sub.add_parser('verify'); common(p)
@@ -374,6 +411,9 @@ def main(argv=None):
     p.add_argument('--checkpoint', metavar='DIR', help='the safetensors checkpoint the document locates its weights in')
     p.add_argument('--seed', type=int, default=0)
     p.add_argument('--ids', help='comma-separated token ids of the prompt')
+    p.add_argument('--input', action='append', default=[], metavar='NAME=FILE[:KEY]',
+                   help='a safetensors tensor delivered to the public input NAME with the prompt (audio=FIXTURE:in/audio); '
+                        'KEY defaults to in/NAME, else the only tensor of the file')
     p.add_argument('--steps', type=int, default=4)
     p.add_argument('--dump', help='write the values at every layer cut and the states to this safetensors file')
     p.add_argument('--compile', action='store_true', help='torch.compile the decode step (prefill stays eager)')

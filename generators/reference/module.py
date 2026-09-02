@@ -3,6 +3,8 @@ materialised block by block from a source under `--max-ram` (R13) — and `forwa
 walking the plan's blocks and calling the kernels; `step` does the work with the
 states passed explicitly.
 """
+from fractions import Fraction
+
 import torch
 import torch.nn as nn
 
@@ -23,6 +25,28 @@ class Ctx:
         self.device = device
         self.static = static
         self.positions = None
+
+
+def elements(n, count):
+    """`n` elements of a stream seen through a D2 `count`: n·count, an integer because a delivery
+    is aligned to every merge on its stream (§5.3, D2 `fragment_alignment`); an unaligned
+    delivery is refused, never rounded."""
+    m = n * Fraction(count).limit_denominator(1 << 20)
+    if m.denominator != 1:
+        raise ShapeError(f"a delivery of {n} elements is not aligned: every fragment delivers a multiple of {m.denominator} (§5.3)")
+    return int(m)
+
+
+def scaled(positions, count):
+    """The positions of a value with `count` elements per element of its stream: a delivery of n
+    elements from stream position s is the positions s·count … (s + n)·count − 1 — §5.3's merge,
+    applied where the runtime needs it (an encoder behind a strided front end works on n/stride
+    positions for n frames). Every value delivered whole has count 1 and keeps its positions."""
+    if positions is None or count == 1:
+        return positions
+    n = positions.shape[0]
+    start = elements(int(positions[0]) if n else 0, count)
+    return torch.arange(start, start + elements(n, count), device=positions.device)
 
 
 def physical_for(physical, node, contract):
@@ -104,15 +128,17 @@ def step(model, inputs, positions, states, dump=None):
                     ins[port] = torch.empty((0, *shape), dtype=model.compute, device=model.device)
             params = {slot: block_params[ident] for slot, ident in s.params.items()}
             sts = {name: states[ident] for name, ident in s.states.items()}
-            ctx.positions = positions.get(s.stream) if s.stream else None
+            stream_positions = positions.get(s.stream) if s.stream else None
+            ctx.positions = scaled(stream_positions, s.factor)
+            n = None if stream_positions is None else stream_positions.shape[0]
+            rows = {} if n is None else {port: elements(n, s.counts[port]) for port in s.outputs}   # refused before the kernel runs
             outs = s.kernel.run(ctx, s.arguments, ins, params, sts, model.physical.get(s.node))
-            n = None if ctx.positions is None else ctx.positions.shape[0]
             for port, t in outs.items():
                 vname = f"{s.node}.{port}"
                 if model.check and port in s.outputs:
                     expect = [a['extent'] for a in s.outputs[port]['shape']]
-                    if list(t.shape[1:]) != expect or (n is not None and t.shape[0] != n):
-                        raise ShapeError(f"{vname}: D2 says {expect} per element for {n} elements, got {list(t.shape)}")
+                    if list(t.shape[1:]) != expect or (port in rows and t.shape[0] != rows[port]):
+                        raise ShapeError(f"{vname}: D2 says {expect} per element for {rows.get(port)} elements, got {list(t.shape)}")
                 values[vname] = t
                 if dump is not None and vname in plan.dump_values:
                     dump[f"value/{vname}"] = t.detach().to('cpu', torch.float32).clone()

@@ -12,6 +12,7 @@ within the tolerance the kernel declares for its compute dtype.
 
     ref.py witness NAME@VERSION|all             regenerate every case and compare with the committed fixture
     ref.py witness NAME@VERSION|all --record    write the fixtures
+    ref.py witness NAME@VERSION/CASE [--record]  one case of a contract version
 
 The regeneration is the check that the witness did not change silently: a difference beyond the
 fixture's own f32 tolerance is refused unless the contract version changes or the correction is a
@@ -74,6 +75,10 @@ def document(name, version, arguments, cat, base):
     root = {"kind": "root", "occurrence": "unit"}
     inputs, outputs = {}, {}
     transformed = {t['from_port'] for t in definition.get('domain_transforms', [])}
+    # a port a state rule indexes (`indexed_by.port`) carries the stream its state grows along: its own,
+    # as a transformed port's — the cross-attention source, the front end's frames
+    transformed |= {r['indexed_by']['port'] for sp in definition['state_ports'].values() for r in sp.get('rules', [])
+                    if 'port' in (r.get('indexed_by') or {})}
     own = None                      # the occurrence's own domain is one stream (§5.3, V5): the first
     for pname, port in definition['ports']['inputs'].items():
         if present(port):
@@ -204,12 +209,16 @@ def run(g, kernels, params, invocations, compute, seed=None, given=None):
 
 
 def cases(kernels, only=None):
-    """(name, version, kernel, case) for every case the kernels declare, or those of one contract."""
+    """(name, version, kernel, case) for every case the kernels declare, those of one contract
+    version, or one case (`NAME@VERSION/CASE`)."""
+    contract, _, case_name = (only or '').partition('/')
     out = []
     for (name, version), k in sorted(kernels.items()):
-        if only and f"{name}@{version}" != only:
+        if only and f"{name}@{version}" != contract:
             continue
         for case in getattr(k, 'FIXTURES', []):
+            if case_name and case['case'] != case_name:
+                continue
             out.append((name, version, k, case))
     return out
 
@@ -302,15 +311,16 @@ def verify(fid, kernels):
 
 
 def committed(only=None):
-    """The ids of the committed unit fixtures, or those of one contract version."""
+    """The ids of the committed unit fixtures, those of one contract version, or one case."""
+    contract, _, case_name = (only or '').partition('/')
     out = []
     if not os.path.isdir(FIXTURES):
         return out
     for d in sorted(os.listdir(FIXTURES)):
-        if only and d != only:
+        if only and d != contract:
             continue
         for f in sorted(os.listdir(os.path.join(FIXTURES, d))):
-            if f.endswith('.safetensors'):
+            if f.endswith('.safetensors') and not (case_name and f != case_name + '.safetensors'):
                 out.append(f"{d}/{f[:-len('.safetensors')]}")
     return out
 

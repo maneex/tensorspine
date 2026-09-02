@@ -14,11 +14,15 @@ SHARING = ('by_position', 'within_span', 'at_fork_point')
 
 class Session:
     def __init__(self, model, capacity, device, dtype, decode_model=None):
+        """`capacity`: the positions every `append` state may hold — one number for every stream,
+        or a mapping per stream (`{'tokens': 64, 'audio': 1500}`), each state sized by the stream
+        it is indexed by (`state.allocate`)."""
         self.model = model
         self.decode_model = decode_model          # e.g. the compiled step, used for one-element invocations
         self.graph = model.graph
         self.capacity = capacity
         self.device = device
+        self.dtype = dtype
         self.states = state_mod.allocate(self.graph, capacity, device, dtype)
         self.consumed = {}
 
@@ -47,9 +51,15 @@ class Session:
             self.consumed[stream] = self.consumed.get(stream, 0) + t.shape[0]
         return outputs
 
-    def prefill(self, ids, dump=None):
-        name = self.graph.feedback_input
-        return self.run({name: torch.as_tensor(ids, device=self.device, dtype=torch.long)}, dump)
+    def prefill(self, ids, dump=None, inputs=None):
+        """The supplied elements (§7): the prompt on the token input and, in the same invocation,
+        whatever else `inputs` delivers (`{'audio': frames}`, element-major on the input's D2
+        shape) — a source stream delivered whole is complete, and the states indexed by it are
+        frozen from then on. Floating inputs are taken to the compute dtype."""
+        delivered = {self.graph.feedback_input: torch.as_tensor(ids, device=self.device, dtype=torch.long)}
+        for name, t in (inputs or {}).items():
+            delivered[name] = t.to(self.device, self.dtype) if t.is_floating_point() else t.to(self.device)
+        return self.run(delivered, dump)
 
     def decode(self, next_id, dump=None):
         name = self.graph.feedback_input
@@ -80,7 +90,7 @@ class Session:
             raise state_mod.Refusal(f"fork at {at}: the session has consumed {length} positions of '{stream}'")
         child = Session.__new__(Session)
         child.model, child.decode_model, child.graph = self.model, self.decode_model, self.graph
-        child.capacity, child.device = self.capacity, self.device
+        child.capacity, child.device, child.dtype = self.capacity, self.device, self.dtype
         child.consumed = dict(self.consumed)
         child.consumed[stream] = at
         child.states = {}

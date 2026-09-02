@@ -11,8 +11,8 @@ comes from D6 (every crossing edge forward), so a block needs nothing from a lat
 
 
 class Step:
-    __slots__ = ('node', 'kernel', 'contract', 'arguments', 'inputs', 'params', 'states', 'outputs', 'stream',
-                 'insert_sources', 'state_indexed_by')
+    __slots__ = ('node', 'kernel', 'contract', 'arguments', 'inputs', 'params', 'states', 'outputs', 'stream', 'factor',
+                 'counts', 'insert_sources', 'state_indexed_by')
 
     def __init__(self, node, kernel, entry, graph):
         self.node = node
@@ -29,7 +29,8 @@ class Step:
         self.params = graph.slots_of.get(node, {})
         self.states = graph.states_of.get(node, {})
         self.outputs = graph.outputs_of.get(node, {})
-        self.stream = graph.node_stream(node)
+        self.stream, self.factor = graph.node_domain(node)    # the node's positions: its stream's, scaled by the count (§5.3)
+        self.counts = {port: float((v.get('count') or {}).get(self.stream, 1.0)) for port, v in self.outputs.items()}
         self.insert_sources = set(graph.insert_sources.get(node, ()))
         self.state_indexed_by = graph.state_indexed_by.get(node, {})     # input port -> state name
 

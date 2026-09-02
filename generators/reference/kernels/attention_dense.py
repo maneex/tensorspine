@@ -1,11 +1,11 @@
-"""attention.dense@1.0.0 — dense or grouped-query attention over a KV state.
+"""attention.dense@1.0.0 — dense or grouped-query attention over a KV state; self or cross.
 
 | branch / record                 | status                                          |
 |---------------------------------|-------------------------------------------------|
 | mask causal                     | implemented                                     |
 | mask none (stateless encoder)   | implemented                                     |
 | mask chunked (`chunk`)          | refused                                         |
-| cross (`source_values`)         | refused                                         |
+| cross (`source_values`)         | implemented under `mask: none`: keys and values are projected from the source elements the invocation delivers and appended to `kv` along the source stream — a delivery of nothing (every decode step) appends nothing — and every query attends to the whole cache; with `rope` refused (the source positions are not delivered to the kernel); with `mask: causal` refused (a query's position and a source position are on different streams) |
 | streaming                       | refused                                         |
 | window                          | refused                                         |
 | rope: theta, layout split       | implemented (rotate-half)                       |
@@ -21,8 +21,8 @@
 | output_gate (`q_gated`)         | implemented: per head, query rows then gate rows |
 
 Conventions the contract leaves open, as read here: keys of the current elements are
-appended to the state before the queries attend (a query sees itself); the scale is
-head_dim^-1/2; rope `split` pairs channel i with i + rotary/2 (rotate-half) over the rotated
+appended to the state before the queries attend (a query sees itself; a cross-attention query
+sees every source element delivered so far); the scale is head_dim^-1/2; rope `split` pairs channel i with i + rotary/2 (rotate-half) over the rotated
 channels only, whose base frequencies are computed on the rotated width; `qk_norm` is an RMS
 norm over head_dim applied before RoPE, with the learned scales `qk_norm.scale` declares, zero-centred
 when it says so. These
@@ -39,7 +39,7 @@ KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'mask', 'window', 'chunk', 'c
 
 
 CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any",
-                              "mask": ["causal", "none"], "window": "absent", "chunk": "absent", "cross": [False],
+                              "mask": ["causal", "none"], "window": "absent", "chunk": "absent", "cross": [False, True],
                               "streaming": [False], "temperature": "absent",
                               "rope": {"absent": True, "fields": {"theta": "any", "layout": ["split"], "partial": "any",
                                        "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
@@ -51,7 +51,10 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
                                           "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
                               "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
                 "states": ["append"],
-                "notes": ["mrope for one position stream only: an image would need the sections to differ"]}
+                "excluding": [{"cross": True, "mask": "causal"}],
+                "transforms": ["align"],
+                "notes": ["mrope for one position stream only: an image would need the sections to differ",
+                          "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel"]}
 
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
@@ -74,6 +77,11 @@ FIXTURES = [
      "arguments": {"width": 64, "heads": 4, "head_dim": 16, "mask": "causal",
                    "rope": {"theta": 1000000.0, "scaling": {"kind": "yarn", "factor": 16.0, "orig_ctx": 16384,
                                                              "beta_fast": 32.0, "beta_slow": 1.0, "attention_factor": 1.0}}}},
+    # two streams: seven source elements cached in the first invocation, none delivered in the second,
+    # whose three queries attend to the seven cached (Whisper's biases: q, v and out, none on k)
+    {"case": "cross", "seed": 15, "invocations": [{"input": 5, "source_values": 7}, {"input": 3}],
+     "arguments": {"width": 64, "heads": 4, "head_dim": 16, "mask": "none", "cross": True,
+                   "q_bias": True, "v_bias": True, "out_bias": True}},
 ]
 
 
@@ -152,21 +160,24 @@ def run(ctx, arguments, inputs, params, states, physical=None):
     x = inputs['input']
     n = x.shape[0]
     h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']
+    cross = bool(arguments.get('cross'))
+    src = inputs['source_values'] if cross else x        # cross: the source elements this invocation delivers, none at a decode step
+    m = src.shape[0]
     gate = None
     if arguments.get('output_gate'):
         qg = (x @ w(ctx, params['q_gated']).T).view(n, h, 2, d)   # per head: query rows, then gate rows
         q, gate = qg[:, :, 0, :], qg[:, :, 1, :]
     else:
         q = x @ w(ctx, params['q']).T
-    k = x @ w(ctx, params['k']).T
-    v = x @ w(ctx, params['v']).T
+    k = src @ w(ctx, params['k']).T
+    v = src @ w(ctx, params['v']).T
     if arguments.get('q_bias'):
         q = q + w(ctx, params['q_bias'])
     if arguments.get('k_bias'):
         k = k + w(ctx, params['k_bias'])
     if arguments.get('v_bias'):
         v = v + w(ctx, params['v_bias'])
-    q, k, v = q.reshape(n, h, d), k.view(n, kv, d), v.view(n, kv, d)
+    q, k, v = q.reshape(n, h, d), k.view(m, kv, d), v.view(m, kv, d)
     qk_norm = arguments.get('qk_norm')
     if qk_norm and qk_norm['kind'] == 'rms':
         eps = qk_norm['eps']
@@ -179,12 +190,15 @@ def run(ctx, arguments, inputs, params, states, physical=None):
         k = rms_norm(k, ks, eps, zc)
     rope = arguments.get('rope')
     if rope:
+        if cross:
+            raise ValueError("cross attention with rope: the source stream's positions are not delivered to this kernel")
         q = rope_split(q, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
         k = rope_split(k, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
     causal = arguments['mask'] == 'causal'
     if 'kv' in states:
         st = states['kv']
-        st.append({'k': k, 'v': v})
+        if m:                                                # a cross cache is appended along the source stream, when it delivers
+            st.append({'k': k, 'v': v})
         bufs, length = st.read()
         out = attend(q, bufs['k'].to(q.dtype), bufs['v'].to(q.dtype), length, ctx.positions, causal, static=ctx.static)
     else:

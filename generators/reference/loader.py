@@ -5,6 +5,7 @@ import sys
 import torch
 
 from graph import DTYPES, ROOT
+from state import capacity_of, largest_capacity
 
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import artifact                 # noqa: E402  the language's own header reader and V17 check
@@ -29,12 +30,14 @@ def random_parameters(graph, device, seed=0):
 
 
 def state_bytes(graph, capacity, compute_dtype):
+    """The bytes the states hold at the compute dtype: every `append` state at the capacity of
+    its stream (one number, or a mapping per stream), a window at its span, a fixed state once."""
     width = torch.tensor([], dtype=compute_dtype).element_size()
     total = 0
     for s in graph.states.values():
         per = sum(p['elements'] for p in s['payload']) * width
         if s['law'] == 'append':
-            total += per * capacity
+            total += per * capacity_of(capacity, s['stream']['stream'])
         elif s['law'] == 'window':
             total += per * (s['span'] or 0)
         else:
@@ -83,7 +86,7 @@ def info(graph, capacity, compute_dtype, device, plan=None, elements=None):
     s = state_bytes(graph, capacity, compute_dtype)
     temp = largest_temporary(graph, compute_dtype)
     cuda = str(device).startswith('cuda')
-    elements = elements or capacity
+    elements = elements or largest_capacity(capacity)
     if plan is not None and len(plan.blocks) > 1:
         largest = max(b.bytes + b.payload_bytes_per_element * elements for b in plan.blocks)
         resident = largest + s + temp

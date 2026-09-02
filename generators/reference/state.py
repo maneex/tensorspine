@@ -19,13 +19,32 @@ class Refusal(Exception):
     pass
 
 
+def capacity_of(capacity, stream):
+    """The positions an `append` state on `stream` may hold: one number for every stream, or a
+    mapping per stream (`{'tokens': 64, 'audio': 1500}` — a cross-attention cache holds the
+    source stream's positions, not the tokens'). A state's positions are its stream's, so two
+    states on one stream cannot want different capacities; a stream the mapping omits is a
+    refusal, never a default."""
+    if isinstance(capacity, dict):
+        if stream not in capacity:
+            raise Refusal(f"no capacity for stream '{stream}': the mapping names {sorted(capacity)}")
+        return int(capacity[stream])
+    return int(capacity)
+
+
+def largest_capacity(capacity):
+    """The most positions any stream may hold: what sizes a payload bound."""
+    return max(capacity.values()) if isinstance(capacity, dict) else capacity
+
+
 class StateInstance:
     def __init__(self, entry, capacity, device, dtype):
         self.identity = entry['identity']
         self.law = entry['law']
         self.access = entry['access']
         self.span = entry.get('span')
-        self.capacity = capacity if self.law == 'append' else (self.span if self.law == 'window' else None)
+        self.stream = (entry.get('stream') or {}).get('stream')       # the stream the state grows along (D4)
+        self.capacity = capacity_of(capacity, self.stream) if self.law == 'append' else (self.span if self.law == 'window' else None)
         if self.law not in LAWS:
             raise Refusal(f"{self.identity}: unknown state law '{self.law}'")
         self.components = {}
@@ -108,6 +127,8 @@ class StateInstance:
 
 
 def allocate(graph, capacity, device, dtype):
+    """One instance per D4 identity, each `append` state sized by the stream it is indexed by —
+    the port's stream for a port-indexed state, the occurrence's own otherwise (D4 `stream`)."""
     return {ident: StateInstance(entry, capacity, device, dtype) for ident, entry in graph.states.items()}
 
 

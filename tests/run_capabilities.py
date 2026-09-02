@@ -51,9 +51,9 @@ def main():
     primitives = sorted(f"{n}@{v}" for (n, v), d in cat['by_id'].items() if 'template' not in d)
     ok &= check("reference: witnessed plus unwitnessed is every primitive contract of the catalog",
                 sorted(list(manifest['contracts']) + without) == primitives)
-    ok &= check("ledger: a contract without an entry lists every branch of its arguments — conv_frontend's bias, both ways",
-                'conv_frontend@1.0.0' in branches and {'bias=True', 'bias=False'} <= set(branches['conv_frontend@1.0.0']),
-                str(branches.get('conv_frontend@1.0.0')))
+    ok &= check("ledger: a contract without an entry lists every branch of its arguments — patch_embed's bias, both ways",
+                'patch_embed@1.0.0' in branches and {'bias=True', 'bias=False'} <= set(branches['patch_embed@1.0.0']),
+                str(branches.get('patch_embed@1.0.0')))
     ok &= check("ledger: a record argument of a missing contract lists its presence and its fields' branches",
                 any(g.endswith('=present') for g in branches.get('attention.latent_compressed@1.0.0', [])),
                 str(branches.get('attention.latent_compressed@1.0.0', [])[:6]))

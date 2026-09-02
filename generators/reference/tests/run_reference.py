@@ -164,6 +164,7 @@ def main(compile_step=False, full=False):
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
     ok &= witness_case(check)
     ok &= moe_random_case(check, tmp)
+    ok &= whisper_random_case(check, tmp)
     ok &= sharing_case(check, tmp)
     ok &= m1(check)
     ok &= composite_case(check)
@@ -310,6 +311,83 @@ def moe_random_case(check, tmp):
     for _ in range(3):
         bt.append(greedy(bsession.decode(bt[-1]), g))
     ok &= check(f"tiny qwen3.5-moe: {len(blocked.blocks)} blocks give the same logits and tokens",
+                len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
+    return ok
+
+
+TINY_WHISPER = {'quantities.d.source.value': 64, 'quantities.heads.source.value': 4, 'quantities.hd.source.value': 16,
+                'quantities.ffn.source.value': 128, 'quantities.vocab.source.value': 256, 'quantities.mels.source.value': 8,
+                'quantities.enc_layers.source.value': 2, 'compositions.encoder.indices.layer.stop.literal': 2,
+                'quantities.dec_layers.source.value': 2, 'compositions.decoder.indices.layer.stop.literal': 2,
+                'occurrences.conv_frontend.arguments.position.literal': 16, 'occurrences.embed.arguments.positions.literal': 16}
+
+
+def whisper_random_case(check, tmp):
+    """The encoder–decoder on random weights, two layers a side, shrunk: a merged domain (24 frames
+    make 12 positions behind the strided front end — §5.3's rule in the runtime), a capacity per
+    stream (the cross caches hold the source's positions, the self caches the tokens'), the audio
+    delivered with the prompt in one prefill, decode steps that deliver nothing on the source and
+    append nothing to its caches, an unaligned delivery and a missing input refused, and blocks
+    giving the one-block logits bit for bit."""
+    ok = True
+    path, _ = graph_mod.edited(os.path.join(ROOT, 'data', 'models', 'whisper-large-v3.json'), TINY_WHISPER, tmp, 'tiny')
+    g = graph_mod.load(path)
+    kernels = registry.load_kernels()
+    plan = Plan(g, kernels)
+    active = plan.evaluable(g.required_inputs())
+    refused = registry.refusals(g, kernels, active)
+    ok &= check("tiny whisper: the audio and the prompt evaluate every occurrence, each with a kernel for its arguments",
+                not refused and len(active) == len(g.nodes), refused[:2])
+    ok &= check("tiny whisper: the prompt alone evaluates five occurrences before any audio is cached (§7)",
+                len(plan.evaluable({'tokens'})) == 5, str(sorted(plan.evaluable({'tokens'}))))
+    params = loader.random_parameters(g, 'cpu', seed=7)
+    model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
+    capacity = {'tokens': 16, 'audio': 12}
+    session = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
+    audio = torch.randn(24, 8, generator=torch.Generator().manual_seed(7))
+    ids = [1, 2, 3, 4]
+    dump = {}
+    out = session.prefill(ids, dump, inputs={'audio': audio})
+    logits = out[g.generative[0]].clone()
+    ok &= check("tiny whisper: 24 frames and 4 tokens in one prefill give logits [4, vocab]; consumed per stream in input elements",
+                list(logits.shape) == [4, 256] and session.consumed == {'audio': 24, 'tokens': 4}, str(session.consumed))
+    cross = [st for ident, st in session.states.items() if 'cross_attn' in ident]
+    selfs = [st for ident, st in session.states.items() if 'self_attn' in ident]
+    ok &= check("tiny whisper: the cross caches hold the 12 merged source positions, the self caches the 4 tokens",
+                len(cross) == 2 and len(selfs) == 2 and all(st.length == 12 for st in cross) and all(st.length == 4 for st in selfs))
+    ok &= check("tiny whisper: the encoder runs on 12 positions and its output crosses every decoder cut, dumped once as [12, 64]",
+                list(dump['value/enc_final_n.output'].shape) == [12, 64] and list(dump['value/encoder/ffn_r[layer=1].output'].shape) == [12, 64])
+    tokens = [greedy(out, g)]
+    for _ in range(2):
+        tokens.append(greedy(session.decode(tokens[-1]), g))
+    ok &= check("tiny whisper: two decode steps deliver nothing on the source: the cross caches keep 12, the self caches reach 6",
+                all(st.length == 12 for st in cross) and all(st.length == 6 for st in selfs))
+    try:
+        Session(model, capacity=capacity, device='cpu', dtype=torch.float32).prefill(ids, inputs={'audio': audio[:23]})
+        ok &= check("tiny whisper: 23 frames are refused as unaligned to the stride (§5.3)", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("tiny whisper: 23 frames are refused as unaligned to the stride (§5.3)", 'aligned' in str(e), str(e)[:160])
+    try:
+        Session(model, capacity=capacity, device='cpu', dtype=torch.float32).prefill(ids)
+        ok &= check("tiny whisper: a prefill without the audio is refused, naming the output that needs it (§7)", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("tiny whisper: a prefill without the audio is refused, naming the output that needs it (§7)",
+                    'audio' in str(e) and 'main' in str(e), str(e)[:160])
+    try:
+        Session(model, capacity={'tokens': 16}, device='cpu', dtype=torch.float32)
+        ok &= check("tiny whisper: a capacity mapping that omits a stream is refused", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("tiny whisper: a capacity mapping that omits a stream is refused", "'audio'" in str(e), str(e)[:160])
+    resident = loader.state_bytes(g, capacity, torch.float32) + loader.largest_temporary(g, torch.float32)
+    finest = max(b.bytes + b.payload_bytes_per_element * 24 for b in plan.minimal)
+    blocked = Plan(g, kernels, max_bytes=resident + finest, elements=24, resident_bytes=resident)
+    bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.RandomSource(params).materialise)
+    bsession = Session(bmodel, capacity=capacity, device='cpu', dtype=torch.float32)
+    bl = bsession.prefill(ids, inputs={'audio': audio})[g.generative[0]]
+    bt = [greedy({g.generative[0]: bl}, g)]
+    for _ in range(2):
+        bt.append(greedy(bsession.decode(bt[-1]), g))
+    ok &= check(f"tiny whisper: {len(blocked.blocks)} blocks at legal cuts of both compositions give the same logits and tokens",
                 len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
     return ok
 

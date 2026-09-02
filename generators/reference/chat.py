@@ -11,6 +11,7 @@ import time
 
 import torch
 
+import state as state_mod
 from session import Session
 
 
@@ -86,6 +87,7 @@ def chat(model, graph, checkpoint, capacity, device, dtype, max_new_tokens=256, 
     transcript = []
     generator = torch.Generator().manual_seed(seed)
     stream = graph.input_stream[graph.feedback_input]
+    capacity = state_mod.capacity_of(capacity, stream)          # the token stream's, when given per stream
     print(f"chat: capacity {capacity} positions, "
           f"{'chat template' if getattr(tokenizer, 'chat_template', None) else 'plain transcript (base model)'}, "
           f"{'greedy' if temperature <= 0 else f'temperature {temperature}, top-p {top_p}'}; empty line to quit",

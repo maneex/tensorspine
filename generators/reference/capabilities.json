@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "def3f28",
+    "version": "c4c6220",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-02"
   },
@@ -40,7 +40,9 @@
       "patch"
     ],
     "transforms": [
-      "insert"
+      "align",
+      "insert",
+      "merge"
     ],
     "fragmented": true
   },
@@ -65,7 +67,8 @@
         "window": "absent",
         "chunk": "absent",
         "cross": [
-          false
+          false,
+          true
         ],
         "streaming": [
           false
@@ -132,8 +135,18 @@
       "states": [
         "append"
       ],
+      "excluding": [
+        {
+          "cross": true,
+          "mask": "causal"
+        }
+      ],
+      "transforms": [
+        "align"
+      ],
       "notes": [
-        "mrope for one position stream only: an image would need the sections to differ"
+        "mrope for one position stream only: an image would need the sections to differ",
+        "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel"
       ],
       "witness": {
         "kernel": "kernels/attention_dense.py",
@@ -151,7 +164,46 @@
           "attention.dense@1.0.0/causal-rope-gqa",
           "attention.dense@1.0.0/bidirectional-biased",
           "attention.dense@1.0.0/gated-qknorm-partial-mrope",
-          "attention.dense@1.0.0/yarn"
+          "attention.dense@1.0.0/yarn",
+          "attention.dense@1.0.0/cross"
+        ]
+      }
+    },
+    "conv_frontend@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "mels": "any",
+        "stride": "any",
+        "kernel": "any",
+        "bias": "any",
+        "position": "any",
+        "causal": [
+          false
+        ],
+        "streaming": "absent"
+      },
+      "states": [],
+      "transforms": [
+        "merge"
+      ],
+      "notes": [
+        "the activation after each convolution is the erf GELU, the convention the contract leaves to the witness",
+        "an even kernel has no symmetric padding and is refused at run time"
+      ],
+      "witness": {
+        "kernel": "kernels/conv_frontend.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "conv_frontend@1.0.0/basic"
         ]
       }
     },
@@ -175,6 +227,30 @@
         },
         "fixtures": [
           "embed@1.0.0/basic"
+        ]
+      }
+    },
+    "embedding.token_position@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "vocabulary": "any",
+        "positions": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/embedding_token_position.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-06,
+            "rtol": 1e-05
+          },
+          "bf16": {
+            "atol": 0.01,
+            "rtol": 0.01
+          }
+        },
+        "fixtures": [
+          "embedding.token_position@1.0.0/basic"
         ]
       }
     },

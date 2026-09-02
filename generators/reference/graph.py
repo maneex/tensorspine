@@ -61,8 +61,10 @@ def edited(model_path, edits, out_dir, suffix='edited'):
 
 
 def truncated(model_path, spec, out_dir):
-    """`decoder.layer=3`: the composition index range shortened, and a literal quantity
-    named `layers` equal to the old stop following it."""
+    """`decoder.layer=3`: the composition index range shortened, with everything that names its
+    old extent — every literal quantity equal to the old stop that an index expression addressing
+    the composition cites (`layers`; Whisper's `dec_layers`, never its `enc_layers`), and every
+    literal equal to the old last index in the bindings and guards that address it."""
     comp_index, stop = spec.split('=')
     comp, index = comp_index.rsplit('.', 1)
     stop = int(stop)
@@ -70,9 +72,39 @@ def truncated(model_path, spec, out_dir):
         model = json.load(f)
     old = model['compositions'][comp]['indices'][index]['stop']['literal']
     edits = {f"compositions.{comp}.indices.{index}.stop.literal": stop}
-    q = model.get('quantities', {}).get('layers')
-    if q and q['source'].get('kind') == 'literal' and q['source'].get('value') == old:
-        edits['quantities.layers.source.value'] = stop
+
+    def quantities(node, out):          # every quantity an expression tree cites
+        if isinstance(node, dict):
+            if isinstance(node.get('quantity'), str):
+                out.add(node['quantity'])
+            for v in node.values():
+                quantities(v, out)
+        elif isinstance(node, list):
+            for v in node:
+                quantities(v, out)
+        return out
+
+    cited = set()
+
+    def cite(node):                     # the index expressions of the composition's occurrences, wherever written
+        if isinstance(node, dict):
+            if node.get('kind') == 'generated' and node.get('composition') == comp:
+                quantities(node.get('indices', {}), cited)
+            elif 'site' in node and 'indices' in node:
+                quantities(node['indices'], cited)
+            for v in node.values():
+                cite(v)
+        elif isinstance(node, list):
+            for v in node:
+                cite(v)
+    cite(model.get('bindings', {}))
+    cite(model['compositions'][comp].get('bindings', {}))
+    for occ in model['compositions'][comp]['occurrences'].values():
+        quantities(occ.get('when', {}), cited)
+    for q in sorted(cited):
+        entry = model.get('quantities', {}).get(q)
+        if entry and entry['source'].get('kind') == 'literal' and entry['source'].get('value') == old:
+            edits[f"quantities.{q}.source.value"] = stop
     # a document that names its last layer by a literal (`layer < 31`, `mlp_r[layer=31]`):
     # every literal equal to the old last index, in the bindings and in that composition
     def walk(node, path):
@@ -168,12 +200,32 @@ class Graph:
     def layer_cuts(self):
         return [c for c in self.cuts if c['kind'] == 'layer']
 
+    def required_inputs(self):
+        """The inputs a first invocation must deliver: those D2 marks `required_for` the
+        generative output — every input, for a document without one (§7)."""
+        if self.generative is None:
+            return set(self.interfaces['inputs'])
+        return {n for n, v in self.input_values.items() if self.generative[0] in v.get('required_for', [])}
+
+    def node_domain(self, node):
+        """(stream, factor) of the node's own domain (§5.3): the stream its outputs are on — its
+        first input's, for a node without outputs — and the D2 `count` on that stream of the
+        first input value in it, whose positions are the node's: 1 for a value a public input
+        delivers whole, 1/stride behind a merge. A port on another stream (a cross-attention
+        source) is transformed and never the node's own."""
+        stream = None
+        for v in self.outputs_of.get(node, {}).values():
+            stream = v['domain']['stream']
+            break
+        inputs = [self.values[vname] for (n, _port), vname in self.sources.items() if n == node]
+        inputs += [self.input_values[name] for (n, _port), name in self.fed_by_input.items() if n == node]
+        if stream is None and inputs:
+            stream = inputs[0]['domain']['stream']
+        for v in inputs:
+            if v['domain']['stream'] == stream:
+                return stream, float((v.get('count') or {}).get(stream, 1.0))
+        return stream, 1.0
+
     def node_stream(self, node):
-        """The stream the node's elements are indexed by: that of its first input."""
-        for (n, port), vname in self.sources.items():
-            if n == node:
-                return self.values[vname]['domain']['stream']
-        for (n, port), name in self.fed_by_input.items():
-            if n == node:
-                return self.input_stream[name]
-        return None
+        """The stream the node's elements are indexed by."""
+        return self.node_domain(node)[0]
