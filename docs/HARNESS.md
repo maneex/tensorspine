@@ -101,11 +101,13 @@ question: survival across deliveries of a fragmented public input.
 | Peak live value bytes in topological order | `d2.peak_live` | One-invocation input counts | exact |
 | Append and fixed-state footprint | D4 byte fields and `.instance_key` | Active key values and retained positions | exact |
 | Window-state footprint | `.bytes_bounded`, `.instance_key` | Active key values | bound |
-| Meaning-preserving partition choices per node | `d6.partitions[].node`, `.target`, `.communication` | None | exact |
+| Meaning-preserving partition choices per node | `d6.partitions[].node`, `.target`, `.communication`, `.granularity` | None | exact |
 | Supported physical partition, collective and placement | No field in D1–D6 | Implementation capabilities, topology, workload and policy | not derivable |
 
-A D6 partition is local to the named node. Axis identities on D1 edges let an engine coordinate
-choices across nodes; TensorSpine does not emit a whole-model sharding plan.
+A D6 partition is local to the named node. Its `communication` lists the patterns the contract
+admits, one or several; its `granularity` is what a shard keeps whole along the axis, the KV group
+for attention's heads. Axis identities on D1 edges let an engine coordinate choices across nodes;
+TensorSpine does not emit a whole-model sharding plan.
 
 ## 7. Concrete D4 readers
 
