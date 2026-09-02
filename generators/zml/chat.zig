@@ -79,6 +79,10 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
 
     const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
     defer platform.deinit(allocator, io);
+    // `auto` falls back to the CPU without being asked, and the other two entry points
+    // say which backend they got. A chat that stays silent lets a machine with a device
+    // answer for an hour off its processor.
+    log.info("platform: {s}, {d} device(s)", .{ @tagName(platform.target), platform.devices.len });
 
     var tensors: zml.safetensors.TensorRegistry = try .fromPath(allocator, io, opts.checkpoint);
     defer tensors.deinit();
