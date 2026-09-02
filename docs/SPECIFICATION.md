@@ -5,9 +5,11 @@
 
 *TensorSpine 2.0 — language specification, revision of 29 August 2026. The language version is the
 `tensorspine/2.0` tag every document and schema carries; catalog units carry their own versions
-(§8.2). This document is the sole normative authority for the language. It is self-contained:
-syntax, validity, and denotation do not depend on source code, tools, or other repository artifacts.
-Every requirement identifier it cites (O‑, I‑, N‑) is stated in Appendix A or §9.*
+(§8.2). This document is the sole normative authority for language validity and denotation, and is
+self-contained for both: neither depends on source code or tools. The concrete model JSON grammar is
+the [model schema](../schemas/tensorspine.schema.json); the concrete derived encoding is described by
+the [derived-document guide](TENSORSPINE-DERIVED_JSON.md) and its schema. Every requirement
+identifier cited here (O‑, I‑, N‑) is stated in Appendix A or §9.*
 
 For motivation and repository orientation, read the [README](../README.md). For a field-by-field
 JSON authoring guide, read [TensorSpine model JSON](TENSORSPINE-MODEL_JSON.md). The
@@ -105,11 +107,11 @@ two independent properties, and a third follows from them:
   by an assignment (§4.6), with a declared domain and optionally a declared default; or a
   **derived** value, an expression of the algebra of §2.2 over other quantities.
 
-**Regime** is derived, never declared (O2.2): a quantity is a *model variable* when its source is
-external or is a derivation that reads a variable quantity, transitively, and then declares a
-domain (V3); otherwise it is a *model constant*, known when the document is written. A field
-stating it would copy that rule (§4.4). Regime and type are independent: a model constant need not
-be an integer.
+A quantity is a *model variable* when its source is external or is a derivation that reads a
+variable quantity transitively, and then declares a domain (O2.2, V3); otherwise it is a *model
+constant*, known when the document is written. Declaring that classification would copy the rule
+that derives it (§4.4). Variability and type are independent: a model constant need not be an
+integer.
 
 Load variables such as batch size and sequence count do **not** belong in the model document.
 
@@ -276,7 +278,7 @@ language.
 | **Logical cost** | Derived from the inventory: for every parameter slot, two operations per weight element per element of the occurrence's output domain, scaled by the activated fraction of a sparse unit (§4.5); the bytes of the inventory, in full for residency. A contract declares only **corrections**: an ordered list of entries, each guarded by a condition over the arguments, each stating an expression, a status (O0.5) and what it is counted per — `element` of the output domain, `cached_position` of a state, `sequence`, or `invocation`. Every entry whose condition holds contributes. Never operations actually executed. Known approximations are documented, not modelled: a strided convolution's first kernel (per input frame), a per-head normalisation scale, a pooler with `reduce`. |
 | **Semantic partitions** | Axes whose partition preserves meaning — an argument axis, an instance-key axis, a state payload axis, `any_axis`, or `none` — with the logical communication each implies (O7.1); at least one entry. |
 | **Domain transforms** | How a port's domain relates to the occurrence's own: `merge`, `align`, `insert` (§5.3). |
-| **Witness** | For every published `{name, version}`, one reference kernel of the reference generator is the authority for what the primitive computes (O1.3), at a tolerance stated per compute dtype; every other implementation is a **conformer**, checked against the witness on the unit fixtures the witness produces. The witness is not part of the unit — a field no reading consumes would be a comment (§10.2) — but of the reference generator's manifest, which binds a kernel, its tolerances and its fixtures to the identity (Architecture §2); the unit's prose and cited sources are the meaning the witness must agree with (§10.2). |
+| **Witness** | For every published `{name, version}`, one reference implementation supplied with the contract and executed by the reference generator is the authority for what the primitive computes (O1.3), at a tolerance stated per compute dtype; every other implementation is a **conformer**, checked against the witness on the unit fixtures it produces. The witness is not part of the unit — a field no reading consumes would be a comment (§10.2) — but of the reference generator's manifest, which binds the implementation entry point, its tolerances and its fixtures to the identity (Architecture §2); the unit's prose and cited sources are the meaning the witness must agree with (§10.2). |
 
 Anything a contract does not declare it cannot interpret, and is rejected (§8.1): the closed
 vocabulary is the rejection condition.
@@ -300,7 +302,7 @@ an executed-operation count, an implementation-supported partition, or an actual
 belong to a **generator** — the implementation that builds and runs the graph over its own primitives,
 on the **backends** (the hardware) it targets — which is outside this specification. Several correct
 generators may have different costs without changing the logical graph. One of them, the reference
-generator, carries the witness of every contract version (above); being the authority for the
+generator, executes the witness of every contract version (above); being the authority for the
 computation does not make its costs, layouts or fusions the contract's.
 
 ### 4.2 — Computation may be delegated; identity may not
@@ -808,7 +810,7 @@ carries the requirement; this appendix is the requirement. Gaps in the numbering
 | **O0.6** | Every language of this specification is closed and decidable, or uses a normative interface. |
 | **O1.1** | A contract is referenced through an immutable identity, `{name, version}`, whose meaning never changes (§8.2). |
 | **O1.2** | A model document carries a stable, authoritative identifier. |
-| **O1.3** | Every published contract version has one witness — a reference kernel of the reference generator, bound to the identity by that generator's manifest with a tolerance per compute dtype — that is the authority for what the primitive computes; every other implementation is a conformer, checked against it (§4.1, §4.2). |
+| **O1.3** | Every published contract version has one witness — a reference implementation supplied with the contract, executed by the reference generator and bound to the identity by its manifest with a tolerance per compute dtype — that is the authority for what the primitive computes; every other implementation is a conformer, checked against it (§4.1, §4.2). |
 | **O2.1** | Every quantity and every occurrence has one stable identifier, unique after expansion. |
 | **O2.2** | Every quantity declares its type and its source; it is a model variable when its source is external or reads one, transitively, and then declares a domain; otherwise a model constant. |
 | **O2.3** | Every quantity declares its dimensional type; physical quantities carry a unit. |

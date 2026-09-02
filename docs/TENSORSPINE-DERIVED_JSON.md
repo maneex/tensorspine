@@ -103,6 +103,10 @@ one (`text/decoder[layer<=3]`) is the ancestor closure over the whole graph, the
 occurrences included — a model written through a template lists the same values and cuts as the
 same model written flat.
 
+The specification defines legality, not an exhaustive cut family. This emitter chooses ancestor
+closures of composition prefixes and declared families. Another emitter may choose other legal
+cuts; every emitted cut must still be downward closed and its payload must follow the same rule.
+
 ## 5 — D3, parameter tensors
 
 One entry per parameter identity instance, a tied tensor once.
@@ -163,8 +167,10 @@ the specification and not modelled here.
 | `partitions` | For every node — template instances expanded — every partition its contract declares whose condition holds: `target` (an argument axis, an instance-key axis, a state payload axis, `any_axis`, `none`) and the logical `communication` (`none`, `all_reduce`, `all_gather`, `all_to_all`). |
 | `information_loss` | Every parameter slot axis whose extent is a product and that declares no factors (O5.10): partitionability along its factors is unknown and is reported as such, never as non-partitionability. |
 
-Partitions are semantic: an implementation may support fewer, and which of these cuts is a good
-one is decided with the machine's topology and the workload (§10.3).
+Each partition entry applies to its named node, not to the whole graph. Axis identities along D1
+edges provide the consistency relation across nodes; selecting a compatible multi-node plan remains
+the engine's decision. Partitions are semantic: an implementation may support fewer, and which cut
+or partition plan is useful depends on the machine's topology and workload (§10.3).
 
 ## 9 — Generating
 
@@ -181,5 +187,4 @@ python3 tests/run_derived.py     # every document on the schema, and its facts
 A file is named `<model>.d1.json` or `<model>.derived.json`; a template's,
 `<name>@<version>.derived.json`. `tests/run_derived.py` checks that every document of the
 corpus validates against the schema and that what it says agrees with the validator and with
-independently known facts (Llama 3 8B's 128 KiB per token, Whisper's cross-attention cache on
-the audio stream, Voxtral's carried encoder states).
+independently known state-stream, liveness and template-expansion facts.

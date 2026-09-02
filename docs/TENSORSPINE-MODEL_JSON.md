@@ -21,13 +21,17 @@ A TensorSpine model **is a graph**. Its nodes are occurrences of primitives; its
 bindings. State behaviour, parameter inventories, port shapes, logical costs and legal semantic
 partitions are consequences of primitive contracts applied to each occurrence's arguments.
 
-> **The model declares causes. Primitive contracts derive consequences.**
-
-This guide follows the JSON fields from the model document through contracts, validation, and
-derived products. It summarizes the governing principle only to orient the field descriptions; the
-specification defines the language's scope, required properties, and semantics. Terms such as
+This guide follows the ownership rule defined by
+[Specification §1.2](SPECIFICATION.md#12--governing-principle), from the model document through
+contracts, validation and derived products. The specification defines the language's scope,
+required properties and semantics. Terms such as
 *occurrence*, *composition*, *contract*, and *liveness* link back to one lookup point in the
 glossary.
+
+The in-scope graph is finite and acyclic per invocation, with data-independent visits, recurrence
+only through `append`, `window` or `fixed` state, and autoregressive generation. Coverage means
+that every such graph over available contracts has a representation; it does not claim that every
+architecture already has a contract. See [Specification §1](SPECIFICATION.md#1--scope-and-authority).
 
 ---
 
@@ -77,15 +81,12 @@ or composition, and must expose at least one public input and one public output.
 
 ### 2.1 — Quantities and expressions
 
-Quantities occupy one flat namespace. Each quantity declares three independent facts:
+Quantities occupy one flat namespace. Each declares a type—`cardinality`, `real`, `physical`,
+`enum` or `boolean`—and a source: `literal`, `external` or `derived`.
 
-- a `regime`: `model_constant` or `model_variable`;
-- a type: `cardinality`, `real`, `physical`, `enum` or `boolean`;
-- a source: `literal`, `external` or `derived`.
-
-A `model_constant` may be literal or derived. A `model_variable` must declare an interval or set
-domain and may be external or derived. This distinction makes templates explicit: an external
-quantity is an input to graph construction, not a runtime load variable such as batch size.
+A quantity is variable when it is external or depends transitively on an external quantity; it then
+declares an interval or set domain. This makes templates explicit: an external quantity is an input
+to graph construction, not a runtime load variable such as batch size.
 
 Expressions are tagged unions, never ambiguous strings. A scalar expression is one of:
 
@@ -375,10 +376,10 @@ shareable KV payload without knowing which non-adjacent layers actually share on
 
 ### 3.2 — Implementation candidates are outside the model
 
-Generator, backend, guards, memory layout, fusion, workspace, algorithms, physical traffic, supported kernel
-partitions and actual collectives belong to an generator, not to the model or its
-logical contract. Two implementations may have different physical costs while denoting the same
-expanded logical graph.
+Backend, guards, memory layout, fusion, workspace, algorithms, physical traffic, supported kernel
+partitions and actual collectives belong to the primitive implementation and serving application,
+not to the model or its logical contract. Two implementations may have different physical costs
+while denoting the same expanded logical graph.
 
 ---
 
@@ -389,7 +390,7 @@ expanded logical graph.
 | State payload descriptors, evolution laws, access geometry and permitted operations | Primitive contract |
 | Port and logical-slot shapes that follow from primitive arguments | Primitive contract |
 | Logical operation count and logical memory traffic | Primitive contract |
-| Kernel, generator, backend, fusion, workspace, physical layout and executed FLOPs | Generator |
+| Kernel, backend, fusion, workspace, physical layout and executed FLOPs | Primitive implementation or serving application |
 | Hardware placement, topology and resolved sharding plan | Compilation or deployment control |
 | Batch size, active sequence count and admission policy | Deployment intent or online control |
 | Cache pages, block tables and other runtime data structures | Runtime implementation |
@@ -427,10 +428,9 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
   --assign '{"width":3072,"layers":26,"heads":32,"kv_heads":8,"head_dim":128,"inner":9216,"eps":0.00001,"precision":"bf16"}'
 ```
 
-As of this revision, the eleven concrete corpus documents validate as written. The template,
-`decoder-causal-yarn/1.0.0.json`, is schema-valid and also passes semantic validation with the
-assignment above; the catalog manifest says where templates live (`templates`), one immutable file
-per version.
+The generated [status page](https://maneex.github.io/tensorspine/status/) reports which corpus
+documents validate as written. A template is validated under an assignment such as the one above;
+the catalog manifest says where templates live (`templates`), one immutable file per version.
 
 The language defines six derived products:
 
@@ -446,24 +446,20 @@ The language defines six derived products:
 A valid document must reject unresolved references, missing required arguments, undeclared
 arguments, invalid enum values, incompatible shapes or domains, combinational value cycles, unfed or
 twice-fed ports, unbound or twice-bound slots, dangling outputs, inadmissible dtypes, incompatible
-tied members, a carried state on a stream that is not fragmented, incompatible state identities and
-unresolvable repetition ranges (V1–V16). Unknown input is never accepted on the assumption that it
-does not matter.
+tied members, a carried state on a stream that is not fragmented, incompatible state identities,
+unresolvable repetition ranges and fragmented cross-position reads without carried history
+(V1–V18). Unknown input is never accepted on the assumption that it does not matter.
 
 ---
 
-## §6 — Coverage cases in the current corpus
+## §6 — Coverage evidence
 
-Four models exercise topology that a homogeneous decoder does not:
+The generated [status page](https://maneex.github.io/tensorspine/status/) separates schema and
+semantic validation, derivation and checkpoint-location coverage, and execution admitted by each
+capabilities manifest. A valid document is not necessarily executable by a particular
+implementation; its branch ledger names the missing contract entry or branch.
 
-| Model | Property exercised | TensorSpine 2.0 representation |
-|---|---|---|
-| **Whisper large-v3** | Cross-attention reads a different trunk | `cross: true` and an explicit encoder-to-decoder edge into `source_values`; the contract derives KV state indexed by that port's stream (`audio`, position kind) and frozen once it is complete. |
-| **Gemma 3n** | Non-adjacent layers share cache storage | State bindings merge 30 expanded state slots into 20 identities; shared identities use session and branch key axes but no layer key. |
-| **Voxtral Realtime** | State survives fragmented input invocations | The `audio` input is `fragmented` and the encoder attention has `streaming: true`, under which the contract carries its KV across fragments; the pairing is checked (V16), and nothing is declared on the binding. |
-| **ColBERT v2** | Per-token, non-generative output | A token-domain output with `generative: false`; the expanded model has no state slots. |
-
-These cases expose three distinctions that a state growth law alone cannot capture:
+The corpus exercises distinctions that a state growth law alone cannot capture:
 
 1. **Growth needs a stream.** `append` is ambiguous unless the contract states whether it follows
    the occurrence's own stream or the one arriving on an input port.
@@ -489,6 +485,12 @@ Extensions affect existing documents and consumers differently:
 “No breakage” does not mean “free”. A consumer still has to implement any new vocabulary that a
 model actually uses. Delegation is the only case that can genuinely reuse existing capabilities
 without requiring a new primitive implementation.
+
+The operational distinction is three-way: rearranging admitted primitives needs only a model
+document; using a branch an existing contract declares but a serving application does not admit
+needs one implementation branch in that application; genuinely new computation needs a contract
+and reference implementation from the model lab, then a conforming implementation in each serving
+application that supports it.
 
 Compatible catalog extensions do not require a new `tensorspine/2.x` model-language version. They do
 have to preserve every previously published contract identity: an existing `{name, version}` pair
