@@ -126,6 +126,13 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         edges.extend(sub['d1']['edges'])
         instances[instance] = {"contract": occurrence['contract'],
                                "arguments": dict(sub_assignment)}
+        if 'weights_location_prefix' in occurrence:
+            from validate import _physical_name
+            env0 = dict(key[3]) if key[0] == 'gen' else {}
+            prefix, problem = _physical_name(occurrence['weights_location_prefix'], env0, value, {})
+            if problem:
+                raise ValueError(f"{instance}: weights_location_prefix: {problem}")
+            instances[instance]['weights_location_prefix'] = prefix
         instances.update(sub['d1'].get('instances') or {})
         for port_name, port in sub['d1']['interfaces']['inputs'].items():
             inputs_of[(key, port_name)] = [(e['node'], e['port']) for e in port['to']]

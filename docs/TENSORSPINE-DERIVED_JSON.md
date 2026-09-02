@@ -79,7 +79,7 @@ contract's declared correction or sparsity bound.
 | `interfaces.inputs` | Per public input: `to` (the ports it feeds, expanded), `kind`, optional `stream` (the stream it joins) and `fragmented`. |
 | `interfaces.outputs` | Per public output: `node`, `port`, `generative`. Its domain is derived (§2.3) and appears in D2. |
 | `topological_order` | One order of the nodes compatible with the edges (V6). |
-| `instances` | Template instances that were expanded: identifier, contract, the assignment their arguments formed. Absent when there is none. |
+| `instances` | Template instances that were expanded: identifier, contract, the assignment their arguments formed and, when the document locates its weights, the evaluated `weights_location_prefix` under which every tensor of the instance is stored (§3.4). Absent when there is none. |
 
 The listing is the canonical one (§5.2 rule 4): nodes by identifier, edges by (source,
 destination). An occurrence absent by its guard is absent, and so is every binding that named
@@ -121,7 +121,7 @@ One entry per parameter identity instance, a tied tensor once.
 | `shape` | Axis identity and evaluated extent, with factors when the contract declared them. |
 | `multiplicity`, `elements`, `bytes` | `elements` includes the multiplicity; `bytes` is elements × the dtype's width. |
 | `tied` | Whether the identity has several members. |
-| `location` | When the document locates its weights: the evaluated location — physical names with indices and coordinates substituted, a `stack` expanded into its parts, a `slice` with its `offset` and `extent`, `dim` the position of the named axis in the shape. What a loader reads; what `--checkpoint` checks against the file headers (V17). |
+| `location` | When the document locates its weights: the evaluated location — physical names with indices and coordinates substituted, a `stack` expanded into its parts, a `slice` with its `offset` and `extent`, `dim` the position of the named axis in the shape; a tensor of a template instance carries the instance's prefix, so its name is whole. What a loader reads; what `--checkpoint` checks against the file headers (V17). |
 | `sparsity` | When the slot belongs to a sparsity unit (§4.5): the unit's index and axis, `activated_per_element`, `units` (the axis extent) and `activated_fraction`. A lookup table is `1 / vocabulary`. |
 | `totals` | `tensors`, `elements`, `bytes`, `tied`. |
 

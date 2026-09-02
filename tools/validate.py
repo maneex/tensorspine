@@ -518,6 +518,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     # --- V1/V2: contracts and arguments -----------------------------------
     resolved = {}
     sub_results = {}
+    weights_prefixes = {}                 # instance key -> the evaluated weights_location_prefix
     for key, o in sites.items():
         name = o['contract']['name']
         definition = catalog_mod.contract(cat, o['contract'])
@@ -525,6 +526,17 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             fail('V1', f"contract absent from catalog: {name}")
             continue
         template_file = None
+        if 'weights_location_prefix' in o:
+            if 'template' not in definition:
+                fail('V17', f"{name} @{where(key)}: a weights_location_prefix on an occurrence that is not a "
+                            f"template instance")
+            else:
+                env0 = dict(key[3]) if key[0] == 'gen' else {}
+                prefix, problem = _physical_name(o['weights_location_prefix'], env0, value, {})
+                if problem:
+                    fail('V17', f"{name} @{where(key)}: weights_location_prefix: {problem}")
+                else:
+                    weights_prefixes[key] = prefix
         if 'template' in definition:
             # A template contract: its arguments are the template's external
             # quantities, with their types, domains and declared defaults.
@@ -768,7 +780,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     checked = 0
     tensor_instances = []               # one per identity instance, for D3
     state_instances = []                # one per identity instance, for D4
-    located = any('location' in b for b in model['bindings']['parameters'].values())
+    located = any('location' in b for b in model['bindings']['parameters'].values()) or bool(weights_prefixes)
     physical_whole = {}                 # physical name -> identity instance (V17)
     physical_slices = defaultdict(list)  # physical name -> [(offset, extent, identity)]
 
@@ -865,10 +877,30 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             if o2 < o1 + e1:
                 fail('V17', f"physical tensor '{name}': slices of {i1} [{o1}, {o1 + e1}) and {i2} "
                             f"[{o2}, {o2 + e2}) overlap")
-    if located and sub_results:
-        fail('V17', "the document locates its weights but instantiates a template: a template "
-                    "instance's tensors have no location (a stated limit of this version)")
+    # V17 across template instances (§3.4): a located document instantiates only templates that
+    # locate their identities, under a prefix each instance supplies; the instance's physical
+    # names, prefixed, are bound once like every other
     stats['located'] = sum(1 for t in tensor_instances if 'location' in t)
+    for key, sub in sub_results.items():
+        name = resolved[key][0]
+        template_located = sub['stats'].get('located', 0) > 0
+        prefix = weights_prefixes.get(key)
+        if located and not template_located:
+            fail('V17', f"{name} @{where(key)}: the document locates its weights, but the template locates "
+                        f"none of its identities")
+        elif located and prefix is None:
+            fail('V17', f"{name} @{where(key)}: a located template instance needs a weights_location_prefix")
+        # a prefix alone locates the instance's tensors, so it makes the document located: every other
+        # identity then needs its location, which the totality rule above refuses one by one
+        if located and template_located and prefix is not None:
+            stats['located'] += sub['stats']['located']
+            for pname, identity in sub['physical']['whole'].items():
+                full = prefix + pname
+                if full in physical_whole:
+                    fail('V17', f"{where(key)}/{identity}: physical tensor '{full}' already bound by {physical_whole[full]}")
+                physical_whole[full] = f"{where(key)}/{identity}"
+            for pname, intervals in sub['physical']['slices'].items():
+                physical_slices[prefix + pname].extend((o, e, f"{where(key)}/{i}") for o, e, i in intervals)
 
     # --- D5, first derivation: elements, operations per element (§4.1) ----
     # Two operations per weight element per element of the output domain,
@@ -1085,17 +1117,20 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             entry['shape'] = port_shape(definition['ports']['outputs'].get(decl['from']['port'], {}), args)
         ports['outputs'][pname] = entry
 
-    # Slots and states of expanded templates count with the caller's (§4.6).
+    # Slots and states of expanded templates count with the caller's (§4.6); `located` was
+    # counted above, per instance, only where the instance is prefixed.
     for k, v in merged.items():
-        if k in stats and isinstance(stats[k], int) and not isinstance(stats[k], bool):
+        if k in stats and k != 'located' and isinstance(stats[k], int) and not isinstance(stats[k], bool):
             stats[k] += v
     return {'errors': errors, 'stats': stats, 'ports': ports, 'instance_keys': instance_keys,
             'carried': carried, 'advisories': advisories,
+            'physical': {'whole': physical_whole, 'slices': dict(physical_slices)},
             'graph': {'resolved': resolved, 'edges': edges, 'domains': domains, 'own': own,
                       'slots': slots, 'state_slots': state_slots, 'absent': absent,
                       'model': model, 'quantities': quantities, 'fragmented': fragmented,
                       'sub_results': sub_results, 'tensor_instances': tensor_instances,
-                      'state_instances': state_instances, 'order': order}}
+                      'state_instances': state_instances, 'order': order,
+                      'weights_prefixes': weights_prefixes}}
 
 
 def variable_quantities(model):

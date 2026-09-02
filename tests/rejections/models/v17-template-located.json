@@ -606,14 +606,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "attn_n.weight",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".attention_norm.weight"
               ]
             }
           },
@@ -629,14 +626,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "attn.q",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".attention.q_proj.weight"
               ]
             }
           },
@@ -652,14 +646,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "attn.k",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".attention.k_proj.weight"
               ]
             }
           },
@@ -675,14 +666,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "attn.v",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".attention.v_proj.weight"
               ]
             }
           },
@@ -698,14 +686,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "attn.out",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".attention.o_proj.weight"
               ]
             }
           },
@@ -721,14 +706,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "ffn_n.weight",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".ffn_norm.weight"
               ]
             }
           },
@@ -744,14 +726,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "ffn.gate",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".feed_forward.gate_proj.weight"
               ]
             }
           },
@@ -767,14 +746,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "ffn.up",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".feed_forward.up_proj.weight"
               ]
             }
           },
@@ -790,14 +766,11 @@
             },
             "location": {
               "tensor": [
-                "dummy/",
-                "vision",
-                "/",
-                "ffn.out",
-                ".",
+                "vision_tower.transformer.layers.",
                 {
                   "index": "layer"
-                }
+                },
+                ".feed_forward.down_proj.weight"
               ]
             }
           }
@@ -997,8 +970,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "patch_embed.weight"
+            "vision_tower.patch_conv.weight"
           ]
         }
       },
@@ -1020,8 +992,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "final_n.weight"
+            "language_model.model.norm.weight"
           ]
         }
       },
@@ -1043,8 +1014,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "vision_pre_n.weight"
+            "vision_tower.ln_pre.weight"
           ]
         }
       },
@@ -1066,8 +1036,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "vision_projector.norm"
+            "multi_modal_projector.norm.weight"
           ]
         }
       },
@@ -1089,8 +1058,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "vision_projector.merger"
+            "multi_modal_projector.patch_merger.merging_layer.weight"
           ]
         }
       },
@@ -1112,8 +1080,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "vision_projector.linear_in"
+            "multi_modal_projector.linear_1.weight"
           ]
         }
       },
@@ -1135,8 +1102,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "vision_projector.linear_out"
+            "multi_modal_projector.linear_2.weight"
           ]
         }
       },
@@ -1165,8 +1131,7 @@
         },
         "location": {
           "tensor": [
-            "dummy/",
-            "tied_embeddings"
+            "language_model.model.embed_tokens.weight"
           ]
         }
       }

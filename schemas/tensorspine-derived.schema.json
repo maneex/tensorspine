@@ -334,6 +334,10 @@
                 "additionalProperties": {
                   "$ref": "#/$defs/argument_value"
                 }
+              },
+              "weights_location_prefix": {
+                "type": "string",
+                "description": "The instance's evaluated prefix (§3.4), when the document locates its weights: every tensor of the instance is stored under it."
               }
             },
             "required": [

@@ -1,9 +1,9 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "shieldstral_1_0_3b_composite",
+  "model": "shieldstral_1_0_3b_composite_twice",
   "catalog": [
     {
-      "base": "../catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {
@@ -324,6 +324,45 @@
       "families": [
         "input",
         "projection"
+      ]
+    },
+    "text2": {
+      "contract": {
+        "name": "decoder.causal_yarn",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "layers": {
+          "quantity": "layers"
+        },
+        "heads": {
+          "quantity": "heads"
+        },
+        "kv_heads": {
+          "quantity": "kv_heads"
+        },
+        "head_dim": {
+          "quantity": "hd"
+        },
+        "inner": {
+          "quantity": "ffn"
+        },
+        "eps": {
+          "quantity": "eps"
+        },
+        "precision": {
+          "quantity": "precision"
+        }
+      },
+      "families": [
+        "decoder",
+        "instance"
+      ],
+      "weights_location_prefix": [
+        "language_model.model."
       ]
     }
   },
@@ -900,9 +939,9 @@
         "to": {
           "occurrence": {
             "kind": "root",
-            "occurrence": "final_n"
+            "occurrence": "text2"
           },
-          "port": "input"
+          "port": "hidden"
         }
       },
       "lm_head.in": {
@@ -951,6 +990,22 @@
             "occurrence": "splice"
           },
           "port": "source"
+        }
+      },
+      "text2.out": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "text2"
+          },
+          "port": "hidden_out"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
         }
       }
     },

@@ -223,6 +223,20 @@ def _wrap(prefix, key):
     return ('sub', prefix, key) if prefix else key
 
 
+def _prefixed(location, prefix):
+    """An evaluated location with every physical name under the instance's weights prefix
+    (§3.4): the tensor, the parts of a stack or a concat, the tensor of a slice."""
+    if 'tensor' in location:
+        return {"tensor": prefix + location['tensor']}
+    if 'stack' in location:
+        return {"stack": dict(location['stack'], parts=[_prefixed(p, prefix) for p in location['stack']['parts']])}
+    if 'concat' in location:
+        return {"concat": dict(location['concat'], parts=[_prefixed(p, prefix) for p in location['concat']['parts']])}
+    if 'slice' in location:
+        return {"slice": dict(location['slice'], tensor=prefix + location['slice']['tensor'])}
+    return location
+
+
 def _expand(graph, prefix=''):
     """The analysis graph with every template instance expanded in place (§5.1)
     — on the analysis side, what D1 does on emission. The instance's occurrences
@@ -296,8 +310,12 @@ def _expand(graph, prefix=''):
     def instances(kind):
         out = [dict(inst, identity=prefix + inst['identity'],
                     members=[(_wrap(prefix, k), p) for k, p in inst['members']]) for inst in graph[kind]]
-        for ex in inner.values():
-            out.extend(ex[kind])
+        for key, ex in inner.items():
+            weights_prefix = graph.get('weights_prefixes', {}).get(key)
+            for inst in ex[kind]:
+                if kind == 'tensor_instances' and weights_prefix is not None and inst.get('location') is not None:
+                    inst = dict(inst, location=_prefixed(inst['location'], weights_prefix))
+                out.append(inst)
         return out
 
     return dict(graph, resolved=resolved, edges=edges, domains=domains, own=own, order=order,

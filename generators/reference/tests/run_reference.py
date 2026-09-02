@@ -166,6 +166,7 @@ def main(compile_step=False, full=False):
     ok &= moe_random_case(check, tmp)
     ok &= sharing_case(check, tmp)
     ok &= m1(check)
+    ok &= composite_case(check)
     if full:
         ok &= m1_full(check)
     print("reference: all good" if ok else "reference: FAILED")
@@ -443,6 +444,38 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
         ok &= check(f"{label}: the exposed output {exposed} is among the compared values", all(k in theirs for k in exposed))
     else:
         ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
+    return ok
+
+
+def composite_case(check):
+    """The located composite (§3.4): the same model written through a template, loaded from the same
+    checkpoint by the prefixed locations of its instance, gives the flat document's logits bit for
+    bit and the same greedy tokens, at three layers."""
+    ck = os.path.join(CHECKPOINTS, 'Shieldstral-1.0-3B')
+    if not os.path.isdir(ck):
+        print("  skip composite (Shieldstral-1.0-3B not on disk)")
+        return True
+    tmp = tempfile.mkdtemp(prefix='tensorspine-ref-composite-')
+    kernels = registry.load_kernels()
+    ids = [1, 1784, 8961, 1307, 5498, 1395]
+    runs = {}
+    for document, edit in (('shieldstral-3b', None), ('shieldstral-3b-composite', {'quantities.layers.source.value': 3})):
+        source = os.path.join(ROOT, 'data', 'models', f'{document}.json')
+        path, _ = graph_mod.truncated(source, 'decoder.layer=3', tmp) if edit is None else graph_mod.edited(source, edit, tmp, '3layers')
+        g = graph_mod.load(path)
+        errors, _, stats = loader.verify(g, ck)
+        ok = check(f"composite: {document} at three layers verifies against the checkpoint ({stats['located']} located)", not errors, errors[:1])
+        params = loader.load_parameters(g, ck, 'cpu')
+        session = Session(TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu'), 64, 'cpu', torch.float32)
+        out = session.prefill(ids)
+        logits = out[g.generative[0]].clone()
+        tokens = [greedy(out, g)]
+        for _ in range(2):
+            tokens.append(greedy(session.decode(tokens[-1]), g))
+        runs[document] = (logits, tokens)
+    a, b = runs['shieldstral-3b'], runs['shieldstral-3b-composite']
+    ok &= check(f"composite: the template form gives the flat document's logits bit for bit and its tokens {a[1]}",
+                torch.equal(a[0], b[0]) and a[1] == b[1])
     return ok
 
 

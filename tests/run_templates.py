@@ -103,6 +103,23 @@ def derived_parity(cat):
     return ok
 
 
+def located_parity(cat):
+    """The composite locates its weights through the instance's prefix (§3.4): its evaluated
+    D3 names are exactly the flat document's, one to one, every one whole."""
+    flat = derive.products(os.path.join(MODELS, 'shieldstral-3b.json'), cat)
+    comp = derive.products(os.path.join(MODELS, 'shieldstral-3b-composite.json'), cat)
+    names = lambda doc: sorted(t['location']['tensor'] for t in doc['d3']['tensors'] if t.get('location'))
+    a, b = names(flat), names(comp)
+    ok = check(f"located parity: the composite's {len(b)} evaluated names are the flat document's {len(a)}, one to one",
+               a == b and len(a) == len(flat['d3']['tensors']) == len(comp['d3']['tensors']) and len(set(a)) == len(a),
+               str(sorted(set(a) ^ set(b))[:3]))
+    inst = comp['d1'].get('instances', {}).get('text', {})
+    ok &= check("located parity: D1 records the instance's prefix", inst.get('weights_location_prefix') == 'language_model.model.', str(inst)[:120])
+    stats = validate.semantic(os.path.join(MODELS, 'shieldstral-3b-composite.json'), cat)[1]
+    ok &= check("located parity: the validator counts the instance's tensors as located", stats.get('located') == len(a), str(stats.get('located')))
+    return ok
+
+
 def defaults():
     """A models base where the template gives `eps` a default; the composite
     then omits `eps` at the call site and must pass."""
@@ -156,6 +173,7 @@ def main():
     cat = catalog_mod.load(REFERENCE)
     ok = parity(cat)
     ok &= derived_parity(cat)
+    ok &= located_parity(cat)
     ok &= defaults()
     ok &= assignment(cat)
     print("templates: all good" if ok else "templates: FAILED")

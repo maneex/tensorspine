@@ -968,6 +968,13 @@
         },
         "when": {
           "$ref": "#/$defs/condition"
+        },
+        "weights_location_prefix": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/physical_name/items"
+          },
+          "description": "On an occurrence of a template contract only: the physical-name prefix under which this instance's weights are stored in the artifact — literal strings and indices of the enclosing composition. The template locates its identities below it (§3.4), so the evaluated location of an instance tensor is this prefix followed by the template's name; `[]` is a prefix. A document that locates its weights gives every instance one (V17)."
         }
       }
     },

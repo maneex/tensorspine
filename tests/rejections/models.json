@@ -316,8 +316,8 @@
     {
       "document": "models/v17-template-located.json",
       "expect": "V17",
-      "match": "template",
-      "note": "A document that locates its weights and instantiates a template: a template instance's tensors have no location, a stated limit (V17)."
+      "match": "a located template instance needs a weights_location_prefix",
+      "note": "A document that locates its weights and instantiates a located template without giving the instance a prefix: the instance's tensors would have no whole name (V17, §3.4)."
     },
     {
       "document": "models/v4-input-feeds-unequal-ports.json",
@@ -346,6 +346,24 @@
         "eps": 1e-05,
         "precision": "bf16"
       }
+    },
+    {
+      "document": "models/v17-prefix-on-unlocated.json",
+      "expect": "V17",
+      "match": "no location, while the document locates its weights",
+      "note": "A prefix on the instance and no other location: the prefix locates the instance's tensors, so the document locates its weights and every other identity needs its location (V17, totality)."
+    },
+    {
+      "document": "models/v17-prefix-on-primitive.json",
+      "expect": "V17",
+      "match": "a weights_location_prefix on an occurrence that is not a template instance",
+      "note": "Only a template instance's tensors are located through a prefix; a primitive's are located by its bindings (V17)."
+    },
+    {
+      "document": "models/v17-instances-one-prefix.json",
+      "expect": "V17",
+      "match": "already bound by text/",
+      "note": "Two instances of one template under one prefix name the same physical tensors: a physical tensor is bound by one identity (V17, I9), and two instances share nothing (§5.2 rule 8)."
     }
   ]
 }

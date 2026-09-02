@@ -92,6 +92,17 @@ def main():
     sl['slice']['offset'] = 8
     e, a, s = artifact.check(d3_of(sl, [4, 4]), hh)
     ok &= check("slice: [8, 12) of [10, 4] does not fit", len(e) == 1 and 'does not fit' in e[0], e[:1])
+    # the located composite (§3.4): its instance's tensors, prefixed, are the flat document's names
+    with open(SHIELD_DOC, encoding='utf-8') as f:
+        sh = json.load(f)
+    sh_d3 = derive.products(SHIELD_DOC, catalog_mod.load_for(SHIELD_DOC, sh))['d3']
+    comp_path = os.path.join(ROOT, 'data', 'models', 'shieldstral-3b-composite.json')
+    with open(comp_path, encoding='utf-8') as f:
+        comp = json.load(f)
+    comp_d3 = derive.products(comp_path, catalog_mod.load_for(comp_path, comp))['d3']
+    e, a, s = artifact.check(comp_d3, headers_of(sh_d3))
+    ok &= check(f"the composite against the flat document's headers: {s['located']} located, no error, nothing unnamed",
+                not e and not a and s['located'] == 458 and s['unnamed'] == 0, e[:1] or a[:1])
     if os.path.isdir(CHECKPOINT):
         real = artifact.read_headers(CHECKPOINT)
         e, a, s = artifact.check(d3, real)
@@ -106,6 +117,8 @@ def main():
         e, a, s = artifact.check(sh_d3, artifact.read_headers(SHIELDSTRAL))
         ok &= check(f"Shieldstral-1.0-3B on disk, one file without an index: {s['located']} located, {s['physical']} physical, "
                     f"{s['unnamed']} unnamed, {len(e)} errors", not e and s['unnamed'] == 0 and s['located'] == 458, e[:2])
+        e, a, s = artifact.check(comp_d3, artifact.read_headers(SHIELDSTRAL))
+        ok &= check(f"the composite against Shieldstral-1.0-3B on disk: {s['located']} located, {len(e)} errors", not e and s['located'] == 458, e[:2])
     else:
         print("  skip Shieldstral-1.0-3B (not on disk)")
     print("artifact: all good" if ok else "artifact: FAILED")

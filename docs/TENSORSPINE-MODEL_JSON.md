@@ -232,8 +232,13 @@ format string. Four forms cover the checkpoints in the corpus:
 | `{"slice": {"tensor": name, "axis": a, "offset": expression}}` | the region of one physical tensor at `offset` along `a`, of the slot's extent | Qwen 3.5's vision tower stores `attn.qkv` fused |
 
 Axes are the slot's shape axis names, as the catalog reference lists them. Locations are total or
-absent; a physical tensor is bound once (a tied identity has one location); a template instance's
-tensors cannot be located from outside in this version. The evaluated locations — every name
+absent; a physical tensor is bound once (a tied identity has one location). A template locates its
+identities below a prefix, and an instance supplies it: `"weights_location_prefix": ["language_model.model."]`
+on the invoking occurrence, literal strings and `{"index": …}` of the enclosing composition, `[]`
+allowed; the template's names are written without it (`["layers.", {"index": "layer"}, ".self_attn.q_proj.weight"]`),
+and the instance's tensors are located at the prefix followed by those names. A located document
+gives every instance a prefix; a prefix on an unlocated document, on an unlocated template's
+instance or on a primitive occurrence is refused (V17). The evaluated locations — every name
 written out, stacks expanded — are in D3, which is what a loader reads.
 
 
