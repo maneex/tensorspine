@@ -54,6 +54,16 @@ function Link(l)
   return l
 end
 
+function Image(img)
+  local target = img.src
+  if target:match('^%a[%w+.-]*:') or target:match('^/') then return nil end
+  local path, frag = target:match('^([^#]*)(#?.*)$')
+  local repo = repo_path(path)
+  local file = repo:match('^docs/([^/]+%.svg)$')
+  if file then img.src = root .. 'assets/' .. file .. frag end
+  return img
+end
+
 function Table(tbl)
   for i, spec in ipairs(tbl.colspecs) do
     tbl.colspecs[i] = { spec[1], pandoc.ColWidthDefault }
@@ -61,4 +71,4 @@ function Table(tbl)
   return pandoc.Div({ tbl }, pandoc.Attr('', { 'table-wrap' }))
 end
 
-return { { Meta = Meta }, { Link = Link, Table = Table } }
+return { { Meta = Meta }, { Link = Link, Image = Image, Table = Table } }

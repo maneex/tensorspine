@@ -1,0 +1,86 @@
+// Render with: dot -Tsvg docs/serving-today.dot -o docs/serving-today.svg
+digraph serving_today {
+  graph [
+    rankdir=TB,
+    bgcolor="#F6FAFC",
+    pad="0.34",
+    nodesep="0.30",
+    ranksep="0.46",
+    splines=ortho,
+    compound=true,
+    fontname="Arial",
+    fontcolor="#123348",
+    labeljust=l,
+    labelloc=t,
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="0">
+      <TR><TD ALIGN="LEFT"><FONT COLOR="#7D654F" POINT-SIZE="11"><B>TODAY  /  ARCHITECTURE-SPECIFIC INTEGRATION</B></FONT></TD></TR>
+      <TR><TD HEIGHT="7"></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT COLOR="#123348" POINT-SIZE="22"><B>Each model becomes a separate implementation inside every serving application.</B></FONT></TD></TR>
+    </TABLE>>
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Arial",
+    color="#BFD3DE",
+    fillcolor="#FFFFFF",
+    fontcolor="#123348",
+    penwidth=1.4,
+    margin="0.18,0.13"
+  ];
+  edge [
+    color="#3389A5",
+    penwidth=2.0,
+    arrowsize=0.75
+  ];
+
+  releases [
+    color="#218EA5",
+    fillcolor="#17639A:#27C9C3",
+    gradientangle=0,
+    fontcolor="#FFFFFF",
+    label=<<FONT POINT-SIZE="11"><B>MODEL LABS  /  N MODELS</B></FONT><BR/><FONT POINT-SIZE="16"><B>safetensors + delivery implementation</B></FONT><BR/><FONT POINT-SIZE="10">one release pair per model</FONT>>
+  ];
+
+  subgraph cluster_application {
+    graph [
+      style="rounded,filled",
+      color="#AFCBD7",
+      fillcolor="#FFFFFF",
+      penwidth=1.6,
+      margin=20,
+      labeljust=l,
+      labelloc=b,
+      label=<<FONT COLOR="#123348" POINT-SIZE="17"><B>SERVING APPLICATION</B></FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="10">model support and serving policy are maintained here</FONT>>
+    ];
+
+    implementations [
+      width=6.9,
+      color="#E1A24D",
+      fillcolor="#FFF6E8",
+      label=<<FONT COLOR="#7D481A" POINT-SIZE="15"><B>N model implementations</B></FONT><BR/><FONT COLOR="#765D48" POINT-SIZE="10">architecture wiring + optimized kernels + fusions + layouts, repeated per model</FONT>>
+    ];
+
+    secret [
+      width=3.35,
+      color="#E1A24D",
+      fillcolor="#FFF6E8",
+      label=<<FONT COLOR="#7D481A" POINT-SIZE="14"><B>Kernel optimization</B></FONT><BR/><FONT COLOR="#765D48" POINT-SIZE="10">the application&#39;s hardware-specific secret sauce</FONT>>
+    ];
+
+    harness [
+      width=3.35,
+      color="#B8D8DF",
+      fillcolor="#EAF5F8",
+      label=<<FONT POINT-SIZE="14"><B>Serving harness</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">cache / batching / scheduling / routing / placement</FONT>>
+    ];
+
+    { rank=same; secret; harness; }
+    secret -> harness [style=invis, weight=20];
+  }
+
+  releases -> implementations;
+  implementations -> secret;
+  implementations -> harness;
+}

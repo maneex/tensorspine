@@ -1,0 +1,134 @@
+// Render with: dot -Tsvg docs/serving-with-tensorspine.dot -o docs/serving-with-tensorspine.svg
+digraph serving_with_tensorspine {
+  graph [
+    rankdir=TB,
+    bgcolor="#F6FAFC",
+    pad="0.34",
+    nodesep="0.30",
+    ranksep="0.46",
+    splines=ortho,
+    compound=true,
+    fontname="Arial",
+    fontcolor="#123348",
+    labeljust=l,
+    labelloc=t,
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="0">
+      <TR><TD ALIGN="LEFT"><FONT COLOR="#34737E" POINT-SIZE="11"><B>WITH TENSORSPINE  /  DOCUMENT ONCE, OPTIMIZE INSIDE EACH SERVING APPLICATION</B></FONT></TD></TR>
+      <TR><TD HEIGHT="7"></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT COLOR="#123348" POINT-SIZE="22"><B>Model structure becomes shared data. Serving optimizations stay application-owned.</B></FONT></TD></TR>
+    </TABLE>>
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Arial",
+    color="#BFD3DE",
+    fillcolor="#FFFFFF",
+    fontcolor="#123348",
+    penwidth=1.4,
+    margin="0.18,0.13"
+  ];
+  edge [
+    color="#3389A5",
+    fontname="Arial",
+    fontcolor="#557583",
+    fontsize=10,
+    penwidth=2.0,
+    arrowsize=0.75
+  ];
+
+  lab [
+    color="#218EA5",
+    fillcolor="#17639A:#27C9C3",
+    gradientangle=0,
+    fontcolor="#FFFFFF",
+    label=<<FONT POINT-SIZE="11"><B>MODEL LAB</B></FONT><BR/><FONT POINT-SIZE="16"><B>safetensors + TensorSpine model document</B></FONT><BR/><FONT POINT-SIZE="10">contract + reference implementation when semantics change</FONT>>
+  ];
+
+  subgraph cluster_tensorspine {
+    graph [
+      style="rounded,filled",
+      color="#78BFC1",
+      fillcolor="#EAF8F7",
+      penwidth=1.8,
+      margin=20,
+      labeljust=l,
+      labelloc=t,
+      label=<<FONT COLOR="#176B72" POINT-SIZE="17"><B>TENSORSPINE</B></FONT><BR/><FONT COLOR="#557A80" POINT-SIZE="10">the shared model contract and its tooling</FONT>>
+    ];
+
+    foundation [
+      width=6.9,
+      color="#218EA5",
+      fillcolor="#17639A:#27C9C3",
+      gradientangle=0,
+      fontcolor="#FFFFFF",
+      label=<<FONT POINT-SIZE="15"><B>Model-document schema + reference primitive catalog</B></FONT><BR/><FONT POINT-SIZE="10">logical structure and reusable primitive semantics</FONT>>
+    ];
+
+    derive [
+      width=2.15,
+      color="#C5DEE6",
+      fillcolor="#FFFFFF",
+      label=<<FONT POINT-SIZE="13"><B>Validate &amp; derive</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="9">portable logical model facts</FONT>>
+    ];
+
+    admission [
+      width=2.15,
+      color="#C5DEE6",
+      fillcolor="#FFFFFF",
+      label=<<FONT POINT-SIZE="13"><B>Compatibility</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="9">build manifest from support / check admission</FONT>>
+    ];
+
+    conformance [
+      width=2.15,
+      color="#C5DEE6",
+      fillcolor="#FFFFFF",
+      label=<<FONT POINT-SIZE="13"><B>Conformance</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="9">unit vs reference implementation<BR/>integration vs delivery</FONT>>
+    ];
+
+    { rank=same; conformance; derive; admission; }
+    conformance -> derive [style=invis, weight=20];
+    derive -> admission [style=invis, weight=20];
+    foundation -> conformance [style=invis, weight=2];
+    foundation -> derive [style=invis, weight=2];
+    foundation -> admission [style=invis, weight=2];
+  }
+
+  subgraph cluster_application {
+    graph [
+      style="rounded,filled",
+      color="#AFCBD7",
+      fillcolor="#FFFFFF",
+      penwidth=1.6,
+      margin=20,
+      labeljust=l,
+      labelloc=b,
+      label=<<FONT COLOR="#123348" POINT-SIZE="17"><B>SERVING APPLICATION</B></FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="10">its optimization surface remains its own</FONT>>
+    ];
+
+    implementations [
+      width=3.35,
+      color="#B8D8DF",
+      fillcolor="#EAF5F8",
+      label=<<FONT POINT-SIZE="14"><B>Optimized primitive implementations</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">implements its supported contract subset</FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">custom kernels / fusions / layouts / partitions</FONT>>
+    ];
+
+    harness [
+      width=3.35,
+      color="#B8D8DF",
+      fillcolor="#EAF5F8",
+      label=<<FONT POINT-SIZE="14"><B>Serving harness</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">maps model facts to target infrastructure</FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">cache / batching / scheduling / routing / placement</FONT>>
+    ];
+
+    { rank=same; implementations; harness; }
+    implementations -> harness [style=invis, weight=20];
+  }
+
+  lab -> foundation;
+  conformance -> implementations;
+  derive -> implementations;
+  derive -> harness;
+  admission -> harness;
+}

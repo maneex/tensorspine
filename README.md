@@ -3,6 +3,35 @@
 **Project documentation:** access it directly at
 [maneex.github.io/tensorspine](https://maneex.github.io/tensorspine/).
 
+*An exploratory project: see the [disclaimer](#disclaimer). What validates, derives and runs today
+is on the [status page](https://maneex.github.io/tensorspine/status/).*
+
+## How a model reaches serving applications
+
+**Today**
+
+![Today, each model becomes a separate implementation inside every serving application](docs/serving-today.svg)
+
+<a id="with-tensorspine"></a>
+**With TensorSpine**
+
+TensorSpine provides the model-document schema, a reference primitive catalog, and the tooling that
+validates documents, derives portable logical model facts, and checks compatibility.
+
+![With TensorSpine, model structure is shared data and serving applications implement their supported contract subset](docs/serving-with-tensorspine.svg)
+
+*One model integration; reusable implementations per primitive branch.*
+
+**Who does what, with what tooling**
+
+| Who | Does what | With what tooling |
+|---|---|---|
+| A model lab | ships safetensors, a TensorSpine model document, and any new contract with its reference implementation | a graphical topology editor; `tensorspine --validate --checkpoint` against its own files; `--derive`; the reference generator's `run` and `compare` against its delivery implementation |
+| Anyone, once for all serving applications | transcribes a document for a model the lab did not ship, and locates its weights | the same, plus the dumped fixtures and the whole-model comparison at every legal cut |
+| The language maintainers | maintain the model-document schema, reference catalog and specification; integrate contributed contracts and reference implementations | `--lint`, `--document catalog`, the rejection and signature suites; the manifest and conformance tooling |
+| A serving application | implements its supported subset of TensorSpine contracts with optimized kernels, fusions, layouts and partitions; owns a harness over the derived model facts | a capabilities manifest built by TensorSpine tooling from its primitive support; `--capabilities MANIFEST MODEL` (can it run this?); `--coverage` (what that application still lacks); the shared fixtures |
+| An operator | chooses extracts, placement and physical parameters for one deployment | the deployment document; derived state, cut and payload facts; `--max-ram` as the one-machine instance |
+
 ## 0. TensorSpine in four statements
 
 1. **Every serving application reimplements every model.** The weights are already data; the
@@ -11,9 +40,9 @@
    requests; its competitive value lies in making that connection efficient.
 3. **The engine has two halves.** A harness makes serving decisions, while primitive implementations
    execute the model on the available hardware.
-4. **TensorSpine supplies their shared model contract.** It records logical structure as data and
-   derives the facts the harness needs to reason about and dispatch a model without model-specific
-   glue.
+4. **TensorSpine supplies their shared model contract.** Its model-document schema, reference
+   primitive catalog and tooling record logical structure as data and derive the facts a harness
+   needs without model-specific glue.
 
 ## 1. Why TensorSpine
 
@@ -46,8 +75,8 @@ state inventories, lifetimes, logical costs, legal cuts and semantic partitions.
 over these facts and dispatches occurrences to matching primitive implementations. TensorSpine
 chooses neither serving policy nor kernels.
 
-The model is therefore a weight artifact plus a machine-readable declaration, loadable without a new
-serving release and stable across hardware, topology, workload and serving strategy.
+The model is therefore a weight artifact plus a machine-readable declaration, stable across
+hardware, topology, workload and serving strategy.
 
 ### What the engine needs from a model
 
@@ -85,10 +114,16 @@ harness derives reference values for state management and placement while retain
 kernels, fragmentation, physical layout, cache policy, scheduling, prefill/decode strategy and
 hardware placement.
 
-A model that rearranges known primitives is therefore a new document, not new runtime code. Only a
-model that introduces genuinely new computational semantics requires a new contract and a kernel,
-implemented once for every model that uses it. A runtime should need new code when computation
-changes, not merely because a model name changes.
+A model that rearranges known primitives is a new document, not new runtime code. A model that uses
+a branch of a known contract that a serving application does not yet implement—an activation, a
+scaled embedding, or a rotary-scaling variant—needs that branch implemented once in that
+application; its manifest refuses the model until then. Only genuinely new computational semantics
+require the lab to supply a new contract and reference implementation. Each serving application may
+then implement that primitive once, reusable by every model that uses it. Over the architectures serving
+applications register, most are the first case, many the second, few the third. A runtime needs new
+code when computation changes, not merely because a model name changes; “loadable without a new
+serving release” holds in every serving application whose manifest admits the document's contracts
+and branches.
 
 > **TensorSpine separates model from kernel support.**
 
@@ -104,7 +139,10 @@ The TensorSpine documentation has deliberately separate roles:
 | **[Glossary](docs/GLOSSARY.md)** | What a TensorSpine term means and where its canonical definition lives | Navigational, non-normative |
 | **[Architecture](docs/ARCHITECTURE.md)** | Why the language has its current boundaries and design choices | Design rationale, non-normative |
 | **[Derived document](docs/TENSORSPINE-DERIVED_JSON.md)** | How the products D1–D6 are written down — the JSON `--d1` and `--derive` emit, and its schema | Practical, non-normative |
+| **[Harness](docs/HARNESS.md)** | What each serving decision needs from D1–D6, and what is not derivable | Practical, non-normative |
+| **[Fixture format](docs/TENSORSPINE-FIXTURE.md)** | How a unit or integration fixture is written down | Practical, non-normative |
 | **[Catalog reference](https://maneex.github.io/tensorspine/catalog/)** | What every contract, axis and precision role of the catalog declares — generated by `tensorspine --document catalog` | Reference, generated, not in the tree |
+| **[Status](https://maneex.github.io/tensorspine/status/)** | What validates, derives and runs today | Generated |
 | **[Catalog documentation model](docs/CATALOG-DOCUMENTATION.md)** | Which documentation fields a catalog unit may carry, and how the reference is generated | Proposal, non-normative |
 
 Start here for the motivation, then use the model JSON guide for the interchange format. Consult the
@@ -123,12 +161,9 @@ TensorSpine must be:
 - **extensible:** new operations can be added as primitives that reuse those state natures;
 - **verifiable:** derived values can be recomputed and contradicted.
 
-The format separates causes from consequences:
-
-- **A model declares causes:** source quantities, primitives and arguments, repetition, value flow,
-  parameter and state sharing, and public interfaces.
-- **Primitive contracts declare consequences:** shapes, parameter slots, state slots and ports. A
-  model never copies them.
+The ownership rule is defined once in
+[Specification §1.2](docs/SPECIFICATION.md#12--governing-principle): model documents own
+graph-specific facts; primitive contracts own reusable consequences.
 
 For example, declaring dense attention with its width, query heads, KV heads and causal mask also
 determines its tensors, shapes and state behavior through the contract.
@@ -139,6 +174,10 @@ models use new combinations of the vocabulary, or new primitives with existing s
 Each primitive is a versioned **contract**. A model pins `{name, version}` exactly. Every change is a
 new version file beside the old one — patch, minor or major by what it changes (§8.2); there is no
 global catalog version.
+
+Each contract version has a witness: the reference implementation supplied with the contract and
+run by the reference generator. It is the authority for what the primitive computes, at a stated
+tolerance; every other implementation is checked against it.
 
 ### What the harness can derive
 
@@ -169,10 +208,10 @@ tensorspine/
 ├── data/
 │   ├── catalog/                  vocabulary, one unit per file
 │   │   ├── catalog.json          `base` unit naming the catalog and its `templates` location
-│   │   ├── axes/                 36 named axes
-│   │   ├── contracts/            34 versioned contracts
-│   │   └── precision/            54 precision roles
-│   └── models/                   14 model documents, one template (`decoder-causal-yarn/1.0.0.json`)
+│   │   ├── axes/                 named axes
+│   │   ├── contracts/            versioned contracts
+│   │   └── precision/            precision roles
+│   └── models/                   model documents and a versioned template
 ├── schemas/
 │   ├── tensorspine.schema.json      model grammar (JSON Schema 2020-12)
 │   ├── tensorspine-catalog-unit.schema.json
@@ -190,14 +229,16 @@ tensorspine/
 │   ├── ARCHITECTURE.md           non-normative design rationale
 │   ├── TENSORSPINE-MODEL_JSON.md     practical, non-normative model-format guide
 │   ├── TENSORSPINE-DERIVED_JSON.md   the derived document: D1–D6 as JSON
+│   ├── TENSORSPINE-FIXTURE.md        unit and integration fixture format
+│   ├── HARNESS.md                    serving decisions mapped to D1–D6
 │   ├── GLOSSARY.md                terminology index
 │   ├── SPECIFICATION.md           normative language definition
 │   ├── CATALOG-REFERENCE.md       generated at site build; not in the tree
 │   └── CATALOG-DOCUMENTATION.md   the documentation model (proposal)
 ├── generators/
-│   ├── CAPABILITIES.md           what a generator advertises, and the reader that infers whether it can run a document
-│   ├── reference/                the reference generator: a loader and reference kernels in PyTorch — run, compare, chat
-│   └── zml/                      coverage audit of the catalog against ZML
+│   ├── CAPABILITIES.md           what an implementation advertises, and whether it can run a document
+│   ├── reference/                repository target generator, witnesses and conformance runner
+│   └── zml/                      example generator and conformer
 ├── tools/
 │   ├── tensorspine                  CLI: --validate, --lint, --d1, --view, --document
 │   ├── validate.py  lint.py  d1.py  derive.py  view.py  document.py  artifact.py
@@ -235,29 +276,17 @@ derivation (§10.2). `schemas/tensorspine-documentation.schema.json` defines the
 
 ### Models
 
-`data/models/` contains fourteen concrete documents and one versioned template:
+`data/models/` contains concrete documents and a versioned template; the
+[status page](https://maneex.github.io/tensorspine/status/) lists the corpus, validation result and
+checkpoint-location coverage generated from the tools. A runtime loads `location` bindings
+(Specification §3.4); `--validate --checkpoint DIR` checks existence, shape and dtype from
+safetensors headers without reading weights.
 
-- text decoders: `llama3-8b`, `llama4-scout`, `shieldstral-3b`, `qwen3.5-4b-text` (the located,
-  tied-embedding text trunk of Qwen 3.5 4B) and `qwen3.8-27b-text`;
-- MoE and multi-state models: `qwen3.5-35b-a3b`, `qwen3.5-397b`, multimodal `qwen3.8-27b`, and
-  `deepseek-v4-pro`, whose multi-token-prediction head is a second trunk with tied embedding and
-  output head, one `mtp.merge`, one block and a second generative output;
-- audio: `whisper-large-v3`, `voxtral-realtime`; retrieval: `colbert-v2`; shared KV:
-  `gemma3n-kvshare`; composite: `shieldstral-3b-composite`;
-- template: `decoder-causal-yarn/1.0.0.json`, one immutable file per version.
-
-Eight documents locate every tensor in their Hugging Face checkpoint: `llama3-8b`,
-`shieldstral-3b`, `colbert-v2`, `qwen3.5-4b-text`, `qwen3.8-27b-text`, `qwen3.8-27b`,
-`qwen3.5-35b-a3b` and `qwen3.5-397b`. A runtime loads these `location` bindings (Specification
-§3.4); `--validate --checkpoint DIR` checks existence, shape and dtype from safetensors headers
-without reading weights. This found that Qwen 3.5 4B stores its gated-delta norm scales in f32.
-
-The fourteen concrete documents validate as written. The template's `external` quantities require
-assignments. It lives at `<name>/<version>.json` in the catalog manifest's `templates` directory;
-its pinning contract (`decoder.causal_yarn`) repeats its name, version and id, with disagreement
-rejected by V1. `shieldstral-3b-composite` instantiates it and derives the same document as flat
-`shieldstral-3b` — including 459 parameter slots and 26 states — under the instance prefix
-(`tests/run_templates.py`).
+Every concrete document validates as written. A template's `external` quantities require an
+assignment. Templates live at `<name>/<version>.json` in the catalog manifest's `templates`
+directory; the pinning contract repeats the name, version and id, with disagreement rejected by
+V1. `tests/run_templates.py` checks that a template instance derives the same products as its flat
+form, modulo the instance prefix.
 
 After composition expansion and `when`/`present_when` evaluation, `bindings` are **total and unique**
 (V7): every present input port, parameter, constant and state slot is bound once. Weight tying and
@@ -267,13 +296,14 @@ presence, so site guards are not repeated (§5.2;
 
 ### Schema
 
-`schemas/tensorspine.schema.json` permits nine top-level sections — `schema`, `model`, `catalog`,
+`schemas/tensorspine.schema.json` defines the top-level sections — `schema`, `model`, `catalog`,
 `quantities`, `constants`, `occurrences`, `compositions`, `bindings` and `interfaces` — plus an
 optional `version`, required of a template.
 
 Expressions are tagged unions (`{"literal": …}`, `{"quantity": …}`, `{"index": …}` or
-`{"op": …, "args": […]}`), never ambiguous strings. Every quantity has a `regime` and `source`,
-distinguishing values read from configuration from values supplied later.
+`{"op": …, "args": […]}`), never ambiguous strings. Every quantity has a type and a literal,
+external or derived source. A quantity is variable when it is external or depends on one, and then
+declares a domain.
 
 The model, catalog-unit, documentation and derived-document schemas are indexed by `$id` under
 `https://tensorspine.dev/schema/2.0/`. The derived schema requires D1 and permits D2–D6; both emitters
@@ -345,11 +375,13 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
 
 ### Reference generator
 
-`generators/reference/` builds and runs a graph over its own primitives and hardware backends from a
-derived document and its located checkpoint: no per-model code, one kernel per contract version and
-one implementation per state law. Six models agree with `transformers` at every legal cut and
-state; four reproduce its full-model greedy tokens. Multimodal `qwen3.8-27b` on text also matches
-`qwen3.8-27b-text` bit for bit. The generator includes a chat:
+`generators/reference/` is the repository's target generator and the language's review instrument:
+it runs the reference implementation supplied with each contract and checks whole models against
+their delivery implementations at every legal cut and state. It is not a component that serving
+applications embed. They implement the TensorSpine contracts they support with their own optimized
+kernels and check those implementations against the witnesses. `generators/zml/` is an example
+generator and conformer. What the reference target runs today is on the
+[status page](https://maneex.github.io/tensorspine/status/). It also includes a chat:
 
 ```sh
 python3 generators/reference/ref.py chat data/models/qwen3.5-4b-text.json \

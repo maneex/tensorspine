@@ -32,6 +32,7 @@ blockquote strong:first-child { display: inline; font-size: inherit; letter-spac
 
 /* Wide command output and schematics stay inside the content column. */
 pre { overflow-x: auto; }
+main img { display: block; width: 100%; max-width: 100%; height: auto; }
 
 /* Model index. */
 ul.models { list-style: none; padding: 0; gap: 0; }
