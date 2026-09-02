@@ -61,13 +61,14 @@ compete. [DualPath](https://arxiv.org/abs/2602.21548), for example, adds a
 storage-to-decode-to-prefill KV-cache path to use more bandwidth in a disaggregated deployment
 without changing the model.
 
-Could vLLM keep its performance and optimisations while using TensorSpine models and primitives?
-The [harness guide](docs/HARNESS.md) lists what its harness needs from a model, decision by
-decision, including what is not derivable. Its fusions are rewrites over the explicit graph, keyed
-by contract identity
+A serving application keeps its optimisation surface when it adopts TensorSpine. The
+[harness guide](docs/HARNESS.md) lists what its harness needs from a model, decision by decision,
+including what is not derivable. Its fusions are rewrites over the explicit graph, keyed by
+contract identity
 ([Architecture §3.3](docs/ARCHITECTURE.md#33-make-graph-topology-and-identity-explicit)); its
-kernels, physical layouts, request scheduling, cache management, placement and disaggregation stay
-its own. TensorSpine changes the model-specific glue, not the engine's optimisation surface.
+kernels, physical layouts, request scheduling, cache management, placement and disaggregation
+remain application-owned. TensorSpine replaces model-specific glue, not serving policy or
+performance work.
 
 Today, every serving application must reimplement every model to connect its harness to its
 primitive implementations.
