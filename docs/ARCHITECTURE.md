@@ -21,24 +21,7 @@ TensorSpine sits between model authorship and execution. Its output is logical i
 compiler or runtime can combine with an implementation, an artifact, deployment intent, and actual
 hardware.
 
-```text
-model JSON --[JSON Schema]--> structurally valid document
-                                      |
-catalog contracts --------------------+
-                                      v
-                     semantic validation + deterministic expansion
-                                      |
-                              D1 expanded graph
-                                      |
-                     D2 values       D3 parameters
-                     D4 state        D5 logical costs
-                              D6 legal cuts
-                                      |
-       generators + artifact format + deployment intent
-                                      |
-                                      v
-                         compiler or serving runtime
-```
+![TensorSpine language and execution pipeline](language-pipeline.svg)
 
 The specification governs the meaning of this pipeline. The schema automates the grammar gate; it
 does not replace semantic validation. Likewise, emitting D1 does not choose kernels, memory layouts,
@@ -46,23 +29,21 @@ shards, devices, or a scheduling policy. Those decisions occur downstream.
 
 ## 2. Ownership of facts
 
-The central architectural rule is:
-
-> **The model declares causes. Primitive contracts derive consequences.**
-
-The practical field test is: *Could two models using the same primitive with the same arguments
-legitimately give this fact different values?* If yes, it is a graph or model fact. If no, it
-belongs to the primitive contract. Facts that depend on a selected implementation, artifact,
-deployment, or machine belong outside both.
+The ownership rule and its field test are normative in
+[Specification §1.2](SPECIFICATION.md#12--governing-principle); facts that depend on a selected
+implementation, artifact, deployment or machine belong outside both model and contract.
 
 | Authority | Facts it owns |
 |---|---|
 | **Model document** | Model identity; source quantities; occurrences and compositions; explicit value flow; actual parameter, constant, and state identities and their dtypes; public inputs with their kind, stream and fragmentation, and public outputs. Instance keys, liveness, visit rates and carrying across fragments are derived from these (§4.4, §5.3) |
 | **Primitive contract** | Argument types and declared defaults; ports, shapes and domain transforms; logical parameter, constant, and state slots; state evolution, access geometry and carrying condition; effects; cost corrections and sparsity units; semantic partition axes |
 | **Catalog** | Resolution of independently identified contracts, axes, and precision roles; no global catalog version |
-| **Generator** | The backend (hardware) targeted, kernel, algorithm, fusion, workspace, physical layout and traffic, supported physical partitions, and actual collectives; its capabilities, advertised in a manifest derived from its code (`generators/CAPABILITIES.md`) |
+| **Contract reference implementation** | Supplied with a new contract by its author; it becomes that contract version's witness, with declared tolerances and unit fixtures |
+| **Reference generator** | The repository's target generator: TensorSpine's conformance tooling uses it to execute contract witnesses and compare model integrations against each delivery implementation |
+| **Serving application** | The contract subset it implements; targeted backends, optimized kernels, algorithms, fusions, workspace, physical layouts and traffic, physical partitions and actual collectives; its harness and serving policy. TensorSpine tooling builds and evaluates its capabilities manifest ([capabilities](../generators/CAPABILITIES.md)) |
 | **Location** (in the model document) | The physical tensor each logical tensor is stored as (Specification §3.4, V17); the artifact's encoding — file format, sharding, quantisation containers — stays outside |
 | **Compilation or deployment control** | Hardware topology, placement, resolved sharding, load variables, admission, and scheduling policy |
+| **[Status page](https://maneex.github.io/tensorspine/status/)** (generated) | Catalog, corpus, coverage and verification state at one commit; never validity or meaning |
 
 This division prevents two authorities from making the same claim. A model can declare that two
 occurrences share state, but it cannot redefine the state's payload. A contract can make a state
@@ -76,8 +57,8 @@ shareable, but it cannot assert that two particular occurrences actually share i
 ### 3.1. Describe logical structure, not executable computation
 
 **Decision.** A TensorSpine model is a finite graph of primitive occurrences and explicit bindings.
-It does not contain kernels, general tensor programs, Python classes, generator or backend choices, or hardware
-placement.
+It does not contain kernels, general tensor programs, Python classes, implementation or backend
+choices, or hardware placement.
 
 **Why.** Executable reference code entangles logical structure with one implementation. Every
 serving engine then has to recover dimensions, tensors, state lifetime, and partition boundaries
@@ -98,11 +79,13 @@ This is the boundary the language exists to draw:
 The test is mechanical, and §8.1 of the specification already states it: new nodes come from new
 contracts. A model that arranges existing contracts differently — however novel its paper — adds a
 document and nothing else. A model whose state evolves by a law no contract describes, or whose
-operator has no contract, adds a contract and a kernel for it, once, for every model that will ever
-use it. What must never be true is the third case: new code because the name is new.
+operator has no contract, requires the lab to add a contract and its reference implementation. Each
+serving application that supports it adds one conforming primitive implementation, reusable by every
+model that uses it. What must never be true is new code because only the model name changed.
 
-**Alternatives not chosen.** A reference implementation, an engine-specific architecture class, or
-a compute graph alone is not the semantic authority for TensorSpine. See
+**Alternatives not chosen.** A delivery implementation is not the authority for a graph; a
+contract's reference implementation is the authority for the primitive. An engine-specific
+architecture class or compute graph alone is not a semantic authority for TensorSpine. See
 [Specification §9.2](SPECIFICATION.md#92--non-requirements) and the
 [project motivation](../README.md#1-why-tensorspine).
 
@@ -327,12 +310,9 @@ These stages have different authorities. JSON Schema cannot prove that a port ex
 contract; semantic validation must. Lint cannot turn a legal style preference into a validity rule.
 A downstream compiler cannot repair an ambiguous model by guessing what the author intended.
 
-The specification defines the required result independently of the repository tooling, which today
-implements the pipeline through D1 — grammar, catalog closure, typed arguments, template expansion,
-guarded compositions — and derives D3/D4 counts during validation. Implementation status belongs in
-the
-[model guide](TENSORSPINE-MODEL_JSON.md#5--validation-expansion-and-derived-products), not in the
-language architecture.
+The specification defines the required result independently of repository tooling. Tool, corpus and
+implementation state belongs on the generated
+[status page](https://maneex.github.io/tensorspine/status/), not in the language architecture.
 
 ## 5. Contributor decision guide
 
@@ -365,20 +345,25 @@ test in [Specification §9.1](SPECIFICATION.md#91--invariants) and
 
 The architecture leaves several downstream or future designs open:
 
-- the concrete encodings and APIs for D2–D6;
-- how generators advertise physical costs (capabilities are advertised: the manifest of `generators/CAPABILITIES.md`);
-- a per-instance location prefix, so that a template instance's tensors can be located (today the flat form is);
+- downstream compilation APIs that consume D1–D6;
+- how implementations advertise physical costs (capabilities are advertised by the manifest in
+  `generators/CAPABILITIES.md`);
+- a per-instance location prefix, so that a template instance's tensors can be located;
 - how a compiler combines semantic partitions with a selected topology and workload;
 - which additional normative interfaces are justified when a derivation cannot fit the closed
   scalar algebra.
 
 Candidates for the language, parked rather than rejected: conditional *absence* of a structural
-argument in an argument expression (today an expression yields a value, never absence, which is why
-an alternating-layer model needs two sites); indexed literal tables for per-repetition
+argument in an argument expression (an expression yields a value, never absence, which is why an
+alternating-layer model needs two sites); indexed literal tables for per-repetition
 hyperparameters; per-occurrence activation dtypes; partial retention of a state's components across
-fragments; content-digest template pins; a token-id input port on `moe` for hash routing; a
-`sequence`-kind output for a pooler with `reduce`. Sharing across a template boundary is a stated
+fragments; a catalog-base steward pin (a release tag or content digest in the model's catalog entry,
+with V1 refusing content that differs); content-digest template pins; a token-id input port on `moe`
+for hash routing; a `sequence`-kind output for a pooler with `reduce`. Sharing across a template boundary is a stated
 limit of the graph language (Specification §1), not an open question: the flat form exists.
+
+Architecture families parked outside the language's stated scope are mixture-of-depths,
+retained-prefix windows, and diffusion models.
 
 These are not placeholders for hidden behavior. Until specified, they remain outside the model's
 denotation. A future design should preserve the same boundaries: one authority per fact, immutable

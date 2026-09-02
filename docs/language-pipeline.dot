@@ -1,0 +1,146 @@
+// Render with: dot -Tsvg docs/language-pipeline.dot -o docs/language-pipeline.svg
+digraph language_pipeline {
+  graph [
+    rankdir=TB,
+    bgcolor="#F6FAFC",
+    pad="0.34",
+    nodesep="0.28",
+    ranksep="0.44",
+    splines=ortho,
+    compound=true,
+    newrank=true,
+    fontname="Arial",
+    fontcolor="#123348",
+    labeljust=l,
+    labelloc=t,
+    label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="0">
+      <TR><TD ALIGN="LEFT"><FONT COLOR="#477180" POINT-SIZE="11"><B>LANGUAGE PIPELINE  /  LOGICAL FACTS IN, PHYSICAL POLICY OUT</B></FONT></TD></TR>
+      <TR><TD HEIGHT="7"></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT COLOR="#123348" POINT-SIZE="22"><B>One denotation. Many implementation-owned execution plans.</B></FONT></TD></TR>
+    </TABLE>>
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Arial",
+    color="#BFD3DE",
+    fillcolor="#FFFFFF",
+    fontcolor="#123348",
+    penwidth=1.35,
+    margin="0.17,0.12"
+  ];
+  edge [
+    color="#348CA6",
+    fontname="Arial",
+    fontcolor="#557583",
+    fontsize=9,
+    penwidth=1.9,
+    arrowsize=0.72
+  ];
+
+  model [
+    width=3.25,
+    label=<<FONT POINT-SIZE="14"><B>TensorSpine model document</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">graph-specific declarations</FONT>>
+  ];
+  catalog [
+    width=3.25,
+    label=<<FONT POINT-SIZE="14"><B>Reference primitive catalog</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">reusable semantic consequences</FONT>>
+  ];
+  { rank=same; model; catalog; }
+
+  subgraph cluster_tensorspine {
+    graph [
+      style="rounded,filled",
+      color="#9FCBD0",
+      fillcolor="#FFFFFF",
+      penwidth=1.6,
+      margin=18,
+      labeljust=l,
+      labelloc=t,
+      label=<<FONT COLOR="#34737E" POINT-SIZE="15"><B>TENSORSPINE  /  VALIDATE AND DERIVE</B></FONT>>
+    ];
+
+    grammar [
+      width=1.65,
+      fillcolor="#EAF5F8",
+      color="#C5DEE6",
+      label=<<FONT POINT-SIZE="12"><B>Grammar gate</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="9">JSON Schema</FONT>>
+    ];
+    validity [
+      width=1.75,
+      fillcolor="#EAF5F8",
+      color="#C5DEE6",
+      label=<<FONT POINT-SIZE="12"><B>Semantic validity</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="9">resolution / bindings / domains</FONT>>
+    ];
+    expansion [
+      width=1.65,
+      fillcolor="#EAF5F8",
+      color="#C5DEE6",
+      label=<<FONT POINT-SIZE="12"><B>Finite expansion</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="9">deterministic identities</FONT>>
+    ];
+    products [
+      width=1.75,
+      color="#218EA5",
+      fillcolor="#17639A:#27C9C3",
+      gradientangle=0,
+      fontcolor="#FFFFFF",
+      label=<<FONT POINT-SIZE="12"><B>Logical products</B></FONT><BR/><FONT FACE="Courier New" POINT-SIZE="11"><B>D1 / D2 / D3 / D4 / D5 / D6</B></FONT>>
+    ];
+
+    { rank=same; grammar; validity; expansion; products; }
+    grammar -> validity;
+    validity -> expansion;
+    expansion -> products;
+  }
+
+  capabilities [
+    width=1.7,
+    fillcolor="#EAF5F8",
+    label=<<FONT POINT-SIZE="12"><B>Capabilities manifest</B></FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">implementation compatibility</FONT>>
+  ];
+  artifact [
+    width=1.7,
+    fillcolor="#EAF5F8",
+    label=<<FONT POINT-SIZE="12"><B>Artifact</B></FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">weights and encoding</FONT>>
+  ];
+  intent [
+    width=1.7,
+    fillcolor="#EAF5F8",
+    label=<<FONT POINT-SIZE="12"><B>Deployment intent</B></FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">objectives and constraints</FONT>>
+  ];
+  hardware [
+    width=1.7,
+    fillcolor="#EAF5F8",
+    label=<<FONT POINT-SIZE="12"><B>Hardware</B></FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">compute / memory / topology</FONT>>
+  ];
+  facts [
+    width=1.45,
+    color="#218EA5",
+    fillcolor="#E5F8F6",
+    fontcolor="#176B72",
+    label=<<FONT POINT-SIZE="11"><B>Derived model facts</B></FONT>>
+  ];
+  { rank=same; capabilities; artifact; facts; intent; hardware; }
+  capabilities -> artifact [style=invis, weight=20];
+  artifact -> facts [style=invis, weight=20];
+  facts -> intent [style=invis, weight=20];
+  intent -> hardware [style=invis, weight=20];
+
+  execution [
+    color="#163F53",
+    fillcolor="#163F53",
+    fontcolor="#FFFFFF",
+    width=4.0,
+    label=<<FONT POINT-SIZE="15"><B>Compiler or serving application</B></FONT><BR/><FONT COLOR="#D9F2F3" POINT-SIZE="10">physical plan / policy / execution</FONT>>
+  ];
+
+  model -> grammar;
+  catalog -> validity;
+  products -> facts;
+  facts -> execution;
+  capabilities -> execution;
+  artifact -> execution;
+  intent -> execution;
+  hardware -> execution;
+}
