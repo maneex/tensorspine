@@ -36,6 +36,10 @@ pub const Options = struct {
     packed_states: bool,
     max_tokens: u32,
     dump_mlir: ?[]const u8,
+    /// One turn, given on the command line, with no terminal to read from. The same
+    /// feed and the same stopping rule as a typed turn — which is what the interactive
+    /// form is made of, and what a script on a remote machine can actually use.
+    prompt: ?[]const u8,
 };
 
 fn tokenizerBytes(allocator: std.mem.Allocator, io: std.Io, opts: Options) ![]u8 {
@@ -135,23 +139,27 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
     var stdout = std.Io.File.stdout().writer(io, &out_buffer);
     const out = &stdout.interface;
 
-    try out.print(
-        "\n{s}: {d} occurrences in {d} program(s), capacity {d}, computing in {s}.\n" ++
-            "Type a prompt, or an empty line to leave.\n\n",
-        .{ g.model(), step.plan.steps.len, step.plan.groups.len, opts.capacity, @tagName(opts.compute) },
-    );
-    try out.flush();
+    const interactive = opts.prompt == null;
+    if (interactive) {
+        try out.print(
+            "\n{s}: {d} occurrences in {d} program(s), capacity {d}, computing in {s}.\n" ++
+                "Type a prompt, or an empty line to leave.\n\n",
+            .{ g.model(), step.plan.steps.len, step.plan.groups.len, opts.capacity, @tagName(opts.compute) },
+        );
+        try out.flush();
+    }
 
     // Where the states reach: the conversation so far, in positions.
     var position: i32 = 0;
 
     while (true) {
-        try out.writeAll("> ");
-        try out.flush();
-
-        const line = stdin.interface.takeDelimiterExclusive('\n') catch |err| switch (err) {
-            error.EndOfStream => break,
-            else => return err,
+        const line = opts.prompt orelse line: {
+            try out.writeAll("> ");
+            try out.flush();
+            break :line stdin.interface.takeDelimiterExclusive('\n') catch |err| switch (err) {
+                error.EndOfStream => break,
+                else => return err,
+            };
         };
         const prompt = std.mem.trim(u8, line, " \t\r");
         if (prompt.len == 0) break;
@@ -189,8 +197,9 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
             next = try feed(allocator, io, platform, &step, buffers.params, next, position, states, opts.compute);
             position += 1;
         }
-        try out.writeAll("\n\n");
+        try out.writeAll(if (interactive) "\n\n" else "\n");
         try out.flush();
+        if (!interactive) return;
     }
 
     try out.writeAll("\n");

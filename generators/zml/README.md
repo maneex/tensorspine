@@ -83,7 +83,18 @@ Nothing about that command is llama's. The hybrid is the same invocation against
 A full-model run is slow on CPU — 32 layers through 16 programs for every token — so it is worth
 `nohup`-ing and watching the `rss after …` lines it prints.
 
-### Chatting
+### Answering a prompt
+
+```sh
+tspl --derived=DOC --checkpoint=CK --prompt='The capital of France is' \
+  --max-tokens=64 --compute=bf16 --split=16 --capacity=512
+```
+
+The text is tokenised, fed through the graph, and answered on standard output until a
+stop identifier or `--max-tokens` tokens, whichever comes first. Nothing is read from the
+terminal, which is what a script on a machine reached over `ssh` needs.
+
+`--chat` is the same turn, read from the terminal and repeated:
 
 ```sh
 tspl --derived=DOC --checkpoint=CK --chat --compute=bf16 --split=16 --capacity=512

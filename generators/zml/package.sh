@@ -144,8 +144,8 @@ tens of minutes on an archive this size:
 
 Then run ./run.sh from the unpacked directory; it takes tspl's own options:
 
-    ./run.sh --max-tokens=8 --compute=bf16            # generate
-    ./run.sh --chat --compute=bf16 --capacity=512
+    ./run.sh --prompt='The capital of France is' --max-tokens=64 --compute=bf16
+    ./run.sh --chat --compute=bf16 --capacity=512    # the same, turn after turn
     ./run.sh --until='decoder/mlp_r[layer=0].output' --out=v.bin
 
 The first line of output names the backend it chose. It reads 'platform: cuda' only on

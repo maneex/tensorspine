@@ -31,6 +31,7 @@ const Args = struct {
     @"max-tokens": u32 = 8,
     split: u32 = 1,
     chat: bool = false,
+    prompt: ?[]const u8 = null,
     tokenizer: ?[]const u8 = null,
     capabilities: ?[]const u8 = null,
     version: []const u8 = "unknown",
@@ -56,8 +57,11 @@ const Args = struct {
         \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
         \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --max-tokens)
-        \\   --chat                Converse: a turn is tokenised, fed, and answered until a stop
-        \\                         token, the states carried from one turn to the next
+        \\   --prompt=<text>       Answer one prompt and exit: the text is tokenised, fed, and
+        \\                         answered until a stop token or --max-tokens, whichever comes
+        \\                         first. Needs no terminal
+        \\   --chat                The same, read from the terminal turn after turn, the states
+        \\                         carried from one turn to the next
         \\   --tokenizer=<path>    tokenizer.json (default: the checkpoint's own)
         \\   --max-tokens=<n>      Tokens to answer with: exactly that many when generating,
         \\                         which has no stopping rule, and at most that many in a chat
@@ -403,21 +407,26 @@ pub fn main(init: std.process.Init) !void {
         _ = try reportRefusals(allocator, &g);
         return;
     }
-    if (args.chat) {
+    if (args.chat or args.prompt != null) {
+        const mode = if (args.prompt != null) "--prompt" else "--chat";
+        if (args.chat and args.prompt != null) {
+            log.err("--prompt answers one turn and --chat reads them from the terminal; ask for one", .{});
+            return error.UnusedOption;
+        }
         const checkpoint = args.checkpoint orelse {
-            log.err("--chat needs --checkpoint", .{});
+            log.err("{s} needs --checkpoint", .{mode});
             return error.MissingCheckpoint;
         };
-        // A chat reads its prompt from the terminal and stops on a stop token, so it has
-        // no use for these four. Taking one and ignoring it is how `--until` came to be
-        // read as a length, accepted, and silently dropped.
+        // Both take their prompt as text and stop on a stop token, so neither has any use
+        // for these four. Taking one and ignoring it is how `--until` came to be read as
+        // a length, accepted, and silently dropped.
         const unused: ?[]const u8 = if (args.until != null) "--until"
             else if (args.ids != null) "--ids"
             else if (args.out != null) "--out"
             else if (args.dump != null) "--dump"
             else null;
         if (unused) |option| {
-            log.err("--chat does not use {s}; the length of a turn is --max-tokens", .{option});
+            log.err("{s} does not use {s}; the length of a turn is --max-tokens", .{ mode, option });
             return error.UnusedOption;
         }
         return chat.run(allocator, init.io, &g, .{
@@ -429,6 +438,7 @@ pub fn main(init: std.process.Init) !void {
             .packed_states = !args.@"separate-states",
             .max_tokens = args.@"max-tokens",
             .dump_mlir = args.@"dump-mlir",
+            .prompt = args.prompt,
         });
     }
     if (args.until != null) return evaluate(allocator, init.io, args, &g);
