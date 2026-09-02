@@ -112,19 +112,18 @@ interface fitted to the primitives one can already see is fitted to the wrong sa
 ones that motivate a boundary are the ones not yet written. The catalog's contracts are
 therefore used to *falsify* the boundary, never to generate it.
 
-All 34 contract files of the catalog were checked, on paper, against the request and the
-response, 1 September 2026. What a body needs is: its arguments, its input and output ports,
-its parameter slots, its states, and the positions of the streams indexing its elements.
+The catalog's contract shapes were checked against the request and response. A body needs its
+arguments, input and output ports, parameter slots, states, and the positions of the streams
+indexing its elements. The generated
+[status page](https://maneex.github.io/tensorspine/status/) carries the catalog state.
 
-A partition of the 34, so every contract is counted once:
-
-| Group | Contracts | Verdict |
-|---:|---|---|
-| **25** | arguments, ports and slots only | expressible; the request carries all three |
-| **3** | with states — `attention.dense` (`kv`), `sequence.gated_delta` (`recurrent`, `conv`), `attention.latent_compressed` (five, `index` among them) | expressible: each state is an operand and a result, with D4's law beside it. `attention.dense` also carries the `align` transform, and cross attention's `source_values` is an ordinary port. |
-| **4** | with a `merge` transform — `conv_frontend` and the three projectors | expressible **because the shapes are concrete**: *n·k* elements become *n*, which the operand and result extents already say. This was the strongest candidate for needing a symbolic request, and it does not. |
-| **1** | a template — `decoder.causal_yarn` | expands to other contracts before any body is asked for |
-| **1** | with an `insert` transform — `splice` | **does not fit** |
+| Contract shape | Examples | Verdict |
+|---|---|---|
+| arguments, ports and slots only | stateless primitives | expressible; the request carries all three |
+| with states | `attention.dense`, `sequence.gated_delta`, `attention.latent_compressed` | expressible: each state is an operand and a result, with D4's law beside it. `attention.dense` also carries the `align` transform, and cross attention's `source_values` is an ordinary port. |
+| with a `merge` transform | `conv_frontend`, projectors | expressible **because the shapes are concrete**: *n·k* elements become *n*, which the operand and result extents already say. |
+| template | `decoder.causal_yarn` | expands to other contracts before any body is asked for |
+| with an `insert` transform | `splice` | **does not fit** |
 
 ### The one that does not fit, and why it is not the boundary's fault
 
@@ -141,8 +140,8 @@ stays as it is, and `splice` refuses in the same words as everywhere else.
 
 ### What the pass changed
 
-Nothing in the schema — which is the result worth having, since a boundary that had to grow
-for each of 34 known cases would not survive the 35th. Two readings it did settle:
+Nothing in the schema — which is the result worth having, since a boundary fitted to known cases
+would not survive the next one. Two readings it did settle:
 
 - **Several `positions` operands are needed**, not one. Multimodal RoPE indexes one occurrence
   by more than one stream, and the operand is named by its stream precisely so that a request

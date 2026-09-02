@@ -103,6 +103,9 @@ def check_markdown(repo):
     ).stdout.decode().split('\0'))
     for source in sorted(tracked):
         absolute = os.path.join(repo, source)
+        if not os.path.isfile(absolute):
+            findings.append(f"{source}: tracked Markdown source is missing from the worktree")
+            continue
         with open(absolute, encoding='utf-8') as stream:
             text = stream.read()
         for target, line in _targets(text):

@@ -96,7 +96,7 @@ the reading guide.
 
 ### 2.3 — `note` and `description` are different fields
 
-The catalog carries 79 `note` fields. They are **maintainers' asides**: why a default is what it is,
+Catalog `note` fields are **maintainers' asides**: why a default is what it is,
 why a fused axis has no factors, why a port is optional. That is the *why*, written by and for the
 people who curate the catalog. A `description` is the *what*, written for the people who write
 models against the catalog and the people who implement runtimes from it.
@@ -119,8 +119,8 @@ generator renders a well-formed one.
 ### 2.5 — What is deliberately not in the model
 
 - **No examples.** OpenAPI's Example Object has no counterpart. The catalog says what a primitive
-  *is*; what invoking it with particular arguments produces belongs to a model document, and the
-  corpus already provides twelve of them.
+  *is*; what invoking it with particular arguments produces belongs to a model document. The
+  generated [status page](https://maneex.github.io/tensorspine/status/) lists the corpus.
 - **No `x-` extensions.** Closed vocabulary (O0.6).
 - **No documentation version or `since`.** There is no catalog version to date it against; the
   file's history is in git.
@@ -155,7 +155,7 @@ python3 tools/tensorspine --document catalog --catalog other/catalog -o out/  # 
 |---|---|---|
 | Head | base manifest | Title, summary, description, contact, license, external docs; bases consulted; counts. |
 | Contents, How to read | — | Navigation; the notation: expressions in infix, conditions in words, shapes as `[name: extent]`, structural arguments, ordered rules. |
-| Overview | all units | One index table per kind: contract with summary and shape (`17 args · 2→1 ports · 9 params · state kv`), axes, precision roles. |
+| Overview | all units | One index table per kind: contract summary and shape, axes, precision roles. |
 | Contracts | contract units, grouped by namespace | Per contract: summary, tags, description, note, external docs, an at-a-glance row, then **Arguments** (with nested record fields and enum value descriptions), **Ports**, **Parameters** (with sharing, presence, multiplicity, declared views), **Constant slots**, **State ports** (presence, key axes, payload, permitted operations, carrying condition, ordered derivation rules), **Effects**, **Logical cost** (corrections), **Structured sparsity** (units), **Semantic partitions**, **Domain transforms**. A template contract shows its template: resolved path, the template's external quantities as arguments with their domains, its public interfaces, and the transitive closure of contracts it cites — the consumer's capability cost (§8.1). |
 | Axes, Precision roles | axis and role units | Tables with summary, then details for units with a description. |
 | Tags | base manifest | Declared tags. A unit that carries a tag says so in its own section. |
@@ -183,25 +183,16 @@ generated reference for lists rather than copy them: a list maintained by hand d
 
 ## 4 — What this change contains
 
-- `schemas/tensorspine-documentation.schema.json` — the model, 20 `$defs`.
+- `schemas/tensorspine-documentation.schema.json` — the documentation model.
 - `tools/document.py`, `tools/tensorspine --document` — the generator.
-- **The catalog, documented in full.** Every one of the 34 contracts, 36 axes and 54 precision roles
-  carries a `summary` and a `description`; every argument, record field, port, parameter slot, state
-port, payload component, state operation, state rule, partition, cost entry and domain transform of
-  every primitive contract carries a `description`, as does every cost correction and sparsity
-  unit; every enum argument has `value_descriptions`.
-  The base manifest carries a title, summary, description, a `specification` external doc and
-  three declared tags — `sequence-operator`, `multimodal`, `parallel-residual` — which the
-  contracts concerned cite. Contracts whose primitive has a canonical paper cite it in
-  `external_docs`; those that describe a single model's construction (Gemma 3n conditioning, the
-  Mistral patch merger, the residual helpers) cite nothing rather than something approximate.
+- **The catalog, documented in full.** Units and their elements carry the applicable summaries,
+  descriptions, enum descriptions and external references. The generated reference reports
+  documentation coverage and omissions directly from those fields.
 - [Catalog reference](https://maneex.github.io/tensorspine/catalog/) — the rendered catalog,
   generated only at site build.
 
-Rendering the whole catalog once surfaced a defect the validator of the time did not see: two
-slots of `attention.dense` guarded by arguments the contract never declared. The catalog loader now
-resolves every argument path a condition cites, so that class of defect is a load error, and the
-guards are gone.
+Rendering the catalog surfaced guards that cited undeclared arguments. The catalog loader resolves
+every argument path a condition cites, so that class of defect is now a load error.
 
 `--validate` and `--lint` give the same results before and after: the documentation fields are
 inert, as §10.2 requires.
@@ -221,7 +212,7 @@ inert, as §10.2 requires.
 
 ## 6 — Open questions and follow-ups
 
-- **Lint.** Three advisory rules fall out of the generator and belong in `--lint` so they run with
+- **Lint.** Advisory rules fall out of the generator and belong in `--lint` so they run with
   the rest of the hygiene checks: a unit without a summary, a cited tag no base declares, a
   condition citing an undeclared argument.
 - **`--document model`.** The same renderer applied to a model document — quantities, occurrences
