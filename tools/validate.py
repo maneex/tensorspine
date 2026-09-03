@@ -788,7 +788,11 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 continue
             descends.add(k)
             queue.extend(downstream.get(k, ()))
-        independent = {dm[0] for (k, _p), dm in domains.items() if dm[1] == decl['stream'] and k not in descends}
+        # independent of the input: another input's delivery on the stream, or a value produced by an
+        # occurrence the input does not reach (an elementwise primitive's second operand joins the
+        # first's stream, which the first delivers: `residual.add`'s `b` joins `a`)
+        independent = {dm[0] for (k, p), dm in domains.items() if dm[1] == decl['stream']
+                       and (k not in descends or ((k, p) in seeds and producers.get((k, p)) != f"input:{name}"))}
         if decl['kind'] not in independent:
             fail('V19', f"input {name}: joins stream '{decl['stream']}' at kind {decl['kind']}, which that stream "
                         f"carries at no value independently of the input (it carries {sorted(independent)}): "

@@ -400,9 +400,10 @@ def _counts(graph):
                 continue
             descends.add(k)
             queue.extend(downstream.get(k, ()))
+        others = {ep for other, _d in model['interfaces']['inputs'].items() if other != name for ep in graph['inputs_at'][other]}
         found = {}
-        for (key, port), c in counts.items():
-            if key not in descends and domains.get((key, port)) == (decl['kind'], decl['stream']):
+        for (key, port), c in counts.items():        # another input's delivery, or a value the join does not reach
+            if (key not in descends or (key, port) in others) and domains.get((key, port)) == (decl['kind'], decl['stream']):
                 found[json.dumps(c, sort_keys=True)] = c
         if len(found) != 1:
             raise ValueError(f"input {name}: joins stream '{decl['stream']}' at kind {decl['kind']}, where the stream "
