@@ -13,7 +13,8 @@ place HF names meet D1 names.
                                 --layers 3 --ids 50258,50259,50360,50364 --steps 7 --out F     # an encoder–decoder
 
 An encoder–decoder (`--audio`) records the audio frames it was fed as `in/audio` with their
-provenance, and the encoder's output — the cross source every decoder layer reads — beside the
+provenance (`--audio-origin`, `--audio-licence`: where the recording came from and under which
+licence, required), and the encoder's output — the cross source every decoder layer reads — beside the
 decoder's layer outputs and self-attention cache; its cross-attention cache is not recorded
 (`hook_map` says so).
 """
@@ -58,6 +59,8 @@ def main(argv=None):
     ap.add_argument('--audio', metavar='WAV', help="an encoder–decoder (Whisper): a mono 16-bit WAV at the extractor's rate, turned into the "
                                                    "`audio` frames by the checkpoint's own feature extractor and recorded as in/audio with its "
                                                    "provenance; --layers truncates the decoder (decoder_layers); the encoder runs whole")
+    ap.add_argument('--audio-origin', metavar='TEXT', help="with --audio: where the recording came from (a repository, an archive item, a URL), recorded in its provenance")
+    ap.add_argument('--audio-licence', metavar='TEXT', help="with --audio: the licence the recording is used under, recorded in its provenance")
     ap.add_argument('--encoder-output', default='enc_final_n.output', help="with --audio: the D1 value of the encoder's output, the cross source")
     ap.add_argument('--cross-site', default='cross_attn', help="with --audio: the D1 site of the cross attention (its kv state is not recorded)")
     ap.add_argument('--out', required=True)
@@ -204,11 +207,11 @@ def dump_encoder_decoder(args):
     features = extractor(pcm, sampling_rate=rate, return_tensors='pt').input_features.to(dtype)     # [1, mels, frames]
     with open(args.audio, 'rb') as f:
         digest = hashlib.sha256(f.read()).hexdigest()
-    inputs = {'audio': {'source': os.path.basename(args.audio), 'sha256': digest,
-                        'processor': f"{type(extractor).__name__} from the checkpoint's preprocessor_config.json: "
-                                     f"{extractor.feature_size} log-mel bins per frame of {extractor.hop_length} samples at {rate} Hz, "
-                                     f"the {frames / rate:.1f} s signal zero-padded to {extractor.n_samples // rate} s "
-                                     f"({features.shape[-1]} frames); one row per frame"}}
+    inputs = {'audio': _recording(args, digest,
+                                  f"{type(extractor).__name__} from the checkpoint's preprocessor_config.json: "
+                                  f"{extractor.feature_size} log-mel bins per frame of {extractor.hop_length} samples at {rate} Hz, "
+                                  f"the {frames / rate:.1f} s signal zero-padded to {extractor.n_samples // rate} s "
+                                  f"({features.shape[-1]} frames); one row per frame")}
     dump = {'in/audio': features[0].T.to(torch.float32).cpu().clone()}
     hooks, hook_map = [], {'input_features[0].T': 'in/audio'}
     inner = model.model
@@ -248,6 +251,16 @@ def dump_encoder_decoder(args):
         h.remove()
     write_fixture(args.out, dump, metadata(args, n_layers, ids, tokens, hook_map, inputs))
     print(f"dumped {len(dump)} tensors -> {args.out}")
+
+
+def _recording(args, digest, processor):
+    """The provenance of a recorded input (docs/TENSORSPINE-FIXTURE.md §3): the file's name and hash,
+    where it came from and under which licence — both required, since a committed fixture carries
+    open content — and how the tensor was made from it."""
+    if not (args.audio_origin and args.audio_licence):
+        raise SystemExit("--audio records open content: give --audio-origin and --audio-licence, which the fixture carries")
+    return {'source': os.path.basename(args.audio), 'sha256': digest, 'origin': args.audio_origin, 'licence': args.audio_licence,
+            'processor': processor}
 
 
 def metadata(args, n_layers, ids, tokens, hook_map, inputs=None):

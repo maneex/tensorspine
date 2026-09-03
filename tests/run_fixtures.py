@@ -6,8 +6,9 @@ tensor keys are on the grammar of its kind. Nothing is loaded but the headers.
   1. metadata on the schema, read from the safetensors header alone;
   2. integration: the `document` is a corpus document and `truncation.composition` one
      of its compositions; every key is an `in/`, `value/`, `state/` or `logits/` key; every
-     `in/<input>` names a public input of the document other than the token input, and the
-     `inputs` provenance has one entry per such key and no other;
+     `in/<input>` names a public input of the document other than the token input, the
+     `inputs` provenance has one entry per such key and no other, and an entry that names a
+     file names the recording's origin and licence too;
   3. unit: the embedded document is on the model schema and pins the fixture's contract
      with its arguments; every key is a `param/`, `in/`, `out/`, `positions/` or `state/` key,
      one `in/` per public input and one `out/` per public output for every invocation.
@@ -92,6 +93,10 @@ def main(paths=None):
                 ok &= check(f"{name}: every in/ key names a public input of {meta['document']} other than the token input", not bad, str(bad))
                 ok &= check(f"{name}: the inputs provenance has one entry per in/ key and no other",
                             set(meta.get('inputs', {})) == recorded, str(sorted(set(meta.get('inputs', {})) ^ recorded)))
+                # a recording names its origin and licence beside its file and hash (docs/TENSORSPINE-FIXTURE.md §3):
+                # open content travels with its attribution; a setting has no file and needs neither
+                lacking = sorted(i for i, e in meta.get('inputs', {}).items() if 'source' in e and not (e.get('origin') and e.get('licence')))
+                ok &= check(f"{name}: every recorded input with a file names its origin and licence", not lacking, str(lacking))
             ok &= check(f"{name}: a tolerance for f32", 'f32' in meta['tolerance'])
         else:
             document = meta['document']

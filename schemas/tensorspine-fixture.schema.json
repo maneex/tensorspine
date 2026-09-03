@@ -302,27 +302,41 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "source",
-              "sha256",
               "processor"
             ],
+            "dependentRequired": {
+              "source": [
+                "sha256"
+              ],
+              "sha256": [
+                "source"
+              ]
+            },
             "properties": {
               "source": {
                 "type": "string",
-                "description": "What was recorded: a file name (`jfk.wav`), never a path of the machine that made the fixture."
+                "description": "What was recorded, when a file was: its name (`jfk.wav`), never a path of the machine that made the fixture. Absent for an input that is a setting rather than a recording — the number of delay tokens a streaming transcription runs at — whose provenance is `processor` alone."
               },
               "sha256": {
                 "type": "string",
                 "pattern": "^[0-9a-f]{64}$",
-                "description": "The hash of that file."
+                "description": "The hash of that file; present exactly when `source` is."
+              },
+              "origin": {
+                "type": "string",
+                "description": "Where the recording came from: a repository, an archive item, a URL (`the whisper.cpp repository's samples/jfk.wav`). A fixture is committed and read elsewhere, so open content names its source itself; the harness requires it whenever `source` is present."
+              },
+              "licence": {
+                "type": "string",
+                "description": "The licence the recording is used under (`public domain: a work of the United States government`); required by the harness whenever `source` is present."
               },
               "processor": {
                 "type": "string",
-                "description": "How the tensor was made from it — the extractor and its configuration, in words (`WhisperFeatureExtractor` from the checkpoint's `preprocessor_config.json`: 128 log-mel bins per 10 ms frame, zero-padded to 30 s). The delivery's preprocessing is outside the document, as a tokenizer is; the fixture holds its result and says how it was made."
+                "description": "How the tensor was made — the extractor and its configuration, in words (`WhisperFeatureExtractor` from the checkpoint's `preprocessor_config.json`: 128 log-mel bins per 10 ms frame, zero-padded to 30 s), or, for a setting, what chose the value (`the processor's num_delay_tokens`). The delivery's preprocessing is outside the document, as a tokenizer is; the fixture holds its result and says how it was made."
               }
             }
           },
-          "description": "The provenance of every non-token public input the prefill delivered, keyed by the input's name: one entry per `in/<input>` tensor key, and no other. Absent when the prompt is the only input."
+          "description": "The provenance of every non-token public input the prefill delivered, keyed by the input's name: one entry per `in/<input>` tensor key, and no other. A recording names its file, hash, origin and licence; a setting has no file and its `processor` says what chose it. Absent when the prompt is the only input."
         },
         "hook_map": {
           "type": "object",

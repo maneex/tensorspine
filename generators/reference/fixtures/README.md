@@ -43,6 +43,21 @@ non-token inputs the prefill delivered. Its `hook_map` is the only mapping betwe
 delivery-implementation names and TensorSpine D1/D4 names. Captured tensors are cloned
 immediately because delivery implementations may update state in place.
 
+## Recorded samples
+
+The audio a fixture records under `in/audio` comes from a sample in `$TENSORSPINE_MODEL_ARTIFACTS/audio/`
+(a directory outside the repository, like the weights). Every sample is open content; the fixture's
+`inputs` entry names the file, its hash and the extractor, and this table says where each file
+came from and under which licence.
+
+| Sample | Content | Origin | Licence | Preparation |
+|---|---|---|---|---|
+| `jfk.wav` | John F. Kennedy, inaugural address, 20 January 1961, "And so my fellow Americans…" (11.0 s) | the [whisper.cpp](https://github.com/ggml-org/whisper.cpp) repository's `samples/jfk.wav` | public domain: a work of the United States government | as distributed: 16 kHz, mono, 16-bit; sha256 `59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e` |
+| `la-cigale-et-la-fourmi.wav` | Jean de La Fontaine, *Fables*, livre I, 1: "La Cigale et la Fourmi", the title and the first half of the fable, read in French by Jean Lambert (33.8 s) | LibriVox, *Fables de La Fontaine, livre 01*, archive.org item [`fables_de_la_fontaine_01_jl_0809_librivox`](https://archive.org/details/fables_de_la_fontaine_01_jl_0809_librivox), file `fables01_01_lafontaine_jl_64kb.mp3` (sha256 `b21986a6b13af473a5cfa8a2ed456fb035a15c4230d6d0f1bdf1d725d3afb020`) | public domain: LibriVox releases its recordings into the public domain ([creativecommons.org/licenses/publicdomain](http://creativecommons.org/licenses/publicdomain/)); the text is public domain (1668) | seconds 14.0 to 47.84 of the file, after the reader's announcement, converted by ffmpeg to 16 kHz, mono, 16-bit; sha256 `8bae051b7d4ba412b996e5289c552de860a63c3d4507f388dcad6a86c0fbf35a` |
+
+A new sample goes in the same directory with a row here: what is spoken, where the file came from,
+its licence, and how the WAV was made from it.
+
 ## Compare and validate
 
 ```sh
