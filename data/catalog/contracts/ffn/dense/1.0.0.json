@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Dense feed-forward network: an up projection, a non-linearity, then a down projection.",
-    "description": "`in` projects to `inner`, the activation is applied, `out` projects back to `width`. The same conditioning and sparsity options as `ffn.gated`, without the gate half.",
+    "description": "`in` projects to `inner`, the activation is applied, `out` projects back to `width`. The same sparsity option as `ffn.gated`, without the gate half; a feed-forward conditioned on a per-sequence signal is this primitive behind `conditioning.scale`.",
     "external_docs": [
       {
         "url": "https://arxiv.org/abs/1706.03762",
@@ -73,29 +73,6 @@
           "literal": false
         },
         "description": "Learned bias on the down projection."
-      },
-      "condition_dim": {
-        "type": {
-          "kind": "cardinality"
-        },
-        "required": false,
-        "structural": true,
-        "note": "rank of the temporal conditioning projector",
-        "description": "Rank of the conditioning projector; present, `condition_in` and `condition_out` exist."
-      },
-      "condition": {
-        "type": {
-          "kind": "enum",
-          "values": [
-            "time"
-          ]
-        },
-        "required": false,
-        "structural": false,
-        "description": "How the conditioning signal is applied.",
-        "value_descriptions": {
-          "time": "A temporal condition modulates the inner activation through the `condition_in`/`condition_out` projector."
-        }
       },
       "activation_sparsity": {
         "type": {
@@ -271,66 +248,6 @@
           }
         },
         "description": "Bias of the down projection."
-      },
-      "condition_in": {
-        "role": "conditioning.projection",
-        "sharing": {
-          "kind": "exclusive"
-        },
-        "shape": {
-          "axes": [
-            {
-              "name": "condition",
-              "axis": "conditioning.feature",
-              "nature": "feature",
-              "extent": {
-                "argument": "condition_dim"
-              }
-            },
-            {
-              "name": "feature",
-              "axis": "model.width",
-              "nature": "feature",
-              "extent": {
-                "argument": "width"
-              }
-            }
-          ]
-        },
-        "present_when": {
-          "present": "condition_dim"
-        },
-        "description": "Projection of the input into the conditioning rank."
-      },
-      "condition_out": {
-        "role": "conditioning.projection",
-        "sharing": {
-          "kind": "exclusive"
-        },
-        "shape": {
-          "axes": [
-            {
-              "name": "feature",
-              "axis": "model.width",
-              "nature": "feature",
-              "extent": {
-                "argument": "width"
-              }
-            },
-            {
-              "name": "condition",
-              "axis": "conditioning.feature",
-              "nature": "feature",
-              "extent": {
-                "argument": "condition_dim"
-              }
-            }
-          ]
-        },
-        "present_when": {
-          "present": "condition_dim"
-        },
-        "description": "Projection of the conditioning rank back to `width`."
       }
     },
     "constants": {},

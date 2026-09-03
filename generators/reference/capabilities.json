@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "163b60b",
+    "version": "e503d9d",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-03"
   },
@@ -365,8 +365,6 @@
         ],
         "in_bias": "any",
         "out_bias": "any",
-        "condition_dim": "absent",
-        "condition": "absent",
         "activation_sparsity": {
           "absent": true,
           "values": [

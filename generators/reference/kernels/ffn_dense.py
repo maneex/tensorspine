@@ -8,7 +8,6 @@ the down projection — `ffn.gated` without its gate half.
 | activation gelu_tanh      | implemented            |
 | activation relu2          | implemented            |
 | in_bias, out_bias         | implemented            |
-| condition_dim / condition | refused                |
 | activation_sparsity       | refused when > 0       |
 """
 import torch.nn.functional as F
@@ -20,7 +19,7 @@ ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approxim
 
 
 CAPABILITIES = {"arguments": {"width": "any", "inner": "any", "activation": ["silu", "gelu", "gelu_tanh", "relu2"],
-                              "in_bias": "any", "out_bias": "any", "condition_dim": "absent", "condition": "absent",
+                              "in_bias": "any", "out_bias": "any",
                               "activation_sparsity": {"absent": True, "values": [0, 0.0]}},
                 "states": []}
 

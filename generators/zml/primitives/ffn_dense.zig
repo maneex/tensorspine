@@ -10,7 +10,6 @@
 //! | activation gelu_tanh     | implemented                   |
 //! | activation relu2         | implemented                   |
 //! | in_bias, out_bias        | implemented                   |
-//! | condition_dim, condition | refused                       |
 //! | activation_sparsity      | refused when > 0              |
 
 const activation = @import("../activation.zig");
@@ -24,7 +23,6 @@ pub const primitive: p.Primitive = .{
     \\{"arguments": {"width": "any", "inner": "any",
     \\               "activation": ["silu", "gelu", "gelu_tanh", "relu2"],
     \\               "in_bias": "any", "out_bias": "any",
-    \\               "condition_dim": "absent", "condition": "absent",
     \\               "activation_sparsity": {"absent": true, "values": [0, 0.0]}},
     \\ "states": [],
     \\ "notes": ["activation gelu computes erf by Abramowitz & Stegun 7.1.26 (|e| <= 1.5e-7): neither StableHLO nor ZML binds an erf op"]}
