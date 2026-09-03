@@ -272,6 +272,9 @@
         },
         "merge_count": {
           "literal": 4
+        },
+        "activation": {
+          "literal": "gelu"
         }
       },
       "families": [

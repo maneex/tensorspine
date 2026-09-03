@@ -4,8 +4,8 @@
   "name": "projector.temporal_stack",
   "definition": {
     "version": "1.0.0",
-    "summary": "Audio-language projector: stacks `merge_count` consecutive frames, then two bias-free projections.",
-    "description": "`merge_count` consecutive encoder outputs are concatenated into one `source_width * merge_count` vector, projected to `width` by `input` and again by `output`. The output is in the token domain.",
+    "summary": "Audio-language projector: `merge_count` stacked frames, a projection, an activation, a second projection, bias-free.",
+    "description": "`merge_count` consecutive encoder outputs — the earliest first — are concatenated into one `source_width · merge_count` vector, projected to `width` by `input`, passed through `activation`, and projected again by `output`, `width → width`; neither projection carries a bias. The output is in the token domain: one token per stacked group. `activation` defaults to `gelu`, the activation every known delivery implementation of such a projector defaults to (transformers' Voxtral, Voxtral Realtime and AudioFlamingo 3 expose it as `projector_hidden_act`); a document states its value all the same, as it states `merge_count`.",
     "tags": [
       "multimodal"
     ],
@@ -41,6 +41,29 @@
         "required": true,
         "structural": true,
         "description": "Frames stacked into one token."
+      },
+      "activation": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "gelu",
+            "gelu_tanh",
+            "relu",
+            "silu"
+          ]
+        },
+        "required": false,
+        "structural": false,
+        "default": {
+          "literal": "gelu"
+        },
+        "description": "Non-linearity between the two projections; changes no tensor. Defaults to `gelu`, the value every known delivery implementation defaults to.",
+        "value_descriptions": {
+          "gelu": "Exact GELU (Voxtral, Voxtral Realtime, AudioFlamingo 3).",
+          "gelu_tanh": "Tanh-approximated GELU.",
+          "relu": "ReLU (LLaMA-Omni's five-frame stack).",
+          "silu": "SiLU."
+        }
       }
     },
     "ports": {
@@ -187,6 +210,6 @@
         "description": "`merge_count` frames become one token."
       }
     ],
-    "note": "Temporal stacking followed by two bias-free projections."
+    "note": "Temporal stacking, earliest frame first, then projection, activation, projection — no biases."
   }
 }
