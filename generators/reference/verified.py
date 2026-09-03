@@ -13,6 +13,7 @@ FIXTURES = [   # (fixture, model document, artifact directory under $TENSORSPINE
     ('qwen3.5-35b-a3b.2layers.hf.safetensors', 'qwen3.5-35b-a3b', 'Qwen3.5-35B-A3B'),   # two gated-delta layers with their MoE, fp32
     ('qwen3.5-35b-a3b.4layers.hf.safetensors', 'qwen3.5-35b-a3b', 'Qwen3.5-35B-A3B', (0.1, 0.02)),   # the attention layer too; transformers in bf16 (4 layers in fp32 exceed the memory here): measured 8.2e-2
     ('whisper-large-v3.3layers.hf.safetensors', 'whisper-large-v3', 'whisper-large-v3'),   # the encoder whole, the decoder at three layers; the audio the fixture carries (in/audio) is delivered with the prompt
+    ('voxtral-realtime.3layers.hf.safetensors', 'voxtral-realtime', 'Voxtral-Mini-4B-Realtime-2602'),   # the encoder whole, the decoder at three layers; the token stream joins the audio stream: the prompt with its tokens' frames, then a token and eight frames per step, the prefill also replayed as fragments
 ]
 FULL = [   # (model document, checkpoint directory, prompt ids, the greedy tokens transformers 5.14 produced in bf16, 29 Aug 2026[, the fixture whose in/ tensors are delivered with the prompt])
     ('llama3-8b', 'Meta-Llama-3-8B', [128000, 791, 6864, 315, 9822, 374],        # "<|begin_of_text|>The capital of France is"
@@ -30,5 +31,6 @@ FULL = [   # (model document, checkpoint directory, prompt ids, the greedy token
 ]
 CHECKPOINT_IDS = {'Meta-Llama-3-8B': 'NousResearch/Meta-Llama-3-8B', 'Qwen3.5-4B': 'Qwen/Qwen3.5-4B', 'Qwen3.8-27B': 'Qwen/Qwen3.8-27B',
                   'Shieldstral-1.0-3B': 'mistralai/Shieldstral-1.0-3B', 'colbertv2.0': 'colbert-ir/colbertv2.0',
-                  'Qwen3.5-35B-A3B': 'Qwen/Qwen3.5-35B-A3B', 'whisper-large-v3': 'openai/whisper-large-v3'}
+                  'Qwen3.5-35B-A3B': 'Qwen/Qwen3.5-35B-A3B', 'whisper-large-v3': 'openai/whisper-large-v3',
+                  'Voxtral-Mini-4B-Realtime-2602': 'mistralai/Voxtral-Mini-4B-Realtime-2602'}
 AGREEMENT = "values, states and logits within atol 1e-3 / rtol 1e-2 of transformers in fp32 (measured max |d| 8e-6); greedy tokens identical"

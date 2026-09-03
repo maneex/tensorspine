@@ -80,10 +80,14 @@ payload.
 
 Tensor keys: `in/<input>` for every public input the prefill delivered other than the token input
 `ids` names — element-major, one row per element, the input value's D2 shape per row (`[3000, 128]`
-for Whisper's `audio`; what `Session.run` checks a delivered input against); `value/<D1 value>` for
-the output of every layer (the values crossing D6's layer cuts) and every exposed output;
-`state/<D4 identity>/<component>` for every state after the prefill; `logits/last` and
-`logits/argmax` for a generative document.
+for Whisper's `audio`; what `Session.run` checks a delivered input against — for an input whose
+stream the token input joins, every element the prefill and the recorded steps consumed, the
+prompt taking its tokens' share and each step one token's, as D2's count says); `value/<D1
+value>` for the output of every layer (the values crossing D6's layer cuts) and every exposed
+output; `state/<D4 identity>/<component>` for every state after the prefill — a growing state's
+positions, a `window` state's valid tail (the last `span` positions written, in order, and
+nothing before the first write: what the delivery's cache holds), a fixed state's payload;
+`logits/last` and `logits/argmax` for a generative document.
 
 ## 4 — Reading one
 

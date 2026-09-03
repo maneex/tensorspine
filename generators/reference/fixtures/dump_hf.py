@@ -16,7 +16,14 @@ An encoder–decoder (`--audio`) records the audio frames it was fed as `in/audi
 provenance (`--audio-origin`, `--audio-licence`: where the recording came from and under which
 licence, required), and the encoder's output — the cross source every decoder layer reads — beside the
 decoder's layer outputs and self-attention cache; its cross-attention cache is not recorded
-(`hook_map` says so).
+(`hook_map` says so). A streaming model whose token stream joins the audio stream (Voxtral
+Realtime, told by the config's `model_type`) takes the same flag: the artifact's processor builds
+the prefill, the steps deliver a token and eight frames each, and the file records the frames
+consumed, the delay as `in/delay`, the decoder caches, the convolution histories and the held
+conditions after the prefill (`--encoder-rings` adds the encoder's caches).
+
+    python3 fixtures/dump_hf.py --model DIR --document voxtral-realtime --audio la-cigale-et-la-fourmi.wav --layers 3 \
+                                --steps 24 --audio-origin … --audio-licence … --out F               # a streaming model
 """
 import argparse
 import json
@@ -44,7 +51,7 @@ def main(argv=None):
     ap.add_argument('--atol', type=float, help='an f32 conformer\'s absolute tolerance against this fixture (default: the f32 entry of TOLERANCE)')
     ap.add_argument('--rtol', type=float, help='its relative tolerance')
     ap.add_argument('--layers', type=int, help='num_hidden_layers override (the truncated fixture)')
-    ap.add_argument('--ids', required=True)
+    ap.add_argument('--ids', help="the prompt's token ids; on a streaming model the processor's prefill, checked against these when given")
     ap.add_argument('--steps', type=int, default=3)
     ap.add_argument('--dtype', default='f32', choices=['f32', 'bf16'])
     ap.add_argument('--composition', default='decoder', help="the D1 composition the layers belong to")
@@ -64,8 +71,13 @@ def main(argv=None):
     ap.add_argument('--encoder-output', default='enc_final_n.output', help="with --audio: the D1 value of the encoder's output, the cross source")
     ap.add_argument('--cross-site', default='cross_attn', help="with --audio: the D1 site of the cross attention (its kv state is not recorded)")
     ap.add_argument('--out', required=True)
+    ap.add_argument('--encoder-rings', action='store_true', help="with --audio on a streaming model: record the encoder's sliding-window caches after the prefill "
+                                                                 "(32 layers of keys and values per encoder position: large; left out by default, every decode step exercises them)")
     args = ap.parse_args(argv)
     if args.audio:
+        from transformers import AutoConfig
+        if AutoConfig.from_pretrained(args.model).model_type == 'voxtral_realtime':
+            return dump_streaming(args)
         return dump_encoder_decoder(args)
     from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForImageTextToText
     from transformers.models.auto.modeling_auto import MODEL_FOR_CAUSAL_LM_MAPPING_NAMES
@@ -261,6 +273,133 @@ def _recording(args, digest, processor):
         raise SystemExit("--audio records open content: give --audio-origin and --audio-licence, which the fixture carries")
     return {'source': os.path.basename(args.audio), 'sha256': digest, 'origin': args.audio_origin, 'licence': args.audio_licence,
             'processor': processor}
+
+
+def dump_streaming(args):
+    """A streaming speech model whose token stream joins the audio stream (Voxtral Realtime). The
+    artifact's processor — transformers' `VoxtralRealtimeProcessor`, which needs `mistral_common` —
+    builds the streaming prefill: the prompt (a start token and the streaming pads of the left
+    padding and the delay), the left-padded audio and `num_delay_tokens`; the checkpoint's feature
+    extractor turns the audio into frames, eight per token. The prefill delivers the prompt with
+    as many frames as its tokens take; every step delivers the token produced with the next eight
+    frames — `transformers` run as `generate` runs it, the stem through its padding cache chunk by
+    chunk (the streaming computation, which the whole-signal stem equals by construction), the
+    encoder through its sliding-window cache, the decoder through its own. Recorded: `in/audio`
+    (every frame the prefill and the steps consumed, with the recording's provenance), `in/delay`
+    (the setting, with the processor's word for it), the decoder layer outputs, the encoder's
+    final norm, the projector's output and the time embedding at the prefill, the decoder caches,
+    the two convolution histories and the held conditions after it, the logits and the greedy
+    tokens; the encoder rings with `--encoder-rings`. `--layers` truncates the decoder
+    (`text_config.num_hidden_layers`); the encoder runs whole."""
+    import hashlib
+    import wave
+    import numpy as np
+    from transformers import AutoConfig, AutoProcessor
+    from transformers.models.voxtral_realtime.modeling_voxtral_realtime import (VoxtralRealtimeConv1dPaddingCache,
+                                                                                 VoxtralRealtimeForConditionalGeneration)
+    dtype = {'f32': torch.float32, 'bf16': torch.bfloat16}[args.dtype]
+    config = AutoConfig.from_pretrained(args.model)
+    if args.layers:
+        config.text_config.num_hidden_layers = args.layers
+    n_layers = config.text_config.num_hidden_layers
+    per_token = config.audio_length_per_tok                    # frames per token: the document's count, 8
+    t0 = time.time()
+    model = VoxtralRealtimeForConditionalGeneration.from_pretrained(args.model, config=config, dtype=dtype)
+    model.eval()
+    print(f"loaded {args.model}: {config.audio_config.num_hidden_layers} encoder and {n_layers} decoder layers in {dtype} ({time.time() - t0:.0f}s)")
+    try:
+        processor = AutoProcessor.from_pretrained(args.model)
+    except ImportError as e:
+        raise SystemExit(f"the artifact's processor needs mistral_common (and soundfile): {e}")
+    extractor = processor.feature_extractor
+    with wave.open(args.audio) as wav:
+        channels, width, rate, frames = wav.getnchannels(), wav.getsampwidth(), wav.getframerate(), wav.getnframes()
+        if (channels, width, rate) != (1, 2, extractor.sampling_rate):
+            raise SystemExit(f"{args.audio}: {channels} channel(s), {8 * width}-bit, {rate} Hz — the extractor takes mono 16-bit at {extractor.sampling_rate} Hz")
+        pcm = np.frombuffer(wav.readframes(frames), dtype='<i2').astype(np.float32) / 32768.0
+    with open(args.audio, 'rb') as f:
+        digest = hashlib.sha256(f.read()).hexdigest()
+    enc = processor(pcm, is_streaming=True, is_first_audio_chunk=True, sampling_rate=rate, return_tensors='pt')
+    ids = enc['input_ids'][0].tolist()
+    if args.ids and [int(x) for x in args.ids.split(',')] != ids:
+        raise SystemExit(f"--ids differ from the processor's streaming prefill {ids}: the prompt is the processor's")
+    features = enc['input_features'].to(dtype)                  # [1, mels, frames], the left padding included
+    delay = int(enc['num_delay_tokens'])
+    total = features.shape[-1]
+    steps = min(args.steps, total // per_token - len(ids))
+    consumed = (len(ids) + steps) * per_token
+    left_pad = processor.tokenizer.tokenizer.instruct_tokenizer.audio_encoder.audio_config.n_left_pad_tokens
+    inputs = {'audio': _recording(args, digest,
+                                  f"{type(extractor).__name__} from the checkpoint's preprocessor_config.json on the processor's streaming "
+                                  f"first chunk — {left_pad} tokens of silence ({left_pad * per_token * extractor.hop_length} samples) before the "
+                                  f"{frames / rate:.1f} s signal — {extractor.feature_size} log-mel bins per frame of {extractor.hop_length} samples "
+                                  f"at {rate} Hz; the {consumed} frames the prefill ({len(ids)} tokens, {len(ids) * per_token} frames) and "
+                                  f"{steps} steps of {per_token} consumed, one row per frame, of the {total} the signal makes"),
+              'delay': {'processor': f"the processor's num_delay_tokens, {delay}: the checkpoint's default_num_delay_tokens "
+                                     f"({config.default_num_delay_tokens}), a delivered setting with no file to hash"}}
+    dump = {'in/audio': features[0].T[:consumed].to(torch.float32).cpu().clone(),
+            'in/delay': torch.tensor([delay], dtype=torch.int32)}
+    hooks, hook_map = [], {'input_features[0].T[:consumed]': 'in/audio', 'num_delay_tokens': 'in/delay'}
+    inner = model.model
+    for i, layer in enumerate(inner.language_model.layers):
+        key = f"value/{args.composition}/{args.layer_output}[layer={i}].output"
+        hook_map[f"model.language_model.layers.{i}"] = key
+        hooks.append(layer.register_forward_hook(_capture(dump, key)))
+    for module, name, key in ((inner.audio_tower.norm, 'model.audio_tower.norm', f"value/{args.encoder_output}"),
+                              (inner.multi_modal_projector, 'model.multi_modal_projector', 'value/audio_projector.output')):
+        hook_map[name] = key
+        hooks.append(module.register_forward_hook(_capture(dump, key)))
+
+    def time_hook(module, inputs_, output):
+        if 'value/time_embed.embedding' not in dump:
+            dump['value/time_embed.embedding'] = output.detach().to(torch.float32).reshape(1, -1).cpu().clone()
+    hook_map['model.time_embedding'] = 'value/time_embed.embedding'
+    hooks.append(inner.time_embedding.register_forward_hook(time_hook))
+    padding_cache = VoxtralRealtimeConv1dPaddingCache()
+    with torch.no_grad():
+        t0 = time.time()
+        # the stem chunk by chunk through its padding cache: the prefill's frames, then eight per step
+        chunk = inner.audio_tower.embedder(features[:, :, :len(ids) * per_token], padding_cache=padding_cache)
+        out = model(input_ids=torch.tensor([ids]), encoder_inputs_embeds=chunk, num_delay_tokens=delay, use_cache=True)
+        cache, enc_cache = out.past_key_values, out.encoder_past_key_values
+        logits = out.logits[0].to(torch.float32)
+        dump['logits/last'] = logits[-1].cpu().clone()
+        dump['logits/argmax'] = logits.argmax(-1).cpu().clone()
+        for i in range(n_layers):
+            layer = cache.layers[i]
+            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/k"] = layer.keys[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/v"] = layer.values[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+            dump[f"state/{args.composition}.time_scale.condition_cache[layer={i}]/c"] = dump['value/time_embed.embedding'].clone()
+        hook_map['past_key_values.layers[i].keys[0].permute(1,0,2)'] = f"state/{args.composition}.{args.attn_site}.kv[layer=i]/k"
+        hook_map['time_embedding output, held by every layer'] = f"state/{args.composition}.time_scale.condition_cache[layer=i]/c"
+        for name, key in (('conv1', 'state/conv_frontend.conv1_history/w'), ('conv2', 'state/conv_frontend.conv2_history/w')):
+            dump[key] = padding_cache.layers[name].cache[0].T.to(torch.float32).cpu().clone()     # [left_pad, channels]
+            hook_map[f"padding_cache.layers[{name}].cache[0].T"] = key
+        if args.encoder_rings:
+            for i in range(config.audio_config.num_hidden_layers):
+                layer = enc_cache.layers[i]
+                dump[f"state/encoder.{args.attn_site}.kv[layer={i}]/k"] = layer.keys[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+                dump[f"state/encoder.{args.attn_site}.kv[layer={i}]/v"] = layer.values[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+            hook_map['encoder_past_key_values.layers[i].keys[0].permute(1,0,2)'] = f"state/encoder.{args.attn_site}.kv[layer=i]/k"
+        else:
+            hook_map['encoder_past_key_values'] = (f"not recorded: state/encoder.{args.attn_site}.kv[layer=i] — the encoder's sliding-window caches, "
+                                                   f"exercised by every decode step's four encoder positions; --encoder-rings records them")
+        nxt = int(logits[-1].argmax())
+        tokens = [nxt]
+        print(f"prefill {len(ids)} tokens with {len(ids) * per_token} frames -> {nxt} ({time.time() - t0:.1f}s); {steps} steps of {per_token} frames")
+        for k in range(steps):
+            start = (len(ids) + k) * per_token
+            chunk = inner.audio_tower.embedder(features[:, :, start:start + per_token], padding_cache=padding_cache)
+            out = model(input_ids=torch.tensor([[nxt]]), encoder_inputs_embeds=chunk, num_delay_tokens=delay,
+                        past_key_values=cache, encoder_past_key_values=enc_cache, use_cache=True)
+            cache, enc_cache = out.past_key_values, out.encoder_past_key_values
+            nxt = int(out.logits[0, -1].argmax())
+            tokens.append(nxt)
+        print("tokens:", tokens)
+    for h in hooks:
+        h.remove()
+    write_fixture(args.out, dump, metadata(args, n_layers, ids, tokens, hook_map, inputs))
+    print(f"dumped {len(dump)} tensors -> {args.out}")
 
 
 def metadata(args, n_layers, ids, tokens, hook_map, inputs=None):

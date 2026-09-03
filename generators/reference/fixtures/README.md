@@ -38,6 +38,18 @@ extractor turns the sample into the frames the document's `audio` input takes, r
 the cross source, and `--layers` truncates the decoder; `--attn-site` names the decoder's
 self-attention site. The cross-attention cache is not recorded, and `hook_map` says so.
 
+For a streaming model whose token stream joins the audio stream (Voxtral Realtime, told by the
+config's `model_type`), the same `--audio` flag takes the artifact's processor (`mistral_common`
+and `soundfile` beside `transformers`): the prompt and the delay are the processor's streaming
+prefill, the prompt takes its tokens' frames, every step a token and eight frames, and the file
+records the frames consumed as `in/audio`, the delay as `in/delay` (a setting: provenance
+without a file), the decoder layer outputs, the encoder's final norm, the projector's output and
+the time embedding at the prefill, the decoder caches, the two convolution histories and the
+held conditions after it. The encoder's sliding-window caches are left out unless
+`--encoder-rings` is given — 32 layers of keys and values per encoder position, about 82 MB for
+the committed fixture's 156 positions — since every decode step's four encoder positions
+exercise them; `hook_map` says so.
+
 The dumper records cut values, post-prefill state, exposed outputs, generated tokens and the
 non-token inputs the prefill delivered. Its `hook_map` is the only mapping between
 delivery-implementation names and TensorSpine D1/D4 names. Captured tensors are cloned

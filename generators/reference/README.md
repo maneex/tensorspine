@@ -79,6 +79,8 @@ python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --steps "$STEPS"
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --input audio="$FIXTURE"   # a non-token input, delivered with the prompt from a fixture's in/audio
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --audio "$WAV" --stop --steps 64 --capacity tokens=448,audio=1500
                    # a WAV through the artifact's own feature extractor into the audio input; decoding stops at the artifact's end-of-text
+python3 $R run     data/models/voxtral-realtime.json --checkpoint "$CK" --audio "$WAV" --steps 500 --capacity delay=1
+                   # a streaming document: the processor's prompt and delay, eight frames per token, until the audio is consumed
 python3 $R info    $MODEL --capacity "$CAPACITY" --max-ram "$RAM_GIB"
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --max-ram "$RAM_GIB"
 python3 $R chat    $MODEL --checkpoint "$CK" --capacity "$CAPACITY" --max-new-tokens "$STEPS"
@@ -166,6 +168,25 @@ prints the tokens' text after their ids, and `--stop` ends decoding at the artif
 document's text-only path with its text-trunk document. Sending an image waits on the language saying
 where the inserted elements go (`splice`
 placement, a parked finding).
+
+A **streaming** document — one whose token stream joins a fragmented audio stream (Voxtral
+Realtime: `tokens` on the stream `audio`, one token per eight frames, §2.3) — is delivered by
+the same commands under D2's counts: every stream advances by the elements delivered on it in
+the introducing input's elements, an input that joined it delivers `1 / count` of them per element,
+and the inputs on one stream must agree (`Session.run` refuses seven tokens with forty-eight
+frames, or a fragment that is not a multiple of the alignment). `Session.decode(id, inputs=…)`
+delivers the token with its fragment; `--audio WAV` on such a document takes the prompt and the
+delay from the artifact's own processor (`mistral_common` and `soundfile` beside `transformers`),
+gives the prompt its tokens' frames, every step a token's, and ends the run when the audio is
+consumed. The rings a `window` state keeps (the encoder's caches of 750 positions, the decoder's
+of 8192, the two convolution histories) are read as their valid tail — the last `span`
+positions written, in order — and a dump records that tail, which is what the delivery's cache
+holds; the front end's histories are the left padding of each convolution, so the fragments
+compute what the whole signal would, measured by the suite as the prefill replayed one token at
+a time (f32 rounding across row counts: a few 1e-5 on the checkpoint). A `sequence`-kind input
+(the delay, role `activation.count`) is delivered once, with the prompt; the condition it embeds
+is held by an `append` state indexed by the port, so a decode step delivering nothing on it is
+evaluated through the held condition (§7).
 
 Conventions: a value's tensor has the element axis first, then the port's axes in the contract's
 order; one sequence, no batch axis; parameters stay at their D3 dtype and are upcast per
