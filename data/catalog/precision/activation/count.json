@@ -1,0 +1,15 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "activation.count",
+  "definition": {
+    "summary": "A count delivered as an input: an integer by semantics, not by storage choice.",
+    "description": "One integer per element of its domain — the number of delay tokens a streaming transcription runs at, delivered once per sequence and embedded by `embedding.time`. Like a token identifier it is exact or wrong, so no reduced type is admissible.",
+    "admissible": [
+      "i32",
+      "i64"
+    ],
+    "default": "i32",
+    "sensitivity": "full_precision"
+  }
+}

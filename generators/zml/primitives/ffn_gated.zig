@@ -7,7 +7,6 @@
 //! | activation relu2         | implemented                             |
 //! | activation gelu (erf)    | refused — ZML's `gelu` is the tanh approximation, which the contract names `gelu_tanh` and distinguishes from the exact one; mapping by name would compute the wrong function silently |
 //! | in_bias, out_bias        | implemented                             |
-//! | condition_dim, condition | refused                                 |
 //! | activation_sparsity      | refused when > 0                        |
 
 const std = @import("std");
@@ -24,7 +23,6 @@ pub const primitive: p.Primitive = .{
     \\{"arguments": {"width": "any", "inner": "any",
     \\               "activation": ["silu", "gelu_tanh", "relu2"],
     \\               "in_bias": "any", "out_bias": "any",
-    \\               "condition_dim": "absent", "condition": "absent",
     \\               "activation_sparsity": {"absent": true, "values": [0, 0.0]}},
     \\ "states": [],
     \\ "notes": ["activation gelu (erf) is refused: ZML's gelu is the tanh approximation"]}

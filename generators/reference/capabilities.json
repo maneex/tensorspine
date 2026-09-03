@@ -3,9 +3,9 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "fb605a0",
+    "version": "1ff3688",
     "generator": "generators/reference/ref.py capabilities",
-    "generated": "2026-09-02"
+    "generated": "2026-09-03"
   },
   "compute_dtypes": [
     "f32",
@@ -337,8 +337,6 @@
         ],
         "in_bias": "any",
         "out_bias": "any",
-        "condition_dim": "absent",
-        "condition": "absent",
         "activation_sparsity": {
           "absent": true,
           "values": [

@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "axis",
+  "name": "conditioning.rank",
+  "definition": {
+    "space": "value",
+    "summary": "Rank of a conditioning path: the width of the bottleneck between a condition vector and the scale or shift it produces."
+  }
+}

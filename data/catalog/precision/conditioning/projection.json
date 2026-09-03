@@ -3,7 +3,7 @@
   "kind": "precision_role",
   "name": "conditioning.projection",
   "definition": {
-    "summary": "Conditioning projector of a feed-forward network.",
+    "summary": "Projections of a conditioning path: the rank bottleneck of `conditioning.scale`.",
     "admissible": [
       "bf16",
       "f16",

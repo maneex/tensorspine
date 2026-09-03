@@ -1,6 +1,6 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "voxtral_realtime",
+  "model": "voxtral_realtime_delay_joins_audio",
   "catalog": [
     {
       "base": "../catalog/"
@@ -1650,7 +1650,8 @@
             "port": "steps"
           }
         ],
-        "kind": "sequence"
+        "kind": "sequence",
+        "stream": "audio"
       }
     },
     "outputs": {

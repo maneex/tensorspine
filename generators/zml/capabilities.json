@@ -168,8 +168,6 @@
         ],
         "in_bias": "any",
         "out_bias": "any",
-        "condition_dim": "absent",
-        "condition": "absent",
         "activation_sparsity": {
           "absent": true,
           "values": [

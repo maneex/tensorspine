@@ -131,8 +131,16 @@ def main():
     ok &= check("voxtral: the fused embedding and every decoder value count {audio: 1/8}, one language-model position per eight frames",
                 all(d2v[k]['count'] == {'audio': 0.125} and d2v[k]['domain'] == {'kind': 'token', 'stream': 'audio'}
                     for k in ('embed.output', 'audio_projector.output', 'fuse.output', 'decoder/ffn_r[layer=0].output', 'lm_head.logits')))
-    ok &= check("voxtral: the audio and the tokens are both required for the generative output (§7)",
-                d2v['audio']['required_for'] == ['main'] and d2v['tokens']['required_for'] == ['main'])
+    ok &= check("voxtral: the audio, the tokens and the delay are all required for the generative output (§7)",
+                all(d2v[k]['required_for'] == ['main'] for k in ('audio', 'tokens', 'delay')))
+    caches = [s for s in v['d4']['states'] if s['state'] == 'condition_cache']
+    ok &= check("voxtral: 26 condition caches, append states on the delay stream (kind sequence) indexed by the condition port, shared by_source, not carried",
+                len(caches) == 26 and all(s['law'] == 'append' and s['sharing'] == 'by_source' and s['indexed_by_port'] == 'condition'
+                                          and s['stream'] == {'kind': 'sequence', 'stream': 'delay'} and not s['carried_across_fragments']
+                                          for s in caches), str(caches[:1])[:300])
+    ok &= check("voxtral: the delay stream is one element per sequence, count 1.0, and the time embedding is a sequence-kind value on it",
+                v['d2']['streams']['delay'] == {'kind': 'sequence', 'count': {'delay': 1.0}}
+                and d2v['time_embed.embedding']['domain'] == {'kind': 'sequence', 'stream': 'delay'} and d2v['time_embed.embedding']['count'] == {'delay': 1.0})
     ok &= check("deepseek-v4-pro: next_tokens joins the token stream at count 1.0, as before",
                 {x['value']: x for x in docs['deepseek-v4-pro']['d2']['values']}['next_tokens']['count'] == {'tokens': 1.0})
     rings = {s['identity']: s for s in v['d4']['states'] if s['contract'] == 'conv_frontend'}
@@ -142,7 +150,7 @@ def main():
                         and s['stream'] == {'kind': 'position', 'stream': 'audio'} for s in rings.values()), str(rings)[:300])
     ok &= check("voxtral: the audio stream's fragment alignment is 8 frames — a stride of 2, then 4 positions per token (§5.3) — and the "
                 "joined token input introduces no stream of its own",
-                v['d2']['streams']['audio'].get('fragment_alignment') == 8 and list(v['d2']['streams']) == ['audio'],
+                v['d2']['streams']['audio'].get('fragment_alignment') == 8 and 'tokens' not in v['d2']['streams'],
                 str(v['d2']['streams']))
     ok &= check("llama3-8b: an unfragmented stream states no alignment", 'fragment_alignment' not in l3['d2']['streams']['tokens'])
     g = docs['gemma3n-kvshare']

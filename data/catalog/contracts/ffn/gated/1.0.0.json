@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Gated feed-forward network: gate and up projections, a multiplicative activation, then a down projection.",
-    "description": "`gate` and `up` project the input to `inner` rows each, stored separately as the reference implementation stores them; the activation is applied to the gate projection and multiplied by the up projection, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor. `condition_dim` adds a rank-`condition_dim` conditioning path (`condition_in`, `condition_out`) whose use is selected by `condition`; `activation_sparsity` zeroes a structural fraction of the activations.",
+    "description": "`gate` and `up` project the input to `inner` rows each, stored separately as the reference implementation stores them; the activation is applied to the gate projection and multiplied by the up projection, then `out` projects back to `width`. `activation` selects the non-linearity and changes no tensor; `activation_sparsity` zeroes a structural fraction of the activations. A feed-forward conditioned on a per-sequence signal is this primitive behind `conditioning.scale`, which scales its input.",
     "external_docs": [
       {
         "url": "https://arxiv.org/abs/2002.05202",
@@ -73,29 +73,6 @@
           "literal": false
         },
         "description": "Learned bias on the down projection."
-      },
-      "condition_dim": {
-        "type": {
-          "kind": "cardinality"
-        },
-        "required": false,
-        "structural": true,
-        "note": "rank of the temporal conditioning projector",
-        "description": "Rank of the conditioning projector; present, `condition_in` and `condition_out` exist."
-      },
-      "condition": {
-        "type": {
-          "kind": "enum",
-          "values": [
-            "time"
-          ]
-        },
-        "required": false,
-        "structural": false,
-        "description": "How the conditioning signal is applied.",
-        "value_descriptions": {
-          "time": "A temporal condition modulates the inner activation through the `condition_in`/`condition_out` projector."
-        }
       },
       "activation_sparsity": {
         "type": {
@@ -328,66 +305,6 @@
           }
         },
         "description": "Bias of the down projection."
-      },
-      "condition_in": {
-        "role": "conditioning.projection",
-        "sharing": {
-          "kind": "exclusive"
-        },
-        "shape": {
-          "axes": [
-            {
-              "name": "condition",
-              "axis": "conditioning.feature",
-              "nature": "feature",
-              "extent": {
-                "argument": "condition_dim"
-              }
-            },
-            {
-              "name": "feature",
-              "axis": "model.width",
-              "nature": "feature",
-              "extent": {
-                "argument": "width"
-              }
-            }
-          ]
-        },
-        "present_when": {
-          "present": "condition_dim"
-        },
-        "description": "Projection of the input into the conditioning rank."
-      },
-      "condition_out": {
-        "role": "conditioning.projection",
-        "sharing": {
-          "kind": "exclusive"
-        },
-        "shape": {
-          "axes": [
-            {
-              "name": "feature",
-              "axis": "model.width",
-              "nature": "feature",
-              "extent": {
-                "argument": "width"
-              }
-            },
-            {
-              "name": "condition",
-              "axis": "conditioning.feature",
-              "nature": "feature",
-              "extent": {
-                "argument": "condition_dim"
-              }
-            }
-          ]
-        },
-        "present_when": {
-          "present": "condition_dim"
-        },
-        "description": "Projection of the conditioning rank back to `width`."
       }
     },
     "constants": {},

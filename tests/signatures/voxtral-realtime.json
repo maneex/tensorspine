@@ -1,24 +1,26 @@
 {
- "nodes": 355,
- "edges": 470,
+ "nodes": 382,
+ "edges": 522,
  "per_contract": {
   "attention.dense": 58,
+  "conditioning.scale": 26,
   "conv_frontend": 1,
   "embed": 1,
+  "embedding.time": 1,
   "ffn.gated": 58,
   "lm_head": 1,
   "norm.rms": 118,
   "projector.temporal_stack": 1,
   "residual.add": 117
  },
- "wl": "c8e40659d508e7a2",
+ "wl": "a1595ca09e1bb714",
  "parameter_slots": 712,
  "tensors": 711,
  "shared": 1,
- "state_slots": 60,
- "state_identities": 60,
+ "state_slots": 86,
+ "state_identities": 86,
  "instance_keys": {
   "instance.session\u00d7instance.branch": 2,
-  "layer\u00d7instance.session\u00d7instance.branch": 58
+  "layer\u00d7instance.session\u00d7instance.branch": 84
  }
 }

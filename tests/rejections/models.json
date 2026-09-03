@@ -332,6 +332,12 @@
       "note": "Voxtral Realtime's fusion of the text embedding with the projected audio, position by position, needs both operands on one domain: with `tokens` introducing its own stream instead of joining `audio`, the residual.add sees two streams and no transform (V5). The corpus document declares `tokens` on the audio stream (§2.3)."
     },
     {
+      "document": "models/v19-join-at-a-kind-the-stream-lacks.json",
+      "expect": "V19",
+      "match": "input delay: joins stream 'audio' at kind sequence, which that stream carries at no value independently of the input",
+      "note": "Voxtral Realtime's delay declared as joining the audio stream: the port it feeds takes a sequence-kind element, so V5 sees nothing wrong, but the stream carries no sequence-kind value independently of the input and a joined count would come from nothing (V19, §5.3). The corpus document lets `delay` introduce its own stream."
+    },
+    {
       "document": "models/v18-fragmented-stateless-frontend.json",
       "expect": "V18",
       "match": "conv_frontend@conv_frontend reads across positions of the fragmented stream 'audio'",

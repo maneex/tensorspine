@@ -1,0 +1,116 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "embedding.time",
+  "definition": {
+    "version": "1.0.0",
+    "summary": "Sinusoidal embedding of a per-sequence count: no parameters, `width` channels, base `theta`.",
+    "description": "`steps` delivers one integer per sequence — a count the deployment chooses, such as the number of delay tokens a streaming transcription runs at — and `embedding` is its sinusoidal embedding over `width` channels: `e = [cos(t · f), sin(t · f)]` with `f_i = theta^(−i / (width / 2))` for `i` from 0 to `width / 2 − 1`, the `width / 2` cosines first, then the sines, as Voxtral Realtime's time embedding computes it. Nothing is learned; `theta` is what the weights consuming the embedding were trained against, as a rotary base is, so it is required and has no default. The output stays in the `sequence` domain of `steps`, one vector per sequence, which a conditioning primitive reads across its own domain (`conditioning.scale`).",
+    "external_docs": [
+      {
+        "url": "https://github.com/huggingface/transformers/blob/main/src/transformers/models/voxtral_realtime/modeling_voxtral_realtime.py",
+        "title": "transformers: VoxtralRealtimeTimeEmbedding",
+        "kind": "reference_implementation",
+        "description": "The delivery implementation's form: `inv_freq = exp(−ln θ · i / (dim / 2))`, `cat(cos(t · inv_freq), sin(t · inv_freq))`."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Channels of the embedding: `width / 2` frequencies, each a cosine and a sine."
+      },
+      "theta": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "structural": false,
+        "description": "Base of the frequencies: `f_i = theta^(−i / (width / 2))`. Changes the computation, no tensor; required, since the value the weights were trained against is not a default."
+      }
+    },
+    "ports": {
+      "inputs": {
+        "steps": {
+          "shape": {
+            "axes": []
+          },
+          "domain": {
+            "kind": "sequence",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.count",
+          "description": "The count: a rank-zero integer per sequence."
+        }
+      },
+      "outputs": {
+        "embedding": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "conditioning.feature",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "sequence",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.embedding",
+          "description": "The embedding of the count: `width` channels, cosines then sines, one vector per sequence."
+        }
+      }
+    },
+    "parameters": {},
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "steps"
+      ],
+      "writes": [
+        "embedding"
+      ]
+    },
+    "logical_cost": [
+      {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 2
+            },
+            {
+              "argument": "width"
+            }
+          ]
+        },
+        "status": "estimate",
+        "per": "sequence",
+        "description": "The products and the sinusoids over `width` channels, once per sequence; no parameter is consumed."
+      }
+    ],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "conditioning.feature"
+        },
+        "communication": "none",
+        "description": "Each channel pair follows from the count alone: a shard computes the channels it holds."
+      }
+    ],
+    "note": "Parameter-free sinusoidal embedding of an integer delivered once per sequence."
+  }
+}

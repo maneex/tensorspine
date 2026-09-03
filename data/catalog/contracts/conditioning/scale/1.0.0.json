@@ -1,0 +1,373 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "contract",
+  "name": "conditioning.scale",
+  "definition": {
+    "version": "1.0.0",
+    "summary": "Scales its input by a function of a condition vector: `input ⊙ (1 + out · act(in · condition))`.",
+    "description": "The condition — one vector of `condition_width`, delivered on `condition` in another domain than `input`'s (an `align` transform: a per-sequence embedding scales every element of a token stream) — is projected by `in` to `rank`, passed through `activation`, projected back by `out` to `width`, and one plus the result multiplies `input` element by element. Nothing is added to a residual and nothing is normalised: this is the adaptive scale Voxtral Realtime applies to the feed-forward's normed input in every decoder layer, its condition the time embedding of the transcription delay. The elements `condition` delivers are held by `condition_cache`, an `append` state indexed by that port and shared `by_source`: an invocation delivering nothing on the port — every decode step — evaluates the occurrence through the held condition (§7), and a session forked after the condition arrived shares it whole. Compare `conditioning.multiplicative`, which gates the input, multiplies by a per-layer condition, projects back and normalises what the layer adds to its residual: another mechanism, hence another contract.",
+    "external_docs": [
+      {
+        "url": "https://github.com/huggingface/transformers/blob/main/src/transformers/models/voxtral_realtime/modeling_voxtral_realtime.py",
+        "title": "transformers: VoxtralRealtimeTextAdaRmsNorm and VoxtralRealtimeTextDecoderLayer",
+        "kind": "reference_implementation",
+        "description": "`linear2(gelu(linear1(t_cond)))` with `[32, hidden]` and `[hidden, 32]`, applied as `post_attention_layernorm(h) · (1 + …)` before the MLP."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of `input` and `output`."
+      },
+      "condition_width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Width of the condition vector."
+      },
+      "rank": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Rank of the condition path: `in` projects the condition to `rank`, `out` projects it back to `width`."
+      },
+      "activation": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "silu",
+            "gelu",
+            "gelu_tanh",
+            "relu2"
+          ]
+        },
+        "required": true,
+        "structural": false,
+        "description": "Non-linearity between the two projections; changes no tensor.",
+        "value_descriptions": {
+          "silu": "SiLU.",
+          "gelu": "Exact GELU.",
+          "gelu_tanh": "Tanh-approximated GELU.",
+          "relu2": "Squared ReLU."
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The activation to scale: one vector of `width` per element of its domain."
+        },
+        "condition": {
+          "shape": {
+            "axes": [
+              {
+                "name": "condition",
+                "axis": "conditioning.feature",
+                "nature": "feature",
+                "extent": {
+                  "argument": "condition_width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "note": "the condition comes from ANOTHER domain, the one the edge into this port carries (an `align` transform); its elements are held by `condition_cache`",
+          "description": "The condition vector, in the domain of the edge that feeds this port: one per sequence for a time embedding."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "`input ⊙ (1 + out · act(in · condition))`, in the domain of `input`."
+        }
+      }
+    },
+    "parameters": {
+      "in": {
+        "role": "conditioning.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "rank",
+              "axis": "conditioning.rank",
+              "nature": "feature",
+              "extent": {
+                "argument": "rank"
+              }
+            },
+            {
+              "name": "condition",
+              "axis": "conditioning.feature",
+              "nature": "feature",
+              "extent": {
+                "argument": "condition_width"
+              }
+            }
+          ]
+        },
+        "description": "Projection of the condition to `rank`."
+      },
+      "out": {
+        "role": "conditioning.projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "rank",
+              "axis": "conditioning.rank",
+              "nature": "feature",
+              "extent": {
+                "argument": "rank"
+              }
+            }
+          ]
+        },
+        "description": "Projection of the activated rank vector to `width`: the scale, less one."
+      }
+    },
+    "constants": {},
+    "state_ports": {
+      "condition_cache": {
+        "present_when": {
+          "boolean": true
+        },
+        "payload": {
+          "c": {
+            "shape": {
+              "axes": [
+                {
+                  "name": "condition",
+                  "axis": "conditioning.feature",
+                  "nature": "feature",
+                  "extent": {
+                    "argument": "condition_width"
+                  }
+                }
+              ]
+            },
+            "role": "state.condition",
+            "description": "One delivered condition vector."
+          }
+        },
+        "key_axes": [
+          "instance.session",
+          "instance.branch"
+        ],
+        "operations": {
+          "append": {
+            "effect": "append",
+            "description": "Hold the condition vectors this invocation delivers."
+          },
+          "read": {
+            "effect": "read",
+            "description": "Read the held condition when the port delivers nothing."
+          }
+        },
+        "rules": [
+          {
+            "when": {
+              "boolean": true
+            },
+            "law": "append",
+            "access": "logical_position",
+            "sharing": "by_source",
+            "indexed_by": {
+              "port": "condition"
+            },
+            "description": "Indexed by the stream of `condition`: grown along it, frozen once it is complete — after one element, for a per-sequence embedding — and shared whole by sessions whose condition is the same."
+          }
+        ],
+        "description": "The elements the condition port delivered, held in full: a decode step delivers nothing on the port and is evaluated through them (§7)."
+      }
+    },
+    "effects": {
+      "reads": [
+        "input",
+        "condition"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "logical_cost": [
+      {
+        "expression": {
+          "op": "subtract",
+          "args": [
+            {
+              "op": "multiply",
+              "args": [
+                {
+                  "literal": 2
+                },
+                {
+                  "argument": "width"
+                }
+              ]
+            },
+            {
+              "op": "multiply",
+              "args": [
+                {
+                  "literal": 2
+                },
+                {
+                  "op": "add",
+                  "args": [
+                    {
+                      "op": "multiply",
+                      "args": [
+                        {
+                          "argument": "rank"
+                        },
+                        {
+                          "argument": "condition_width"
+                        }
+                      ]
+                    },
+                    {
+                      "op": "multiply",
+                      "args": [
+                        {
+                          "argument": "width"
+                        },
+                        {
+                          "argument": "rank"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "element",
+        "description": "Per element the primitive multiplies and adds `width` channels; the two projections the inventory counts per element run once per sequence, moved to the entry below."
+      },
+      {
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "literal": 2
+            },
+            {
+              "op": "add",
+              "args": [
+                {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "argument": "rank"
+                    },
+                    {
+                      "argument": "condition_width"
+                    }
+                  ]
+                },
+                {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "argument": "width"
+                    },
+                    {
+                      "argument": "rank"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "status": "exact",
+        "per": "sequence",
+        "description": "The condition path — `in`, the activation, `out` — once per condition vector, one per sequence."
+      }
+    ],
+    "partitions": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "communication": "none",
+        "description": "Per feature: a shard scales the features it holds, computing the rank-`rank` condition path whole (`in` replicated, `out` sliced by rows)."
+      }
+    ],
+    "domain_transforms": [
+      {
+        "from_port": "condition",
+        "to_port": "output",
+        "relation": "align",
+        "description": "The condition is read across domains: one vector per sequence scales every element of the input's stream, and the output stays in the input's domain."
+      }
+    ],
+    "note": "Adaptive scale from a condition vector through a rank bottleneck; the condition is held by a state so that later invocations need not redeliver it."
+  }
+}

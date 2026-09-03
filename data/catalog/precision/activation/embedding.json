@@ -3,7 +3,7 @@
   "kind": "precision_role",
   "name": "activation.embedding",
   "definition": {
-    "summary": "Output embedding of a pooling head.",
+    "summary": "Output embedding of a pooling head, or the embedding of a count (`embedding.time`).",
     "admissible": [
       "f32",
       "bf16"

@@ -1,0 +1,16 @@
+{
+  "schema": "tensorspine-catalog-unit/2.0",
+  "kind": "precision_role",
+  "name": "state.condition",
+  "definition": {
+    "summary": "A held condition vector: what a conditioning primitive keeps of the elements its condition port delivered.",
+    "description": "One vector per element the port delivered — one per sequence for a time embedding — read at every later invocation in place of a delivery. It is an activation held still, so it takes the activations' storage types and the default a runtime assumes when the state binding selects none.",
+    "admissible": [
+      "bf16",
+      "f16",
+      "f32"
+    ],
+    "default": "bf16",
+    "sensitivity": "quantizable"
+  }
+}
