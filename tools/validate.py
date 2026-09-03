@@ -22,7 +22,8 @@ ranges, guards and derivations; V11 a literal quantity against its declared
 derivation; V13 no dangling output; V14 precision admissibility on parameter
 and state identities; V15 tying compatibility; V16 a carried state on a
 fragmented stream; V18 an occurrence reading across positions of a fragmented
-stream carries a state across its fragments. Bindings inherit the presence of
+stream carries a state across its fragments; V19 a joining input joins at a
+kind the stream carries independently of it. Bindings inherit the presence of
 the occurrences they name (§5.2 rule 3). Template contracts are expanded at
 every call site (§4.6).
 """
@@ -771,6 +772,27 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         if decl['generative'] and dm[0] != 'token':
             fail('V5', f"output {name}: generative, but of kind {dm[0]}")
     stats['resolved_domains'] = len(domains)
+
+    # --- V19: a joining input joins at a kind the stream carries independently of it (§2.3, §5.3)
+    downstream = defaultdict(set)
+    for src_key, _sp, dst_key, _dp, _bid in edges:
+        downstream[src_key].add(dst_key)
+    for name, decl in model['interfaces']['inputs'].items():
+        if 'stream' not in decl or decl['stream'] not in model['interfaces']['inputs']:
+            continue
+        descends = set()                  # everything the joining input feeds, directly or through values
+        queue = [select(e['occurrence'], {}) for e in decl['to']]
+        while queue:
+            k = queue.pop()
+            if k in descends or k not in resolved:
+                continue
+            descends.add(k)
+            queue.extend(downstream.get(k, ()))
+        independent = {dm[0] for (k, _p), dm in domains.items() if dm[1] == decl['stream'] and k not in descends}
+        if decl['kind'] not in independent:
+            fail('V19', f"input {name}: joins stream '{decl['stream']}' at kind {decl['kind']}, which that stream "
+                        f"carries at no value independently of the input (it carries {sorted(independent)}): "
+                        f"the join would count elements the stream does not have (§5.3)")
 
     # --- V7/V14/V15: parameters -------------------------------------------
     policy = cat.get('precision', {})

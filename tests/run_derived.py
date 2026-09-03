@@ -11,7 +11,8 @@ facts known independently.
      8 KiB per element crossing a layer boundary, and the live-value peak at the head: the f32
      logits beside the normed hidden state, by hand; ColBERT — the peak inside a layer, three
      residual-width values; Whisper — the cross-attention cache grows along the audio stream;
-     Voxtral — 32 encoder states carried across fragments; every structural cut is legal (no
+     Voxtral — 60 states carried across fragments, and the token input joins the audio stream at
+     the stream's count for its kind (§5.3); every structural cut is legal (no
      crossing edge points backwards); every document's peak is a set of D2 values at a D1
      node whose bytes add up.
 
@@ -115,17 +116,33 @@ def main():
                 len(cross) == 32 and all(s['stream'] == {'kind': 'position', 'stream': 'audio'}
                                          and s['indexed_by_source'] for s in cross))
     v = docs['voxtral-realtime']
-    ok &= check("voxtral: 34 states carried across fragments — 32 encoder rings of 750 frames and the front end's two histories",
-                len(v['d4']['totals']['carried']) == 34
-                and all(s['law'] == 'window' and s['span'] == 750 for s in v['d4']['states']
+    ok &= check("voxtral: 60 states carried across fragments — 32 encoder rings of 750 frames, 26 decoder rings of 8192 tokens on the "
+                "stream the token input joined, and the front end's two histories",
+                len(v['d4']['totals']['carried']) == 60
+                and all(s['law'] == 'window' and s['span'] in (750, 8192) for s in v['d4']['states']
                         if s['carried_across_fragments'] and s['contract'] == 'attention.dense'))
+    # a joining input takes the stream's count at its kind (§5.3): the tokens join `audio` at kind token, where the
+    # projector's merge left one element per eight frames; the fused values count the same, and both inputs are
+    # required for the generative output — the delivery adds the embeddings position by position
+    d2v = {x['value']: x for x in v['d2']['values']}
+    ok &= check("voxtral: the token input joins the audio stream at kind token and counts {audio: 1/8}, the stream's count at that kind",
+                d2v['tokens']['domain'] == {'kind': 'token', 'stream': 'audio'} and d2v['tokens']['count'] == {'audio': 0.125}
+                and d2v['audio']['count'] == {'audio': 1.0}, str(d2v['tokens']))
+    ok &= check("voxtral: the fused embedding and every decoder value count {audio: 1/8}, one language-model position per eight frames",
+                all(d2v[k]['count'] == {'audio': 0.125} and d2v[k]['domain'] == {'kind': 'token', 'stream': 'audio'}
+                    for k in ('embed.output', 'audio_projector.output', 'fuse.output', 'decoder/ffn_r[layer=0].output', 'lm_head.logits')))
+    ok &= check("voxtral: the audio and the tokens are both required for the generative output (§7)",
+                d2v['audio']['required_for'] == ['main'] and d2v['tokens']['required_for'] == ['main'])
+    ok &= check("deepseek-v4-pro: next_tokens joins the token stream at count 1.0, as before",
+                {x['value']: x for x in docs['deepseek-v4-pro']['d2']['values']}['next_tokens']['count'] == {'tokens': 1.0})
     rings = {s['identity']: s for s in v['d4']['states'] if s['contract'] == 'conv_frontend'}
     ok &= check("voxtral: the front end's histories are windows of kernel − 1 and kernel − stride frames, indexed by the frames port on the audio stream (V18)",
                 rings['conv_frontend.conv1_history']['span'] == 2 and rings['conv_frontend.conv2_history']['span'] == 1
                 and all(s['indexed_by_port'] == 'frames' and s['indexed_by_source'] and s['carried_across_fragments']
                         and s['stream'] == {'kind': 'position', 'stream': 'audio'} for s in rings.values()), str(rings)[:300])
-    ok &= check("voxtral: the audio stream's fragment alignment is 8 frames — a stride of 2, then 4 positions per token (§5.3)",
-                v['d2']['streams']['audio'].get('fragment_alignment') == 8 and 'fragment_alignment' not in v['d2']['streams']['tokens'],
+    ok &= check("voxtral: the audio stream's fragment alignment is 8 frames — a stride of 2, then 4 positions per token (§5.3) — and the "
+                "joined token input introduces no stream of its own",
+                v['d2']['streams']['audio'].get('fragment_alignment') == 8 and list(v['d2']['streams']) == ['audio'],
                 str(v['d2']['streams']))
     ok &= check("llama3-8b: an unfragmented stream states no alignment", 'fragment_alignment' not in l3['d2']['streams']['tokens'])
     g = docs['gemma3n-kvshare']

@@ -169,7 +169,12 @@ the expansion rules in §5. Calling a representation “symbolic” does not mak
 
 Each public **input** declares the occurrence ports it feeds — one or more — and its indexing
 domain (§5.3): a kind, and either the stream it introduces (named after the input) or an existing
-stream it joins. It may be **fragmented**: its elements arrive over several invocations. Each
+stream it joins. An input joins a stream at a kind the stream carries independently of it — a value
+in that domain that does not descend from the input (V19) — and its elements are counted as the
+stream's elements at that kind (§5.3): a token stream joining an audio stream behind a projector
+that makes one token of eight frames delivers one token per eight frames, and a fusion of the two
+by an elementwise primitive is an edge within one domain. It may be **fragmented**: its elements
+arrive over several invocations. Each
 public **output** names one occurrence port and states whether it is generative; its domain is
 that of the port. A public input feeds a port that nothing else feeds (V7); several outputs may name
 one port (O8.3). A generative output has kind `token`.
@@ -549,7 +554,10 @@ port's stream at the output's kind (which may be the same kind), one element per
 elements; `align` — the input port carries another domain and the output stays in the occurrence's
 domain; `insert` — the input port's elements enter the occurrence's stream, which the output keeps.
 Transforms carry element counts: after a `merge` a stream has one element per `factor`; after an
-`insert` it has the inserted stream's elements in addition.
+`insert` it has the inserted stream's elements in addition. A public input that joins a stream at
+a kind carries the count the stream has at that kind: the one count of the values in that domain
+that do not descend from the input (D2); a stream carrying no count or several at that kind
+refuses the join rather than guessing one.
 
 **V5:** on every edge the source port's (kind, stream) equals the destination port's, unless the
 destination is the `from_port` of a transform of its contract. A public input is an edge like any
@@ -601,6 +609,7 @@ implicit default.
 | **V16** | An occurrence whose state is carried across fragments (its contract's `carried_across` condition holds) sits on a fragmented stream. |
 | **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat. A document that locates its weights instantiates only templates that locate their identities, and gives each instance a `weights_location_prefix` (`[]` is one); a prefix locates the instance's tensors, so a document carrying one locates its weights and every other identity needs its location; a template instance without a prefix in a document that locates its weights, a prefix on an instance of an unlocated template, or on an occurrence that is not a template instance, is a rejection; the prefixed names of an instance are bound once like every other, so two instances under one prefix collide. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
 | **V18** | An occurrence whose contract reads across positions (§4.1), on a fragmented stream, carries a state across the fragments of that stream (§5.3). |
+| **V19** | A public input that joins a stream joins it at a kind the stream carries independently of the input: a value in that domain that does not descend from it (§2.3, §5.3). |
 
 ## §7 — Required derived products
 

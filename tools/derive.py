@@ -12,7 +12,8 @@ without inference code — as one file, validated against the derived schema.
       bytes, and the payload crossing each legal cut.
   D2  values: every value with its shape, role, dtype and domain, the element
       count of every stream as a combination of the inputs' counts (merges
-      divide, inserts add), the payload of every structural cut, and the peak
+      divide, inserts add, a joining input takes the stream's count at its
+      kind), the payload of every structural cut, and the peak
       of live values along D1's order.
   D6  legal cuts of the expanded graph, the partitions every occurrence's
       contract declares where their condition holds — the communications each
@@ -333,42 +334,84 @@ def _expand(graph, prefix=''):
 
 def _counts(graph):
     """Element count of every port, as a combination of the inputs' counts:
-    seeded by the public inputs, merges divide by their factor, inserts add."""
+    seeded by the public inputs, merges divide by their factor, inserts add.
+
+    A public input that joins a stream at a kind carries the count the stream
+    has at that kind (§5.3): the one count of the values in that domain that do
+    not descend from the input — seeded in a second pass over everything the
+    joining input feeds, after the introducing inputs' counts have reached the
+    values the join meets. A stream carrying no count or several at that kind
+    refuses the join rather than guessing one (V19 admits only a kind the
+    stream carries independently of the input)."""
     resolved, edges, order = graph['resolved'], graph['edges'], graph['order']
-    model = graph['model']
-    counts = {}
-    for name, decl in model['interfaces']['inputs'].items():
-        for key, port in graph['inputs_at'][name]:
-            counts[(key, port)] = {decl.get('stream', name): 1.0}
+    model, domains = graph['model'], graph['domains']
     incoming = defaultdict(list)
+    downstream = defaultdict(set)
     for src, sp, dst, dp, bid in edges:
         incoming[dst].append((src, sp, dp))
-    for node in order:
-        name, definition, args = resolved[node]
-        transforms = {t['from_port']: t for t in definition.get('domain_transforms', [])}
-        for src, sp, dp in incoming.get(node, []):
-            if (src, sp) in counts:
-                counts[(node, dp)] = counts[(src, sp)]
-        own = None
-        for pname in definition['ports']['inputs']:
-            if pname not in transforms and (node, pname) in counts:
-                own = counts[(node, pname)]
-                break
-        for pname, port in definition['ports']['outputs'].items():
-            c = own
-            for t in definition.get('domain_transforms', []):
-                if t['to_port'] != pname:
-                    continue
-                src = counts.get((node, t['from_port']))
-                if t['relation'] == 'merge' and src is not None:
-                    f = _num(contract_value(t['factor'], args)) or 1
-                    c = {k: v / f for k, v in src.items()}
-                elif t['relation'] == 'insert' and src is not None:
-                    c = dict(own or {})
-                    for k, v in src.items():
-                        c[k] = c.get(k, 0) + v
-            if c is not None:
-                counts[(node, pname)] = c
+        downstream[src].add(dst)
+
+    def propagate(counts, nodes):
+        for node in order:
+            if node not in nodes:
+                continue
+            name, definition, args = resolved[node]
+            transforms = {t['from_port']: t for t in definition.get('domain_transforms', [])}
+            for src, sp, dp in incoming.get(node, []):
+                if (src, sp) in counts:
+                    counts[(node, dp)] = counts[(src, sp)]
+            own = None
+            for pname in definition['ports']['inputs']:
+                if pname not in transforms and (node, pname) in counts:
+                    own = counts[(node, pname)]
+                    break
+            for pname, port in definition['ports']['outputs'].items():
+                c = own
+                for t in definition.get('domain_transforms', []):
+                    if t['to_port'] != pname:
+                        continue
+                    src = counts.get((node, t['from_port']))
+                    if t['relation'] == 'merge' and src is not None:
+                        f = _num(contract_value(t['factor'], args)) or 1
+                        c = {k: v / f for k, v in src.items()}
+                    elif t['relation'] == 'insert' and src is not None:
+                        c = dict(own or {})
+                        for k, v in src.items():
+                            c[k] = c.get(k, 0) + v
+                if c is not None:
+                    counts[(node, pname)] = c
+
+    counts = {}
+    joining = []
+    for name, decl in model['interfaces']['inputs'].items():
+        if 'stream' in decl:
+            joining.append((name, decl))
+            continue
+        for key, port in graph['inputs_at'][name]:
+            counts[(key, port)] = {name: 1.0}
+    propagate(counts, set(order))
+    for name, decl in joining:
+        endpoints = graph['inputs_at'][name]
+        descends = set()
+        queue = [key for key, _port in endpoints]
+        while queue:
+            k = queue.pop()
+            if k in descends:
+                continue
+            descends.add(k)
+            queue.extend(downstream.get(k, ()))
+        found = {}
+        for (key, port), c in counts.items():
+            if key not in descends and domains.get((key, port)) == (decl['kind'], decl['stream']):
+                found[json.dumps(c, sort_keys=True)] = c
+        if len(found) != 1:
+            raise ValueError(f"input {name}: joins stream '{decl['stream']}' at kind {decl['kind']}, where the stream "
+                             f"carries {'no count' if not found else str(len(found)) + ' counts ' + str(list(found.values()))} "
+                             f"independently of it; a joining input takes the stream's one count at its kind (§5.3)")
+        seed = next(iter(found.values()))
+        for key, port in endpoints:
+            counts[(key, port)] = dict(seed)
+        propagate(counts, descends)
     return counts
 
 
@@ -480,7 +523,7 @@ def d2(graph, cat):
                          "shape": _shape(port['shape'], args) if 'shape' in port else [],
                          "role": port['role'], "dtype": dtype, "elements": n,
                          "bytes_per_element": n * BYTES[dtype], "domain": {"kind": decl['kind'], "stream": stream},
-                         "count": streams.get(stream, {}).get('count', {stream: 1.0})}
+                         "count": counts.get((key, pname), {stream: 1.0})}   # a joining input's: the stream's at its kind
     # required (§7): an input is required for an output when the output is not evaluated
     # without it — evaluated meaning every input port fed, an insert transform's source excepted
     def evaluated(delivered):

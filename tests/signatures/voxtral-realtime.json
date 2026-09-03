@@ -9,10 +9,9 @@
   "lm_head": 1,
   "norm.rms": 118,
   "projector.temporal_stack": 1,
-  "residual.add": 116,
-  "splice": 1
+  "residual.add": 117
  },
- "wl": "c48cd839a63637a9",
+ "wl": "c8e40659d508e7a2",
  "parameter_slots": 712,
  "tensors": 711,
  "shared": 1,

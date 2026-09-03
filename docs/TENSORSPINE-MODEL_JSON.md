@@ -315,7 +315,12 @@ states whether it is `generative`; its domain is derived from the port, never wr
 ```
 
 An indexing domain is a pair (kind, stream), and V5 requires it to agree on every edge — a public
-input is an edge like any other. Contract ports either declare a kind or `inherit` the occurrence's
+input is an edge like any other. An input that joins a stream (`"stream": "audio"` on Voxtral
+Realtime's `tokens`) joins it at a kind the stream carries independently of the input (V19) and
+takes the stream's element count at that kind: one token per eight frames behind the front end's
+stride and the projector's stack, so the text embedding and the projected audio are fused
+position by position by a plain `residual.add`, both operands in the domain `(token, audio)`
+(§2.3, §5.3). Contract ports either declare a kind or `inherit` the occurrence's
 own domain; a contract that legitimately changes domain declares a transform: `merge` (a projector
 turns `merge_count` patches into one token-kind element of the same stream), `align`
 (cross-attention reads `source_values` in another stream and answers in its own), `insert` (a splice

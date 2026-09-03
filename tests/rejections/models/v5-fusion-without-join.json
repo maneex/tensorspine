@@ -1,6 +1,6 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "voxtral_realtime",
+  "model": "voxtral_realtime_fusion_without_join",
   "catalog": [
     {
       "base": "../catalog/"
@@ -1571,8 +1571,7 @@
             "port": "tokens"
           }
         ],
-        "kind": "token",
-        "stream": "audio"
+        "kind": "token"
       }
     },
     "outputs": {
