@@ -602,6 +602,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn_layer_norm.weight"
+              ]
             }
           },
           "attn.q": {
@@ -613,6 +622,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.q_proj.weight"
+              ]
             }
           },
           "attn.k": {
@@ -624,6 +642,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.k_proj.weight"
+              ]
             }
           },
           "attn.v": {
@@ -635,6 +662,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.v_proj.weight"
+              ]
             }
           },
           "attn.out": {
@@ -646,6 +682,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.o_proj.weight"
+              ]
             }
           },
           "attn.q_bias": {
@@ -657,6 +702,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.q_proj.bias"
+              ]
             }
           },
           "attn.v_bias": {
@@ -668,6 +722,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.v_proj.bias"
+              ]
             }
           },
           "attn.out_bias": {
@@ -679,6 +742,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.o_proj.bias"
+              ]
             }
           },
           "ffn_n.weight": {
@@ -690,6 +762,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".final_layer_norm.weight"
+              ]
             }
           },
           "ffn.gate": {
@@ -701,6 +782,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.gate_proj.weight"
+              ]
             }
           },
           "ffn.up": {
@@ -712,6 +802,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.up_proj.weight"
+              ]
             }
           },
           "ffn.out": {
@@ -723,6 +822,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.down_proj.weight"
+              ]
             }
           },
           "ffn.out_bias": {
@@ -734,6 +842,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "audio_tower.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.down_proj.bias"
+              ]
             }
           }
         },
@@ -1080,6 +1197,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".input_layernorm.weight"
+              ]
             }
           },
           "attn.q": {
@@ -1091,6 +1217,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.q_proj.weight"
+              ]
             }
           },
           "attn.k": {
@@ -1102,6 +1237,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.k_proj.weight"
+              ]
             }
           },
           "attn.v": {
@@ -1113,6 +1257,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.v_proj.weight"
+              ]
             }
           },
           "attn.out": {
@@ -1124,6 +1277,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".self_attn.o_proj.weight"
+              ]
             }
           },
           "ffn_n.weight": {
@@ -1135,6 +1297,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".post_attention_layernorm.weight"
+              ]
             }
           },
           "time_scale.in": {
@@ -1146,6 +1317,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".ada_rms_norm.linear1.weight"
+              ]
             }
           },
           "time_scale.out": {
@@ -1157,6 +1337,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".ada_rms_norm.linear2.weight"
+              ]
             }
           },
           "ffn.gate": {
@@ -1168,6 +1357,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.gate_proj.weight"
+              ]
             }
           },
           "ffn.up": {
@@ -1179,6 +1377,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.up_proj.weight"
+              ]
             }
           },
           "ffn.out": {
@@ -1190,6 +1397,15 @@
             ],
             "dtype": {
               "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "language_model.model.layers.",
+                {
+                  "index": "layer"
+                },
+                ".mlp.down_proj.weight"
+              ]
             }
           }
         },
@@ -1437,6 +1653,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "audio_tower.embedder.conv1.weight"
+          ]
         }
       },
       "conv_frontend.conv1_bias": {
@@ -1454,6 +1675,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "audio_tower.embedder.conv1.bias"
+          ]
         }
       },
       "conv_frontend.conv2_weight": {
@@ -1471,6 +1697,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "audio_tower.embedder.conv2.weight"
+          ]
         }
       },
       "conv_frontend.conv2_bias": {
@@ -1488,6 +1719,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "audio_tower.embedder.conv2.bias"
+          ]
         }
       },
       "final_n.weight": {
@@ -1505,6 +1741,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "language_model.model.norm.weight"
+          ]
         }
       },
       "enc_final_n.weight": {
@@ -1522,6 +1763,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "audio_tower.norm.weight"
+          ]
         }
       },
       "audio_projector.input": {
@@ -1539,6 +1785,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "multi_modal_projector.linear_1.weight"
+          ]
         }
       },
       "audio_projector.output": {
@@ -1556,6 +1807,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "multi_modal_projector.linear_2.weight"
+          ]
         }
       },
       "tied_embeddings": {
@@ -1580,6 +1836,11 @@
         ],
         "dtype": {
           "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "language_model.model.embed_tokens.weight"
+          ]
         }
       }
     },
