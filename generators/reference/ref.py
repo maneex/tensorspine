@@ -7,7 +7,10 @@
     ref.py run     MODEL --random [--seed N] …               parameters drawn from the D3 shapes
     ref.py run     MODEL … --input audio=FIXTURE[:in/audio]  a safetensors tensor delivered to a non-token input with the prompt
     ref.py run     MODEL --checkpoint DIR --audio WAV --ids … [--stop]   a WAV through the checkpoint's own feature extractor, into the
-                                                             document's audio input; --stop ends decoding at the artifact's end-of-text
+                                                             document's audio input; --stop ends decoding at the artifact's end-of-text;
+                                                             on a document whose token stream joins the audio stream (Voxtral Realtime)
+                                                             the artifact's processor builds the prompt and the delay, the prompt takes
+                                                             its tokens' frames, every step a token's, and the end of the audio ends the run
     ref.py chat    MODEL --checkpoint DIR [--max-new-tokens N] [--temperature T --top-p P --seed N]
     ref.py compare OURS FIXTURE [--atol A --rtol R]          a dump against a fixture, at every cut and state
     ref.py witness NAME@VERSION|all [--record]               the unit fixtures of a contract version: regenerated and compared, or written
@@ -89,6 +92,42 @@ def audio_frames(path, checkpoint, g, device, dtype):
     cut = f"; cut to the extractor's {window // rate} s window" if window and n > window else ''
     print(f"  audio: {os.path.basename(path)}, {n / rate:.1f} s -> {x.shape[0]} frames of {x.shape[1]} on input {name} ({type(extractor).__name__}{cut})")
     return {name: x.to(device, dtype)}
+
+
+def streaming_delivery(path, checkpoint, g, device, dtype):
+    """`--audio WAV` on a document whose token stream joins the audio stream (Voxtral Realtime): the
+    artifact's processor builds the streaming prefill — the prompt, the left-padded audio turned into
+    frames by the checkpoint's extractor, and the delay — and the schedule follows D2's count: the
+    prompt's tokens take as many frames as their count says (eight each), every step one token's
+    worth. Returns (ids, the inputs of the prefill, the frames left for the steps)."""
+    import wave
+    import numpy as np
+    from transformers import AutoProcessor
+    audio = next((n for n, v in g.input_values.items() if v.get('role') == 'activation.audio_frames'), None)
+    count = next((n for n, v in g.input_values.items() if v.get('role') == 'activation.count'), None)
+    try:
+        processor = AutoProcessor.from_pretrained(checkpoint)
+    except ImportError as e:
+        raise SystemExit(f"--audio: the artifact's processor does not import ({e}); it needs mistral_common and soundfile")
+    with wave.open(path) as wav:
+        channels, width, rate, n = wav.getnchannels(), wav.getsampwidth(), wav.getframerate(), wav.getnframes()
+        if (channels, width, rate) != (1, 2, processor.feature_extractor.sampling_rate):
+            raise SystemExit(f"--audio {path}: {channels} channel(s), {8 * width}-bit, {rate} Hz — the extractor takes mono 16-bit at {processor.feature_extractor.sampling_rate} Hz")
+        pcm = np.frombuffer(wav.readframes(n), dtype='<i2').astype(np.float32) / 32768.0
+    enc = processor(pcm, is_streaming=True, is_first_audio_chunk=True, sampling_rate=rate, return_tensors='pt')
+    ids = enc['input_ids'][0].tolist()
+    frames = enc['input_features'][0].T.contiguous().to(device, dtype)
+    per_token = int(g.elements_per[g.feedback_input])
+    first = len(ids) * per_token
+    if frames.shape[0] < first:
+        raise SystemExit(f"--audio {path}: {frames.shape[0]} frames, and the prompt of {len(ids)} tokens takes {first}")
+    prefill = {audio: frames[:first]}
+    if count is not None:
+        prefill[count] = torch.tensor([int(enc['num_delay_tokens'])], dtype=torch.int32, device=device)
+    print(f"  audio: {os.path.basename(path)}, {n / rate:.1f} s -> {frames.shape[0]} frames of {frames.shape[1]} on input {audio} "
+          f"({type(processor).__name__}: a prompt of {len(ids)} tokens with the first {first}, then {per_token} per step"
+          + (f", {count} = {int(enc['num_delay_tokens'])}" if count else '') + ")")
+    return ids, prefill, frames[first:]
 
 
 def artifact_tokenizer(checkpoint):
@@ -339,11 +378,23 @@ def cmd_run(args):
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
     extra = load_inputs(args.input, args.device, dtype)
+    ids = [int(x) for x in args.ids.split(',')] if args.ids else None
+    fragments = None                              # the frames each decode step delivers, on a joined token stream
     if args.audio:
         if not args.checkpoint:
             print("refused: --audio takes the feature extractor from the artifact, so it needs --checkpoint DIR")
             return 1
-        extra.update(audio_frames(args.audio, args.checkpoint, g, args.device, dtype))
+        audio = next((n for n, v in g.input_values.items() if v.get('role') == 'activation.audio_frames'), None)
+        if audio is not None and g.feedback_input and g.input_stream[g.feedback_input] == g.input_stream[audio]:
+            processor_ids, prefill_inputs, rest = streaming_delivery(args.audio, args.checkpoint, g, args.device, dtype)
+            if ids is not None and ids != processor_ids:
+                print(f"refused: --ids differ from the processor's streaming prefill of {len(processor_ids)} tokens; the prompt is the processor's")
+                return 1
+            ids, fragments = processor_ids, rest
+            extra.update(prefill_inputs)
+        else:
+            extra.update(audio_frames(args.audio, args.checkpoint, g, args.device, dtype))
+    ids = ids or [1]
     r = registry.refusals(g, kernels, Plan(g, kernels).evaluable(delivery(g, extra)))
     if r:
         print(f"refused: {len(r)} reason(s)")
@@ -386,7 +437,6 @@ def cmd_run(args):
           f"{'random parameters' if args.random else 'loaded from ' + args.checkpoint}, "
           f"{loader.gib(i['parameter_bytes'])}, {i['mode']} ({time.time() - t0:.1f}s)")
 
-    ids = [int(x) for x in args.ids.split(',')] if args.ids else [1]
     dump = {} if args.dump else None
     t0 = time.time()
     if g.generative is None:                      # an encoder: one invocation, the exposed outputs, nothing to decode
@@ -405,23 +455,32 @@ def cmd_run(args):
     first_logits = out[g.generative[0]]
     nxt = greedy(out, g)
     print(f"  prefill {len(ids)} elements -> next {nxt} ({time.time() - t0:.1f}s)")
-    if dump is not None:                          # the states as prefill left them (R07)
+    if dump is not None:                          # the states as prefill left them (R07): a window's valid tail
         for ident, st in session.states.items():
-            bufs, length = st.read()
+            bufs, length = st.tail() if st.law == 'window' else st.read()
             for c, buf in bufs.items():
                 dump[f"state/{ident}/{c}"] = (buf[:length] if length is not None else buf).detach().to('cpu', torch.float32).clone()
     tokenizer = artifact_tokenizer(args.checkpoint) if args.checkpoint else None
     stops = stop_ids(args.checkpoint, tokenizer) if args.stop else set()
     tokens = [nxt]
-    for _ in range(args.steps):
+    per_token = int(g.elements_per[g.feedback_input]) if fragments is not None else 0
+    for k in range(args.steps):
         if nxt in stops:
             print(f"  stop: {nxt} is an end-of-text id of the artifact")
             break
+        step_inputs = None
+        if fragments is not None:                 # a token and its fragment; the end of the audio ends the run
+            if fragments.shape[0] < (k + 1) * per_token:
+                print(f"  stop: the audio is consumed ({k} steps of {per_token} frames after the prompt)")
+                break
+            step_inputs = {audio: fragments[k * per_token:(k + 1) * per_token]}
         t0 = time.time()
-        out = session.decode(nxt)
+        out = session.decode(nxt, inputs=step_inputs)
         nxt = greedy(out, g)
         tokens.append(nxt)
         print(f"  decode -> {nxt} ({time.time() - t0:.2f}s)")
+    if fragments is not None:                     # the frames the run consumed, as a fixture records them
+        extra[audio] = torch.cat([extra[audio], fragments[:(len(tokens) - 1) * per_token]])
     print("tokens:", tokens)
     if tokenizer is not None:
         print("text:", repr(tokenizer.decode(tokens, skip_special_tokens=True)))
@@ -465,7 +524,8 @@ def main(argv=None):
                    help='a safetensors tensor delivered to the public input NAME with the prompt (audio=FIXTURE:in/audio); '
                         'KEY defaults to in/NAME, else the only tensor of the file')
     p.add_argument('--audio', metavar='WAV', help='a mono 16-bit WAV at the extractor\'s rate, turned into frames by the checkpoint\'s own '
-                                                  'feature extractor and delivered to the document\'s audio input with the prompt (needs --checkpoint)')
+                                                  'feature extractor and delivered to the document\'s audio input with the prompt (needs --checkpoint); '
+                                                  'on a streaming document the processor\'s prompt and delay come with it, and the frames follow the tokens')
     p.add_argument('--stop', action='store_true', help='end decoding at an end-of-text id of the artifact (generation_config.json, the tokenizer), before --steps')
     p.add_argument('--steps', type=int, default=4)
     p.add_argument('--dump', help='write the values at every layer cut and the states to this safetensors file')

@@ -15,9 +15,13 @@ document loaded by location, every layer output, every state after prefill (KV; 
 the convolution history and the recurrent matrix) and the logits within tolerance of the
 `transformers` dump, and the same greedy tokens. A fixture's `in/` tensors — the non-token inputs
 the delivery received (Whisper's audio frames) — are delivered with the prompt in the one prefill,
-the caches on their streams sized by what they deliver. With `--full`, the whole models: the eight
-greedy tokens `transformers` produced (minutes on CPU; ~16 GB of page cache for Llama 3 8B, ~8 GB
-for Qwen 3.5 4B), a `FULL` entry naming a fixture taking its audio from it.
+the caches on their streams sized by what they deliver; on a document whose token stream joins
+the recorded input's stream (Voxtral Realtime) the prompt takes its tokens' frames and every step
+a token's, and the prefill is replayed as one fragment per token to measure §5.3's invariance on
+the checkpoint. With `--full`, the whole models: the eight greedy tokens `transformers` produced
+(minutes on CPU; ~16 GB of page cache for Llama 3 8B, ~8 GB for Qwen 3.5 4B), a `FULL` entry
+naming a fixture taking its audio from it, or a sample the artifact's processor turns into a
+streaming prefill and fragments, transcribed to its end.
 
     python3 generators/reference/tests/run_reference.py [--compile] [--full]
 """
@@ -45,7 +49,8 @@ from compare import compare, read_fixture, tolerance_for  # noqa: E402
 # `weights/` under the one runtime directory (`generators/zml/README.md` describes the
 # layout; both generators read the same one). No default inside the tree, and no home
 # path written down here: unset, every fixture check says `skip`.
-CHECKPOINTS = os.path.join(os.environ.get('TENSORSPINE_MODEL_ARTIFACTS', ''), 'weights')
+ARTIFACTS = os.environ.get('TENSORSPINE_MODEL_ARTIFACTS', '')
+CHECKPOINTS = os.path.join(ARTIFACTS, 'weights')
 from verified import FIXTURES, FULL   # noqa: E402
 
 TINY = {'quantities.d.source.value': 64, 'quantities.ffn.source.value': 128, 'quantities.heads.source.value': 4,
@@ -167,6 +172,7 @@ def main(compile_step=False, full=False):
     ok &= witness_case(check)
     ok &= moe_random_case(check, tmp)
     ok &= whisper_random_case(check, tmp)
+    ok &= voxtral_random_case(check, tmp)
     ok &= sharing_case(check, tmp)
     ok &= m1(check)
     ok &= composite_case(check)
@@ -395,6 +401,154 @@ def whisper_random_case(check, tmp):
     return ok
 
 
+TINY_VOXTRAL = {'quantities.d.source.value': 64, 'quantities.enc_d.source.value': 32, 'quantities.enc_heads.source.value': 4,
+                'quantities.enc_hd.source.value': 8, 'quantities.heads.source.value': 4, 'quantities.kv_heads.source.value': 2,
+                'quantities.hd.source.value': 16, 'quantities.ffn.source.value': 128, 'quantities.enc_ffn.source.value': 64,
+                'quantities.vocab.source.value': 256, 'quantities.mels.source.value': 8,
+                'quantities.enc_layers.source.value': 2, 'compositions.encoder.indices.layer.stop.literal': 2,
+                'quantities.dec_layers.source.value': 2, 'compositions.decoder.indices.layer.stop.literal': 2}
+
+
+def recorded_states(session):
+    """Every state as a dump records it: an append state's positions, a window's valid tail, a
+    fixed state's payload — what the delivery implementation's caches hold."""
+    out = {}
+    for ident, st in session.states.items():
+        bufs, length = st.tail() if st.law == 'window' else st.read()
+        for c, buf in bufs.items():
+            out[f"state/{ident}/{c}"] = (buf[:length] if length is not None else buf).detach().to('cpu', torch.float32).clone()
+    return out
+
+
+def voxtral_random_case(check, tmp):
+    """The streaming document on random weights, two layers a side, shrunk: a token stream that
+    joins the fragmented audio stream (§2.3, one token per eight frames), a prefill of three tokens
+    with twenty-four frames and the delay, the same prefill as three fragments of eight frames with
+    one token each giving the same logits and states (§5.3's invariance, measured), the rings'
+    lengths after the prefill and after two decode steps that each deliver a token and a fragment,
+    deliveries refused when the inputs disagree on the stream's advance or a fragment is unaligned,
+    a decode without its fragment refused, a fork after the prefill continuing as a fresh session
+    would, and blocks giving the one-block logits bit for bit."""
+    ok = True
+    path, _ = graph_mod.edited(os.path.join(ROOT, 'data', 'models', 'voxtral-realtime.json'), TINY_VOXTRAL, tmp, 'tiny')
+    g = graph_mod.load(path)
+    kernels = registry.load_kernels()
+    plan = Plan(g, kernels)
+    active = plan.evaluable(g.required_inputs())
+    refused = registry.refusals(g, kernels, active)
+    ok &= check("tiny voxtral: the tokens, the frames and the delay evaluate every occurrence, each with a kernel for its arguments",
+                not refused and len(active) == len(g.nodes), refused[:2])
+    ok &= check("tiny voxtral: the token input joins the audio stream — the feedback input is `tokens`, eight frames per token (§5.3)",
+                g.feedback_input == 'tokens' and g.input_stream['tokens'] == 'audio' and g.elements_per['tokens'] == 8 and g.elements_per['audio'] == 1
+                and g.required_inputs() == {'tokens', 'audio', 'delay'}, str((g.feedback_input, g.elements_per)))
+    params = loader.random_parameters(g, 'cpu', seed=9)
+    model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
+    capacity = {'audio': 64, 'delay': 1}
+    gen = torch.Generator().manual_seed(9)
+    audio = torch.randn(40, 8, generator=gen)
+    delay = torch.tensor([6], dtype=torch.int32)
+    ids = [1, 2, 3]
+
+    def session():
+        return Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
+
+    whole = session()
+    dump = {}
+    out = whole.prefill(ids, dump, inputs={'audio': audio[:24], 'delay': delay})
+    logits = out[g.generative[0]].clone()
+    ok &= check("tiny voxtral: 3 tokens, 24 frames and the delay in one prefill give logits [3, vocab]; the stream advanced by 24 frames",
+                list(logits.shape) == [3, 256] and whole.consumed == {'audio': 24, 'delay': 1}, str(whole.consumed))
+    enc = [st for ident, st in whole.states.items() if ident.startswith('encoder.attn.kv')]
+    dec = [st for ident, st in whole.states.items() if ident.startswith('decoder.attn.kv')]
+    conds = [st for ident, st in whole.states.items() if 'condition_cache' in ident]
+    h1, h2 = whole.states['conv_frontend.conv1_history'], whole.states['conv_frontend.conv2_history']
+    ok &= check("tiny voxtral: after the prefill the encoder rings hold 12 positions, the decoder rings 3, the histories 2 and 1 frames, the condition caches 1",
+                len(enc) == 2 and all(st.tail()[1] == 12 for st in enc) and len(dec) == 2 and all(st.tail()[1] == 3 for st in dec)
+                and h1.tail()[1] == 2 and h2.tail()[1] == 1 and len(conds) == 2 and all(st.length == 1 for st in conds))
+    ok &= check("tiny voxtral: the values crossing the cuts are dumped once — the encoder's output on 12 positions, the projector's and the fused embedding on 3 tokens, the time embedding on 1",
+                list(dump['value/enc_final_n.output'].shape) == [12, 32] and list(dump['value/audio_projector.output'].shape) == [3, 64]
+                and list(dump['value/fuse.output'].shape) == [3, 64] and list(dump['value/time_embed.embedding'].shape) == [1, 64], str(sorted(dump)))
+    # §5.3's invariance: the same prefill delivered as three fragments of eight frames with one token each
+    parts = session()
+    got = []
+    for i, tok in enumerate(ids):
+        extra = {'audio': audio[8 * i:8 * i + 8]}
+        if i == 0:
+            extra['delay'] = delay
+        got.append(parts.run({'tokens': torch.tensor([tok]), **extra})[g.generative[0]])
+    got = torch.cat(got)
+    d_logits = float((got - logits).abs().max())
+    d_states = max(float((a - b).abs().max()) for k, a in recorded_states(whole).items() for b in [recorded_states(parts)[k]])
+    ok &= check(f"tiny voxtral: the prefill delivered as three fragments of eight frames gives the same logits and states — max |d| {d_logits:.1e} on the logits, {d_states:.1e} on the states (f32 rounding across row counts)",
+                torch.allclose(got, logits, atol=1e-5, rtol=1e-5) and d_states < 1e-5 and parts.consumed == whole.consumed)
+    nxt = greedy(out, g)
+    tokens = [nxt]
+    for i in range(2):
+        out = whole.decode(nxt, inputs={'audio': audio[24 + 8 * i:32 + 8 * i]})
+        nxt = greedy(out, g)
+        tokens.append(nxt)
+    ok &= check("tiny voxtral: two decode steps each deliver a token and eight frames — the encoder rings reach 20, the decoder rings 5, the stream 40 frames",
+                all(st.tail()[1] == 20 for st in enc) and all(st.tail()[1] == 5 for st in dec) and whole.consumed == {'audio': 40, 'delay': 1}
+                and all(st.length == 1 for st in conds))
+    for label, delivered, word in (("2 tokens with 24 frames are refused: the inputs disagree on the stream's advance", {'tokens': [1, 2], 'audio': audio[:24]}, 'disagree'),
+                                   ("1 token with 7 frames is refused: eight frames make a token", {'tokens': [1], 'audio': audio[:7]}, 'disagree')):
+        try:
+            ins = {k: (torch.tensor(v) if isinstance(v, list) else v) for k, v in delivered.items()}
+            session().run(dict(ins, delay=delay))
+            ok &= check(f"tiny voxtral: {label}", False)
+        except Exception as e:  # noqa: BLE001
+            ok &= check(f"tiny voxtral: {label}", word in str(e), str(e)[:200])
+    try:
+        s = session()
+        s.prefill(ids, inputs={'audio': audio[:24], 'delay': delay})
+        s.run({'audio': audio[24:30]})
+        ok &= check("tiny voxtral: 6 frames alone, after the prefill, are refused as unaligned to the projector's stack (§5.3)", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("tiny voxtral: 6 frames alone, after the prefill, are refused as unaligned to the projector's stack (§5.3)", 'aligned' in str(e), str(e)[:200])
+    try:
+        s = session()
+        s.prefill(ids, inputs={'audio': audio[:24], 'delay': delay})
+        s.decode(nxt)
+        ok &= check("tiny voxtral: a decode without its fragment is refused: the generative output is not evaluated (§7)", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("tiny voxtral: a decode without its fragment is refused: the generative output is not evaluated (§7)",
+                    'not evaluated' in str(e) and 'main' in str(e), str(e)[:200])
+    try:
+        session().prefill(ids, inputs={'audio': audio[:24]})
+        ok &= check("tiny voxtral: a first delivery without the delay is refused, naming the output that needs it (§7)", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("tiny voxtral: a first delivery without the delay is refused, naming the output that needs it (§7)",
+                    'delay' in str(e) and 'main' in str(e), str(e)[:200])
+    # a fork after the prefill: the rings copied whole at the current position, the condition caches by_source
+    parent = session()
+    parent.prefill(ids, inputs={'audio': audio[:24], 'delay': delay})
+    child = parent.fork()
+    fresh = session()
+    fresh.prefill(ids, inputs={'audio': audio[:24], 'delay': delay})
+    want = fresh.decode(tokens[0], inputs={'audio': audio[24:32]})[g.generative[0]]
+    got = child.decode(tokens[0], inputs={'audio': audio[24:32]})[g.generative[0]]
+    ok &= check("tiny voxtral: a child forked after the prefill continues as a fresh session on the same frames and tokens would, bit for bit; the parent is unaffected",
+                torch.equal(got, want) and child.consumed == {'audio': 32, 'delay': 1} and parent.consumed == {'audio': 24, 'delay': 1}
+                and all(st.tail()[1] == 12 for i, st in parent.states.items() if i.startswith('encoder.attn.kv')))
+    try:
+        parent.fork(at=16)
+        ok &= check("tiny voxtral: a fork behind the current position is refused by the rings, naming within_span", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("tiny voxtral: a fork behind the current position is refused by the rings, naming within_span", 'within_span' in str(e), str(e)[:160])
+    resident = loader.state_bytes(g, capacity, torch.float32) + loader.largest_temporary(g, torch.float32)
+    finest = max(b.bytes + b.payload_bytes_per_element * 24 for b in plan.minimal)
+    blocked = Plan(g, kernels, max_bytes=resident + finest, elements=24, resident_bytes=resident)
+    bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.RandomSource(params).materialise)
+    bsession = Session(bmodel, capacity=capacity, device='cpu', dtype=torch.float32)
+    bl = bsession.prefill(ids, inputs={'audio': audio[:24], 'delay': delay})[g.generative[0]]
+    bt = [greedy({g.generative[0]: bl}, g)]
+    for i in range(2):
+        bt.append(greedy(bsession.decode(bt[-1], inputs={'audio': audio[24 + 8 * i:32 + 8 * i]}), g))
+    ok &= check(f"tiny voxtral: {len(blocked.blocks)} blocks at legal cuts of both compositions give the same logits and tokens",
+                len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
+    return ok
+
+
 def m1(check):
     ok = True
     for entry in FIXTURES:
@@ -480,6 +634,7 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     session = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
     ours = {}
     encoder = g.generative is None                # no generative output: one invocation, the exposed outputs compared
+    prefill_inputs, step_inputs = schedule(g, ids, recorded, len(header['tokens']) - 1)
     if encoder:
         out = session.run({g.token_input: torch.as_tensor(ids, dtype=torch.long), **recorded}, ours)
         for oname, o in g.interfaces['outputs'].items():
@@ -487,22 +642,38 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
         primary = out[next(iter(g.interfaces['outputs']))]
         tokens = []
     else:
-        out = session.prefill(ids, ours, inputs=recorded)
-        for ident, st in session.states.items():
-            bufs, length = st.read()
-            for c, buf in bufs.items():
-                ours[f"state/{ident}/{c}"] = buf[:length].detach().to('cpu', torch.float32).clone()
+        out = session.prefill(ids, ours, inputs=prefill_inputs)
+        ours.update(recorded_states(session))            # a window's valid tail: what the delivery's cache holds
         primary = out[g.generative[0]]
         ours['logits/last'] = primary[-1].detach().to('cpu', torch.float32).clone()
         ours['logits/argmax'] = primary.argmax(-1).detach().cpu().clone()
         nxt = greedy(out, g)
         tokens = [nxt]
-        for _ in range(len(header['tokens']) - 1):
-            out = session.decode(nxt)
+        for k in range(len(header['tokens']) - 1):
+            out = session.decode(nxt, inputs=step_inputs(k))
             nxt = greedy(out, g)
             tokens.append(nxt)
     rows, failures, _ = compare(ours, theirs, atol=atol, rtol=rtol)
     worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
+    if step_inputs(0) is not None:
+        # §5.3's invariance on the checkpoint: the prefill the fixture recorded whole, delivered as one
+        # fragment per token — the token with its frames, the settings with the first — gives the same
+        # logits and states, within f32 rounding across row counts
+        parts = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
+        per = {n: t.shape[0] // len(ids) for n, t in prefill_inputs.items() if g.input_stream[n] == g.input_stream[g.feedback_input]}
+        got = []
+        for i, tok in enumerate(ids):
+            extra = {n: t[per[n] * i:per[n] * (i + 1)] for n, t in prefill_inputs.items() if n in per}
+            if i == 0:
+                extra.update({n: t for n, t in prefill_inputs.items() if n not in per})
+            got.append(parts.run({g.feedback_input: torch.tensor([tok]), **extra})[g.generative[0]])
+        got = torch.cat(got)
+        # the session went on decoding, so the replay is compared with the prefill's own record, `ours`
+        d_logits = float((got - primary).abs().max())
+        d_states = max(float((ours[k] - v).abs().max()) for k, v in recorded_states(parts).items() if k in ours)
+        ok &= check(f"{label}: the prefill replayed as {len(ids)} fragments of {per} gives the same logits and states — "
+                    f"max |d| {d_logits:.1e} on the logits, {d_states:.1e} on the states (f32 rounding across row counts)",
+                    torch.allclose(got, primary, atol=1e-3, rtol=1e-3) and d_states < 1e-3)
     # the same fixture in blocks: identical logits and tokens, and the traffic is the model (M4)
     resident = loader.state_bytes(g, capacity, torch.float32) + loader.largest_temporary(g, torch.float32)
     finest = max(b.bytes + b.payload_bytes_per_element * 64 for b in Plan(g, kernels).minimal)
@@ -513,10 +684,10 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
         bl = bsession.run({g.token_input: torch.as_tensor(ids, dtype=torch.long), **recorded})[next(iter(g.interfaces['outputs']))]
         bt = []
     else:
-        bl = bsession.prefill(ids, inputs=recorded)[g.generative[0]]
+        bl = bsession.prefill(ids, inputs=prefill_inputs)[g.generative[0]]
         bt = [greedy({g.generative[0]: bl}, g)]
-        for _ in range(len(header['tokens']) - 1):
-            bt.append(greedy(bsession.decode(bt[-1]), g))
+        for k in range(len(header['tokens']) - 1):
+            bt.append(greedy(bsession.decode(bt[-1], inputs=step_inputs(k)), g))
     ok &= check(f"{label}: {len(blocked.blocks)} blocks under --max-ram give the same {'outputs' if encoder else 'logits and tokens'}, "
                 f"{blocked.traffic_bytes() / 2**30:.2f} GiB of traffic per invocation",
                 len(blocked.blocks) > 1 and torch.equal(bl, primary) and bt == tokens)
@@ -528,6 +699,27 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     else:
         ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
     return ok
+
+
+def schedule(g, ids, recorded, steps):
+    """How a recorded delivery is fed (§5.3, D2's counts): on a document whose token stream joins
+    a recorded input's stream (Voxtral: eight frames per token), the prompt's tokens take the
+    first `len(ids) / count` elements of it and every step one token's worth — `(prefill inputs,
+    step -> inputs)`; otherwise everything recorded goes with the prompt and a step delivers the
+    token alone (Whisper's audio, a source stream complete after the prefill)."""
+    if g.feedback_input is None:
+        return dict(recorded), lambda k: None
+    stream = g.input_stream[g.feedback_input]
+    per_token = int(g.elements_per[g.feedback_input])
+    joined = {n: t for n, t in recorded.items() if g.input_stream[n] == stream}
+    if not joined:
+        return dict(recorded), lambda k: None
+    first = len(ids) * per_token
+    prefill = {n: (t[:first] if n in joined else t) for n, t in recorded.items()}
+    for n, t in joined.items():
+        if t.shape[0] < first + steps * per_token:
+            raise ValueError(f"{n}: {t.shape[0]} elements recorded, and the prompt with {steps} steps consumes {first + steps * per_token}")
+    return prefill, lambda k: {n: t[first + k * per_token:first + (k + 1) * per_token] for n, t in joined.items()}
 
 
 def stream_capacity(g, recorded, tokens=64):
@@ -641,19 +833,35 @@ def m1_full(check):
         g = graph_mod.load(os.path.join(ROOT, 'data', 'models', f'{document}.json'))
         kernels = registry.load_kernels()
         recorded = {}
-        if fixture:
+        if fixture and fixture.endswith('.wav'):
+            # a sample through the artifact's processor (the streaming prefill, the delay, the frames):
+            # the whole model transcribes it to its end, one token and eight frames per step
+            wav = os.path.join(ARTIFACTS, 'audio', fixture)
+            if not os.path.isfile(wav):
+                print(f"  skip {document} full (sample {fixture} not on disk)")
+                continue
+            import ref as ref_cli
+            got_ids, prefill_inputs, rest = ref_cli.streaming_delivery(wav, ck, g, 'cpu', torch.float32)
+            ok &= check(f"{document} full: the processor's prompt is the {len(ids)} ids recorded", got_ids == ids)
+            per_token = int(g.elements_per[g.feedback_input])
+            recorded = {n: torch.cat([t, rest]) if g.input_stream[n] == g.input_stream[g.feedback_input] else t for n, t in prefill_inputs.items()}
+        elif fixture:
             theirs, _ = read_fixture(os.path.join(REF, 'fixtures', fixture))
             recorded = {k[len('in/'):]: v for k, v in theirs.items() if k.startswith('in/')}
+        prefill_inputs, step_inputs = schedule(g, ids, recorded, len(expected) - 1)
         params = loader.load_parameters(g, ck, 'cpu')
         model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
         session = Session(model, capacity=stream_capacity(g, recorded), device='cpu', dtype=torch.float32)
         t0 = time.time()
-        nxt = greedy(session.prefill(ids, inputs=recorded), g)
+        nxt = greedy(session.prefill(ids, inputs=prefill_inputs), g)
         tokens = [nxt]
-        for _ in range(len(expected) - 1):
-            nxt = greedy(session.decode(nxt), g)
+        for k in range(len(expected) - 1):
+            nxt = greedy(session.decode(nxt, inputs=step_inputs(k)), g)
             tokens.append(nxt)
-        ok &= check(f"{document} full: greedy tokens {tokens} equal transformers' ({time.time() - t0:.0f}s)", tokens == expected)
+        agree = next((i for i, (a, b) in enumerate(zip(tokens, expected)) if a != b), len(expected))
+        shown = tokens if len(tokens) <= 12 else f"{tokens[:12]}… ({len(tokens)})"
+        ok &= check(f"{document} full: greedy tokens {shown} equal transformers' ({time.time() - t0:.0f}s)", tokens == expected,
+                    f"the first {agree} of {len(expected)} agree; ours {tokens[agree:agree + 6]} vs theirs {expected[agree:agree + 6]} from token {agree}")
         del params, model, session
     return ok
 

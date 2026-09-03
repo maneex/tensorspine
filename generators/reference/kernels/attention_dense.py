@@ -6,8 +6,8 @@
 | mask none (stateless encoder)   | implemented                                     |
 | mask chunked (`chunk`)          | refused                                         |
 | cross (`source_values`)         | implemented under `mask: none`: keys and values are projected from the source elements the invocation delivers and appended to `kv` along the source stream — a delivery of nothing (every decode step) appends nothing — and every query attends to the whole cache; with `rope` refused (the source positions are not delivered to the kernel); with `mask: causal` refused (a query's position and a source position are on different streams) |
-| streaming                       | refused                                         |
-| window                          | refused                                         |
+| streaming                       | implemented: a carrying property — the cache survives the fragments, the computation is the mask's and the window's |
+| window (`span`)                 | implemented with `mask: causal`: the cache is a ring of `span` positions; a query at `p` attends to the keys at `j` with `p − span < j ≤ p` — itself and the `span − 1` before it, `transformers`' sliding mask — read from the ring's valid entries (whose positions are the last before the fragment) followed by the fragment's own, the ring appended after, so a fragment longer than the span is served too; with `mask: none` refused (a bidirectional window is not what any document declares) |
 | rope: theta, layout split       | implemented (rotate-half)                       |
 | rope: layout interleaved / 2d   | refused                                         |
 | rope: partial                   | implemented (the first `partial · head_dim` channels) |
@@ -22,7 +22,9 @@
 
 Conventions the contract leaves open, as read here: keys of the current elements are
 appended to the state before the queries attend (a query sees itself; a cross-attention query
-sees every source element delivered so far); the scale is head_dim^-1/2; rope `split` pairs channel i with i + rotary/2 (rotate-half) over the rotated
+sees every source element delivered so far) — under `window`, read from the ring first and
+appended after, which comes to the same for the queries and lets a fragment longer than the span
+through; the scale is head_dim^-1/2; rope `split` pairs channel i with i + rotary/2 (rotate-half) over the rotated
 channels only, whose base frequencies are computed on the rotated width; `qk_norm` is an RMS
 norm over head_dim applied before RoPE, with the learned scales `qk_norm.scale` declares, zero-centred
 when it says so. These
@@ -39,8 +41,8 @@ KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'mask', 'window', 'chunk', 'c
 
 
 CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any",
-                              "mask": ["causal", "none"], "window": "absent", "chunk": "absent", "cross": [False, True],
-                              "streaming": [False], "temperature": "absent",
+                              "mask": ["causal", "none"], "window": {"absent": True, "fields": {"span": "any"}}, "chunk": "absent",
+                              "cross": [False, True], "streaming": "any", "temperature": "absent",
                               "rope": {"absent": True, "fields": {"theta": "any", "layout": ["split"], "partial": "any",
                                        "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
                                                                               "sections": ["contiguous", "interleaved"]}},
@@ -50,11 +52,12 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
                               "qk_norm": {"absent": True, "fields": {"kind": ["rms"], "eps": "any",
                                           "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
                               "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
-                "states": ["append"],
+                "states": ["append", "window"],
                 "excluding": [{"cross": True, "mask": "causal"}],
                 "transforms": ["align"],
                 "notes": ["mrope for one position stream only: an image would need the sections to differ",
-                          "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel"]}
+                          "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel",
+                          "a window with mask none is refused at run time: a query attends to itself and the span − 1 positions before it, the causal reading"]}
 
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
@@ -82,6 +85,15 @@ FIXTURES = [
     {"case": "cross", "seed": 15, "invocations": [{"input": 5, "source_values": 7}, {"input": 3}],
      "arguments": {"width": 64, "heads": 4, "head_dim": 16, "mask": "none", "cross": True,
                    "q_bias": True, "v_bias": True, "out_bias": True}},
+    # a ring of four: the second invocation's queries read the ring, the third's six exceed the span,
+    # so its first query sees three ring entries and its last none of them — the boundary p − span < j ≤ p
+    {"case": "window", "seed": 16, "invocations": [{"input": 3}, {"input": 3}, {"input": 6}],
+     "arguments": {"width": 64, "heads": 4, "kv_heads": 2, "head_dim": 16, "mask": "causal", "window": {"span": 4},
+                   "rope": {"theta": 1000000.0}}},
+    # the same on a fragmented input: the ring is carried across the fragments (Voxtral's encoder)
+    {"case": "window-streaming", "seed": 17, "invocations": [{"input": 3}, {"input": 3}, {"input": 6}],
+     "arguments": {"width": 64, "heads": 4, "head_dim": 16, "mask": "causal", "streaming": True, "window": {"span": 4},
+                   "rope": {"theta": 1000000.0}, "q_bias": True, "v_bias": True, "out_bias": True}},
 ]
 
 
@@ -156,6 +168,26 @@ def attend(q, K, V, length, qpos, causal, static=False):
     return torch.einsum('hnm,mhd->nhd', p, V).reshape(n, h * d)
 
 
+def attend_positions(q, K, V, qpos, kpos, causal, span):
+    """Scores of q [n, h, d] at positions qpos [n] against K/V [m, kv, d] at positions kpos [m],
+    every key masked by its position: causal keeps j ≤ p, the window keeps j > p − span (the query
+    among its own span). GQA by repeating KV heads."""
+    n, h, d = q.shape
+    kv = K.shape[1]
+    if h != kv:
+        K = K.repeat_interleave(h // kv, dim=1)
+        V = V.repeat_interleave(h // kv, dim=1)
+    scores = torch.einsum('nhd,mhd->hnm', q, K) * (1.0 / math.sqrt(d))
+    allowed = torch.ones((n, K.shape[0]), dtype=torch.bool, device=q.device)
+    if causal:
+        allowed = allowed & (kpos[None, :] <= qpos[:, None])
+    if span is not None:
+        allowed = allowed & (kpos[None, :] > qpos[:, None] - span)
+    scores = scores.masked_fill(~allowed[None, :, :], float('-inf'))
+    p = torch.softmax(scores.to(torch.float32), dim=-1).to(q.dtype)
+    return torch.einsum('hnm,mhd->nhd', p, V).reshape(n, h * d)
+
+
 def run(ctx, arguments, inputs, params, states, physical=None):
     x = inputs['input']
     n = x.shape[0]
@@ -195,7 +227,19 @@ def run(ctx, arguments, inputs, params, states, physical=None):
         q = rope_split(q, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
         k = rope_split(k, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
     causal = arguments['mask'] == 'causal'
-    if 'kv' in states:
+    window = arguments.get('window')
+    if window is not None:
+        if not causal:
+            raise ValueError("attention.dense: a window with mask none is not implemented (the reading is causal: a query and the span − 1 before it)")
+        st = states['kv']                                    # a ring of `span` positions: the last before this fragment
+        prev, n_prev = st.tail()
+        p0 = int(ctx.positions[0]) if n else 0
+        kpos = torch.cat([torch.arange(p0 - n_prev, p0, device=q.device), ctx.positions])
+        K = torch.cat([prev['k'][:n_prev].to(q.dtype), k], dim=0)
+        V = torch.cat([prev['v'][:n_prev].to(q.dtype), v], dim=0)
+        out = attend_positions(q, K, V, ctx.positions, kpos, causal, int(window['span']))
+        st.append({'k': k, 'v': v})
+    elif 'kv' in states:
         st = states['kv']
         if m:                                                # a cross cache is appended along the source stream, when it delivers
             st.append({'k': k, 'v': v})

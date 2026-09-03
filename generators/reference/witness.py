@@ -106,6 +106,16 @@ def document(name, version, arguments, cat, base):
         if contract_condition(port['present_when'], args):
             ident = f"unit.{sname}"
             states[ident] = {"members": [{"occurrence": root, "state": sname}], "identity": {"name": ident}}
+            # a state carried across fragments sits on a fragmented stream (V16): the input carrying
+            # that stream — the port the state is indexed by, else the occurrence's own, its first
+            # untransformed input — is delivered in fragments, as the streaming cases run it
+            ca = port.get('carried_across')
+            if ca and contract_condition(ca['when'], args):
+                rule = next((r for r in port.get('rules', []) if contract_condition(r['when'], args)), None)
+                carrier = (rule.get('indexed_by') or {}).get('port') if rule else None
+                carrier = carrier or own
+                if carrier in inputs:
+                    inputs[carrier]['fragmented'] = True
     return {"schema": "tensorspine/2.0", "model": f"unit-{name.replace('.', '_')}-{version.replace('.', '_')}",
             "catalog": [{"base": base}], "quantities": {}, "constants": {},
             "occurrences": {"unit": {"contract": {"name": name, "version": version}, "arguments": given, "families": ["unit"]}},
@@ -158,8 +168,8 @@ def parameters(g, seed):
 
 
 def inputs_for(g, delivered, gen, compute):
-    """The tensors one invocation delivers: identifiers for a token-index input, else values
-    drawn from the seed on the input's D2 shape."""
+    """The tensors one invocation delivers: identifiers for a token-index input, small integers
+    for a count, else values drawn from the seed on the input's D2 shape."""
     out = {}
     for name in sorted(delivered):
         n = delivered[name]
@@ -168,6 +178,8 @@ def inputs_for(g, delivered, gen, compute):
         if v['role'] == 'activation.token_index':
             vocabulary = g.nodes['unit']['arguments'].get('vocabulary', 256)
             out[name] = torch.randint(0, vocabulary, (n,), generator=gen)
+        elif v['role'] == 'activation.count':          # an integer per element: a delay of 1 to 31 tokens
+            out[name] = torch.randint(1, 32, (n,), generator=gen, dtype=torch.int32)
         else:
             out[name] = torch.randn([n] + shape, generator=gen).to(compute)
     return out

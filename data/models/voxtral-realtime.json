@@ -135,6 +135,15 @@
         "kind": "literal",
         "value": 26
       }
+    },
+    "enc_layers": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 32
+      }
     }
   },
   "constants": {},
@@ -1500,7 +1509,15 @@
             "occurrence": "ffn_r",
             "indices": {
               "layer": {
-                "literal": 31
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "enc_layers"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
               }
             }
           },

@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "1ff3688",
+    "version": "163b60b",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-03"
   },
@@ -65,15 +65,18 @@
           "causal",
           "none"
         ],
-        "window": "absent",
+        "window": {
+          "absent": true,
+          "fields": {
+            "span": "any"
+          }
+        },
         "chunk": "absent",
         "cross": [
           false,
           true
         ],
-        "streaming": [
-          false
-        ],
+        "streaming": "any",
         "temperature": "absent",
         "rope": {
           "absent": true,
@@ -134,7 +137,8 @@
         "output_gate": "any"
       },
       "states": [
-        "append"
+        "append",
+        "window"
       ],
       "excluding": [
         {
@@ -147,7 +151,8 @@
       ],
       "notes": [
         "mrope for one position stream only: an image would need the sections to differ",
-        "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel"
+        "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel",
+        "a window with mask none is refused at run time: a query attends to itself and the span \u2212 1 positions before it, the causal reading"
       ],
       "witness": {
         "kernel": "kernels/attention_dense.py",
@@ -166,7 +171,47 @@
           "attention.dense@1.0.0/bidirectional-biased",
           "attention.dense@1.0.0/gated-qknorm-partial-mrope",
           "attention.dense@1.0.0/yarn",
-          "attention.dense@1.0.0/cross"
+          "attention.dense@1.0.0/cross",
+          "attention.dense@1.0.0/window",
+          "attention.dense@1.0.0/window-streaming"
+        ]
+      }
+    },
+    "conditioning.scale@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "condition_width": "any",
+        "rank": "any",
+        "activation": [
+          "silu",
+          "gelu",
+          "gelu_tanh",
+          "relu2"
+        ]
+      },
+      "states": [
+        "append"
+      ],
+      "transforms": [
+        "align"
+      ],
+      "notes": [
+        "the condition applied is the last element held by condition_cache: one per sequence"
+      ],
+      "witness": {
+        "kernel": "kernels/conditioning_scale.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "conditioning.scale@1.0.0/basic"
         ]
       }
     },
@@ -178,12 +223,12 @@
         "kernel": "any",
         "bias": "any",
         "position": "any",
-        "causal": [
-          false
-        ],
-        "streaming": "absent"
+        "causal": "any",
+        "streaming": "any"
       },
-      "states": [],
+      "states": [
+        "window"
+      ],
       "transforms": [
         "merge"
       ],
@@ -204,7 +249,8 @@
           }
         },
         "fixtures": [
-          "conv_frontend@1.0.0/basic"
+          "conv_frontend@1.0.0/basic",
+          "conv_frontend@1.0.0/causal-streaming"
         ]
       }
     },
@@ -228,6 +274,29 @@
         },
         "fixtures": [
           "embed@1.0.0/basic"
+        ]
+      }
+    },
+    "embedding.time@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "theta": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/embedding_time.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-06,
+            "rtol": 1e-05
+          },
+          "bf16": {
+            "atol": 0.01,
+            "rtol": 0.01
+          }
+        },
+        "fixtures": [
+          "embedding.time@1.0.0/basic"
         ]
       }
     },
@@ -509,6 +578,36 @@
         "fixtures": [
           "pooler@1.0.0/l2",
           "pooler@1.0.0/plain"
+        ]
+      }
+    },
+    "projector.temporal_stack@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "source_width": "any",
+        "merge_count": "any",
+        "activation": [
+          "gelu"
+        ]
+      },
+      "states": [],
+      "transforms": [
+        "merge"
+      ],
+      "witness": {
+        "kernel": "kernels/projector_temporal_stack.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "projector.temporal_stack@1.0.0/basic"
         ]
       }
     },

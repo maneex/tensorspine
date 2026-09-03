@@ -2,7 +2,8 @@
 implemented once under a declared capacity (R04, R07).
 
     append   buffer [capacity, *shape], a cursor; read() -> (buffers, length)
-    window   buffer [span, *shape] as a ring; read() -> chronological, zero-padded
+    window   buffer [span, *shape] as a ring; read() -> chronological, zero-padded;
+             tail() -> the valid rows alone, chronological
     fixed    one tensor per component; read()/write()
 
 Kernels read a whole buffer plus a length and mask beyond it — the same code
@@ -73,6 +74,19 @@ class StateInstance:
                 pad = torch.zeros((self.span - n,) + tuple(buf.shape[1:]), device=buf.device, dtype=buf.dtype)
                 chrono = torch.cat([pad, chrono], dim=0)
             out[c] = chrono
+        return out, n
+
+    def tail(self):
+        """A `window` state's valid rows in chronological order — the last `min(length, span)`
+        positions written, no padding — and how many: what a kernel reads before it appends a
+        fragment (the ring's entries precede the fragment's positions), and what a dump records
+        of a ring (the delivery's cache holds these rows and nothing before the first write)."""
+        if self.law != 'window':
+            raise Refusal(f"{self.identity}: only a window state has a tail")
+        n = min(self.length, self.span)
+        out = {}
+        for c, buf in self.components.items():
+            out[c] = buf[:n] if self.length < self.span else torch.cat([buf[self.cursor:], buf[:self.cursor]], dim=0)
         return out, n
 
     def append(self, values):

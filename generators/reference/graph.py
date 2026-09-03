@@ -7,6 +7,7 @@ model source or the catalog itself: everything it needs must be in D1–D6.
 import json
 import os
 import sys
+from fractions import Fraction
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -169,6 +170,13 @@ class Graph:
             self.input_stream[name] = entry.get('stream', name)
             for t in entry['to']:
                 self.fed_by_input[(t['node'], t['port'])] = name
+        # elements of the introducing input per element of each input on its stream (§5.3): 1 for an
+        # introducing input, 1 / count for one that joined — eight frames per token on Voxtral's audio
+        self.elements_per = {}
+        for name, v in self.input_values.items():
+            stream = self.input_stream[name]
+            c = float((v.get('count') or {}).get(stream, 1.0))
+            self.elements_per[name] = Fraction(c).limit_denominator(1 << 20) ** -1 if c else Fraction(1)
         # ports that may receive nothing: the sources of insert transforms (D2 transforms are not
         # emitted; the contract's transform is visible through the value domains: a `source` port
         # of `splice` — the language's only insert today — is recognised by its contract)
@@ -187,11 +195,15 @@ class Graph:
             if o.get('generative'):
                 v = self.values[f"{o['node']}.{o['port']}"]       # D2 lists exposed values (finding 2, decided 30 Aug 2026)
                 self.generative = (name, v['domain']['stream'])
+        # the element fed back at decode goes to the token-kind input on the generative output's stream:
+        # the one introducing the stream when there is one (Llama's `tokens`; DeepSeek's `next_tokens`
+        # joins it), else the one joining it (Voxtral's `tokens` join the fragmented `audio` stream)
         self.feedback_input = None
         if self.generative:
-            for name, stream in self.input_stream.items():
-                if stream == self.generative[1] and 'stream' not in self.interfaces['inputs'][name]:
-                    self.feedback_input = name
+            candidates = [name for name, stream in self.input_stream.items()
+                          if stream == self.generative[1] and self.interfaces['inputs'][name].get('kind') == 'token']
+            introducing = [n for n in candidates if 'stream' not in self.interfaces['inputs'][n]]
+            self.feedback_input = (introducing or candidates or [None])[0]
         # the input ids are delivered to: the feedback input, else (a document without a generative
         # output — an encoder) the public input whose value is a token stream
         self.token_input = self.feedback_input or next(

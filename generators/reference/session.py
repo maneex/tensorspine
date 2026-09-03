@@ -28,27 +28,44 @@ class Session:
 
     def run(self, inputs, dump=None):
         """One invocation: every declared public input supplied (R08), positions
-        continuing per stream."""
+        continuing per stream; the outputs wanted (the generative one, else every output) must
+        be evaluated by what was delivered, or the invocation is refused."""
         wanted = {self.graph.generative[0]} if self.graph.generative else set(self.graph.interfaces['outputs'])
         for n in self.graph.interfaces['inputs']:
             if n not in inputs:
                 needed = set(self.graph.input_values[n].get('required_for', [])) & wanted
                 if needed and not self.consumed.get(self.graph.input_stream[n]):
                     raise state_mod.Refusal(f"input {n} delivers nothing, and {sorted(needed)} need it (§7)")
-        positions = {}
+        # every stream advances by the elements delivered on it, counted in the introducing input's
+        # elements (§5.3): an input that joined the stream delivers 1 / count of them per element —
+        # eight frames per token on Voxtral's audio — and the inputs on one stream must agree, or
+        # the invocation would place their elements on different positions
+        advance, by = {}, {}
         for name, t in inputs.items():
             expect = [a['extent'] for a in self.graph.input_values[name]['shape']]
             if list(t.shape[1:]) != expect:
                 raise state_mod.Refusal(f"input {name}: D2 says {expect} per element, got {list(t.shape)}")
             stream = self.graph.input_stream[name]
+            n = t.shape[0] * self.graph.elements_per[name]
+            if n.denominator != 1:
+                raise state_mod.Refusal(f"input {name}: {t.shape[0]} elements are {n} of stream '{stream}', not a whole number: "
+                                        f"a delivery is aligned to every merge on its stream (§5.3)")
+            if stream in advance and advance[stream] != int(n):
+                raise state_mod.Refusal(f"inputs {by[stream]} and {name} disagree on the advance of stream '{stream}': "
+                                        f"{advance[stream]} and {int(n)} elements (§5.3: one stream, one count per kind)")
+            advance[stream], by[stream] = int(n), name
+        positions = {}
+        for stream, n in advance.items():
             start = self.consumed.get(stream, 0)
-            positions[stream] = torch.arange(start, start + t.shape[0], device=self.device)
+            positions[stream] = torch.arange(start, start + n, device=self.device)
         one = all(t.shape[0] == 1 for t in inputs.values())
         runner = self.decode_model if (self.decode_model is not None and one and dump is None) else self.model
         outputs = runner(inputs, positions, self.states, dump)
-        for name, t in inputs.items():
-            stream = self.graph.input_stream[name]
-            self.consumed[stream] = self.consumed.get(stream, 0) + t.shape[0]
+        for stream, n in advance.items():
+            self.consumed[stream] = self.consumed.get(stream, 0) + n
+        missing = sorted(wanted - set(outputs))
+        if missing:
+            raise state_mod.Refusal(f"outputs {missing} are not evaluated by the inputs {sorted(inputs)} delivered (§7)")
         return outputs
 
     def prefill(self, ids, dump=None, inputs=None):
@@ -61,9 +78,15 @@ class Session:
             delivered[name] = t.to(self.device, self.dtype) if t.is_floating_point() else t.to(self.device)
         return self.run(delivered, dump)
 
-    def decode(self, next_id, dump=None):
+    def decode(self, next_id, dump=None, inputs=None):
+        """The generated element fed back on the token input (§7) and, on a document whose token
+        stream joins a fragmented one, the fragment that comes with it: `inputs` delivers it
+        (`{'audio': frames}`, the next eight frames of a streaming transcription)."""
         name = self.graph.feedback_input
-        return self.run({name: torch.tensor([next_id], device=self.device, dtype=torch.long)}, dump)
+        delivered = {name: torch.tensor([next_id], device=self.device, dtype=torch.long)}
+        for k, t in (inputs or {}).items():
+            delivered[k] = t.to(self.device, self.dtype) if t.is_floating_point() else t.to(self.device)
+        return self.run(delivered, dump)
 
     def reset(self):
         for s in self.states.values():
