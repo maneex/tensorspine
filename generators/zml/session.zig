@@ -2,10 +2,11 @@
 //! arities over them.
 //!
 //! A compiled graph has static shapes, so an invocation of n elements is its own
-//! program; and a long graph is cut into several programs run in sequence, because
-//! XLA's scratch for one program holds an f32 copy of every weight that program's
-//! matmuls touch. Both are serving choices — the numbers do not move — so both are
-//! arguments.
+//! program, and one of b sessions of n elements another (batch-plan B05: the aligned
+//! layout, every session delivering the same count); and a long graph is cut into
+//! several programs run in sequence, because XLA's scratch for one program holds an
+//! f32 copy of every weight that program's matmuls touch. All are serving choices —
+//! the numbers do not move — so all are arguments.
 
 const std = @import("std");
 
@@ -18,6 +19,10 @@ const plan = @import("plan.zig");
 
 const log = std.log.scoped(.tspl);
 
+/// The sessions one invocation may carry: the manifest's `sessions_per_invocation`, an
+/// integer the schema bounds (batch-plan finding 1), enforced by `main`.
+pub const MAX_SESSIONS: i64 = 16;
+
 pub const Compiled = struct {
     plan: plan.Plan,
     exes: []zml.Exe,
@@ -29,6 +34,7 @@ pub const Compiled = struct {
         g: *const graph.Graph,
         target: []const u8,
         elements: i64,
+        batch: i64,
         capacity: i64,
         compute: zml.DataType,
         packed_states: bool,
@@ -37,7 +43,7 @@ pub const Compiled = struct {
         dump_mlir: ?[]const u8,
         params: []const zml.Tensor,
     ) !Compiled {
-        var p = try plan.until(allocator, g, target, elements, capacity, compute, packed_states);
+        var p = try plan.until(allocator, g, target, elements, batch, capacity, compute, packed_states);
         errdefer p.deinit();
         try p.split(split);
 
@@ -49,7 +55,8 @@ pub const Compiled = struct {
         defer allocator.free(states);
         for (p.state_shapes, states) |shape, *t| t.* = .fromShape(shape);
 
-        const start: zml.Tensor = .fromShape(zml.Shape.init(.{}, .i32));
+        // The position each session's first element takes: one per session.
+        const start: zml.Tensor = .fromShape(zml.Shape.init(.{batch}, .i32));
 
         const exes = try allocator.alloc(zml.Exe, p.groups.len);
         errdefer allocator.free(exes);
@@ -78,7 +85,8 @@ pub const Compiled = struct {
         self.plan.deinit();
     }
 };
-/// The one public input a token stream is: the identifiers, as the plan's first public.
+/// The one public input a token stream is: the identifiers, as the plan's first public —
+/// every session's in turn, `[sessions, elements]` flat.
 pub fn tokens(io: std.Io, platform: *const zml.Platform, c: *const Compiled, ids: []const i32) !zml.Buffer {
     return zml.Buffer.fromSlice(
         io,
@@ -97,7 +105,8 @@ pub fn invoke(
     c: *const Compiled,
     params: []zml.Buffer,
     publics: []zml.Buffer,
-    start: i32,
+    /// The position each session's first element takes, one per session.
+    start: []const i32,
     states: []zml.Buffer,
     out: *zml.Buffer,
 ) !void {
@@ -105,8 +114,17 @@ pub fn invoke(
         log.err("{d} public input(s) given, the plan takes {d}", .{ publics.len, c.plan.publics.len });
         return error.PublicInputs;
     }
+    if (start.len != @as(usize, @intCast(c.plan.batch))) {
+        log.err("{d} start position(s) given, the plan carries {d} session(s)", .{ start.len, c.plan.batch });
+        return error.Sessions;
+    }
 
-    var start_buffer = try zml.Buffer.scalar(io, platform, start, .i32);
+    var start_buffer = try zml.Buffer.fromSlice(
+        io,
+        platform,
+        .init(zml.Shape.init(.{c.plan.batch}, .i32), std.mem.sliceAsBytes(start)),
+        platform.replicated_sharding,
+    );
     defer start_buffer.deinit();
 
     // Values that have crossed a boundary and are still needed, keyed as the plan keys
@@ -169,8 +187,14 @@ pub fn invoke(
 /// logits arrive in whatever the compute dtype is, so the comparison decodes rather than
 /// assumes.
 pub fn argmaxLast(bytes: []const u8, dt: zml.DataType, vocabulary: usize) !i32 {
+    return argmaxAt(bytes, dt, vocabulary, bytes.len / (vocabulary * dt.sizeOf()) - 1);
+}
+
+/// The same for element `element` of a `[…, vocabulary]` buffer: a session's last element
+/// in a batch's logits, `[sessions, elements, vocabulary]`.
+pub fn argmaxAt(bytes: []const u8, dt: zml.DataType, vocabulary: usize, element: usize) !i32 {
     const width = dt.sizeOf();
-    const start = bytes.len - vocabulary * width;
+    const start = element * vocabulary * width;
     var best: usize = 0;
     var best_value: f32 = -std.math.inf(f32);
     for (0..vocabulary) |i| {

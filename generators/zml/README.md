@@ -252,3 +252,24 @@ toolchain selects Zig and Bazel; the harness is the compatibility check.
 - `generators/CAPABILITIES.md` — what a generator's manifest states, and the rules its arguments follow
 - `docs/TENSORSPINE-DERIVED_JSON.md` — the document this generator consumes
 - `generators/reference/` — the contract witnesses and integration reference
+
+## Batching
+
+The language describes one session's invocation and leaves batching downstream (harness guide
+§8; the batch size is a load variable, out of the model document, Specification §2.1; every state
+port is keyed by session through its instance key, §4.4). Like the element count, the batch is an
+argument of the generator: `--batch=aligned` runs the sessions `--ids` names (`a,b,c;d,e,f`,
+separated by `;`, all of one length) in one invocation — a compiled program has static shapes, so
+the sessions' count is one more extent of the arity, beside the element count. Every value the
+walk carries is `[sessions, elements, …]`; every state buffer `[members, sessions, …]`, the
+session axis inside the member axis so a dump per D4 identity stays contiguous; `start` is one
+position per session, and the positions follow. The emitter makes the split the reference
+generator's runner makes on its packed layout: an occurrence that reads across positions (its
+primitive takes them) or holds a state is evaluated once per session — one composite per session,
+on its slice, its positions and its view of the state buffers, which flow from one session's
+composite to the next — and every other occurrence once, on every session's elements merged into
+one element axis, its outputs split back. The primitives see rank-2 values either way and know
+nothing of the batch; a batch of one is today's graph with an axis of one in front, the same
+bytes. At most `MAX_SESSIONS` (16, the manifest's `sessions_per_invocation`) ride together;
+`--unit` and `--chat` run one session. The harness checks two sessions — the fixture's prompt and
+its reverse — against each alone on llama3-8b and the first hybrid, values and every state.

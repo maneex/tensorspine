@@ -8,11 +8,16 @@
 //! In a traced graph a state is functional: buffers arrive as operands and leave as
 //! results.
 //!
-//! | Law | One member's buffer | Written by |
+//! | Law | One member's buffer, per session | Written by |
 //! |---|---|---|
-//! | `append` | `[capacity, *payload]` | `append`, at the invocation's `start` |
+//! | `append` | `[capacity, *payload]` | `append`, at the session's `start` |
 //! | `window` | `[span, *payload]`, chronological | `append`, sliding |
 //! | `fixed` | `[*payload]` — the payload *is* the state (§4.3) | `write` |
+//!
+//! A buffer holds every session of an invocation (batch-plan B05): `[members, sessions,
+//! …]`, one allocation per instance key's session axis (§4.4), the session axis inside the
+//! member axis so a dump per identity stays contiguous. A primitive is handed its own
+//! member's and session's view and never sees either axis.
 //!
 //! **The model exposes a state; the serving application decides how to hold it.**
 //!
@@ -64,8 +69,9 @@ pub fn accessOf(name: []const u8) Error!Access {
 }
 
 /// One payload component's buffer. `[positions, *payload]` for a growing or bounded law
-/// (§4.3: a payload is per position for append/window, the whole state for fixed), with
-/// a leading `[members]` axis when the serving layout packs a family together.
+/// (§4.3: a payload is per position for append/window, the whole state for fixed), behind
+/// a `[members, sessions]` pair of axes: the family the serving layout packs together, and
+/// the sessions one invocation carries.
 pub const Component = struct {
     name: []const u8,
     shape: zml.Shape,
@@ -91,8 +97,8 @@ pub const Instance = struct {
         if (self.law != (lawOf(s.law) catch return false)) return false;
         if (self.access != (accessOf(s.access) catch return false)) return false;
         if (self.components.len != s.payload.len) return false;
-        // The axes ahead of the payload: members, and a positions axis unless fixed.
-        const leading: i64 = if (self.law == .fixed) 1 else 2;
+        // The axes ahead of the payload: members, sessions, and a positions axis unless fixed.
+        const leading: i64 = if (self.law == .fixed) 2 else 3;
         for (self.components, s.payload) |c, p| {
             if (!std.mem.eql(u8, c.name, p.component)) return false;
             if (p.shape.len + @as(usize, @intCast(leading)) != c.shape.rank()) return false;
@@ -112,6 +118,7 @@ pub fn instanceOf(
     allocator: std.mem.Allocator,
     s: graph.State,
     capacity: i64,
+    batch: i64,
     compute: zml.DataType,
 ) !Instance {
     const law = try lawOf(s.law);
@@ -127,9 +134,10 @@ pub fn instanceOf(
 
     const components = try allocator.alloc(Component, s.payload.len);
     for (s.payload, components) |p, *c| {
-        // [members, positions?, *payload]; the members axis grows as identities join.
+        // [members, sessions, positions?, *payload]; the members axis grows as identities join.
         var sh = zml.Shape.init(.{}, compute);
         sh = sh.appendDim(1, null);
+        sh = sh.appendDim(batch, null);
         if (positions) |n| sh = sh.appendDim(n, null);
         for (p.shape) |axis| sh = sh.appendDim(axis.extent, null);
         c.* = .{ .name = p.component, .shape = sh };
@@ -166,7 +174,10 @@ pub const Handle = struct {
     /// parameter**: which layer sits where is the serving layout's business, opaque to
     /// the language and passed beside the contract's arguments, never merged into them.
     member: i64,
-    /// The logical position of this invocation's first element.
+    /// Which session of the invocation this call is for (batch-plan B05): the emitter
+    /// evaluates a state-holding occurrence once per session, over the same buffers.
+    session: i64,
+    /// The logical position of this session's first element.
     start: zml.Tensor,
     /// How many elements this invocation carries.
     elements: i64,
@@ -175,9 +186,9 @@ pub const Handle = struct {
     /// packing gone.
     pub fn get(self: Handle, name: []const u8) ?zml.Tensor {
         for (self.names, self.buffers) |n, b| {
-            // `.single` drops the axis: the primitive sees `[positions, *payload]` and
-            // nothing of the layout that produced it.
-            if (std.mem.eql(u8, n, name)) return b.slice(0, .single(self.member));
+            // `.single` drops the axis, twice: the primitive sees `[positions, *payload]`
+            // and nothing of the layout that produced it, nor of the other sessions.
+            if (std.mem.eql(u8, n, name)) return b.slice(0, .single(self.member)).slice(0, .single(self.session));
         }
         return null;
     }
@@ -204,16 +215,17 @@ pub const Handle = struct {
             updated.* = switch (self.law) {
                 .append => try self.writeAt(allocator, buffer, v, self.start.convert(.i32)),
                 .window => blk: {
-                    const span = buffer.dim(1);
+                    const span = buffer.dim(2);
                     const n = v.dim(0);
                     // The tail of the history, then this invocation's elements. A
                     // buffer that has held fewer than `span` positions is still zero
                     // in front, which is exactly the zero padding the reference pads
                     // its chronological read with.
+                    const own = buffer.slice(0, .single(self.member)).slice(0, .single(self.session));
                     const slid = if (n >= span)
                         v.slice(0, .{ .start = n - span })
                     else
-                        zml.Tensor.concatenate(&.{ buffer.slice(0, .single(self.member)).slice(0, .{ .start = n }), v }, 0);
+                        zml.Tensor.concatenate(&.{ own.slice(0, .{ .start = n }), v }, 0);
                     break :blk try self.writeAt(allocator, buffer, slid, null);
                 },
                 // A fixed state is written whole, never appended to: §4.3 gives it no
@@ -250,11 +262,12 @@ pub const Handle = struct {
         const offsets = try allocator.alloc(zml.Tensor, buffer.rank());
         defer allocator.free(offsets);
         offsets[0] = zml.Tensor.scalar(self.member, .i32);
-        for (offsets[1..]) |*o| o.* = zml.Tensor.scalar(0, .i32);
-        if (at) |t| offsets[1] = t;
+        offsets[1] = zml.Tensor.scalar(self.session, .i32);
+        for (offsets[2..]) |*o| o.* = zml.Tensor.scalar(0, .i32);
+        if (at) |t| offsets[2] = t;
 
-        // The update carries the members axis as a single position of its own.
-        return buffer.dynamicUpdateSlice(offsets, update.insertAxes(0, .{.portion}));
+        // The update carries the members and sessions axes as single positions of its own.
+        return buffer.dynamicUpdateSlice(offsets, update.insertAxes(0, .{ .portion, .who }));
     }
 
     /// The same handle over buffers that have just been written — so a primitive reads

@@ -16,6 +16,7 @@ const zml = @import("zml");
 
 const primitive = @import("primitive.zig");
 const registry = @import("registry.zig");
+const session = @import("session.zig");
 
 /// The dtypes a primitive computes in. Both are exercised: f32 against the reference's
 /// fixtures, bf16 to run a whole model.
@@ -97,7 +98,7 @@ pub fn write(
     try s.endObject();
 
     try s.objectField("sessions_per_invocation");
-    try s.write(1);
+    try s.write(session.MAX_SESSIONS);       // the aligned layout (batch-plan B05): what `main` enforces
     try s.objectField("locations");
     try s.write(locations);
 

@@ -8,7 +8,9 @@ document must equal what `tools/derive.py` put in it.
     generators/zml/tests/run_zml.py [--zml DIR] [--model-artifacts DIR] [--model NAME] [--keep]
 
 Then, for whichever checkpoints it is given, the numbers against the reference
-generator's committed fixtures: llama3-8b, colbert-v2, and the two hybrids.
+generator's committed fixtures: llama3-8b, colbert-v2, and the two hybrids; and, on
+llama3-8b and the first hybrid, two sessions in one invocation (`--batch=aligned`)
+against each alone (batch-plan B06).
 
 Two directories, both shell variables, neither with a default inside the tree:
 $ZML_HOME is the ZML checkout that is the build root, and $TENSORSPINE_MODEL_ARTIFACTS is the
@@ -377,6 +379,71 @@ def colbert(binary, derived_dir, checkpoint, scratch):
     return checked, failed
 
 
+def batched(binary, derived, checkpoint, model, fixture_path, value, states, scratch, dumps):
+    """Batch-plan B06: two sessions in one invocation on the aligned layout — the fixture's
+    prompt and its reverse, `--ids=a;b --batch=aligned` — against each alone: the value `value`
+    of session 0 against the fixture's own record and of session 1 against its run alone, and
+    every state the run leaves, per session, likewise. The buffers a batched run dumps are
+    `[sessions, positions, …]` per identity, the session axis inside the member axis."""
+    try:
+        import numpy as np
+        from safetensors.numpy import load_file
+    except ImportError:
+        return 0, 0
+    fixture = os.path.join(ROOT, fixture_path)
+    if not os.path.isfile(fixture) or not os.path.isdir(checkpoint) or not os.path.isfile(derived):
+        print(f'skip: batched {model} needs {fixture_path} and a checkpoint at {checkpoint}')
+        return 0, 0
+    fx = load_file(fixture)
+    ids = fixture_metadata(fixture)['ids']
+    rev = list(reversed(ids))
+    text = lambda seq: ','.join(map(str, seq))
+    alone_dir, batch_dir = os.path.join(dumps, 'alone-reversed'), os.path.join(dumps, 'batched')
+    for d in (alone_dir, batch_dir):
+        shutil.rmtree(d, ignore_errors=True)
+        os.makedirs(d, exist_ok=True)
+    alone_out, batch_out = os.path.join(scratch, 'alone.bin'), os.path.join(scratch, 'batch.bin')
+    runs = [([binary, f'--derived={derived}', f'--checkpoint={checkpoint}', f'--until={value}', f'--ids={text(rev)}',
+              f'--out={alone_out}', f'--dump={alone_dir}'], 'the reverse alone'),
+            ([binary, f'--derived={derived}', f'--checkpoint={checkpoint}', f'--until={value}', f'--ids={text(ids)};{text(rev)}',
+              '--batch=aligned', f'--out={batch_out}', f'--dump={batch_dir}'], 'the batch of two')]
+    for cmd, what in runs:
+        run = subprocess.run(cmd, capture_output=True)
+        if run.returncode != 0:
+            print(f'FAIL batched {model}, {what}: {run.stderr.decode(errors="replace")[-600:]}')
+            return 1, 1
+    want0 = fx[f'value/{value}']
+    want1 = np.fromfile(alone_out, dtype=np.float32).reshape(want0.shape)
+    got = np.fromfile(batch_out, dtype=np.float32).reshape((2,) + want0.shape)
+    checked = failed = 0
+    for k, want in enumerate((want0, want1)):
+        err = float(np.abs(got[k] - want).max()) / max(float(np.abs(want).max()), 1e-30)
+        ok = err <= TOLERANCE
+        checked += 1
+        failed += 0 if ok else 1
+        print(f'{"OK  " if ok else "FAIL"} batched {model} {value} session {k} against {"the fixture" if k == 0 else "its run alone"}: '
+              f'{err:.2e} of scale (tolerance {TOLERANCE:.0e})')
+    for identity, component in states:
+        key = f'state/{identity}/{component}'
+        path = os.path.join(batch_dir, f'{identity}.{component}.bin')
+        alone_path = os.path.join(alone_dir, f'{identity}.{component}.bin')
+        if key not in fx or not os.path.isfile(path) or not os.path.isfile(alone_path):
+            print(f'FAIL batched {model} state {identity}.{component}: nothing dumped')
+            checked += 1
+            failed += 1
+            continue
+        want0 = fx[key]
+        want1 = np.fromfile(alone_path, dtype=np.float32).reshape([-1] + list(want0.shape[1:]))[:want0.shape[0]]
+        raw = np.fromfile(path, dtype=np.float32).reshape([2, -1] + list(want0.shape[1:]))[:, :want0.shape[0]]
+        for k, want in enumerate((want0, want1)):
+            err = float(np.abs(raw[k] - want).max()) / max(float(np.abs(want).max()), 1e-30)
+            ok = err <= TOLERANCE
+            checked += 1
+            failed += 0 if ok else 1
+            print(f'{"OK  " if ok else "FAIL"} batched {model} state {identity}.{component} session {k}: {err:.2e} of scale')
+    return checked, failed
+
+
 def weights(artifacts, model):
     """Where this document's weights are, by the layout — `weights/<artifact>` under the
     one directory. `None` when they are not there, and the checks that need them say they
@@ -564,6 +631,26 @@ def main():
                              os.path.join(dumps_root, model))
             checked += more
             failed += bad
+
+        if llama and os.path.isfile(derived_llama):
+            print()
+            more, bad = batched(binary, derived_llama, llama, 'llama3-8b', FIXTURE, 'decoder/ffn_r[layer=2].output',
+                                [(f'decoder.attn.kv[layer={i}]', c) for i in range(3) for c in ('k', 'v')],
+                                scratch, os.path.join(dumps_root, 'llama3-8b'))
+            checked += more
+            failed += bad
+        for model, fixture_path in HYBRIDS[:1]:
+            checkpoint = weights(a.model_artifacts, model)
+            derived_hybrid = os.path.join(out_dir, f'{model}.derived.json')
+            if checkpoint and os.path.isfile(derived_hybrid):
+                print()
+                more, bad = batched(binary, derived_hybrid, checkpoint, model, fixture_path, 'decoder/mlp_r[layer=3].output',
+                                    [(f'decoder.gdn.conv[layer={i}]', 'w') for i in range(3)]
+                                    + [(f'decoder.gdn.recurrent[layer={i}]', 's') for i in range(3)]
+                                    + [('decoder.attn.kv[layer=3]', c) for c in ('k', 'v')],
+                                    scratch, os.path.join(dumps_root, model))
+                checked += more
+                failed += bad
 
         print()
         more, bad = manifest(binary)

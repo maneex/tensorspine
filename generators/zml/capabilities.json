@@ -34,7 +34,7 @@
     "transforms": [],
     "fragmented": false
   },
-  "sessions_per_invocation": 1,
+  "sessions_per_invocation": 16,
   "locations": [
     "tensor"
   ],

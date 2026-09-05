@@ -27,6 +27,7 @@ const Args = struct {
     checkpoint: ?[]const u8 = null,
     until: ?[]const u8 = null,
     ids: ?[]const u8 = null,
+    batch: []const u8 = "none",
     capacity: ?u32 = null,
     @"max-tokens": u32 = 8,
     split: u32 = 1,
@@ -57,7 +58,11 @@ const Args = struct {
         \\   --refusals            Report, per contract, the occurrences no primitive implements
         \\   --checkpoint=<path>   The safetensors repository or file D3's locations name
         \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
-        \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's)
+        \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's); several
+        \\                         sessions separated by ';' under --batch=aligned, all of one length
+        \\   --batch=<layout>      none (default): one session per invocation; aligned: the sessions --ids
+        \\                         names in one invocation, a batch axis before the element axis, every
+        \\                         session delivering the same count (generators/zml/README.md, Batching)
         \\   --capacity=<n>        Positions a growing state holds (default: the prompt plus --max-tokens)
         \\   --prompt=<text>       Answer one prompt and exit: the text is tokenised, fed, and
         \\                         answered until a stop token or --max-tokens, whichever comes
@@ -156,6 +161,49 @@ fn parseIds(allocator: std.mem.Allocator, spec: ?[]const u8) ![]i32 {
     return list.toOwnedSlice(allocator);
 }
 
+/// The sessions one run carries (batch-plan B05): `--ids=a,b;c,d` is two sessions of one
+/// length, flattened session after session for the `[sessions, elements]` public; more than
+/// one needs `--batch=aligned`, and no more than `MAX_SESSIONS` ride together.
+const Sessions = struct { ids: []i32, count: usize, length: usize };
+
+fn parseSessions(allocator: std.mem.Allocator, spec: ?[]const u8, layout: []const u8) !Sessions {
+    const aligned = std.mem.eql(u8, layout, "aligned");
+    if (!aligned and !std.mem.eql(u8, layout, "none")) {
+        log.err("--batch={s}: none or aligned", .{layout});
+        return error.UnknownLayout;
+    }
+    const text = spec orelse {
+        const ids = try allocator.dupe(i32, &default_ids);
+        return .{ .ids = ids, .count = 1, .length = ids.len };
+    };
+    var all: std.ArrayList(i32) = .empty;
+    errdefer all.deinit(allocator);
+    var count: usize = 0;
+    var length: ?usize = null;
+    var it = std.mem.splitScalar(u8, text, ';');
+    while (it.next()) |part| {
+        const ids = try parseIds(allocator, part);
+        defer allocator.free(ids);
+        if (length) |n| {
+            if (ids.len != n) {
+                log.err("--ids: sessions of {d} and {d} tokens; an aligned batch's sessions deliver the same count (prefill unequal prompts apart)", .{ n, ids.len });
+                return error.UnalignedSessions;
+            }
+        } else length = ids.len;
+        try all.appendSlice(allocator, ids);
+        count += 1;
+    }
+    if (count > 1 and !aligned) {
+        log.err("--ids names {d} sessions; --batch=aligned runs them as one batch", .{count});
+        return error.SeveralSessions;
+    }
+    if (count > session.MAX_SESSIONS) {
+        log.err("{d} sessions in one invocation: this generator carries {d} at most", .{ count, session.MAX_SESSIONS });
+        return error.TooManySessions;
+    }
+    return .{ .ids = try all.toOwnedSlice(allocator), .count = count, .length = length.? };
+}
+
 /// One compiled arity, as one or more programs run in sequence.
 ///
 /// A compiled graph has static shapes, so prefill and decode are two arities; and a
@@ -175,8 +223,11 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     const target = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ output.node, output.port });
     defer allocator.free(target);
 
-    const ids = try parseIds(allocator, args.ids);
+    const sessions = try parseSessions(allocator, args.ids, args.batch);
+    const ids = sessions.ids;
     defer allocator.free(ids);
+    const batch: i64 = @intCast(sessions.count);
+    const prompt: i64 = @intCast(sessions.length);
 
     // One device. ZML's CPU default is four, and a replicated parameter is copied to
     // each of them — four times the weights resident, before anything is computed.
@@ -193,13 +244,13 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     // Capacity holds the prompt and everything generated: deployment intent, not a
     // document fact (§7).
-    const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len + args.@"max-tokens");
+    const capacity: i64 = if (args.capacity) |c| @intCast(c) else prompt + args.@"max-tokens";
     const compute = try dtypes.of(args.compute);
-    log.info("computing in {s}", .{@tagName(compute)});
+    log.info("computing in {s}; {d} session(s) of {d} token(s), {s} layout", .{ @tagName(compute), batch, prompt, args.batch });
 
     // The parameters, by D3's locations. Both arities reach the same value, so both
     // need the same identities in the same order — asserted rather than assumed.
-    var shape_plan = try plan.until(allocator, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states");
+    var shape_plan = try plan.until(allocator, g, target, prompt, batch, capacity, compute, !args.@"separate-states");
     const params_used = try allocator.dupe(usize, shape_plan.params_used);
     defer allocator.free(params_used);
     shape_plan.deinit();
@@ -208,9 +259,9 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer model.deinit(allocator);
     reportRss(io, "locate");
 
-    var prefill = try session.Compiled.init(allocator, io, platform, g, target, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
+    var prefill = try session.Compiled.init(allocator, io, platform, g, target, prompt, batch, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
     defer prefill.deinit(allocator);
-    var decode = try session.Compiled.init(allocator, io, platform, g, target, 1, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
+    var decode = try session.Compiled.init(allocator, io, platform, g, target, 1, batch, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
     defer decode.deinit(allocator);
     if (!std.mem.eql(usize, prefill.plan.params_used, decode.plan.params_used)) {
         log.err("the two arities disagree on which parameters they need", .{});
@@ -250,37 +301,53 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     }
     defer for (states) |*b| b.deinit();
 
-    var generated: std.ArrayList(i32) = .empty;
-    defer generated.deinit(allocator);
+    // One list of tokens per session, and per session where its positions reach.
+    const generated = try allocator.alloc(std.ArrayList(i32), sessions.count);
+    defer allocator.free(generated);
+    for (generated) |*list| list.* = .empty;
+    defer for (generated) |*list| list.deinit(allocator);
+    const start = try allocator.alloc(i32, sessions.count);
+    defer allocator.free(start);
+    @memset(start, 0);
+    const next = try allocator.alloc(i32, sessions.count);
+    defer allocator.free(next);
 
     var out: zml.Buffer = undefined;
-    var start: i32 = 0;
-    var next: [1]i32 = undefined;
 
-    // Prefill, then one element at a time. The prefill's own argmax is already the first
-    // token, so n tokens are n invocations and not n + 1: the wider bound ran a whole
-    // forward pass at the end and threw its token away.
+    // Prefill, then one element per session at a time. The prefill's own argmax is
+    // already the first token, so n tokens are n invocations and not n + 1: the wider
+    // bound ran a whole forward pass at the end and threw its token away.
     var step: usize = 0;
     while (step < args.@"max-tokens") : (step += 1) {
-        const elements: []const i32 = if (step == 0) ids else next[0..1];
+        const elements: []const i32 = if (step == 0) ids else next;
+        const per_session: usize = if (step == 0) sessions.length else 1;
         const c = if (step == 0) &prefill else &decode;
         var publics = [_]zml.Buffer{try session.tokens(io, platform, c, elements)};
         defer publics[0].deinit();
         try session.invoke(allocator, io, platform, c, buffers.params, &publics, start, states, &out);
-        start += @intCast(elements.len);
+        for (start) |*s| s.* += @intCast(per_session);
 
         const logits = try out.toSliceAlloc(allocator, io);
         defer logits.free(allocator);
         const vocab: usize = @intCast(out.shape().dim(-1));
-        next[0] = try session.argmaxLast(logits.bytes, compute, vocab);
+        // the logits are [sessions, elements, vocabulary]: each session's last element
+        for (next, generated, 0..) |*n, *list, s| {
+            n.* = try session.argmaxAt(logits.bytes, compute, vocab, (s + 1) * per_session - 1);
+            try list.append(allocator, n.*);
+        }
         out.deinit();
-
-        try generated.append(allocator, next[0]);
         reportRss(io, if (step == 0) "prefill" else "decode");
     }
 
-    log.info("{d} greedy token(s): {any}", .{ generated.items.len, generated.items });
-    if (args.out) |path| try write(io, path, std.mem.sliceAsBytes(generated.items));
+    for (generated, 0..) |list, s| {
+        log.info("session {d}: {d} greedy token(s): {any}", .{ s, list.items.len, list.items });
+    }
+    if (args.out) |path| {
+        var flat: std.ArrayList(i32) = .empty;
+        defer flat.deinit(allocator);
+        for (generated) |list| try flat.appendSlice(allocator, list.items);
+        try write(io, path, std.mem.sliceAsBytes(flat.items));
+    }
 }
 
 fn readFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
@@ -356,7 +423,7 @@ fn unit(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Gr
     var capacity: i64 = 0;
     for (counts) |n| capacity += n;
 
-    var shape_plan = try plan.until(allocator, g, target, counts[0], capacity, compute, !args.@"separate-states");
+    var shape_plan = try plan.until(allocator, g, target, counts[0], 1, capacity, compute, !args.@"separate-states");
     const params_used = try allocator.dupe(usize, shape_plan.params_used);
     defer allocator.free(params_used);
     shape_plan.deinit();
@@ -381,7 +448,7 @@ fn unit(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Gr
             which[k] = f;
             continue;
         }
-        arities[compiled] = try session.Compiled.init(allocator, io, platform, g, target, n, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
+        arities[compiled] = try session.Compiled.init(allocator, io, platform, g, target, n, 1, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
         if (!std.mem.eql(usize, arities[compiled].plan.params_used, params_used)) {
             log.err("the arities disagree on which parameters they need", .{});
             return error.InconsistentPlan;
@@ -434,7 +501,7 @@ fn unit(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Gr
         }
 
         var out: zml.Buffer = undefined;
-        try session.invoke(allocator, io, platform, c, buffers.params, publics, start, states, &out);
+        try session.invoke(allocator, io, platform, c, buffers.params, publics, &.{start}, states, &out);
         defer out.deinit();
         start += @intCast(n);
 
@@ -468,8 +535,11 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
         return error.MissingCheckpoint;
     };
 
-    const ids = try parseIds(allocator, args.ids);
+    const sessions = try parseSessions(allocator, args.ids, args.batch);
+    const ids = sessions.ids;
     defer allocator.free(ids);
+    const batch: i64 = @intCast(sessions.count);
+    const prompt: i64 = @intCast(sessions.length);
 
     const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
     defer platform.deinit(allocator, io);
@@ -481,9 +551,9 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     defer store.deinit();
 
     const compute = try dtypes.of(args.compute);
-    const capacity: i64 = if (args.capacity) |c| @intCast(c) else @intCast(ids.len);
+    const capacity: i64 = if (args.capacity) |c| @intCast(c) else prompt;
 
-    var shape_plan = try plan.until(allocator, g, args.until.?, @intCast(ids.len), capacity, compute, !args.@"separate-states");
+    var shape_plan = try plan.until(allocator, g, args.until.?, prompt, batch, capacity, compute, !args.@"separate-states");
     const params_used = try allocator.dupe(usize, shape_plan.params_used);
     defer allocator.free(params_used);
     shape_plan.deinit();
@@ -491,10 +561,10 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     var model = try loader.locate(allocator, g, store.view(), params_used);
     defer model.deinit(allocator);
 
-    var c = try session.Compiled.init(allocator, io, platform, g, args.until.?, @intCast(ids.len), capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
+    var c = try session.Compiled.init(allocator, io, platform, g, args.until.?, prompt, batch, capacity, compute, !args.@"separate-states", args.split, args.@"dump-mlir", model.params);
     defer c.deinit(allocator);
-    log.info("{d} step(s) to reach {s} in {d} program(s), {d} parameter tensor(s), {d} state buffer(s)", .{
-        c.plan.steps.len, args.until.?, c.plan.groups.len, c.plan.params_used.len, c.plan.state_shapes.len,
+    log.info("{d} step(s) to reach {s} in {d} program(s), {d} parameter tensor(s), {d} state buffer(s), {d} session(s)", .{
+        c.plan.steps.len, args.until.?, c.plan.groups.len, c.plan.params_used.len, c.plan.state_shapes.len, batch,
     });
 
     var buffers = try zml.mem.bufferize(allocator, loader.Model, &model);
@@ -521,7 +591,10 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     var out: zml.Buffer = undefined;
     var publics = [_]zml.Buffer{try session.tokens(io, platform, &c, ids)};
     defer publics[0].deinit();
-    try session.invoke(allocator, io, platform, &c, buffers.params, &publics, 0, states, &out);
+    const zeros_start = try allocator.alloc(i32, sessions.count);
+    defer allocator.free(zeros_start);
+    @memset(zeros_start, 0);
+    try session.invoke(allocator, io, platform, &c, buffers.params, &publics, zeros_start, states, &out);
     defer out.deinit();
 
     const slice = try out.toSliceAlloc(allocator, io);

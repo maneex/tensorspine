@@ -93,7 +93,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
     var store: zml.io.TensorStore = .fromRegistry(allocator, &tensors);
     defer store.deinit();
 
-    var shape_plan = try plan.until(allocator, g, target, 1, opts.capacity, opts.compute, opts.packed_states);
+    var shape_plan = try plan.until(allocator, g, target, 1, 1, opts.capacity, opts.compute, opts.packed_states);
     const params_used = try allocator.dupe(usize, shape_plan.params_used);
     defer allocator.free(params_used);
     shape_plan.deinit();
@@ -102,7 +102,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
     defer model.deinit(allocator);
 
     var step = try session.Compiled.init(
-        allocator, io, platform, g, target, 1,
+        allocator, io, platform, g, target, 1, 1,
         opts.capacity, opts.compute, opts.packed_states, opts.split, opts.dump_mlir, model.params,
     );
     defer step.deinit(allocator);
@@ -223,7 +223,7 @@ fn feed(
     var logits: zml.Buffer = undefined;
     var publics = [_]zml.Buffer{try session.tokens(io, platform, step, &.{id})};
     defer publics[0].deinit();
-    try session.invoke(allocator, io, platform, step, params, &publics, position, states, &logits);
+    try session.invoke(allocator, io, platform, step, params, &publics, &.{position}, states, &logits);
     defer logits.deinit();
 
     const slice = try logits.toSliceAlloc(allocator, io);

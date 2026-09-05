@@ -9,6 +9,15 @@
 //! `zml.ops.composite` takes its decomposition at comptime but its context, name and
 //! attributes at run time, which is exactly what a registry-dispatched generator
 //! needs: one comptime dispatcher closing over a runtime primitive pointer.
+//!
+//! Several sessions in one invocation (batch-plan B05, the aligned layout): every value
+//! the walk carries is `[sessions, elements, …]`. An occurrence that reads across positions
+//! or holds a state is evaluated once per session, on that session's slice, positions and
+//! state view — one composite per session, the state buffers flowing from one to the next;
+//! every other occurrence is evaluated once on all the sessions' elements merged into one
+//! element axis, and its outputs are split back. The primitives see rank-2 values either
+//! way and know nothing of the batch — the same split the reference generator's runner
+//! makes on its packed layout.
 
 const std = @import("std");
 
@@ -34,6 +43,8 @@ const Decomposition = struct {
     plan: *const plan_mod.Plan,
     ctx: *primitive.Ctx,
     operands: []const Operand,
+    /// The session this composite evaluates, for an occurrence evaluated per session.
+    session: i64 = 0,
 };
 
 /// The body of one composite: rebuild the bindings from the block arguments, run the
@@ -74,6 +85,7 @@ fn decompose(args: []zml.Tensor, c: Decomposition) []zml.Tensor {
                 .buffers = buffers.items[at .. at + n],
                 .names = names.items[at .. at + n],
                 .member = binding.member,
+                .session = c.session,
                 .start = start.?,
                 .elements = c.plan.elements,
             },
@@ -127,6 +139,20 @@ pub const Result = struct {
     states: []zml.Tensor,
 };
 
+/// A `[sessions, elements, …]` shape with its first two axes merged: what a union step's
+/// primitive sees.
+fn merged(sh: zml.Shape) zml.Shape {
+    var out = zml.Shape.init(.{}, sh.dtype());
+    out = out.appendDim(sh.dim(0) * sh.dim(1), null);
+    for (sh.dims()[2..]) |d| out = out.appendDim(d, null);
+    return out;
+}
+
+/// A `[sessions, elements, …]` shape for one session: what a per-session step's primitive sees.
+fn one(sh: zml.Shape) zml.Shape {
+    return sh.remove(0);
+}
+
 /// Walk the plan. Traced by `zml.module.compile`, so the slices' run-time lengths fix
 /// the arity of the MLIR function — which is what lets one Zig type serve every
 /// document.
@@ -150,12 +176,8 @@ pub fn forward(
     const a = arena.allocator();
 
     var ctx: primitive.Ctx = .{ .allocator = a, .compute = p.compute };
-
-    // The positions of this invocation's elements: where the state already reaches,
-    // plus one per element. One stream today; a document with several would index this
-    // by the stream each occurrence belongs to.
-    const positions = start.convert(.i32).broad(zml.Shape.init(.{p.elements}, .i32))
-        .add(zml.Tensor.iota(zml.Shape.init(.{p.elements}, .i32), 0));
+    const sessions: usize = @intCast(p.batch);
+    const elements_shape = zml.Shape.init(.{p.elements}, .i32);
 
     // States live across the whole walk: written by one step, read by the next. They
     // are returned, so they outlive the arena — `collectOutputInfo` reads the result
@@ -164,15 +186,13 @@ pub fn forward(
     const states = cc.alloc(zml.Tensor, states_in.len);
     @memcpy(states, states_in);
 
+    // Every value the walk carries is `[sessions, elements, …]` — a public input, a value
+    // carried from an earlier program, a step's outputs.
     const produced = a.alloc([]zml.Tensor, p.steps.len) catch @panic("out of memory");
     for (p.steps[group.first..group.last], produced[group.first..group.last]) |*step, *results| {
-        var operands: std.ArrayList(Operand) = .empty;
-        var tensors: std.ArrayList(zml.Tensor) = .empty;
-        var shapes: std.ArrayList(zml.Shape) = .empty;
-
-        for (step.inputs) |in| {
-            operands.append(a, .{ .input = in.port }) catch @panic("out of memory");
-            tensors.append(a, switch (in.source) {
+        const sources = a.alloc(zml.Tensor, step.inputs.len) catch @panic("out of memory");
+        for (step.inputs, sources) |in, *src| {
+            src.* = switch (in.source) {
                 // Inside the group it is a value; from an earlier group it entered as an
                 // argument of this program.
                 .value => |v| if (v.step >= group.first) produced[v.step][v.out] else blk: {
@@ -182,47 +202,82 @@ pub fn forward(
                     std.debug.panic("{s}: nothing carries {d}.{d} into group {d}", .{ step.node, v.step, v.out, handle.group });
                 },
                 .public => |i| publics[i],
-            }) catch @panic("out of memory");
+            };
         }
-        for (step.params) |slot| {
-            operands.append(a, .{ .param = slot.slot }) catch @panic("out of memory");
-            const at = std.mem.indexOfScalar(usize, group.params, slot.param) orelse
-                std.debug.panic("{s}: group {d} was not given parameter {d}", .{ step.node, handle.group, slot.param });
-            tensors.append(a, params[at]) catch @panic("out of memory");
-        }
-        for (step.outputs, step.shapes) |_, shape| {
-            shapes.append(a, shape) catch @panic("out of memory");
-        }
-        for (step.states) |binding| {
-            const instance = p.states[binding.instance];
-            for (instance.components, 0..) |component, i| {
-                operands.append(a, .{ .state = .{ .index = binding.base + i, .component = component.name } }) catch @panic("out of memory");
-                tensors.append(a, states[binding.base + i]) catch @panic("out of memory");
-                shapes.append(a, component.shape) catch @panic("out of memory");
+        results.* = a.alloc(zml.Tensor, step.outputs.len) catch @panic("out of memory");
+
+        if (!step.per_session) {
+            // The union: every session's elements on one element axis, one composite.
+            var operands: std.ArrayList(Operand) = .empty;
+            var tensors: std.ArrayList(zml.Tensor) = .empty;
+            var shapes: std.ArrayList(zml.Shape) = .empty;
+            for (step.inputs, sources) |in, src| {
+                operands.append(a, .{ .input = in.port }) catch @panic("out of memory");
+                tensors.append(a, src.reshape(merged(src.shape()))) catch @panic("out of memory");
             }
+            appendParams(a, step, group, params, handle.group, &operands, &tensors);
+            for (step.shapes) |shape| shapes.append(a, merged(shape)) catch @panic("out of memory");
+            const emitted = zml.ops.composite(step.composite, tensors.items, shapes.items, decompose, Decomposition{
+                .step = step,
+                .plan = p,
+                .ctx = &ctx,
+                .operands = operands.items,
+            }, .{});
+            for (results.*, emitted, step.shapes) |*r, t, shape| r.* = t.reshape(shape);
+            continue;
         }
-        if (step.prim.needs_positions or step.states.len > 0) {
+
+        // Per session: its slice of every input, its positions and start, its view of the
+        // states — the buffers flowing from one session's composite to the next.
+        const parts = a.alloc([]zml.Tensor, sessions) catch @panic("out of memory");
+        for (0..sessions) |session| {
+            const s_i64: i64 = @intCast(session);
+            const start_s = start.slice(0, .single(s_i64));
+            const positions = start_s.convert(.i32).broad(elements_shape).add(zml.Tensor.iota(elements_shape, 0));
+
+            var operands: std.ArrayList(Operand) = .empty;
+            var tensors: std.ArrayList(zml.Tensor) = .empty;
+            var shapes: std.ArrayList(zml.Shape) = .empty;
+            for (step.inputs, sources) |in, src| {
+                operands.append(a, .{ .input = in.port }) catch @panic("out of memory");
+                tensors.append(a, src.slice(0, .single(s_i64))) catch @panic("out of memory");
+            }
+            appendParams(a, step, group, params, handle.group, &operands, &tensors);
+            for (step.shapes) |shape| shapes.append(a, one(shape)) catch @panic("out of memory");
+            for (step.states) |binding| {
+                const instance = p.states[binding.instance];
+                for (instance.components, 0..) |component, i| {
+                    operands.append(a, .{ .state = .{ .index = binding.base + i, .component = component.name } }) catch @panic("out of memory");
+                    tensors.append(a, states[binding.base + i]) catch @panic("out of memory");
+                    shapes.append(a, component.shape) catch @panic("out of memory");
+                }
+            }
             operands.append(a, .positions) catch @panic("out of memory");
             tensors.append(a, positions) catch @panic("out of memory");
             operands.append(a, .start) catch @panic("out of memory");
-            tensors.append(a, start) catch @panic("out of memory");
-        }
+            tensors.append(a, start_s) catch @panic("out of memory");
 
-        const emitted = zml.ops.composite(step.composite, tensors.items, shapes.items, decompose, Decomposition{
-            .step = step,
-            .plan = p,
-            .ctx = &ctx,
-            .operands = operands.items,
-        }, .{});
-
-        results.* = emitted[0..step.outputs.len];
-        var k = step.outputs.len;
-        for (step.states) |binding| {
-            const instance = p.states[binding.instance];
-            for (instance.components, 0..) |_, i| {
-                states[binding.base + i] = emitted[k];
-                k += 1;
+            const emitted = zml.ops.composite(step.composite, tensors.items, shapes.items, decompose, Decomposition{
+                .step = step,
+                .plan = p,
+                .ctx = &ctx,
+                .operands = operands.items,
+                .session = s_i64,
+            }, .{});
+            parts[session] = emitted[0..step.outputs.len];
+            var k = step.outputs.len;
+            for (step.states) |binding| {
+                const instance = p.states[binding.instance];
+                for (instance.components, 0..) |_, i| {
+                    states[binding.base + i] = emitted[k];
+                    k += 1;
+                }
             }
+        }
+        for (results.*, step.shapes, 0..) |*r, shape, out| {
+            const stacked = a.alloc(zml.Tensor, sessions) catch @panic("out of memory");
+            for (stacked, 0..) |*t, session| t.* = parts[session][out].reshape(shape.setDim(0, 1));
+            r.* = zml.Tensor.concatenate(stacked, 0);
         }
     }
 
@@ -231,4 +286,21 @@ pub fn forward(
     for (group.outputs, outputs) |b, *t| t.* = produced[b.step][b.out];
 
     return .{ .outputs = outputs, .states = states };
+}
+
+fn appendParams(
+    a: std.mem.Allocator,
+    step: *const plan_mod.Step,
+    group: plan_mod.Group,
+    params: []const zml.Tensor,
+    which: usize,
+    operands: *std.ArrayList(Operand),
+    tensors: *std.ArrayList(zml.Tensor),
+) void {
+    for (step.params) |slot| {
+        operands.append(a, .{ .param = slot.slot }) catch @panic("out of memory");
+        const at = std.mem.indexOfScalar(usize, group.params, slot.param) orelse
+            std.debug.panic("{s}: group {d} was not given parameter {d}", .{ step.node, which, slot.param });
+        tensors.append(a, params[at]) catch @panic("out of memory");
+    }
 }

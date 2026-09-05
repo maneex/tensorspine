@@ -71,6 +71,11 @@ pub const Step = struct {
     shapes: []const zml.Shape,
     /// The name of the `stablehlo.composite` this occurrence becomes.
     composite: [:0]const u8,
+    /// Whether a batch evaluates this occurrence per session — it reads across positions
+    /// (its primitive takes them) or holds a state (per session by its instance key, §4.4) —
+    /// or once on every session's elements together (batch-plan B05: the aligned layout,
+    /// the emitter's split; the primitive sees rank-2 values either way).
+    per_session: bool,
 };
 
 /// How the plan reaches the traced function.
@@ -132,9 +137,12 @@ pub const Plan = struct {
     /// the traced function takes and returns them.
     states: []const state_mod.Instance,
     state_shapes: []const zml.Shape,
-    /// How many elements this invocation carries — deployment intent, fixed before the
-    /// plan so every shape in it is concrete.
+    /// How many elements this invocation carries per session — deployment intent, fixed
+    /// before the plan so every shape in it is concrete.
     elements: i64,
+    /// How many sessions this invocation carries (batch-plan B05): every value the plan
+    /// names is `[sessions, elements, …]`, every state buffer `[members, sessions, …]`.
+    batch: i64,
     result: Source,
     compute: zml.DataType,
     /// One group when the whole plan is one program.
@@ -233,10 +241,12 @@ fn publicDtype(declared: zml.DataType, compute: zml.DataType) zml.DataType {
 }
 
 /// The shape of a value for this invocation: D2's per-element extents behind the
-/// element count. D2 sizes payloads per element; how many elements an invocation
-/// carries is deployment intent, so it arrives here as `elements`.
-fn shapeOf(v: graph.Value, elements: i64, dt: zml.DataType) zml.Shape {
+/// session count and the element count. D2 sizes payloads per element; how many elements
+/// an invocation carries, and for how many sessions, is deployment intent, so both arrive
+/// here as arguments. A batch of one is `[1, elements, …]`: the bytes of `[elements, …]`.
+fn shapeOf(v: graph.Value, batch: i64, elements: i64, dt: zml.DataType) zml.Shape {
     var sh = zml.Shape.init(.{}, dt);
+    sh = sh.appendDim(batch, null);
     sh = sh.appendDim(elements, null);
     for (v.shape) |axis| sh = sh.appendDim(axis.extent, null);
     return sh;
@@ -249,6 +259,7 @@ pub fn until(
     g: *const graph.Graph,
     target: []const u8,
     elements: i64,
+    batch: i64,
     capacity: i64,
     compute: zml.DataType,
     /// Pack states whose law, access and payload agree into one buffer each. A serving
@@ -326,7 +337,7 @@ pub fn until(
                     const v = g.valueNamed(name) orelse return Error.UnknownValue;
                     index = publics.items.len;
                     try publics.append(a, name);
-                    try public_shapes.append(a, shapeOf(v, elements, publicDtype(try dtypes.of(v.dtype), compute)));
+                    try public_shapes.append(a, shapeOf(v, batch, elements, publicDtype(try dtypes.of(v.dtype), compute)));
                 }
                 try inputs.append(a, .{ .port = t.port, .source = .{ .public = index.? } });
             }
@@ -373,7 +384,7 @@ pub fn until(
                     for (states.items[i].components, 0..) |c, k| state_shapes.items[bases.items[i] + k] = c.shape;
                     try step_states.append(a, .{ .name = name, .instance = i, .base = bases.items[i], .member = member });
                 } else {
-                    const instance = try state_mod.instanceOf(a, st, capacity, compute);
+                    const instance = try state_mod.instanceOf(a, st, capacity, batch, compute);
                     const base = state_shapes.items.len;
                     for (instance.components) |c| try state_shapes.append(a, c.shape);
                     try step_states.append(a, .{ .name = name, .instance = states.items.len, .base = base, .member = 0 });
@@ -392,9 +403,10 @@ pub fn until(
             if (!std.mem.eql(u8, owner, node_id)) continue;
             try produced.put(a, v.value, .{ .step = steps.items.len, .out = outputs.items.len });
             try outputs.append(a, port);
-            try shapes.append(a, shapeOf(v, elements, compute));
+            try shapes.append(a, shapeOf(v, batch, elements, compute));
         }
 
+        const per_session = prim.needs_positions or step_states.items.len > 0;
         try steps.append(a, .{
             .node = node_id,
             .prim = prim,
@@ -410,6 +422,7 @@ pub fn until(
                 .{node.contract.name},
                 0,
             ),
+            .per_session = per_session,
         });
     }
 
@@ -428,6 +441,7 @@ pub fn until(
         .states = try states.toOwnedSlice(a),
         .state_shapes = try state_shapes.toOwnedSlice(a),
         .elements = elements,
+        .batch = batch,
         .result = .{ .value = .{ .step = result.step, .out = result.out } },
         .compute = compute,
     };
