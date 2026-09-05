@@ -11,6 +11,10 @@ import state as state_mod
 # copied whole once its source stream is complete — a cross-attention cache after the audio arrived.
 SHARING = ('by_position', 'by_source', 'within_span', 'at_fork_point')
 
+# The sessions one invocation may carry (the manifest's `sessions_per_invocation`, an integer the
+# schema bounds: batch-plan finding 1): what `Batch` enforces, on the packed layout (B03).
+SESSIONS_PER_INVOCATION = 16
+
 
 class Session:
     def __init__(self, model, capacity, device, dtype, decode_model=None):
@@ -26,10 +30,9 @@ class Session:
         self.states = state_mod.allocate(self.graph, capacity, device, dtype)
         self.consumed = {}
 
-    def run(self, inputs, dump=None):
-        """One invocation: every declared public input supplied (R08), positions
-        continuing per stream; the outputs wanted (the generative one, else every output) must
-        be evaluated by what was delivered, or the invocation is refused."""
+    def prepare(self, inputs):
+        """What an invocation delivers, checked (R08, §5.3): the outputs wanted (the generative one,
+        else every output), the advance of every stream and its positions, continuing per stream."""
         wanted = {self.graph.generative[0]} if self.graph.generative else set(self.graph.interfaces['outputs'])
         for n in self.graph.interfaces['inputs']:
             if n not in inputs:
@@ -58,9 +61,10 @@ class Session:
         for stream, n in advance.items():
             start = self.consumed.get(stream, 0)
             positions[stream] = torch.arange(start, start + n, device=self.device)
-        one = all(t.shape[0] == 1 for t in inputs.values())
-        runner = self.decode_model if (self.decode_model is not None and one and dump is None) else self.model
-        outputs = runner(inputs, positions, self.states, dump)
+        return wanted, advance, positions
+
+    def finish(self, inputs, wanted, advance, outputs):
+        """After the invocation: the streams advanced, the wanted outputs there."""
         for stream, n in advance.items():
             self.consumed[stream] = self.consumed.get(stream, 0) + n
         missing = sorted(wanted - set(outputs))
@@ -68,25 +72,36 @@ class Session:
             raise state_mod.Refusal(f"outputs {missing} are not evaluated by the inputs {sorted(inputs)} delivered (§7)")
         return outputs
 
+    def run(self, inputs, dump=None):
+        """One invocation: every declared public input supplied (R08), positions
+        continuing per stream; the outputs wanted (the generative one, else every output) must
+        be evaluated by what was delivered, or the invocation is refused."""
+        wanted, advance, positions = self.prepare(inputs)
+        one = all(t.shape[0] == 1 for t in inputs.values())
+        runner = self.decode_model if (self.decode_model is not None and one and dump is None) else self.model
+        outputs = runner(inputs, positions, self.states, dump)
+        return self.finish(inputs, wanted, advance, outputs)
+
+    def delivered(self, ids, inputs=None):
+        """The prompt, or the element fed back, on the token input, with whatever else `inputs`
+        delivers; floating inputs taken to the compute dtype."""
+        out = {self.graph.feedback_input: torch.as_tensor(ids, device=self.device, dtype=torch.long)}
+        for name, t in (inputs or {}).items():
+            out[name] = t.to(self.device, self.dtype) if t.is_floating_point() else t.to(self.device)
+        return out
+
     def prefill(self, ids, dump=None, inputs=None):
         """The supplied elements (§7): the prompt on the token input and, in the same invocation,
         whatever else `inputs` delivers (`{'audio': frames}`, element-major on the input's D2
         shape) — a source stream delivered whole is complete, and the states indexed by it are
         frozen from then on. Floating inputs are taken to the compute dtype."""
-        delivered = {self.graph.feedback_input: torch.as_tensor(ids, device=self.device, dtype=torch.long)}
-        for name, t in (inputs or {}).items():
-            delivered[name] = t.to(self.device, self.dtype) if t.is_floating_point() else t.to(self.device)
-        return self.run(delivered, dump)
+        return self.run(self.delivered(ids, inputs), dump)
 
     def decode(self, next_id, dump=None, inputs=None):
         """The generated element fed back on the token input (§7) and, on a document whose token
         stream joins a fragmented one, the fragment that comes with it: `inputs` delivers it
         (`{'audio': frames}`, the next eight frames of a streaming transcription)."""
-        name = self.graph.feedback_input
-        delivered = {name: torch.tensor([next_id], device=self.device, dtype=torch.long)}
-        for k, t in (inputs or {}).items():
-            delivered[k] = t.to(self.device, self.dtype) if t.is_floating_point() else t.to(self.device)
-        return self.run(delivered, dump)
+        return self.run(self.delivered([next_id], inputs), dump)
 
     def reset(self):
         for s in self.states.values():
@@ -144,6 +159,53 @@ class Session:
             else:
                 raise state_mod.Refusal(f"{ident}: sharing {sharing} is not realised by this generator")
         return child
+
+
+class Batch:
+    """Several sessions evaluated in one invocation — the packed layout (B03): each session keeps
+    its own states and positions (its instance key, §4.4), the model's `step_batch` evaluates the
+    occurrences on the sessions' elements together where it may and per session where it must.
+    Every session delivers the same inputs (§7: one delivery pattern per invocation), and no more
+    than SESSIONS_PER_INVOCATION sessions ride together. Batching is invisible: what a session
+    gets is what it would get alone, up to the rounding of a product over more rows (B06, B07)."""
+
+    def __init__(self, sessions):
+        if not sessions:
+            raise state_mod.Refusal("a batch of no session")
+        if len(sessions) > SESSIONS_PER_INVOCATION:
+            raise state_mod.Refusal(f"{len(sessions)} sessions in one invocation: this generator carries {SESSIONS_PER_INVOCATION} at most")
+        first = sessions[0]
+        for s in sessions[1:]:
+            if s.model is not first.model:
+                raise state_mod.Refusal("a batch's sessions run one model")
+        self.sessions = list(sessions)
+        self.model = first.model
+        self.graph = first.graph
+
+    def run(self, inputs):
+        """One invocation for every session: `inputs` holds one delivery per session, all naming
+        the same public inputs; returns one output mapping per session."""
+        from module import step_batch
+        if len(inputs) != len(self.sessions):
+            raise state_mod.Refusal(f"{len(inputs)} deliveries for {len(self.sessions)} sessions")
+        names = [frozenset(i) for i in inputs]
+        for k, n in enumerate(names[1:], 1):
+            if n != names[0]:
+                raise state_mod.Refusal(f"session {k} delivers {sorted(n)} where session 0 delivers {sorted(names[0])}: "
+                                        f"a batch's sessions deliver the same inputs (§7)")
+        prepared = [s.prepare(i) for s, i in zip(self.sessions, inputs)]
+        outputs = step_batch(self.model, list(inputs), [p[2] for p in prepared], [s.states for s in self.sessions])
+        return [s.finish(i, p[0], p[1], o) for s, i, p, o in zip(self.sessions, inputs, prepared, outputs)]
+
+    def prefill(self, ids, inputs=None):
+        """One prompt per session (their lengths may differ: the layout is packed), and per session
+        whatever else `inputs` delivers."""
+        inputs = inputs or [None] * len(self.sessions)
+        return self.run([s.delivered(p, i) for s, p, i in zip(self.sessions, ids, inputs)])
+
+    def decode(self, next_ids, inputs=None):
+        inputs = inputs or [None] * len(self.sessions)
+        return self.run([s.delivered([n], i) for s, n, i in zip(self.sessions, next_ids, inputs)])
 
 
 def greedy(outputs, graph):

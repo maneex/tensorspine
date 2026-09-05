@@ -23,6 +23,7 @@ import torch.nn.functional as F
 from kernels._common import present, refuse_unknown, supports_from, w
 
 CONTRACT = ("sequence.gated_delta", "1.0.0")
+ACROSS_POSITIONS = True      # a recurrence over the positions: a batch evaluates it per session (B03)
 
 
 CAPABILITIES = {"arguments": {"width": "any", "key_heads": "any", "value_heads": "any", "head_dim": "any",

@@ -189,7 +189,8 @@ is held by an `append` state indexed by the port, so a decode step delivering no
 evaluated through the held condition (§7).
 
 Conventions: a value's tensor has the element axis first, then the port's axes in the contract's
-order; one sequence, no batch axis; parameters stay at their D3 dtype and are upcast per
+order; one session per invocation unless `--batch packed` puts several on the element axis
+(Batching, below); parameters stay at their D3 dtype and are upcast per
 operation (`--compute f32` on CPU, `bf16` on CUDA); `append` states are buffers of `--capacity`
 positions written at a cursor, and a kernel masks beyond the length. Positions are the stream's,
 scaled by the D2 `count` of the value a node works on (§5.3's merge, applied where the runtime
@@ -197,3 +198,32 @@ needs it): behind a strided front end, n frames make n/stride positions and ever
 receives those, integers because the delivery is aligned — an unaligned delivery is refused, never
 rounded. Each kernel's docstring lists
 the contract's branches it implements or refuses, and the conventions the contract leaves open.
+
+## Batching
+
+The language describes one session's invocation and leaves batching downstream (harness guide
+§8; load variables such as the batch size are out of the model document, Specification §2.1;
+every state port is keyed by session through its instance key, §4.4). This generator batches on
+the **packed** layout, an argument of the generator (`--batch packed`, one layout per invocation,
+never per occurrence): the sessions' elements are concatenated on the element axis — the
+language's own axis, its positions per element — and the runner decides from the topology which
+occurrences it may evaluate on that union and which it must evaluate per session: an occurrence
+whose kernel reads across positions of its stream (`ACROSS_POSITIONS`, declared by each kernel,
+since the derived document does not state the contract's `effects.across_positions` per
+occurrence), one that carries a state (per session by its instance key), or one that reads values
+of several streams (a broadcast from a per-session value) runs on each session's own elements and
+states; every other occurrence — embeddings, norms, feed-forwards, the head, the residual sums,
+the mixture's per-element routing — runs once for all the sessions and its rows are split back.
+The kernels are untouched: they stay the contracts' per-element implementations.
+
+`ref.py run MODEL … --ids 1,2,3 --ids 4,5 --batch packed` runs one session per prompt: prefilled
+together (their lengths may differ), then decoded together, greedily, each session's tokens on its
+own line. `session.Batch(sessions)` is the programmatic form (`prefill`, `decode`, `run`), over
+`Session`s that keep their own states and positions and may still `fork`. A batch's sessions must
+deliver the same inputs (§7: one delivery pattern per invocation), and at most
+`SESSIONS_PER_INVOCATION` (16, the manifest's `sessions_per_invocation`) ride together. Batching
+is invisible: a session gets what it would get alone, up to the rounding of a matrix product over
+more rows — the suite checks it on the tiny Llama and the tiny hybrid (append, window and fixed
+states, the mixture and the recurrence) and on the three-layer fixtures' checkpoints, a prompt
+and its first half prefilled and decoded as one batch against each alone. `--dump`, `--audio`,
+`--input` and `--stop` take one session.

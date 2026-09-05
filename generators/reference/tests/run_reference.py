@@ -43,7 +43,8 @@ import registry                  # noqa: E402
 from kernels import attention_dense  # noqa: E402
 from module import TensorspineModel  # noqa: E402
 from plan import Plan            # noqa: E402
-from session import Session, greedy  # noqa: E402
+from session import Batch, Session, greedy  # noqa: E402
+import session as session_mod        # noqa: E402
 from compare import compare, read_fixture, tolerance_for  # noqa: E402
 
 # `weights/` under the one runtime directory (`generators/zml/README.md` describes the
@@ -174,6 +175,7 @@ def main(compile_step=False, full=False):
     ok &= whisper_random_case(check, tmp)
     ok &= voxtral_random_case(check, tmp)
     ok &= sharing_case(check, tmp)
+    ok &= batch_case(check, tmp)
     ok &= m1(check)
     ok &= composite_case(check)
     ok &= by_source_case(check)
@@ -549,6 +551,74 @@ def voxtral_random_case(check, tmp):
     return ok
 
 
+def batch_case(check, tmp):
+    """B06 (batch-plan): a batch of sessions equals the same sessions run alone, on the tiny Llama
+    (append) and the tiny hybrid (append, window, fixed; the mixture and the recurrence): two prompts
+    of different lengths prefilled as one packed batch and decoded together twice, against each
+    prompt alone — logits within f32 rounding across row counts, the same greedy tokens, every
+    state's length its own; the split the runner made from the topology is the expected one; a
+    batch delivering different inputs, and one over the bound, are refused."""
+    ok = True
+    kernels = registry.load_kernels()
+    A, B = [1, 2, 3, 4, 5, 6, 7, 8], [9, 10, 11]
+    for label, source, edits, seed, per_expected in (
+            ('tiny llama', 'llama3-8b.json', TINY, 1, {'decoder/attn'}),
+            ('tiny hybrid', 'qwen3.5-35b-a3b.json', TINY_MOE, 5, {'decoder/attn', 'decoder/gdn', 'splice'})):
+        if edits is TINY_MOE:
+            path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', source), 'decoder.layer=4', tmp)
+            path, _ = graph_mod.edited(path, edits, tmp, 'tiny-batch')
+        else:
+            path, _ = graph_mod.edited(os.path.join(ROOT, 'data', 'models', source), edits, tmp, 'tiny-batch')
+        g = graph_mod.load(path)
+        params = loader.random_parameters(g, 'cpu', seed=seed)
+        model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+        active = model.plan.evaluable({g.feedback_input})          # the text delivery (§7): the vision tower stays out
+        per = {n.split('[')[0] for n, v in model.per_session.items() if v and n in active}
+        ok &= check(f"batch ({label}): on the text delivery, the occurrences evaluated per session are those reading across positions or holding a state — {sorted(per)}",
+                    per == per_expected, str(sorted(per)))
+
+        def session():
+            return Session(model, 64, 'cpu', torch.float32)
+        alone = []
+        for prompt in (A, B):
+            s = session()
+            logits = [s.prefill(prompt)[g.generative[0]].clone()]
+            tokens = [greedy({g.generative[0]: logits[-1]}, g)]
+            for _ in range(2):
+                logits.append(s.decode(tokens[-1])[g.generative[0]].clone())
+                tokens.append(greedy({g.generative[0]: logits[-1]}, g))
+            alone.append((logits, tokens, {i: st.length for i, st in s.states.items()}))
+        batch = Batch([session(), session()])
+        outs = batch.prefill([A, B])
+        logits = [[o[g.generative[0]].clone()] for o in outs]
+        nxt = [greedy(o, g) for o in outs]
+        tokens = [[n] for n in nxt]
+        for _ in range(2):
+            outs = batch.decode(nxt)
+            nxt = [greedy(o, g) for o in outs]
+            for k, o in enumerate(outs):
+                logits[k].append(o[g.generative[0]].clone())
+                tokens[k].append(nxt[k])
+        worst = max(float((x - y).abs().max()) for k in range(2) for x, y in zip(logits[k], alone[k][0]))
+        ok &= check(f"batch ({label}): two prompts of {len(A)} and {len(B)} tokens prefilled and decoded as one packed batch give each session's own "
+                    f"logits (max |d| {worst:.1e}, f32 rounding across row counts) and tokens",
+                    all(torch.allclose(x, y, atol=1e-5, rtol=1e-4) for k in range(2) for x, y in zip(logits[k], alone[k][0]))
+                    and [t for t in tokens] == [a[1] for a in alone], f"batched {tokens}, alone {[a[1] for a in alone]}")
+        ok &= check(f"batch ({label}): every state's length is its session's own",
+                    all({i: st.length for i, st in s.states.items()} == a[2] for s, a in zip(batch.sessions, alone)))
+    try:
+        Batch([session(), session()]).run([{g.feedback_input: torch.tensor([1])}, {}])
+        ok &= check("batch: sessions delivering different inputs are refused", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("batch: sessions delivering different inputs are refused", 'same inputs' in str(e), str(e)[:120])
+    try:
+        Batch([session() for _ in range(session_mod.SESSIONS_PER_INVOCATION + 1)])
+        ok &= check("batch: more sessions than the manifest's bound are refused", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("batch: more sessions than the manifest's bound are refused", 'at most' in str(e), str(e)[:120])
+    return ok
+
+
 def m1(check):
     ok = True
     for entry in FIXTURES:
@@ -674,6 +744,35 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
         ok &= check(f"{label}: the prefill replayed as {len(ids)} fragments of {per} gives the same logits and states — "
                     f"max |d| {d_logits:.1e} on the logits, {d_states:.1e} on the states (f32 rounding across row counts)",
                     torch.allclose(got, primary, atol=1e-3, rtol=1e-3) and d_states < 1e-3)
+    if not encoder and step_inputs(0) is None:
+        # B06 on the checkpoint: the fixture's prompt and its first half as one packed batch, decoded
+        # together for the fixture's steps — the first session against the fixture's own record, the
+        # second against its run alone
+        half = ids[:max(1, len(ids) // 2)]
+        alone = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
+        a_logits = [alone.prefill(half)[g.generative[0]].clone()]
+        a_tokens = [greedy({g.generative[0]: a_logits[-1]}, g)]
+        for _ in range(len(header['tokens']) - 1):
+            a_logits.append(alone.decode(a_tokens[-1])[g.generative[0]].clone())
+            a_tokens.append(greedy({g.generative[0]: a_logits[-1]}, g))
+        batch = Batch([Session(model, capacity=capacity, device='cpu', dtype=torch.float32) for _ in range(2)])
+        outs = batch.prefill([ids, half])
+        b_logits = [[o[g.generative[0]].clone()] for o in outs]
+        nxt = [greedy(o, g) for o in outs]
+        b_tokens = [[n] for n in nxt]
+        for _ in range(len(header['tokens']) - 1):
+            outs = batch.decode(nxt)
+            nxt = [greedy(o, g) for o in outs]
+            for k, o in enumerate(outs):
+                b_logits[k].append(o[g.generative[0]].clone())
+                b_tokens[k].append(nxt[k])
+        d0 = float((b_logits[0][0] - primary).abs().max())
+        d1 = max(float((x - y).abs().max()) for x, y in zip(b_logits[1], a_logits))
+        ok &= check(f"{label}: the prompt and its first {len(half)} tokens as one packed batch, decoded together, give each session its own "
+                    f"logits and tokens (max |d| {d0:.1e} against the fixture's run, {d1:.1e} against the half alone)",
+                    torch.allclose(b_logits[0][0], primary, atol=1e-3, rtol=1e-3) and b_tokens[0] == tokens
+                    and all(torch.allclose(x, y, atol=1e-3, rtol=1e-3) for x, y in zip(b_logits[1], a_logits)) and b_tokens[1] == a_tokens,
+                    f"batched {b_tokens}, fixture {tokens}, half alone {a_tokens}")
     # the same fixture in blocks: identical logits and tokens, and the traffic is the model (M4)
     resident = loader.state_bytes(g, capacity, torch.float32) + loader.largest_temporary(g, torch.float32)
     finest = max(b.bytes + b.payload_bytes_per_element * 64 for b in Plan(g, kernels).minimal)

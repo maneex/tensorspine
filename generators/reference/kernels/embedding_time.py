@@ -14,6 +14,7 @@ import torch
 from kernels._common import supports_from
 
 CONTRACT = ("embedding.time", "1.0.0")
+ACROSS_POSITIONS = False     # per element: a batch may evaluate it on several sessions' elements at once (B03)
 
 
 CAPABILITIES = {"arguments": {"width": "any", "theta": "any"}, "states": []}

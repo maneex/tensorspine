@@ -8,6 +8,7 @@
 from kernels._common import refuse_unknown, supports_from
 
 CONTRACT = ("splice", "1.0.0")
+ACROSS_POSITIONS = True      # places the source's elements among the text's: a batch evaluates it per session (B03)
 
 
 class Unplaced(Exception):

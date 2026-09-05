@@ -5,6 +5,8 @@
     ref.py verify  MODEL --checkpoint DIR                    V17 against the file headers; nothing is read
     ref.py run     MODEL --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--compile]
     ref.py run     MODEL --random [--seed N] …               parameters drawn from the D3 shapes
+    ref.py run     MODEL … --ids 1,2,3 --ids 4,5 --batch packed   several prompts as one batch of sessions (the packed layout: their
+                                                             elements share the element axis, each session its own states and positions)
     ref.py run     MODEL … --input audio=FIXTURE[:in/audio]  a safetensors tensor delivered to a non-token input with the prompt
     ref.py run     MODEL --checkpoint DIR --audio WAV --ids … [--stop]   a WAV through the checkpoint's own feature extractor, into the
                                                              document's audio input; --stop ends decoding at the artifact's end-of-text;
@@ -38,7 +40,8 @@ from chat import load_tokenizer, stop_ids  # noqa: E402
 from compare import read_fixture, read_dump, tolerance_for, write_dump  # noqa: E402
 from module import TensorspineModel  # noqa: E402
 from plan import Plan          # noqa: E402
-from session import Session, greedy  # noqa: E402
+from session import Batch, Session, greedy  # noqa: E402
+import session as session_mod  # noqa: E402
 
 COMPUTE = {'f32': torch.float32, 'bf16': torch.bfloat16, 'f16': torch.float16}
 
@@ -149,6 +152,10 @@ def common(p):
     p.add_argument('--compute', default=None, help='f32 (CPU default) | bf16 (CUDA default)')
     p.add_argument('--physical', metavar='FILE', help='opaque parameters for the primitives (generators/CAPABILITIES.md): '
                    'a JSON object keyed by occurrence, by site pattern with * as the wildcard (decoder/attn[layer=*]) or by contract version')
+    p.add_argument('--batch', default='none', choices=['none', 'packed'],
+                   help="the layout several sessions share an invocation in: none (one session, default); packed — the sessions' "
+                        "elements concatenated on the element axis, an occurrence reading across positions or holding a state "
+                        "evaluated per session, the others once for all (generators/reference/README.md, Batching)")
     p.add_argument('--max-ram', type=float, default=None, metavar='GIB',
                    help='run in blocks of layers at legal cuts so that the parameters held at once, the '
                         'payload crossing into a block, the states and the largest temporary stay under this bound')
@@ -340,7 +347,7 @@ def manifest():
             'domains': {'kinds': ['sequence', 'token', 'position', 'patch'],
                         'transforms': sorted({t for k in kernels.values() for t in k.CAPABILITIES.get('transforms', [])}),
                         'fragmented': True},
-            'sessions_per_invocation': 1,
+            'sessions_per_invocation': session_mod.SESSIONS_PER_INVOCATION,     # the packed layout (B03); what Batch enforces
             'locations': list(loader.FORMS),
             'contracts': contracts}
 
@@ -378,7 +385,14 @@ def cmd_run(args):
     dtype = compute_dtype(args)
     kernels = registry.load_kernels()
     extra = load_inputs(args.input, args.device, dtype)
-    ids = [int(x) for x in args.ids.split(',')] if args.ids else None
+    prompts = [[int(x) for x in text.split(',')] for text in args.ids] if args.ids else []
+    if len(prompts) > 1 and args.batch == 'none':
+        print(f"refused: {len(prompts)} prompts are several sessions; --batch packed runs them as one batch")
+        return 1
+    if args.batch != 'none' and (args.dump or args.audio or args.input or args.stop):
+        print("refused: a batch takes token prompts alone — no --dump, --audio, --input or --stop")
+        return 1
+    ids = prompts[0] if prompts else None
     fragments = None                              # the frames each decode step delivers, on a joined token stream
     if args.audio:
         if not args.checkpoint:
@@ -436,6 +450,8 @@ def cmd_run(args):
     print(f"{g.model}: {len(plan.steps)} steps, {len(g.tensors)} tensors, {len(session.states)} states, "
           f"{'random parameters' if args.random else 'loaded from ' + args.checkpoint}, "
           f"{loader.gib(i['parameter_bytes'])}, {i['mode']} ({time.time() - t0:.1f}s)")
+    if args.batch != 'none':
+        return run_batch(args, g, model, prompts or [[1]], dtype)
 
     dump = {} if args.dump else None
     t0 = time.time()
@@ -496,6 +512,42 @@ def cmd_run(args):
     return 0
 
 
+def run_batch(args, g, model, prompts, dtype):
+    """Several prompts as one batch of sessions (the packed layout, B03): one session each, prefilled
+    together — their lengths may differ — then decoded together, greedily, for --steps; an encoder
+    runs its one invocation for all. Each session's tokens are printed on its own line."""
+    per = sum(model.per_session.values())
+    print(f"  batch: {len(prompts)} sessions, {args.batch} layout — {per} occurrences evaluated per session, "
+          f"{len(model.per_session) - per} on the sessions' elements together")
+    sessions = [Session(model, args.capacity, args.device, dtype) for _ in prompts]
+    batch = Batch(sessions)
+    t0 = time.time()
+    if g.generative is None:
+        outs = batch.run([{g.token_input: torch.as_tensor(p, device=args.device, dtype=torch.long)} for p in prompts])
+        for k, out in enumerate(outs):
+            for oname, t in out.items():
+                print(f"  session {k} {oname}: {list(t.shape)}, mean norm {float(t.float().norm(dim=-1).mean()):.6f}")
+        print(f"  ({time.time() - t0:.1f}s)")
+        return 0
+    outs = batch.prefill(prompts)
+    nxt = [greedy(o, g) for o in outs]
+    tokens = [[n] for n in nxt]
+    print(f"  prefill {[len(p) for p in prompts]} elements -> next {nxt} ({time.time() - t0:.1f}s)")
+    for _ in range(args.steps):
+        t0 = time.time()
+        outs = batch.decode(nxt)
+        nxt = [greedy(o, g) for o in outs]
+        for t, n in zip(tokens, nxt):
+            t.append(n)
+        print(f"  decode -> {nxt} ({time.time() - t0:.2f}s)")
+    tokenizer = artifact_tokenizer(args.checkpoint) if args.checkpoint else None
+    for k, t in enumerate(tokens):
+        print(f"tokens[{k}]:", t)
+        if tokenizer is not None:
+            print(f"text[{k}]:", repr(tokenizer.decode(t, skip_special_tokens=True)))
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='command', required=True)
@@ -519,7 +571,7 @@ def main(argv=None):
     p.add_argument('--random', action='store_true', help='parameters drawn from the D3 shapes, no checkpoint')
     p.add_argument('--checkpoint', metavar='DIR', help='the safetensors checkpoint the document locates its weights in')
     p.add_argument('--seed', type=int, default=0)
-    p.add_argument('--ids', help='comma-separated token ids of the prompt')
+    p.add_argument('--ids', action='append', help='comma-separated token ids of the prompt; repeated, one session per prompt, under --batch')
     p.add_argument('--input', action='append', default=[], metavar='NAME=FILE[:KEY]',
                    help='a safetensors tensor delivered to the public input NAME with the prompt (audio=FIXTURE:in/audio); '
                         'KEY defaults to in/NAME, else the only tensor of the file')

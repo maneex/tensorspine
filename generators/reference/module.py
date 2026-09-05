@@ -69,6 +69,28 @@ def physical_for(physical, node, contract):
     return out or None
 
 
+def node_streams(graph, node):
+    """The streams of the values feeding the node (D2), a public input's included."""
+    streams = set()
+    for (n, _port), vname in graph.sources.items():
+        if n == node:
+            streams.add(graph.values[vname]['domain']['stream'])
+    for (n, _port), name in graph.fed_by_input.items():
+        if n == node:
+            streams.add(graph.input_values[name]['domain']['stream'])
+    return streams
+
+
+def evaluated_per_session(graph, step):
+    """Whether a batch evaluates the occurrence per session (B03): its kernel reads across
+    positions of its stream (`ACROSS_POSITIONS`, the contract's `effects.across_positions` as the
+    kernel knows it — the derived document does not state it per occurrence), it carries a state
+    (per session by its instance key, §4.4), or it reads values of several streams (a broadcast
+    from a per-session value); an undeclared kernel is taken to read across positions."""
+    across = getattr(step.kernel, 'ACROSS_POSITIONS', True) if step.kernel is not None else True
+    return bool(across or step.states or len(node_streams(graph, step.node)) > 1)
+
+
 class TensorspineModel(nn.Module):
     def __init__(self, graph, plan, params=None, compute_dtype=torch.float32, device='cpu', source=None, physical=None):
         """`params`: every identity resident (one block). `source(identity) -> tensor` on the
@@ -85,6 +107,7 @@ class TensorspineModel(nn.Module):
         self.static = False        # masked attention over the whole capacity (compiled form)
         self.loaded_blocks = 0     # blocks materialised so far (the traffic, in blocks)
         self.physical = {s.node: physical_for(physical, s.node, s.contract) for s in plan.steps}
+        self.per_session = {s.node: evaluated_per_session(graph, s) for s in plan.steps}   # a batch's split (B03)
 
     def block_params(self, block):
         if self.source is None:
@@ -99,6 +122,51 @@ class TensorspineModel(nn.Module):
 
     def forward(self, inputs, positions, states, dump=None):
         return step(self, inputs, positions, states, dump)
+
+
+def feed(model, s, inputs, values):
+    """The tensors on a step's input ports: a delivered input, an evaluated value, or — nothing
+    delivered — an empty value on its D2 shape."""
+    graph = model.graph
+    ins = {}
+    for port, (kind, ref) in s.inputs.items():
+        if kind == 'input' and ref in inputs:
+            ins[port] = inputs[ref]
+        elif kind == 'value' and ref in values:
+            ins[port] = values[ref]
+        else:
+            shape = [a['extent'] for a in (graph.values.get(ref) or graph.input_values.get(ref) or {}).get('shape', [])]
+            ins[port] = torch.empty((0, *shape), dtype=model.compute, device=model.device)
+    return ins
+
+
+def evaluate(model, s, ctx, ins, params, sts, stream_positions):
+    """One occurrence: the kernel on its inputs, parameters and states, at its positions (the
+    stream's, scaled by its D2 count, §5.3); every output checked against its D2 shape."""
+    ctx.positions = scaled(stream_positions, s.factor)
+    n = None if stream_positions is None else stream_positions.shape[0]
+    rows = {} if n is None else {port: elements(n, s.counts[port]) for port in s.outputs}   # refused before the kernel runs
+    outs = s.kernel.run(ctx, s.arguments, ins, params, sts, model.physical.get(s.node))
+    for port, t in outs.items():
+        if model.check and port in s.outputs:
+            expect = [a['extent'] for a in s.outputs[port]['shape']]
+            if list(t.shape[1:]) != expect or (port in rows and t.shape[0] != rows[port]):
+                raise ShapeError(f"{s.node}.{port}: D2 says {expect} per element for {rows.get(port)} elements, got {list(t.shape)}")
+    return outs
+
+
+def consume(plan, s, values, remaining, needed):
+    """A value read by its last consumer is released, unless it is exposed."""
+    for port, (kind, ref) in s.inputs.items():
+        if kind == 'value' and ref in values:
+            remaining[ref] -= 1
+            if remaining[ref] == 0 and ref not in needed:
+                del values[ref]
+
+
+def exposed(graph, values):
+    return {name: values[f"{o['node']}.{o['port']}"] for name, o in graph.interfaces['outputs'].items()
+            if f"{o['node']}.{o['port']}" in values}
 
 
 def step(model, inputs, positions, states, dump=None):
@@ -117,36 +185,73 @@ def step(model, inputs, positions, states, dump=None):
                 continue
             if s.kernel is None:
                 raise ShapeError(f"{s.node}: no kernel for {s.contract['name']}@{s.contract['version']}, yet evaluated")
-            ins = {}
-            for port, (kind, ref) in s.inputs.items():
-                if kind == 'input' and ref in inputs:
-                    ins[port] = inputs[ref]
-                elif kind == 'value' and ref in values:
-                    ins[port] = values[ref]
-                else:                                       # nothing delivered: an empty value
-                    shape = [a['extent'] for a in (graph.values.get(ref) or graph.input_values.get(ref) or {}).get('shape', [])]
-                    ins[port] = torch.empty((0, *shape), dtype=model.compute, device=model.device)
+            ins = feed(model, s, inputs, values)
             params = {slot: block_params[ident] for slot, ident in s.params.items()}
             sts = {name: states[ident] for name, ident in s.states.items()}
-            stream_positions = positions.get(s.stream) if s.stream else None
-            ctx.positions = scaled(stream_positions, s.factor)
-            n = None if stream_positions is None else stream_positions.shape[0]
-            rows = {} if n is None else {port: elements(n, s.counts[port]) for port in s.outputs}   # refused before the kernel runs
-            outs = s.kernel.run(ctx, s.arguments, ins, params, sts, model.physical.get(s.node))
+            outs = evaluate(model, s, ctx, ins, params, sts, positions.get(s.stream) if s.stream else None)
             for port, t in outs.items():
                 vname = f"{s.node}.{port}"
-                if model.check and port in s.outputs:
-                    expect = [a['extent'] for a in s.outputs[port]['shape']]
-                    if list(t.shape[1:]) != expect or (port in rows and t.shape[0] != rows[port]):
-                        raise ShapeError(f"{vname}: D2 says {expect} per element for {rows.get(port)} elements, got {list(t.shape)}")
                 values[vname] = t
                 if dump is not None and vname in plan.dump_values:
                     dump[f"value/{vname}"] = t.detach().to('cpu', torch.float32).clone()
-            for port, (kind, ref) in s.inputs.items():
-                if kind == 'value' and ref in values:
-                    remaining[ref] -= 1
-                    if remaining[ref] == 0 and ref not in needed:
-                        del values[ref]
+            consume(plan, s, values, remaining, needed)
         model.release(block, block_params)
-    return {name: values[f"{o['node']}.{o['port']}"] for name, o in graph.interfaces['outputs'].items()
-            if f"{o['node']}.{o['port']}" in values}
+    return exposed(graph, values)
+
+
+def step_batch(model, inputs, positions, states):
+    """One invocation for several sessions — the packed layout (B03): `inputs`, `positions` and
+    `states` hold one entry per session. An occurrence the model evaluates per session
+    (`per_session`: its kernel reads across positions, it carries a state, or it reads several
+    streams) runs on each session's elements and states in turn; every other occurrence runs once
+    on the sessions' elements concatenated along the element axis — the language's own axis, its
+    positions per element — and its outputs are split back by each session's rows. A session gets
+    what it would get alone, up to the rounding of a matrix product over more rows. The sessions
+    must evaluate the same occurrences (§7: one delivery pattern per invocation)."""
+    k = len(inputs)
+    if k == 1:
+        return [step(model, inputs[0], positions[0], states[0])]
+    plan, graph = model.plan, model.graph
+    needed = {f"{o['node']}.{o['port']}" for o in graph.interfaces['outputs'].values()}
+    actives = [plan.evaluable(set(i), st) for i, st in zip(inputs, states)]
+    for i, a in enumerate(actives[1:], 1):
+        if a != actives[0]:
+            raise ShapeError(f"a batch's sessions evaluate different occurrences (§7): session {i} differs on "
+                             f"{sorted(a ^ actives[0])[:3]}")
+    active = actives[0]
+    values = [{} for _ in range(k)]
+    remaining = [dict(plan.remaining) for _ in range(k)]
+    ctx = Ctx(model.compute, model.device, False)
+    for block in plan.blocks:
+        block_params = model.block_params(block)
+        model.loaded_blocks += 1
+        for si in block.steps:
+            s = plan.steps[si]
+            if s.node not in active:
+                continue
+            if s.kernel is None:
+                raise ShapeError(f"{s.node}: no kernel for {s.contract['name']}@{s.contract['version']}, yet evaluated")
+            params = {slot: block_params[ident] for slot, ident in s.params.items()}
+            per = [feed(model, s, inputs[i], values[i]) for i in range(k)]
+            spos = [positions[i].get(s.stream) if s.stream else None for i in range(k)]
+            if model.per_session[s.node]:
+                outs = [evaluate(model, s, ctx, per[i], params, {name: states[i][ident] for name, ident in s.states.items()}, spos[i])
+                        for i in range(k)]
+            else:
+                first = next(iter(per[0]), None)
+                rows = [per[i][first].shape[0] if first is not None else 0 for i in range(k)]
+                joint = {port: torch.cat([per[i][port] for i in range(k)], dim=0) for port in per[0]}
+                jpos = None if spos[0] is None else torch.cat(spos)
+                out = evaluate(model, s, ctx, joint, params, {}, jpos)
+                outs = [{} for _ in range(k)]
+                for port, t in out.items():
+                    if t.shape[0] != sum(rows):
+                        raise ShapeError(f"{s.node}.{port}: {t.shape[0]} rows for {rows} per session — not a per-element occurrence")
+                    for i, part in enumerate(torch.split(t, rows, dim=0)):
+                        outs[i][port] = part
+            for i in range(k):
+                for port, t in outs[i].items():
+                    values[i][f"{s.node}.{port}"] = t
+                consume(plan, s, values[i], remaining[i], needed)
+        model.release(block, block_params)
+    return [exposed(graph, values[i]) for i in range(k)]

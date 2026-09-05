@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from kernels._common import supports_from, w
 
 CONTRACT = ("projector.temporal_stack", "1.0.0")
+ACROSS_POSITIONS = True      # stacks consecutive positions: a batch evaluates it per session (B03)
 
 
 CAPABILITIES = {"arguments": {"width": "any", "source_width": "any", "merge_count": "any", "activation": ["gelu"]},

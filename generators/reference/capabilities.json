@@ -3,9 +3,9 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "e503d9d",
+    "version": "4a8a6c9",
     "generator": "generators/reference/ref.py capabilities",
-    "generated": "2026-09-03"
+    "generated": "2026-09-05"
   },
   "compute_dtypes": [
     "f32",
@@ -47,7 +47,7 @@
     ],
     "fragmented": true
   },
-  "sessions_per_invocation": 1,
+  "sessions_per_invocation": 16,
   "locations": [
     "tensor",
     "stack",
