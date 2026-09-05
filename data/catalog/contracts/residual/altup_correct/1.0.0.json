@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "AltUp correction: updates every stream from the computed active stream and rescales it.",
-    "description": "Given the predicted streams and the layer's output on the active one, `correction` (`streams × streams`) propagates the difference to every stream; `correct_scale` rescales the active output. Computation: the router of the layer's output, as in `altup_predict`, gives one coefficient per stream, plus one; the innovation `activated − predicted active` times each stream's coefficient is added to the predictions; `active` is the corrected active stream multiplied channel-wise by `correct_scale`, while `streams` keeps it unscaled.",
+    "description": "Given the predicted streams and the layer's output on the active one, `correction` (`streams × streams`) propagates the difference to every stream; `correct_scale` rescales the active output. Computation: the router of the layer's output, as in `altup_predict`, gives one coefficient per stream, plus one; the innovation `activated − predicted active` times each stream's coefficient is added to the predictions; `active` is the corrected active stream multiplied channel-wise by `correct_scale`, while `streams` keeps it unscaled. The coefficients come from the same router as `altup_predict`'s (`router` after `router_norm`, tied between the two occurrences of a layer): the layer's output is routed as the input was.",
     "tags": [
       "parallel-residual"
     ],
@@ -33,6 +33,14 @@
         "required": true,
         "structural": true,
         "description": "Number of parallel residual streams."
+      },
+      "eps": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "structural": false,
+        "description": "Epsilon of the router's normalization (`router_norm`, `altup_predict`'s)."
       }
     },
     "ports": {
@@ -146,6 +154,60 @@
       }
     },
     "parameters": {
+      "router": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "residual.stream"
+          ],
+          "note": "one router per layer, read by altup_predict and altup_correct alike"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "altup",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "streams"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Router projection producing the mixing coefficients — `altup_predict`'s, tied."
+      },
+      "router_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "norm.scale"
+          ],
+          "note": "the router's normalization, shared with altup_correct"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Scale of the router's input normalization — `altup_predict`'s, tied."
+      },
       "correction": {
         "role": "residual.stream",
         "sharing": {

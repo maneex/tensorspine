@@ -46,6 +46,14 @@
         "required": true,
         "structural": true,
         "description": "Size of the per-layer table's vocabulary."
+      },
+      "eps": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "structural": false,
+        "description": "Epsilon of `per_layer_projection_norm`."
       }
     },
     "ports": {

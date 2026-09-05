@@ -17,10 +17,10 @@
   "residual.stream_expand": 1,
   "residual.stream_inject": 30
  },
- "wl": "19d1cef34e9923b3",
- "parameter_slots": 698,
+ "wl": "8498cfb31255193b",
+ "parameter_slots": 758,
  "tensors": 697,
- "shared": 1,
+ "shared": 61,
  "state_slots": 30,
  "state_identities": 20,
  "instance_keys": {

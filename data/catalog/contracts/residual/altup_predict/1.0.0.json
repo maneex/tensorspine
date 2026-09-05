@@ -33,6 +33,14 @@
         "required": true,
         "structural": true,
         "description": "Number of parallel residual streams."
+      },
+      "eps": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "structural": false,
+        "description": "Epsilon of the router's normalization (`router_norm`)."
       }
     },
     "ports": {
@@ -162,7 +170,11 @@
       "router": {
         "role": "residual.stream",
         "sharing": {
-          "kind": "exclusive"
+          "kind": "shareable",
+          "roles": [
+            "residual.stream"
+          ],
+          "note": "one router per layer, read by altup_predict and altup_correct alike"
         },
         "shape": {
           "axes": [
@@ -189,7 +201,11 @@
       "router_norm": {
         "role": "norm.scale",
         "sharing": {
-          "kind": "exclusive"
+          "kind": "shareable",
+          "roles": [
+            "norm.scale"
+          ],
+          "note": "the router's normalization, shared with altup_correct"
         },
         "shape": {
           "axes": [

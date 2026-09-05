@@ -170,6 +170,9 @@
         },
         "per_layer_vocabulary": {
           "quantity": "per_layer_vocab"
+        },
+        "eps": {
+          "quantity": "eps"
         }
       },
       "families": [
@@ -283,6 +286,9 @@
             },
             "streams": {
               "quantity": "altup_inputs"
+            },
+            "eps": {
+              "quantity": "eps"
             }
           },
           "families": [
@@ -610,6 +616,9 @@
             },
             "streams": {
               "quantity": "altup_inputs"
+            },
+            "eps": {
+              "quantity": "eps"
             }
           },
           "families": [
@@ -1121,6 +1130,10 @@
               {
                 "site": "predict",
                 "parameter": "router"
+              },
+              {
+                "site": "correct",
+                "parameter": "router"
               }
             ],
             "dtype": {
@@ -1131,6 +1144,10 @@
             "members": [
               {
                 "site": "predict",
+                "parameter": "router_norm"
+              },
+              {
+                "site": "correct",
                 "parameter": "router_norm"
               }
             ],
