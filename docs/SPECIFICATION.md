@@ -356,6 +356,7 @@ For each state port, the contract declares:
 | **Permitted operations** | O5.4 | The effects the state admits: read, append, evict, write. |
 | **Modulators** | O5.8 | Span and stride, expressions over the arguments. |
 | **Carrying** | §5.3 | A condition over the arguments under which the state survives between the invocations that deliver successive fragments of its stream (`carried_across`); declared once per state port, not per rule. A state indexed by a source stream is frozen once that stream is complete, by definition. |
+| **Writing** | O5.4 | A condition over the arguments under which the occurrence writes the port (`written_when`); absent, it always does. Among the members of a state identity exactly one writes (V20); the others read the storage the writer fills — cross-layer key/value sharing is this and nothing else. |
 
 The condition language is closed and decidable (O0.6): presence tests, comparisons of expressions,
 negation, conjunction, disjunction, and the constants. An argument that may be absent — optional,
@@ -388,7 +389,7 @@ the graph values live across a cut and determines that cut's logical payload.
 
 | Element | Reference | Authority |
 |---|---|---|
-| **Instance key** | O5.5 | **Derived:** the identity's indices × the contract's `key_axes` (session, branch). Sharing is declared by listing several members under one identity, never by a relation over keys. |
+| **Instance key** | O5.5 | **Derived:** the identity's indices × the contract's `key_axes` (session, branch). Sharing is declared by listing several members under one identity, never by a relation over keys; exactly one member writes an identity instance — the one whose port's `written_when` holds — and the others read it (V20). |
 | **Liveness law** | O5.5 | **Derived:** one class per distinct instance key. How many classes are active at once is deployment intent (§10.3): the model fixes the class structure, never the count, and never the raw product of dimensions. |
 | **Visit rate** | O3.2 | **Derived** per indexing domain and phase (§7), from the value graph, the generative outputs (§2.3) and the fragmentation of inputs (§5.3). Visits size computation; liveness sizes memory. Counts — tokens per request, fragments per stream — are deployment intent. |
 | **Cardinality** | O5.7 | The model: any finite number of states with distinct natures, with no language-defined upper bound. |
@@ -610,6 +611,7 @@ implicit default.
 | **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat. A document that locates its weights instantiates only templates that locate their identities, and gives each instance a `weights_location_prefix` (`[]` is one); a prefix locates the instance's tensors, so a document carrying one locates its weights and every other identity needs its location; a template instance without a prefix in a document that locates its weights, a prefix on an instance of an unlocated template, or on an occurrence that is not a template instance, is a rejection; the prefixed names of an instance are bound once like every other, so two instances under one prefix collide. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
 | **V18** | An occurrence whose contract reads across positions (§4.1), on a fragmented stream, carries a state across the fragments of that stream (§5.3). |
 | **V19** | A public input that joins a stream joins it at a kind the stream carries independently of the input: a value in that domain that does not descend from it (§2.3, §5.3). |
+| **V20** | A state identity instance has exactly one writer among its present members: the member whose port's `written_when` holds, or every member when the port declares none. |
 
 ## §7 — Required derived products
 
@@ -642,7 +644,7 @@ code or human knowledge of a named mechanism:
 | **D1** | **Expanded graph:** occurrences, edges, and families; per occurrence, whether its contract reads across positions (§4.1). |
 | **D2** | **Values:** the value and shape inventory; the payload of every legal cut — the values live at it, sized per invocation; the peak of live values along one order of the graph, the activation peak of an invocation; and the fragment alignment of every fragmented stream (§5.3). |
 | **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor; when the document locates its weights, the evaluated location of every tensor. |
-| **D4** | **Complete state:** descriptors, instances, keys, state liveness, visits per phase, and permitted operations. |
+| **D4** | **Complete state:** descriptors, instances, keys, the writer of each identity instance, state liveness, visits per phase, and permitted operations. |
 | **D5** | **Logical costs:** parameters, activations, state per element, computation — derived from the inventory and the declared corrections (§4.1) — and the payload crossing each legal cut per invocation. |
 | **D6** | **Legal cuts and semantic partition axes:** the legal cuts of the expanded graph, and for every occurrence the partitions its contract declares with their communications and granularity; a flattened axis without factors is reported as information loss (O5.10). Partitions are declared per occurrence; their consistency across occurrences — the residual width through norm, add and feed-forward, a head partition aligned to the KV groups of its layer — is compilation's (§10.3), the axis identities on D1's edges being what a compiler aligns. |
 
@@ -776,8 +778,9 @@ a port or slot fed or bound twice (V7); meaningless combination (V8); state iden
 incompatible ports (V9); unresolvable repetition, guard or derivation (V10); a literal quantity
 disagreeing with its declared derivation (V11); duplicate member names in an object (V12); an
 output consumed by nothing (V13); an inadmissible dtype (V14); incompatible members of a parameter
-identity (V15); a carried state on a stream that is not fragmented (V16); and an occurrence
-reading across positions of a fragmented stream with no state carried across its fragments (V18).
+identity (V15); a carried state on a stream that is not fragmented (V16); an occurrence
+reading across positions of a fragmented stream with no state carried across its fragments (V18);
+and a state identity written by no member or by several (V20).
 
 A catalog is refused when loaded if a contract compares or computes with an optional argument that
 has no default outside a `present` test of it; if a precision role's default is not admissible; if

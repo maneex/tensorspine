@@ -269,7 +269,8 @@ explicit; flow is never inferred from ordering or mutation of a named residual.
 A state binding carries the graph-level facts that no primitive can derive, and only those:
 
 - its identity, whose indices say which repetition indices distinguish allocations;
-- its member state ports — several members under one identity is sharing;
+- its member state ports — several members under one identity is sharing; the contract says which
+  member writes (`written_when`, exactly one: V20) and the others read;
 - optionally, a `dtype` for its payload, admissible for every component's role (V14); absent, each
   role's default applies.
 

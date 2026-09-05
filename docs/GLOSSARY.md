@@ -481,7 +481,8 @@ See
 ### State identity
 
 A model binding that declares which state-port members name the same logical storage. It is a graph
-fact, separate from the state descriptor derived by a contract. See
+fact, separate from the state descriptor derived by a contract. Exactly one member writes the
+storage — the one whose port's `written_when` holds (V20) — and the others read it. See
 [Specification §3.4](SPECIFICATION.md#34--bindings).
 
 ### Status page
