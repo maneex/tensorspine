@@ -19,10 +19,13 @@ def emit(ctx, arguments, inputs, params, states):
     if src is not None and src[0] == 'residual.add':
         add = b.by_output.get(src[1])
         if add is not None and add.op_type == 'Add' and add in b.nodes:
-            a3, c3 = b.unsqueeze0(add.input[0], f"{ctx.node}.a3"), b.unsqueeze0(add.input[1], f"{ctx.node}.b3")
+            # the fused node takes [b, n, d]: the aligned layout's values as they are, the `none` layout's behind a batch axis of one
+            aligned = ctx.layout == 'aligned'
+            a3 = add.input[0] if aligned else b.unsqueeze0(add.input[0], f"{ctx.node}.a3")
+            c3 = add.input[1] if aligned else b.unsqueeze0(add.input[1], f"{ctx.node}.b3")
             y3, _m, _v, sum3 = b.node('SkipSimplifiedLayerNormalization', [a3, c3, scale], outputs=4, hint=f"{ctx.node}.skipnorm",
                                       domain='com.microsoft', epsilon=float(arguments['eps']))
-            src[2].input[0] = b.squeeze0(sum3, f"{ctx.node}.sum")       # the Add's value, now the fused node's sum
+            src[2].input[0] = sum3 if aligned else b.squeeze0(sum3, f"{ctx.node}.sum")       # the Add's value, now the fused node's sum
             b.remove(add)
-            return {'output': b.squeeze0(y3, f"{ctx.node}.normed")}
+            return {'output': y3 if aligned else b.squeeze0(y3, f"{ctx.node}.normed")}
     return {'output': b.node('SimplifiedLayerNormalization', [x, scale], hint=f"{ctx.node}.rmsnorm", axis=-1, epsilon=float(arguments['eps']))}

@@ -58,6 +58,40 @@ def fused(ctx, arguments, inputs, params, states, q, k, v):
     return b.squeeze0(out, f"{ctx.node}.ctx")
 
 
+def fused_aligned(ctx, arguments, inputs, params, states, q, k, v):
+    """The onnxruntime form on the aligned layout (B04): GroupQueryAttention over the state's
+    buffers [b, kv, capacity, d] shared between past and present, `seqlens_k` each session's held
+    positions plus the new ones less one, `total_sequence_length` the largest; the rotation inside
+    from the cos/sin caches. The runtime takes a fresh prefill of several sessions and a one-token
+    decode of several, not a multi-token continuation of several (batch-plan finding 3)."""
+    b = ctx.b
+    h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']
+    st = states['kv']
+    past = st.read()
+    held = st.held or ctx.held()
+    past_k = b.node('Transpose', [past['k']], hint=f"{ctx.node}.past_k", perm=[0, 2, 1, 3])       # [b, kv, cap, d]
+    past_v = b.node('Transpose', [past['v']], hint=f"{ctx.node}.past_v", perm=[0, 2, 1, 3])
+    n = b.dim(q, 1, hint=f"{ctx.node}.n")
+    total64 = b.node('Add', [b.node('ReduceMax', [held], hint=f"{ctx.node}.maxheld", keepdims=0), n], hint=f"{ctx.node}.total64")
+    total = b.node('Cast', [total64], hint=f"{ctx.node}.total", to=TensorProto.INT32)
+    seqlens = b.node('Cast', [b.node('Sub', [b.node('Add', [held, n], hint=f"{ctx.node}.lens"), b.i64(1)], hint=f"{ctx.node}.last")],
+                     hint=f"{ctx.node}.seqlens", to=TensorProto.INT32)                             # [b]
+    r = arguments.get('rope')
+    cache = int((ctx.physical or {}).get('rotary_cache', ROTARY_CACHE))
+    rotary = []
+    if r:
+        inv = inv_freq(d, r['theta'], r.get('scaling'))
+        angles = np.arange(cache, dtype=np.float32)[:, None] * inv[None, :]
+        factor = float(r['scaling']['attention_factor']) if r.get('scaling') else 1.0
+        rotary = [b.const((np.cos(angles) * factor).astype(np.float32), 'cos_cache'), b.const((np.sin(angles) * factor).astype(np.float32), 'sin_cache')]
+    out, present_k, present_v = b.node('GroupQueryAttention', [q, k, v, past_k, past_v, seqlens, total] + rotary,
+                                       outputs=3, hint=f"{ctx.node}.gqa", domain='com.microsoft',
+                                       num_heads=h, kv_num_heads=kv, do_rotary=1 if r else 0, rotary_interleaved=0, local_window_size=-1)
+    st.write({'k': b.node('Transpose', [present_k], hint=f"{ctx.node}.present_k", perm=[0, 2, 1, 3]),
+              'v': b.node('Transpose', [present_v], hint=f"{ctx.node}.present_v", perm=[0, 2, 1, 3])})
+    return out
+
+
 def fusable(arguments, states):
     """The branches the fused form covers: causal, an append state, a full-head rotate-half rope or none,
     no gate, a head size onnxruntime's kernel takes (a multiple of 16); the rest is the portable form."""
@@ -72,5 +106,6 @@ def emit(ctx, arguments, inputs, params, states):
     if not fusable(arguments, states):
         return portable.emit(ctx, arguments, inputs, params, states)
     q, k, v = portable.projections(ctx, arguments, inputs, params)
-    out = fused(ctx, arguments, inputs, params, states, q, k, v)
+    form = fused_aligned if ctx.layout == 'aligned' else fused
+    out = form(ctx, arguments, inputs, params, states, q, k, v)
     return {'output': linear(ctx, out, ctx.param(params['out']), ctx.param(params['out_bias']) if arguments.get('out_bias') else None)}

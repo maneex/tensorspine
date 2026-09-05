@@ -11,7 +11,8 @@ engines read. It knows nothing about any model: the derived document (D1–D6, `
 One ONNX graph is **one invocation** (Specification §7), for one set of delivered inputs:
 
 - every public input delivered is a graph input with a dynamic element axis (`tokens` as int64
-  identifiers; a floating input in the compute dtype);
+  identifiers; a floating input in the compute dtype) — under `--batch aligned`, a batch axis before
+  it (Batching, below);
 - the positions of every stream delivered are an input (`positions/<stream>`, int64);
 - every D4 state is an input and an output — `state/<identity>/<component>` in, `state_out/…`
   out — since ONNX has no mutable state: the **session** keeps the tensors between runs, an
@@ -73,6 +74,7 @@ python3 $T info $D                                              # counts, and th
 python3 $T emit $D --checkpoint "$CK" --out model.onnx [--dump]  # the graph of one invocation (external data above 1.5 GB)
 python3 $T run  $D --checkpoint "$CK" --ids 128000,791 --steps 8 [--dump ours.safetensors] [--out model.onnx]
 python3 $T run  $D --checkpoint "$CK" --ids 128000,791 --target onnxruntime      # the fused forms (com.microsoft)
+python3 $T run  $D --checkpoint "$CK" --ids 128000,791 --ids 128000,9906 --batch aligned --capacity 64   # two sessions, one batch
 python3 $T run  $D --checkpoint "$CK" --ids 128000,791 --physical phys.json       # e.g. {"decoder/attn[layer=*]": {"backend": "onnxruntime", "rotary_cache": 4096}}
 python3 $T run  $D --random --ids 1,2,3                          # parameters drawn from the D3 shapes
 python3 $T capabilities [--check]                                # the manifest, from the emitters' tables
@@ -109,3 +111,33 @@ manifest is the portable table — what the generator can run is the same under 
 a target's fused form is a note on the contract it covers (`target onnxruntime: …`). Compute is f32; `window` and `fixed` states, cross attention, non-token
 inputs and a merged domain's positions are not emitted yet and are refused by the manifest, not
 guessed.
+
+## Batching
+
+The language describes one session's invocation and leaves batching downstream (harness guide
+§8; the batch size is a load variable, out of the model document, Specification §2.1; every
+state port is keyed by session through its instance key, §4.4). Like the target, the batch layout
+is an argument of the generator, one per graph, reaching every primitive as `ctx.layout`
+(batch-plan B02): `none`, the default, one session on the element axis as above; `aligned`, a
+batch axis before it. On the aligned layout every session in an invocation delivers the same
+count on each stream — equal-length prompts in a prefill, one token each at decode, so sessions
+prefilled apart decode together — and no element is padding; the `append` states are buffers of a
+capacity per stream (`--capacity`, as the reference's session takes it), `[b, capacity, …]` in and
+out, and the positions each session holds on a stream go in as `held/<stream>`, an int64 `[b]`
+beside `positions/<stream>`, now `[b, n]`. The portable attention scatters the new keys and values
+at each session's held length and masks by position, with the dtype's lowest value rather than
+−∞ so a masked row stays finite; the onnxruntime target's GroupQueryAttention takes its native
+batched form, the state buffers shared between past and present and `seqlens_k` each session's
+length. Linear layers are `MatMul` against the transposed weight on this layout (`Gemm` on the
+other).
+
+`tsonnx.py run … --ids A --ids B --batch aligned --capacity N` runs one session per prompt;
+`session.Batch(emitter, graph, sessions, capacity)` is the programmatic form (`prefill`, `decode`,
+`run`), its outputs per session, element-major, as a `Session`'s. Unequal prompts in one batch are
+refused (prefill them apart, or take the reference's packed layout); at most
+`SESSIONS_PER_INVOCATION` (16, the manifest's `sessions_per_invocation`) ride together; onnxruntime's
+GroupQueryAttention takes a fresh prefill of several sessions or a one-token decode of several, not
+a multi-token continuation of several, which the batch refuses under that target (batch-plan
+finding 3). Batching is invisible: the harness checks a batch of one and of two against the
+sessions alone on the tiny Llama, bit for bit on this box, and on every integration fixture's
+checkpoint the prompt and its reverse as one batch against each alone, at the fixture's tolerance.

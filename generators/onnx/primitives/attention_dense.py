@@ -2,7 +2,7 @@
 
 | branch / record                 | status                                                   |
 |---------------------------------|----------------------------------------------------------|
-| mask causal, append state       | emitted: the keys and values of the invocation are appended to the state (Concat), every query attends to the positions at or before its own, masked by explicit positions |
+| mask causal, append state       | emitted: the keys and values of the invocation are appended to the state (Concat under the `none` layout; scattered at each session's held length into a buffer of the capacity under `aligned`), every query attends to the positions at or before its own, masked by explicit positions |
 | mask none (stateless)           | emitted: every query attends to every key of the invocation |
 | mask chunked, window, streaming, cross | refused                                            |
 | rope: theta, layout split, partial, scaling yarn | emitted (rotate-half; YaRN's frequencies computed at emission as the reference computes them) |
@@ -57,25 +57,107 @@ def inv_freq(r, theta, scaling=None):
 
 
 def rope(ctx, x, positions, d, theta, partial=None, scaling=None):
-    """Rotate-half RoPE on x [n, heads, d] at positions [n]: the first `partial · d` channels rotated."""
+    """Rotate-half RoPE on x [(b,) n, heads, d] at positions [(b,) n]: the first `partial · d`
+    channels rotated. Axes are counted from the end, so the `none` and `aligned` layouts share it."""
     b = ctx.b
     r = d if not partial else int(d * partial)
     inv = b.const(inv_freq(r, theta, scaling), 'inv_freq')
-    pos = b.node('Unsqueeze', [b.node('Cast', [positions], hint=f"{ctx.node}.posf", to=TensorProto.FLOAT), b.const(np.array([1], dtype=np.int64), 'ax1')], hint=f"{ctx.node}.pos")
-    freqs = b.node('Mul', [pos, inv], hint=f"{ctx.node}.freqs")                       # [n, r/2]
-    emb = b.node('Unsqueeze', [b.node('Concat', [freqs, freqs], hint=f"{ctx.node}.emb", axis=1), b.const(np.array([1], dtype=np.int64), 'ax1')], hint=f"{ctx.node}.emb3")   # [n, 1, r]
-    cos, sin = b.node('Cos', [emb], hint=f"{ctx.node}.cos"), b.node('Sin', [emb], hint=f"{ctx.node}.sin")
     i64 = lambda *v: b.const(np.array(v, dtype=np.int64), 'i')
-    xr = b.node('Slice', [x, i64(0), i64(r), i64(2)], hint=f"{ctx.node}.xr") if r < d else x
-    x1 = b.node('Slice', [xr, i64(0), i64(r // 2), i64(2)], hint=f"{ctx.node}.x1")
-    x2 = b.node('Slice', [xr, i64(r // 2), i64(r), i64(2)], hint=f"{ctx.node}.x2")
-    rot = b.node('Concat', [b.node('Neg', [x2], hint=f"{ctx.node}.negx2"), x1], hint=f"{ctx.node}.rot", axis=2)
+    pos = b.node('Unsqueeze', [b.node('Cast', [positions], hint=f"{ctx.node}.posf", to=TensorProto.FLOAT), i64(-1)], hint=f"{ctx.node}.pos")
+    freqs = b.node('Mul', [pos, inv], hint=f"{ctx.node}.freqs")                       # [(b,) n, r/2]
+    emb = b.node('Unsqueeze', [b.node('Concat', [freqs, freqs], hint=f"{ctx.node}.emb", axis=-1), i64(-2)], hint=f"{ctx.node}.emb3")   # [(b,) n, 1, r]
+    cos, sin = b.node('Cos', [emb], hint=f"{ctx.node}.cos"), b.node('Sin', [emb], hint=f"{ctx.node}.sin")
+    xr = b.node('Slice', [x, i64(0), i64(r), i64(-1)], hint=f"{ctx.node}.xr") if r < d else x
+    x1 = b.node('Slice', [xr, i64(0), i64(r // 2), i64(-1)], hint=f"{ctx.node}.x1")
+    x2 = b.node('Slice', [xr, i64(r // 2), i64(r), i64(-1)], hint=f"{ctx.node}.x2")
+    rot = b.node('Concat', [b.node('Neg', [x2], hint=f"{ctx.node}.negx2"), x1], hint=f"{ctx.node}.rot", axis=-1)
     y = b.node('Add', [b.node('Mul', [xr, cos], hint=f"{ctx.node}.xc"), b.node('Mul', [rot, sin], hint=f"{ctx.node}.rs")], hint=f"{ctx.node}.roped")
     if scaling:
         y = b.node('Mul', [y, b.const(np.float32(scaling['attention_factor']), 'attention_factor')], hint=f"{ctx.node}.yarn")
     if r < d:
-        y = b.node('Concat', [y, b.node('Slice', [x, i64(r), i64(d), i64(2)], hint=f"{ctx.node}.xp")], hint=f"{ctx.node}.roped_full", axis=2)
+        y = b.node('Concat', [y, b.node('Slice', [x, i64(r), i64(d), i64(-1)], hint=f"{ctx.node}.xp")], hint=f"{ctx.node}.roped_full", axis=-1)
     return y
+
+
+LOWEST = np.float32(np.finfo(np.float32).min)     # a masked score: the dtype's lowest, never −inf, so a masked row stays finite (B07)
+
+
+def scatter_positions(ctx, buffer, new, held, hint):
+    """`new` [b, n, *payload] written into `buffer` [b, capacity, *payload] at rows held_b … held_b + n − 1
+    of each session: the append law on the aligned layout."""
+    b = ctx.b
+    n = b.dim(new, 1, hint=f"{hint}.n")
+    rows = b.node('Add', [b.node('Unsqueeze', [held, b.i64(-1)], hint=f"{hint}.held2"),
+                          b.node('Unsqueeze', [b.node('Range', [b.i64(0), n, b.i64(1)], hint=f"{hint}.arange"), b.i64(0)], hint=f"{hint}.arange2")],
+                  hint=f"{hint}.rows")                                                              # [b, n]
+    idx = rows
+    for _ in range(2):                                                                             # -> [b, n, 1, 1] for a [kv, d] payload
+        idx = b.node('Unsqueeze', [idx, b.i64(-1)], hint=f"{hint}.idx")
+    idx = b.node('Expand', [idx, b.shape_of(new, hint=f"{hint}.newshape")], hint=f"{hint}.idx4")   # [b, n, kv, d]
+    return b.node('ScatterElements', [buffer, idx, new], hint=hint, axis=1)
+
+
+def emit_aligned(ctx, arguments, inputs, params, states):
+    """The aligned layout (B04): x [b, n, width]; the state a buffer [b, capacity, kv, d] per
+    component, the new keys and values scattered at each session's held length; every query
+    attends to the buffer's positions at or before its own (the rows beyond a session's length
+    are masked with them)."""
+    b = ctx.b
+    h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']
+    q, k, v = projections(ctx, arguments, inputs, params)
+    q = b.reshape_tail(q, 2, [h, d], hint=f"{ctx.node}.q")
+    k = b.reshape_tail(k, 2, [kv, d], hint=f"{ctx.node}.k")
+    v = b.reshape_tail(v, 2, [kv, d], hint=f"{ctx.node}.v")
+    r = arguments.get('rope')
+    if r:
+        q = rope(ctx, q, ctx.positions, d, r['theta'], r.get('partial'), r.get('scaling'))
+        k = rope(ctx, k, ctx.positions, d, r['theta'], r.get('partial'), r.get('scaling'))
+    causal = arguments['mask'] == 'causal'
+    n = b.dim(q, 1, hint=f"{ctx.node}.n")
+    if 'kv' in states:
+        st = states['kv']
+        past = st.read()
+        held = st.held or ctx.held()
+        K = scatter_positions(ctx, past['k'], k, held, f"{ctx.node}.K")
+        V = scatter_positions(ctx, past['v'], v, held, f"{ctx.node}.V")
+        st.write({'k': K, 'v': V})
+        limit = b.node('Add', [held, n], hint=f"{ctx.node}.limit")                                  # [b]: the rows a session fills
+    else:
+        K, V, limit = k, v, None
+    m = b.dim(K, 1, hint=f"{ctx.node}.m")
+    kpos = b.node('Range', [b.i64(0), m, b.i64(1)], hint=f"{ctx.node}.kpos")                     # [m]
+
+    def heads_first(t, groups):
+        t = b.node('Transpose', [t], hint=f"{ctx.node}.hf", perm=[0, 2, 1, 3])                     # [b, kv, m, d]
+        if groups > 1:
+            t = b.node('Unsqueeze', [t, b.i64(2)], hint=f"{ctx.node}.u")                           # [b, kv, 1, m, d]
+            shape = b.shape_of(t, hint=f"{ctx.node}.ushape")
+            target = b.node('Concat', [b.node('Slice', [shape, b.i64(0), b.i64(2)], hint=f"{ctx.node}.bkv"), b.i64(groups),
+                                       b.node('Slice', [shape, b.i64(3), b.i64(5)], hint=f"{ctx.node}.md")], hint=f"{ctx.node}.target", axis=0)
+            t = b.node('Expand', [t, target], hint=f"{ctx.node}.ex")                               # [b, kv, groups, m, d]
+            shape2 = b.shape_of(t, hint=f"{ctx.node}.exshape")
+            merged = b.node('Concat', [b.node('Slice', [shape2, b.i64(0), b.i64(1)], hint=f"{ctx.node}.b1"), b.i64(h),
+                                       b.node('Slice', [shape2, b.i64(3), b.i64(5)], hint=f"{ctx.node}.md2")], hint=f"{ctx.node}.merged", axis=0)
+            t = b.node('Reshape', [t, merged], hint=f"{ctx.node}.rep")                             # [b, h, m, d]
+        return t
+    Qh = b.node('Transpose', [q], hint=f"{ctx.node}.Qh", perm=[0, 2, 1, 3])                        # [b, h, n, d]
+    Kh, Vh = heads_first(K, h // kv), heads_first(V, h // kv)
+    scores = b.node('MatMul', [Qh, b.node('Transpose', [Kh], hint=f"{ctx.node}.KhT", perm=[0, 1, 3, 2])], hint=f"{ctx.node}.scores")   # [b, h, n, m]
+    scores = b.node('Mul', [scores, b.const(np.float32(1.0 / math.sqrt(d)), 'scale')], hint=f"{ctx.node}.scaled")
+    allowed = None
+    kpos4 = b.node('Unsqueeze', [kpos, b.i64(0, 1, 2)], hint=f"{ctx.node}.kpos4")                # [1, 1, 1, m]
+    if causal:
+        qpos = b.node('Unsqueeze', [ctx.positions, b.i64(1, 3)], hint=f"{ctx.node}.qpos")         # [b, 1, n, 1]
+        allowed = b.node('LessOrEqual', [kpos4, qpos], hint=f"{ctx.node}.allowed")                # [b, 1, n, m]
+    if limit is not None:
+        valid = b.node('Less', [kpos4, b.node('Unsqueeze', [limit, b.i64(1, 2, 3)], hint=f"{ctx.node}.limit4")], hint=f"{ctx.node}.valid")   # [b, 1, 1, m]
+        allowed = valid if allowed is None else b.node('And', [allowed, valid], hint=f"{ctx.node}.allowed_valid")
+    if allowed is not None:
+        scores = b.node('Where', [allowed, scores, b.const(LOWEST, 'lowest')], hint=f"{ctx.node}.masked")
+    p = b.node('Softmax', [scores], hint=f"{ctx.node}.p", axis=-1)
+    out = b.node('MatMul', [p, Vh], hint=f"{ctx.node}.ctx")                                        # [b, h, n, d]
+    out = b.reshape_tail(b.node('Transpose', [out], hint=f"{ctx.node}.ctxT", perm=[0, 2, 1, 3]), 2, [h * d], hint=f"{ctx.node}.flat")
+    return {'output': linear(ctx, out, ctx.param(params['out']), ctx.param(params['out_bias']) if arguments.get('out_bias') else None)}
 
 
 def projections(ctx, arguments, inputs, params):
@@ -88,6 +170,8 @@ def projections(ctx, arguments, inputs, params):
 
 
 def emit(ctx, arguments, inputs, params, states):
+    if ctx.layout == 'aligned':
+        return emit_aligned(ctx, arguments, inputs, params, states)
     b = ctx.b
     h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']
     i64 = lambda *v: b.const(np.array(v, dtype=np.int64), 'i')

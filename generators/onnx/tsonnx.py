@@ -5,10 +5,14 @@
     tsonnx.py emit    DERIVED --checkpoint DIR --out F.onnx [--dump] [--inputs a,b] [--target onnx|onnxruntime]   the graph of one invocation
     tsonnx.py run     DERIVED --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--target …]                  prefill and greedy decode through onnxruntime
     tsonnx.py run     DERIVED --random [--seed N] …                                  parameters drawn from the D3 shapes
+    tsonnx.py run     DERIVED … --ids 1,2,3 --ids 4,5,6 --batch aligned --capacity N    several prompts of one length as one batch of
+                                                                                     sessions (a batch axis; the append states buffers of N positions)
     tsonnx.py capabilities [--out FILE] [--check]                                    the manifest, from the emitters' tables
 
 DERIVED is a derived document (`tensorspine --derive MODEL -o DIR`): the generator reads D1–D6 and
-the checkpoint, never the model source or the catalog. The target is the runtime the graph is
+the checkpoint, never the model source or the catalog. The batch layout (`--batch`) is an argument
+too: `none`, one session on the element axis; `aligned`, a batch axis before it (generators/onnx/README.md,
+Batching). The target is the runtime the graph is
 emitted for: `onnx` (standard operators, runs anywhere) or `onnxruntime` (its fused operators
 where a primitive has a fused form: one GroupQueryAttention per attention, SimplifiedLayerNormalization,
 the residual sum and its norm as one SkipSimplifiedLayerNormalization, fused activations); the
@@ -29,7 +33,8 @@ import graph as graph_mod      # noqa: E402
 import loader                  # noqa: E402
 import registry                # noqa: E402
 from emit import Emitter, Refusal, save_model   # noqa: E402
-from session import Session, greedy  # noqa: E402
+from session import Batch, Session, greedy  # noqa: E402
+import session as session_mod        # noqa: E402
 
 
 def delivery(args, g):
@@ -41,7 +46,7 @@ def delivery(args, g):
 def build(args, g):
     """The emitter over the checkpoint (V17 checked first) or random parameters; None on a refusal."""
     prims = registry.load_all()
-    em = Emitter(g, None, prims, target=args.target)
+    em = Emitter(g, None, prims, target=args.target, layout=args.batch)
     r = em.refusals(em.evaluable(delivery(args, g)))
     if r:
         print(f"refused: {len(r)} reason(s)")
@@ -59,7 +64,7 @@ def build(args, g):
             return None
         print(f"  verified {stats['located']} located tensors against {stats['physical']} physical ({stats['unnamed']} unnamed)")
         source = loader.Source(g, args.checkpoint)
-    return Emitter(g, source, prims, args.compute, physical_of(args), target=args.target)
+    return Emitter(g, source, prims, args.compute, physical_of(args), target=args.target, layout=args.batch)
 
 
 def describe(model, delivered, seconds):
@@ -76,6 +81,12 @@ def physical_of(args):
 
 def save(model, path):
     save_model(model, path)
+
+
+def parse_capacity(text):
+    if '=' not in text:
+        return int(text)
+    return {k.strip(): int(v) for k, v in (item.split('=', 1) for item in text.split(','))}
 
 
 def cmd_info(args):
@@ -117,8 +128,14 @@ def cmd_run(args):
     emitter = build(args, g)
     if emitter is None:
         return 1
+    prompts = [[int(x) for x in text.split(',')] for text in args.ids] if args.ids else [[1]]
+    if args.batch == 'aligned':
+        return run_batch(args, g, emitter, prompts)
+    if len(prompts) > 1:
+        print(f"refused: {len(prompts)} prompts are several sessions; --batch aligned runs them as one batch")
+        return 1
     session = Session(emitter, g, dump=bool(args.dump))
-    ids = [int(x) for x in args.ids.split(',')] if args.ids else [1]
+    ids = prompts[0]
     extra = load_inputs(args.input)
     t0 = time.time()
     if g.generative is None:
@@ -145,6 +162,46 @@ def cmd_run(args):
     if args.dump:
         write_dump(args.dump, g, session, dump, ids, tokens, extra, args.compute)
         print(f"  dumped -> {args.dump}")
+    return 0
+
+
+def run_batch(args, g, emitter, prompts):
+    """Several prompts of one length as one batch of sessions on the aligned layout (B04): prefilled
+    together, decoded together for --steps, each session's tokens on its own line."""
+    if args.dump or args.input:
+        print("refused: a batch takes token prompts alone — no --dump or --input")
+        return 1
+    if any(len(p) != len(prompts[0]) for p in prompts):
+        print(f"refused: prompts of {[len(p) for p in prompts]} tokens — an aligned batch's sessions deliver the same count; "
+              "prefill unequal prompts apart, or use the reference's packed layout")
+        return 1
+    batch = Batch(emitter, g, len(prompts), args.capacity)
+    print(f"  batch: {len(prompts)} sessions, aligned layout, capacity {args.capacity}")
+    t0 = time.time()
+    if g.generative is None:
+        outs = batch.run([{g.token_input: np.asarray(p, dtype=np.int64)} for p in prompts])
+        for k, out in enumerate(outs):
+            for name, t in out.items():
+                print(f"  session {k} {name}: {list(t.shape)}")
+        print(f"  ({time.time() - t0:.1f}s)")
+        return 0
+    outs = batch.prefill(prompts)
+    nxt = [greedy(o, g) for o in outs]
+    for delivered, model in batch.models.items():
+        describe(model, delivered, 0.0)
+        if args.out:
+            save(model, args.out)
+    print(f"  prefill {len(prompts[0])} elements x {len(prompts)} -> next {nxt} ({time.time() - t0:.1f}s)")
+    tokens = [[n] for n in nxt]
+    for _ in range(args.steps):
+        t0 = time.time()
+        outs = batch.decode(nxt)
+        nxt = [greedy(o, g) for o in outs]
+        for t, n in zip(tokens, nxt):
+            t.append(n)
+        print(f"  decode -> {nxt} ({time.time() - t0:.2f}s)")
+    for k, t in enumerate(tokens):
+        print(f"tokens[{k}]:", t)
     return 0
 
 
@@ -204,7 +261,7 @@ def manifest():
             'state_laws': ['append'], 'access': ['logical_position'],
             'sharing': [], 'partitions': [],
             'domains': {'kinds': ['token'], 'transforms': [], 'fragmented': False},
-            'sessions_per_invocation': 1,
+            'sessions_per_invocation': session_mod.SESSIONS_PER_INVOCATION,     # the aligned layout (B04); what Batch enforces
             'locations': list(loader.FORMS),
             'contracts': contracts}
 
@@ -228,6 +285,11 @@ def common(p):
     p.add_argument('--target', default='onnx', choices=registry.targets(),
                    help="the runtime the graph is emitted for: onnx, standard operators only (default); onnxruntime, its fused operators where a primitive has them")
     p.add_argument('--inputs', help='the public inputs delivered, comma-separated (default: the token input)')
+    p.add_argument('--batch', default='none', choices=['none', 'aligned'],
+                   help="the layout several sessions share an invocation in: none (one session, default); aligned — a batch axis, "
+                        "every session delivering the same count per invocation, the append states buffers of --capacity positions")
+    p.add_argument('--capacity', type=parse_capacity, default=1024, metavar='N|STREAM=N,…',
+                   help='aligned layout: positions every append state may hold, for every stream or per stream')
     p.add_argument('--physical', metavar='FILE', help='opaque parameters for the primitives (generators/CAPABILITIES.md)')
 
 
@@ -241,7 +303,8 @@ def main(argv=None):
     p.add_argument('--out', required=True); p.set_defaults(fn=cmd_emit)
     p = sub.add_parser('run'); common(p)
     p.add_argument('--checkpoint', metavar='DIR'); p.add_argument('--random', action='store_true'); p.add_argument('--seed', type=int, default=0)
-    p.add_argument('--ids'); p.add_argument('--steps', type=int, default=4)
+    p.add_argument('--ids', action='append', help='comma-separated token ids of the prompt; repeated, one session per prompt, under --batch aligned')
+    p.add_argument('--steps', type=int, default=4)
     p.add_argument('--input', action='append', default=[], metavar='NAME=FILE[:KEY]')
     p.add_argument('--dump', help='write the values at every layer cut and the logits of the prefill to this safetensors file')
     p.add_argument('--out', help='also save the emitted model')

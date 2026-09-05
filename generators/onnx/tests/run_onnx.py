@@ -15,10 +15,15 @@
      absent.
   4. The manifest regenerates from the emitters' tables identically, and the language's reader
      agrees it can run llama3-8b.
+  5. The aligned layout (batch-plan B04, B06): on the tiny Llama with random parameters, a batch of
+     one and a batch of two equal the `none` layout's sessions; on every integration fixture run
+     above, the fixture's prompt and its reverse as one batch of two, decoded together, equal the
+     sessions alone; unequal prompts are refused.
 
     generators/onnx/tests/run_onnx.py [--model-artifacts DIR] [--target onnx|onnxruntime]
 """
 import argparse
+import gc
 import glob
 import json
 import os
@@ -49,7 +54,7 @@ import graph as graph_mod              # noqa: E402
 import loader                          # noqa: E402
 import registry                        # noqa: E402
 from emit import Emitter, Refusal      # noqa: E402
-from session import Session, greedy    # noqa: E402
+from session import Batch, Session, greedy   # noqa: E402
 
 
 def check(label, ok, detail=''):
@@ -210,6 +215,88 @@ def truncated(model_path, composition, stop, out_dir):
     return path
 
 
+class Cached:
+    """A source whose every identity is fetched once: the same parameters for every emission."""
+
+    def __init__(self, source):
+        self.source, self.cache = source, {}
+
+    def fetch(self, ident):
+        if ident not in self.cache:
+            self.cache[ident] = self.source.fetch(ident)
+        return self.cache[ident]
+
+
+def aligned_against_alone(g, source, prims, physical, target, prompts, steps, capacity, atol, rtol):
+    """The sessions of `prompts` (one length) as one aligned batch, prefilled and decoded together for
+    `steps`, against each alone on the `none` layout: (max |d| over the logits, all within tolerance —
+    the states after the prefill included —, the batch's tokens, the singles' tokens)."""
+    o = g.interfaces['outputs'][g.generative[0]]
+    key = f"{o['node']}.{o['port']}"
+    alone = []
+    for p in prompts:
+        # one runtime session at a time: each holds f32 copies of the weights beside the emitted model
+        session = Session(Emitter(g, source, prims, physical=physical, target=target), g)
+        out = session.prefill(p)
+        logits, tokens = [out[key]], [greedy(out, g)]
+        for _ in range(steps):
+            out = session.decode(tokens[-1])
+            logits.append(out[key])
+            tokens.append(greedy(out, g))
+        alone.append((logits, tokens, session.states_after_prefill))
+        del session, out
+        gc.collect()
+    batch = Batch(Emitter(g, source, prims, physical=physical, target=target, layout='aligned'), g, len(prompts), capacity)
+    outs = batch.prefill(prompts)
+    logits = [[o[key]] for o in outs]
+    nxt = [greedy(o, g) for o in outs]
+    tokens = [[n] for n in nxt]
+    for _ in range(steps):
+        outs = batch.decode(nxt)
+        nxt = [greedy(o, g) for o in outs]
+        for k, o in enumerate(outs):
+            logits[k].append(o[key])
+            tokens[k].append(nxt[k])
+    worst = max(float(np.abs(x - y).max()) for k in range(len(prompts)) for x, y in zip(logits[k], alone[k][0]))
+    close = all(within(x, y, atol, rtol) for k in range(len(prompts)) for x, y in zip(logits[k], alone[k][0]))
+    states = all(within(batch.states_after_prefill[k][key2], alone[k][2][key2], atol, rtol)
+                 for k in range(len(prompts)) for key2 in alone[k][2])
+    del batch, outs
+    gc.collect()
+    return worst, close and states, tokens, [a[1] for a in alone]
+
+
+def tiny_llama(scratch):
+    """The corpus Llama at three layers of width 64, derived (random parameters at run time)."""
+    path = truncated(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'), 'decoder', 3, scratch)
+    with open(path, encoding='utf-8') as f:
+        d = json.load(f)
+    d['model'] = 'tiny-llama'
+    for q, v in {'d': 64, 'ffn': 128, 'heads': 4, 'kv_heads': 2, 'head_dim': 16, 'vocab': 256}.items():
+        d['quantities'][q]['source']['value'] = v
+    mp = os.path.join(scratch, 'tiny-llama.json')
+    with open(mp, 'w', encoding='utf-8') as f:
+        json.dump(d, f)
+    return graph_mod.load(derive(mp, scratch))
+
+
+def aligned_case(scratch, physical=None, target='onnx'):
+    ok = True
+    prims = registry.load_all()
+    g = tiny_llama(scratch)
+    source = Cached(loader.RandomSource(g, seed=3))
+    for prompts in ([[1, 2, 3, 4, 5, 6, 7, 8]], [[1, 2, 3, 4, 5, 6, 7, 8], [8, 7, 6, 5, 4, 3, 2, 1]]):
+        worst, close, tokens, alone = aligned_against_alone(g, source, prims, physical, target, prompts, 2, 32, 1e-5, 1e-4)
+        ok &= check(f"aligned: the tiny Llama as a batch of {len(prompts)} equals the sessions alone (max |d| {worst:.1e}, tokens {tokens})",
+                    close and tokens == alone, f"alone {alone}")
+    try:
+        Batch(Emitter(g, source, prims, target=target, layout='aligned'), g, 2, 32).prefill([[1, 2, 3], [4, 5]])
+        ok &= check("aligned: prompts of unequal length in one batch are refused", False)
+    except Exception as e:  # noqa: BLE001
+        ok &= check("aligned: prompts of unequal length in one batch are refused", 'same count' in str(e), str(e)[:120])
+    return ok
+
+
 def integration_fixtures(scratch, manifest, artifacts, physical=None, target='onnx'):
     ok = True
     prims = registry.load_all()
@@ -273,6 +360,16 @@ def integration_fixtures(scratch, manifest, artifacts, physical=None, target='on
                 nxt = greedy(session.decode(nxt), g)
                 tokens.append(nxt)
             ok &= check(f"{document} ({tag}): greedy tokens {tokens} equal transformers' {meta['tokens']}", tokens == meta['tokens'])
+            if not encoder:
+                # B06 on the checkpoint: the prompt and its reverse as one aligned batch, decoded together;
+                # the fixture's own session released first (its f32 weights)
+                del session
+                gc.collect()
+                capacity = len(ids) + len(meta['tokens']) + 1
+                worst, close, btokens, alone = aligned_against_alone(g, loader.Source(g, checkpoint), prims, physical, target,
+                                                                     [ids, list(reversed(ids))], len(meta['tokens']) - 1, capacity, atol, rtol)
+                ok &= check(f"{document} ({tag}): the prompt and its reverse as one aligned batch, decoded together, equal the sessions alone "
+                            f"(max |d| {worst:.1e}; tokens {btokens[0]} and {btokens[1]})", close and btokens == alone, f"alone {alone}")
     return ok
 
 
@@ -311,6 +408,7 @@ def main(argv=None):
     ok = corpus_counts(scratch)
     ok &= unit_fixtures(scratch, manifest, physical, a.target)
     ok &= integration_fixtures(scratch, manifest, a.model_artifacts, physical, a.target)
+    ok &= aligned_case(scratch, physical, a.target)
     ok &= manifest_check(scratch)
     shutil.rmtree(scratch, ignore_errors=True)
     print("onnx: all good" if ok else "onnx: FAILED")

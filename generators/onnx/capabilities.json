@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "onnx",
-    "version": "f72808b",
+    "version": "c98452c",
     "generator": "generators/onnx/tsonnx.py capabilities",
     "generated": "2026-09-05"
   },
@@ -29,7 +29,7 @@
     "transforms": [],
     "fragmented": false
   },
-  "sessions_per_invocation": 1,
+  "sessions_per_invocation": 16,
   "locations": [
     "tensor",
     "stack",

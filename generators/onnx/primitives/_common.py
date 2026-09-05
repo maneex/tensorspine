@@ -11,10 +11,24 @@ if os.path.join(_ROOT, 'tools') not in sys.path:
 from capabilities import supports as supports_from   # noqa: E402,F401
 
 
+def transposed(ctx, weight):
+    """The stored [out, in] weight as [in, out], once per weight (the runtime folds the constant)."""
+    b = ctx.b
+    if weight not in b.transposed:
+        b.transposed[weight] = b.node('Transpose', [weight], hint=f"{weight}.T", perm=[1, 0])
+    return b.transposed[weight]
+
+
 def linear(ctx, x, weight, bias=None):
-    """x @ weightᵀ (+ bias): `Gemm` on the 2-D activation, the weight stored [out, in] as the file stores it."""
-    inputs = [x, weight] + ([bias] if bias is not None else [])
-    return ctx.b.node('Gemm', inputs, hint=f"{ctx.node}.gemm", transB=1)
+    """x @ weightᵀ (+ bias), the weight stored [out, in] as the file stores it: `Gemm` on the 2-D
+    activation of the `none` layout; `MatMul` against the transposed weight on the aligned
+    layout's `[b, n, in]` (any rank)."""
+    b = ctx.b
+    if ctx.layout == 'none':
+        inputs = [x, weight] + ([bias] if bias is not None else [])
+        return b.node('Gemm', inputs, hint=f"{ctx.node}.gemm", transB=1)
+    y = b.node('MatMul', [x, transposed(ctx, weight)], hint=f"{ctx.node}.matmul")
+    return b.node('Add', [y, bias], hint=f"{ctx.node}.biased") if bias is not None else y
 
 
 def rms_norm(ctx, x, scale, eps, zero_centered=False):

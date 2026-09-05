@@ -1,5 +1,6 @@
 """The emitter: one ONNX graph for the expanded D1 graph, one invocation per run (R08) — every
-public input a graph input with a dynamic element axis, the positions of every stream an input,
+public input a graph input with a dynamic element axis (under the `aligned` layout, a batch axis
+before it: several sessions in one invocation, batch-plan B04), the positions of every stream an input,
 every D4 state an input and an output (ONNX has no mutable state: a session carries the tensors
 between runs), every parameter an initializer at its D3 dtype cast to the compute dtype where a
 primitive uses it (the reference's convention, the cast folded once by the runtime), and every
@@ -18,6 +19,7 @@ TENSOR = {'bf16': TensorProto.BFLOAT16, 'f16': TensorProto.FLOAT16, 'f32': Tenso
           'i32': TensorProto.INT32, 'i64': TensorProto.INT64}
 COMPUTE = {'f32': TensorProto.FLOAT}
 NUMPY = {'f32': np.float32, 'i32': np.int32, 'i64': np.int64}
+LAYOUTS = ('none', 'aligned')     # one session on the element axis; a batch axis, every session delivering the same count
 
 
 class Refusal(Exception):
@@ -33,6 +35,7 @@ class Builder:
         self.nodes, self.initializers, self.inputs, self.outputs = [], [], [], []
         self.taken = set()
         self.by_output = {}               # value name -> the node that produces it
+        self.transposed = {}              # weight name -> its transpose, once (MatMul against a stored [out, in] weight)
 
     def name(self, hint):
         base = hint
@@ -65,6 +68,21 @@ class Builder:
 
     def squeeze0(self, x, hint='s'):
         return self.node('Squeeze', [x, self.const(np.array([0], dtype=np.int64), 'ax0')], hint=hint)
+
+    def i64(self, *v):
+        return self.const(np.array(v, dtype=np.int64), 'i')
+
+    def shape_of(self, t, hint='shape'):
+        return self.node('Shape', [t], hint=hint)
+
+    def dim(self, t, k, hint='dim'):
+        """Dimension k of t as an int64 scalar."""
+        return self.node('Gather', [self.shape_of(t), self.const(np.array(k, dtype=np.int64), 'k')], hint=hint)
+
+    def reshape_tail(self, t, keep, tail, hint='rs'):
+        """t reshaped to its first `keep` dimensions followed by `tail`: the batch and element axes kept, the rest laid out."""
+        head = self.node('Slice', [self.shape_of(t), self.i64(0), self.i64(keep)], hint=f"{hint}.head")
+        return self.node('Reshape', [t, self.node('Concat', [head, self.i64(*tail)], hint=f"{hint}.shape", axis=0)], hint=hint)
 
     def const(self, array, hint='c'):
         array = np.asarray(array)
@@ -101,13 +119,18 @@ class StateRef:
     so far for `append`, the valid tail for `window`, the payload for `fixed`); `write(values)` names
     the output tensors the session takes as the state after the invocation."""
 
-    def __init__(self, b, entry, compute):
-        self.b, self.entry = b, entry
+    def __init__(self, b, entry, compute, layout='none', held=None):
+        self.b, self.entry, self.layout = b, entry, layout
         self.identity, self.law, self.span = entry['identity'], entry['law'], entry.get('span')
+        self.stream = (entry.get('stream') or {}).get('stream')
+        self.held = held                  # aligned: the positions each session holds on the state's stream, [b] (the input's name)
         self.components = {p['component']: [a['extent'] for a in p['shape']] for p in entry['payload']}
         self.inputs = {}
         for c, shape in self.components.items():
-            dims = shape if self.law == 'fixed' else [f"{self.identity}.len"] + shape
+            if layout == 'aligned':       # a buffer of the capacity per session; a fixed state per session
+                dims = (['b'] if self.law == 'fixed' else ['b', f"{self.identity}.cap"]) + shape
+            else:
+                dims = shape if self.law == 'fixed' else [f"{self.identity}.len"] + shape
             self.inputs[c] = b.input(f"state/{self.identity}/{c}", b.ctype, dims)
         self.written = {}
 
@@ -123,16 +146,23 @@ class StateRef:
 
 
 class Emitter:
-    def __init__(self, graph, source, primitives, compute='f32', physical=None, target='onnx'):
+    def __init__(self, graph, source, primitives, compute='f32', physical=None, target='onnx', layout='none'):
         """`primitives`: the emitters per target (`registry.load_all()`), or one target's set. `target`:
         the runtime the graph is emitted for — `onnx`, standard operators only, runs anywhere;
         `onnxruntime`, its fused operators wherever the target has a primitive of its own. The physical
-        parameters may name a `backend` per occurrence, which picks that occurrence's target."""
+        parameters may name a `backend` per occurrence, which picks that occurrence's target. `layout`:
+        how sessions share an invocation (batch-plan B02, B04) — `none`, one session on the element
+        axis; `aligned`, a batch axis before it, every session delivering the same count on each
+        stream, the `append` states buffers of a capacity per session with the positions each holds
+        (`held/<stream>`) an input. One layout per graph, reaching every primitive as `ctx.layout`."""
         if not primitives or not isinstance(next(iter(primitives.values())), dict):
             primitives = {target: primitives}
         if target not in primitives:
             raise Refusal(f"target {target!r}: one of {sorted(primitives)}")
+        if layout not in LAYOUTS:
+            raise Refusal(f"layout {layout!r}: one of {LAYOUTS}")
         self.graph, self.source, self.primitives, self.compute, self.physical, self.target = graph, source, primitives, compute, physical, target
+        self.layout = layout
 
     def primitive(self, node, entry):
         """The occurrence's emitter: the target's, or the one the physical parameters' `backend` names."""
@@ -189,19 +219,25 @@ class Emitter:
         refused = self.refusals(self.evaluable(delivered))
         if refused:
             raise Refusal('; '.join(refused[:5]))
+        aligned = self.layout == 'aligned'
+        lead = ['b'] if aligned else []
         values = {}
         for name in sorted(delivered):
             v = g.input_values[name]
             # an integer input (token identifiers, a count) is int64 on the wire; a floating one is in the compute dtype
             dtype = TensorProto.INT64 if v['dtype'] in ('i32', 'i64') else b.ctype
-            values[name] = b.input(name, dtype, ['n'] + [a['extent'] for a in v['shape']])
-        positions = {}
+            values[name] = b.input(name, dtype, lead + ['n'] + [a['extent'] for a in v['shape']])
+        positions, held = {}, {}
         for name in sorted(delivered):
             stream = g.input_stream[name]
             if stream not in positions:
-                positions[stream] = b.input(f"positions/{stream}", TensorProto.INT64, [f"n.{stream}"])
+                positions[stream] = b.input(f"positions/{stream}", TensorProto.INT64, lead + [f"n.{stream}"])
+                if aligned:               # the positions each session holds on the stream before this invocation
+                    held[stream] = b.input(f"held/{stream}", TensorProto.INT64, ['b'])
+        self.held = held
         params = {}                       # identity -> (raw initializer, cast to the compute dtype)
-        states = {ident: StateRef(b, entry, self.compute) for ident, entry in g.states.items()}
+        states = {ident: StateRef(b, entry, self.compute, self.layout, held.get((entry.get('stream') or {}).get('stream')))
+                  for ident, entry in g.states.items()}
         needed = {f"{o['node']}.{o['port']}" for o in g.interfaces['outputs'].values()}
         dumped = {p['value'] for c in g.layer_cuts() for p in c['payload']} if dump else set()
         active = self.evaluable(delivered)
@@ -266,7 +302,19 @@ class Context:
         self.b, self.emitter, self.params, self.node, self.entry, self.factor = b, emitter, params, node, entry, factor
         self.compute = b.compute
         self.physical = physical_for(emitter.physical, node, entry['contract'])
+        self.layout = emitter.layout      # the batch layout of the whole graph (B02): `none` or `aligned`
         self._positions = positions
+
+    def held(self, stream=None):
+        """Aligned layout: the positions each session holds on `stream` (the node's own by default)
+        before this invocation, an int64 `[b]` input; None under the `none` layout."""
+        if self.layout != 'aligned':
+            return None
+        stream = stream or self.emitter.graph.node_domain(self.node)[0]
+        name = self.emitter.held.get(stream)
+        if name is None:
+            raise Refusal(f"{self.node}: no held positions for stream '{stream}': the delivery introduces none")
+        return name
 
     def target(self):
         """The target this occurrence is emitted for: the physical parameters' `backend` when they name
