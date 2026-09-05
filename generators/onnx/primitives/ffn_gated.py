@@ -19,10 +19,11 @@ def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
 
-def emit(ctx, arguments, inputs, params, states):
+def emit(ctx, arguments, inputs, params, states, act=activation):
+    """`act`: the activation's emitter — a target's fused one may be passed in."""
     x = inputs['input']
     bias = bool(arguments.get('in_bias'))
     g = linear(ctx, x, ctx.param(params['gate']), ctx.param(params['gate_bias']) if bias else None)
     u = linear(ctx, x, ctx.param(params['up']), ctx.param(params['up_bias']) if bias else None)
-    h = ctx.b.node('Mul', [activation(ctx, g, arguments['activation']), u], hint=f"{ctx.node}.h")
+    h = ctx.b.node('Mul', [act(ctx, g, arguments['activation']), u], hint=f"{ctx.node}.h")
     return {'output': linear(ctx, h, ctx.param(params['out']), ctx.param(params['out_bias']) if arguments.get('out_bias') else None)}

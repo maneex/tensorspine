@@ -2,13 +2,17 @@
 """The ONNX generator's command line.
 
     tsonnx.py info    DERIVED                               counts, and the refusals over the occurrences a delivery evaluates
-    tsonnx.py emit    DERIVED --checkpoint DIR --out F.onnx [--dump] [--inputs a,b]   the graph of one invocation
-    tsonnx.py run     DERIVED --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F]     prefill and greedy decode through onnxruntime
+    tsonnx.py emit    DERIVED --checkpoint DIR --out F.onnx [--dump] [--inputs a,b] [--target onnx|onnxruntime]   the graph of one invocation
+    tsonnx.py run     DERIVED --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--target …]                  prefill and greedy decode through onnxruntime
     tsonnx.py run     DERIVED --random [--seed N] …                                  parameters drawn from the D3 shapes
     tsonnx.py capabilities [--out FILE] [--check]                                    the manifest, from the emitters' tables
 
 DERIVED is a derived document (`tensorspine --derive MODEL -o DIR`): the generator reads D1–D6 and
-the checkpoint, never the model source or the catalog. See generators/onnx/README.md.
+the checkpoint, never the model source or the catalog. The target is the runtime the graph is
+emitted for: `onnx` (standard operators, runs anywhere) or `onnxruntime` (its fused operators
+where a primitive has a fused form: one GroupQueryAttention per attention, SimplifiedLayerNormalization,
+the residual sum and its norm as one SkipSimplifiedLayerNormalization, fused activations); the
+physical parameters (`--physical`) may still name a backend per occurrence. See generators/onnx/README.md.
 """
 import argparse
 import json
@@ -36,8 +40,8 @@ def delivery(args, g):
 
 def build(args, g):
     """The emitter over the checkpoint (V17 checked first) or random parameters; None on a refusal."""
-    prims = registry.load_primitives()
-    em = Emitter(g, None, prims)
+    prims = registry.load_all()
+    em = Emitter(g, None, prims, target=args.target)
     r = em.refusals(em.evaluable(delivery(args, g)))
     if r:
         print(f"refused: {len(r)} reason(s)")
@@ -55,7 +59,7 @@ def build(args, g):
             return None
         print(f"  verified {stats['located']} located tensors against {stats['physical']} physical ({stats['unnamed']} unnamed)")
         source = loader.Source(g, args.checkpoint)
-    return Emitter(g, source, prims, args.compute, physical_of(args))
+    return Emitter(g, source, prims, args.compute, physical_of(args), target=args.target)
 
 
 def describe(model, delivered, seconds):
@@ -76,8 +80,8 @@ def save(model, path):
 
 def cmd_info(args):
     g = graph_mod.load(args.model)
-    prims = registry.load_primitives()
-    em = Emitter(g, None, prims)
+    prims = registry.load_all()
+    em = Emitter(g, None, prims, target=args.target)
     r = em.refusals(em.evaluable(g.required_inputs()))
     o, v, t, s, e, _ = g.counts()
     print(f"{g.model}: {o} occurrences, {v} values, {t} parameter tensors, {s} states, {e} edges")
@@ -174,7 +178,8 @@ def write_dump(path, g, session, prefill_outputs, ids, tokens, extra, compute):
 def manifest():
     import datetime
     import subprocess
-    prims = registry.load_primitives()
+    every = registry.load_all()
+    prims = every['onnx']                 # the portable forms: what the generator can run; a target's fused forms cover the same branches
     try:
         version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=HERE, text=True).strip()
     except Exception:  # noqa: BLE001
@@ -186,6 +191,10 @@ def manifest():
         for key in ('excluding', 'transforms', 'notes'):
             if cap.get(key):
                 entry[key] = list(cap[key])
+        for target, table in every.items():
+            fused = table.get((name, ver))
+            if target != 'onnx' and fused is not p:
+                entry.setdefault('notes', []).extend(f"target {target}: {note}" for note in fused.CAPABILITIES.get('notes', []))
         contracts[f"{name}@{ver}"] = entry
     return {'schema': 'tensorspine-capabilities/1',
             'generator': {'name': 'onnx', 'version': version, 'generator': 'generators/onnx/tsonnx.py capabilities',
@@ -216,6 +225,8 @@ def cmd_capabilities(args):
 def common(p):
     p.add_argument('model', help='a derived document')
     p.add_argument('--compute', default='f32', choices=['f32'])
+    p.add_argument('--target', default='onnx', choices=registry.targets(),
+                   help="the runtime the graph is emitted for: onnx, standard operators only (default); onnxruntime, its fused operators where a primitive has them")
     p.add_argument('--inputs', help='the public inputs delivered, comma-separated (default: the token input)')
     p.add_argument('--physical', metavar='FILE', help='opaque parameters for the primitives (generators/CAPABILITIES.md)')
 

@@ -16,7 +16,7 @@
   4. The manifest regenerates from the emitters' tables identically, and the language's reader
      agrees it can run llama3-8b.
 
-    generators/onnx/tests/run_onnx.py [--model-artifacts DIR]
+    generators/onnx/tests/run_onnx.py [--model-artifacts DIR] [--target onnx|onnxruntime]
 """
 import argparse
 import glob
@@ -91,9 +91,9 @@ def corpus_counts(scratch):
 
 # --- 2: the unit fixtures -----------------------------------------------------------------------
 
-def unit_fixtures(scratch, manifest):
+def unit_fixtures(scratch, manifest, physical=None, target='onnx'):
     ok = True
-    prims = registry.load_primitives()
+    prims = registry.load_all()
     for fixture in sorted(glob.glob(os.path.join(UNIT_FIXTURES, '*', '*.safetensors'))):
         meta = artifact.read_metadata(fixture)
         cid = f"{meta['contract']['name']}@{meta['contract']['version']}"
@@ -117,7 +117,7 @@ def unit_fixtures(scratch, manifest):
             continue
         from safetensors.numpy import load_file
         fx = load_file(fixture)
-        emitter = Emitter(g, loader.Source(g, fixture), prims)
+        emitter = Emitter(g, loader.Source(g, fixture), prims, physical=physical, target=target)
         session = Session(emitter, g)
         atol, rtol = meta['tolerance']['f32']['atol'], meta['tolerance']['f32']['rtol']
         worst, bad = 0.0, []
@@ -210,9 +210,9 @@ def truncated(model_path, composition, stop, out_dir):
     return path
 
 
-def integration_fixtures(scratch, manifest, artifacts):
+def integration_fixtures(scratch, manifest, artifacts, physical=None, target='onnx'):
     ok = True
-    prims = registry.load_primitives()
+    prims = registry.load_all()
     for fixture in sorted(glob.glob(os.path.join(REFERENCE_FIXTURES, '*.hf.safetensors'))):
         meta = artifact.read_metadata(fixture)
         document = meta['document']
@@ -227,7 +227,7 @@ def integration_fixtures(scratch, manifest, artifacts):
         if [k for k in artifact.read_header(fixture) if k.startswith('in/')]:
             print(f"  skip {document} ({tag}): the fixture delivers non-token inputs, not emitted yet")
             continue
-        em = Emitter(g, None, prims)
+        em = Emitter(g, None, prims, target=target)
         refused = em.refusals(em.evaluable({g.token_input}))
         if refused:
             print(f"  skip {document} ({tag}): {refused[0]}")
@@ -237,7 +237,7 @@ def integration_fixtures(scratch, manifest, artifacts):
         from safetensors.numpy import load_file
         theirs = load_file(fixture)
         atol, rtol = meta['tolerance']['f32']['atol'], meta['tolerance']['f32']['rtol']
-        session = Session(Emitter(g, loader.Source(g, checkpoint), prims), g, dump=True)
+        session = Session(Emitter(g, loader.Source(g, checkpoint), prims, physical=physical, target=target), g, dump=True)
         ids = meta['ids']
         encoder = g.generative is None
         out = session.run({g.token_input: np.asarray(ids, dtype=np.int64)}) if encoder else session.prefill(ids)
@@ -296,13 +296,21 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--model-artifacts', default=os.environ.get('TENSORSPINE_MODEL_ARTIFACTS'),
                     help='the runtime directory: weights/<artifact>/ for the checkpoints ($TENSORSPINE_MODEL_ARTIFACTS)')
+    ap.add_argument('--target', default='onnx', choices=registry.targets(), help='the runtime every graph is emitted for (default: onnx, the standard operators)')
+    ap.add_argument('--physical', metavar='FILE', help="opaque physical parameters for every emission, overriding the target per occurrence")
     a = ap.parse_args(argv)
+    print(f"  target: {a.target}")
+    physical = None
+    if a.physical:
+        with open(a.physical, encoding='utf-8') as f:
+            physical = json.load(f)
+        print(f"  physical parameters: {json.dumps(physical)}")
     scratch = tempfile.mkdtemp(prefix='tensorspine-onnx-')
     with open(MANIFEST, encoding='utf-8') as f:
         manifest = json.load(f)
     ok = corpus_counts(scratch)
-    ok &= unit_fixtures(scratch, manifest)
-    ok &= integration_fixtures(scratch, manifest, a.model_artifacts)
+    ok &= unit_fixtures(scratch, manifest, physical, a.target)
+    ok &= integration_fixtures(scratch, manifest, a.model_artifacts, physical, a.target)
     ok &= manifest_check(scratch)
     shutil.rmtree(scratch, ignore_errors=True)
     print("onnx: all good" if ok else "onnx: FAILED")

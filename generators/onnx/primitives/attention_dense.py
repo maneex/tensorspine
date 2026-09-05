@@ -78,14 +78,20 @@ def rope(ctx, x, positions, d, theta, partial=None, scaling=None):
     return y
 
 
-def emit(ctx, arguments, inputs, params, states):
-    b = ctx.b
+def projections(ctx, arguments, inputs, params):
+    """q, k, v of the invocation's elements, [n, heads·d] each, biases added."""
     x = inputs['input']
-    h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']
-    i64 = lambda *v: b.const(np.array(v, dtype=np.int64), 'i')
     q = linear(ctx, x, ctx.param(params['q']), ctx.param(params['q_bias']) if arguments.get('q_bias') else None)
     k = linear(ctx, x, ctx.param(params['k']), ctx.param(params['k_bias']) if arguments.get('k_bias') else None)
     v = linear(ctx, x, ctx.param(params['v']), ctx.param(params['v_bias']) if arguments.get('v_bias') else None)
+    return q, k, v
+
+
+def emit(ctx, arguments, inputs, params, states):
+    b = ctx.b
+    h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']
+    i64 = lambda *v: b.const(np.array(v, dtype=np.int64), 'i')
+    q, k, v = projections(ctx, arguments, inputs, params)
     q = b.node('Reshape', [q, i64(-1, h, d)], hint=f"{ctx.node}.q")
     k = b.node('Reshape', [k, i64(-1, kv, d)], hint=f"{ctx.node}.k")
     v = b.node('Reshape', [v, i64(-1, kv, d)], hint=f"{ctx.node}.v")

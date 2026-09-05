@@ -32,6 +32,7 @@ class Builder:
         self.ctype = COMPUTE[compute]
         self.nodes, self.initializers, self.inputs, self.outputs = [], [], [], []
         self.taken = set()
+        self.by_output = {}               # value name -> the node that produces it
 
     def name(self, hint):
         base = hint
@@ -42,12 +43,28 @@ class Builder:
         self.taken.add(hint)
         return hint
 
-    def node(self, op, inputs, outputs=1, hint=None, **attrs):
+    def node(self, op, inputs, outputs=1, hint=None, domain=None, **attrs):
         names = [self.name(f"{hint or op}") for _ in range(outputs)] if isinstance(outputs, int) else list(outputs)
         for n in names:
             self.taken.add(n)
-        self.nodes.append(helper.make_node(op, list(inputs), names, **attrs))
+        node = helper.make_node(op, list(inputs), names, domain=domain, **attrs) if domain else helper.make_node(op, list(inputs), names, **attrs)
+        self.nodes.append(node)
+        for n in names:
+            if n:
+                self.by_output[n] = node
         return names[0] if isinstance(outputs, int) and outputs == 1 else names
+
+    def remove(self, node):
+        """Drop a node whose outputs another one now provides (a fusion across occurrences)."""
+        self.nodes.remove(node)
+        for n in node.output:
+            self.by_output.pop(n, None)
+
+    def unsqueeze0(self, x, hint='u'):
+        return self.node('Unsqueeze', [x, self.const(np.array([0], dtype=np.int64), 'ax0')], hint=hint)
+
+    def squeeze0(self, x, hint='s'):
+        return self.node('Squeeze', [x, self.const(np.array([0], dtype=np.int64), 'ax0')], hint=hint)
 
     def const(self, array, hint='c'):
         array = np.asarray(array)
@@ -71,7 +88,10 @@ class Builder:
 
     def model(self, name):
         graph = helper.make_graph(self.nodes, name, self.inputs, self.outputs, self.initializers)
-        model = helper.make_model(graph, opset_imports=[helper.make_opsetid('', OPSET)], producer_name='tensorspine-onnx')
+        opsets = [helper.make_opsetid('', OPSET)]
+        if any(n.domain == 'com.microsoft' for n in self.nodes):
+            opsets.append(helper.make_opsetid('com.microsoft', 1))    # onnxruntime's fused operators, when a backend asked for them
+        model = helper.make_model(graph, opset_imports=opsets, producer_name='tensorspine-onnx')
         model.ir_version = IR_VERSION
         return model
 
@@ -103,8 +123,24 @@ class StateRef:
 
 
 class Emitter:
-    def __init__(self, graph, source, primitives, compute='f32', physical=None):
-        self.graph, self.source, self.primitives, self.compute, self.physical = graph, source, primitives, compute, physical
+    def __init__(self, graph, source, primitives, compute='f32', physical=None, target='onnx'):
+        """`primitives`: the emitters per target (`registry.load_all()`), or one target's set. `target`:
+        the runtime the graph is emitted for — `onnx`, standard operators only, runs anywhere;
+        `onnxruntime`, its fused operators wherever the target has a primitive of its own. The physical
+        parameters may name a `backend` per occurrence, which picks that occurrence's target."""
+        if not primitives or not isinstance(next(iter(primitives.values())), dict):
+            primitives = {target: primitives}
+        if target not in primitives:
+            raise Refusal(f"target {target!r}: one of {sorted(primitives)}")
+        self.graph, self.source, self.primitives, self.compute, self.physical, self.target = graph, source, primitives, compute, physical, target
+
+    def primitive(self, node, entry):
+        """The occurrence's emitter: the target's, or the one the physical parameters' `backend` names."""
+        target = (physical_for(self.physical, node, entry['contract']) or {}).get('backend') or self.target
+        table = self.primitives.get(target)
+        if table is None:
+            raise Refusal(f"{node}: backend {target!r} names no target of this generator ({sorted(self.primitives)})")
+        return table.get((entry['contract']['name'], entry['contract']['version']))
 
     def refusals(self, nodes=None):
         out = []
@@ -112,7 +148,7 @@ class Emitter:
             if nodes is not None and node not in nodes:
                 continue
             key = (entry['contract']['name'], entry['contract']['version'])
-            p = self.primitives.get(key)
+            p = self.primitive(node, entry)
             if p is None:
                 out.append(f"{node}: no primitive for {key[0]}@{key[1]}")
                 continue
@@ -169,12 +205,12 @@ class Emitter:
         needed = {f"{o['node']}.{o['port']}" for o in g.interfaces['outputs'].values()}
         dumped = {p['value'] for c in g.layer_cuts() for p in c['payload']} if dump else set()
         active = self.evaluable(delivered)
+        self.origin = {}                  # value name -> (contract name, the primitive's raw output, its Identity node)
         for node in g.order:
             if node not in active:
                 continue
             entry = g.nodes[node]
-            key = (entry['contract']['name'], entry['contract']['version'])
-            prim = self.primitives[key]
+            prim = self.primitive(node, entry)
             ins = {}
             for (n, port), vname in g.sources.items():
                 if n == node and vname in values:
@@ -191,6 +227,7 @@ class Emitter:
                 out_name = b.name(vname) if vname in b.taken else vname
                 b.taken.add(out_name)
                 b.node('Identity', [name], outputs=[out_name])
+                self.origin[out_name] = (entry['contract']['name'], name, b.by_output[out_name])
                 values[vname] = out_name
                 if vname in needed or vname in dumped:
                     b.output(out_name, b.ctype)
@@ -200,13 +237,46 @@ class Emitter:
         return b.model(g.model)
 
 
+def physical_for(physical, node, contract):
+    """The opaque parameters addressed to an occurrence (generators/CAPABILITIES.md): by its exact
+    identifier, by a site pattern where `*` alone is a wildcard, or by its contract version; more
+    specific entries override more general ones (contract < pattern < exact)."""
+    import re
+    if not physical:
+        return None
+    out = {}
+    cid = f"{contract['name']}@{contract['version']}"
+    for key, value in physical.items():
+        if key == cid:
+            out.update(value)
+    for key, value in physical.items():
+        if key != cid and key != node and '*' in key and re.fullmatch(re.escape(key).replace(r'\*', '.*'), node):
+            out.update(value)
+    if node in physical:
+        out.update(physical[node])
+    return out or None
+
+
 class Context:
-    """What a primitive's emitter sees: the builder, the parameters as initializers, the node's positions."""
+    """What a primitive's emitter sees: the builder, the parameters as initializers, the node's
+    positions, and the opaque physical parameters addressed to the occurrence — the channel a
+    backend-specific realisation (a fused operator of one runtime) is selected through."""
 
     def __init__(self, b, emitter, params, node, entry, positions, factor):
         self.b, self.emitter, self.params, self.node, self.entry, self.factor = b, emitter, params, node, entry, factor
         self.compute = b.compute
+        self.physical = physical_for(emitter.physical, node, entry['contract'])
         self._positions = positions
+
+    def target(self):
+        """The target this occurrence is emitted for: the physical parameters' `backend` when they name
+        one, else the generator's target — the registry chose the primitive by it already."""
+        return (self.physical or {}).get('backend') or self.emitter.target
+
+    def origin(self, value):
+        """(contract name, the primitive's raw output name, the Identity node naming the value) of a value
+        an earlier occurrence produced — what a fusion across occurrences reasons on."""
+        return self.emitter.origin.get(value)
 
     @property
     def positions(self):

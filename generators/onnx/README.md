@@ -23,9 +23,42 @@ One ONNX graph is **one invocation** (Specification §7), for one set of deliver
   (`primitives/<name>.py`), in D1's order, its outputs named `<node>.<port>`; the exposed outputs
   are graph outputs, and with `--dump` so is every value crossing a D6 layer cut.
 
-Opset 17, IR 8, no contrib operators: RMS norm, rotary and attention are composed from the
-standard operators. The session emits one graph per distinct delivery (a prefill with the audio
-and a decode without it would be two) and caches the onnxruntime session for each.
+Opset 17, IR 8. The **target** is an argument of the generator (`--target`), the runtime the graph
+is emitted for: `onnx`, the default, composes every primitive from the standard operators and the
+graph runs on any runtime; `onnxruntime` emits that runtime's fused operators wherever a primitive
+has a form for it (below), and the portable form everywhere else. The session emits one graph per
+distinct delivery (a prefill with the audio and a decode without it would be two) and caches the
+onnxruntime session for each.
+
+## Targets: opaque arguments flowing to the primitives
+
+The target is one of the **physical parameters** — the opaque arguments the language leaves to a
+generator ([`generators/CAPABILITIES.md`](../CAPABILITIES.md); derivation never sees them) —
+flowing from the generator to its primitives: the `backend` key, set for every occurrence by
+`--target` and overridden per occurrence by `--physical` (a file keyed by exact identifier, by
+site pattern with `*`, or by contract version, the more specific entry winning), so one graph may
+mix targets. Every other key flows the same way and a primitive reads it from its context
+(`ctx.physical`; the fused attention takes `rotary_cache`, the positions its cos/sin caches cover).
+
+The generator dispatches on the target by directory, with a fallback: `primitives/<name>.py` is
+the portable emitter of a contract, `primitives/<target>/<name>.py` the target's own, laid over
+the portable table contract by contract (`registry.load_primitives(target)`); a contract the
+target has no file for keeps the portable form, and a target's emitter falls back to the portable
+one for the branches its fused operator does not cover. A new target is a directory. The
+`onnxruntime` target today (`com.microsoft`):
+
+- `attention.dense`: causal attention over an `append` state with a full-head rope or none as one
+  `GroupQueryAttention`, the rotary inside it from cos/sin caches (YaRN's frequencies and attention
+  factor folded into the caches); a non-causal mask, a partial or interleaved rope, an output gate
+  or a head size that is not a multiple of 16 keeps the portable form;
+- `norm.rms`: `SimplifiedLayerNormalization`, and when its input is the sum a `residual.add`
+  occurrence just produced, the two occurrences as one `SkipSimplifiedLayerNormalization` whose
+  sum output replaces the Add for every consumer — a fusion across occurrences, reasoned from the
+  topology (the value's origin), never from the model's name;
+- `ffn.gated`: the activation as `QuickGelu` with alpha 1 (SiLU exactly), `Gelu` or `FastGelu`.
+
+A fused form is checked as the composed one is: the same unit and integration fixtures at the same
+tolerances, under `--target onnxruntime`.
 
 ## Commands
 
@@ -39,9 +72,11 @@ T=generators/onnx/tsonnx.py
 python3 $T info $D                                              # counts, and the refusals over what the delivery evaluates
 python3 $T emit $D --checkpoint "$CK" --out model.onnx [--dump]  # the graph of one invocation (external data above 1.5 GB)
 python3 $T run  $D --checkpoint "$CK" --ids 128000,791 --steps 8 [--dump ours.safetensors] [--out model.onnx]
+python3 $T run  $D --checkpoint "$CK" --ids 128000,791 --target onnxruntime      # the fused forms (com.microsoft)
+python3 $T run  $D --checkpoint "$CK" --ids 128000,791 --physical phys.json       # e.g. {"decoder/attn[layer=*]": {"backend": "onnxruntime", "rotary_cache": 4096}}
 python3 $T run  $D --random --ids 1,2,3                          # parameters drawn from the D3 shapes
 python3 $T capabilities [--check]                                # the manifest, from the emitters' tables
-python3 generators/onnx/tests/run_onnx.py                        # the harness (below)
+python3 generators/onnx/tests/run_onnx.py [--target onnxruntime] # the harness (below)
 ```
 
 `run` prefills the prompt, decodes greedily, and with `--dump` writes the values at every layer
@@ -58,14 +93,19 @@ and state by state, within the tolerance the fixture states for f32 — this gen
 and whose checkpoint is on disk is compared at every layer cut, on every state after the prefill
 and on the logits, then on the greedy tokens; the manifest regenerates identically and the
 language's reader agrees it can run `llama3-8b`. Absent checkpoints are `skip`, never failures.
+The harness takes `--target`: under `onnxruntime` every check runs through the fused forms and
+passes at the same tolerances (the fused attention and norm sit farther from transformers than the
+composed forms, within the fixtures' tolerance).
 
 ## Capabilities
 
 `generators/onnx/capabilities.json` (the format is [`generators/CAPABILITIES.md`](../CAPABILITIES.md))
 is generated from the primitives' `CAPABILITIES` tables by `tsonnx.py capabilities` and regenerated
-by the harness; a conformer's manifest, without a `witness` block. Six contracts today (`embed`,
+by the harness; a conformer's manifest, without a `witness` block. Seven contracts today (`embed`,
 `norm.rms`, `residual.add`, `ffn.gated`, `attention.dense` with `append` states and causal or no
-mask, `lm_head`); `tensorspine --capabilities generators/onnx/capabilities.json MODEL…` says which
-documents it can run. Compute is f32; `window` and `fixed` states, cross attention, non-token
+mask, `lm_head`, `splice` for the text-only path of a multimodal document); `tensorspine
+--capabilities generators/onnx/capabilities.json MODEL…` says which documents it can run. The
+manifest is the portable table — what the generator can run is the same under every target — and
+a target's fused form is a note on the contract it covers (`target onnxruntime: …`). Compute is f32; `window` and `fixed` states, cross attention, non-token
 inputs and a merged domain's positions are not emitted yet and are refused by the manifest, not
 guessed.
