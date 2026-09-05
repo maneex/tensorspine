@@ -3,7 +3,8 @@
 states nothing the tools do not compute: every number on it equals what the suites compute from
 the same tools — the catalog's counts from `catalog.py`, the corpus's from the models directory
 and the validator, a generator's coverage from `capabilities.coverage()` and its unwitnessed
-contracts from `capabilities.unwitnessed()` (Specification §10.2).
+contracts from `capabilities.unwitnessed()` (Specification §10.2). The generators are every
+`generators/*/capabilities.json` in the tree (`capabilities.manifests()`), never a list kept here.
 
 Skips, and says so, when `tools/status.py` is not in the tree.
 
@@ -21,8 +22,6 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
 MODELS = os.path.join(ROOT, 'data', 'models')
-MANIFESTS = [os.path.join(ROOT, 'generators', 'reference', 'capabilities.json'),
-             os.path.join(ROOT, 'generators', 'zml', 'capabilities.json')]
 
 
 def check(label, ok, detail=''):
@@ -73,7 +72,10 @@ def main():
     import validate
     ok = True
     corpus = sorted(glob.glob(os.path.join(MODELS, '*.json')))
-    manifests = [m for m in MANIFESTS if os.path.isfile(m)]
+    manifests = capabilities.manifests(ROOT)            # every generators/*/capabilities.json, the witness first
+    names = [os.path.basename(os.path.dirname(m)) for m in manifests]
+    ok &= check(f"the manifests come from the tree, the witness first — {names}",
+                names[0] == 'reference' and {'onnx', 'zml'} <= set(names[1:]), str(names))
     state = status.facts(corpus, None, SCHEMAS, manifests)
     text = status.render_status(state)
     found = tables(text)

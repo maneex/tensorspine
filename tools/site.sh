@@ -77,15 +77,17 @@ sed -i -e 's#<link rel="stylesheet" href="[^"]*catalog\.css">#<link rel="stylesh
   "$out/catalog/index.html"
 echo "wrote catalog/index.html"
 
-python3 "$here/tensorspine" --document status \
-  --capabilities "$repo_dir/generators/reference/capabilities.json" \
-  --capabilities "$repo_dir/generators/zml/capabilities.json" \
-  -o "$work/status.md"
+# every generator's manifest in the tree, the witness first (tools/capabilities.py: never a list kept here)
+manifests=$(python3 -c "import sys; sys.path.insert(0, '$here'); import capabilities; print('\n'.join(capabilities.manifests('$repo_dir')))")
+set --
+for m in $manifests; do set -- "$@" --capabilities "$m"; done
+python3 "$here/tensorspine" --document status "$@" -o "$work/status.md"
 doc "$work/status.md" "$out/status/index.html" "../" "" status \
   --metadata pagetitle="Status"
 
+witness=$(printf '%s\n' "$manifests" | head -n 1)
 python3 "$here/tensorspine" --document branch-ledger \
-  --capabilities "$repo_dir/generators/reference/capabilities.json" \
+  --capabilities "$witness" \
   -o "$work/branch-ledger.md"
 doc "$work/branch-ledger.md" "$out/branch-ledger/index.html" "../" "" branch-ledger \
   --metadata pagetitle="Branch ledger"

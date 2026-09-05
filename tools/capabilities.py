@@ -10,6 +10,7 @@ the authority for it and to the unit fixtures that kernel produced; the reader c
 exist, `--coverage` lists the contract versions still without a witness — the release rule of
 §10.2 — and `--strict` exits 1 on any, for a tag workflow.
 """
+import glob
 import json
 import os
 
@@ -70,6 +71,24 @@ def supports(entry, arguments):
 
 
 # --- loading and checking a manifest -------------------------------------------
+
+def manifests(root=ROOT):
+    """Every generator's manifest in the tree — `generators/*/capabilities.json`, each a claim
+    (generators/CAPABILITIES.md: a manifest is generated from code, never kept as a list, and
+    neither is the list of manifests) — the witness first, then the conformers by path. Exactly
+    one manifest carries the witness role (Specification §4.1, O1.3); none or several is an
+    error, never a guess at which generator the fixtures belong to."""
+    paths = sorted(glob.glob(os.path.join(root, 'generators', '*', 'capabilities.json')))
+    roles = {}
+    for path in paths:
+        with open(path, encoding='utf-8') as f:
+            roles[path] = json.load(f).get('role', 'conformer')
+    witnesses = [p for p in paths if roles[p] == 'witness']
+    if len(witnesses) != 1:
+        raise ValueError(f"{len(witnesses)} witness manifests under {os.path.join(root, 'generators')} "
+                         f"({[os.path.relpath(p, root) for p in witnesses] or 'none'}): exactly one generator is the witness (§4.1)")
+    return witnesses + [p for p in paths if roles[p] != 'witness']
+
 
 def load(path):
     with open(path, encoding='utf-8') as f:

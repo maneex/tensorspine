@@ -2,12 +2,14 @@
 """The capabilities reader (generators/CAPABILITIES.md) on the committed manifests: the witness
 binding (Specification §4.1, O1.3), the release rule (§10.2) and the branch ledger.
 
-  1. The reference manifest is a witness manifest: every entry carries a witness block naming a
-     kernel that exists and fixtures that exist; the contracts without a witness are exactly the
+  1. The manifests are every `generators/*/capabilities.json` in the tree (`capabilities.manifests()`),
+     exactly one of them the witness's, first; a tree with two witnesses, or none, is refused.
+  2. The witness manifest (the reference's): every entry carries a witness block naming a kernel
+     that exists and fixtures that exist; the contracts without a witness are exactly the
      catalog's contract versions without an entry, and `--coverage --strict` exits 1 while there
      is one.
-  2. The ZML manifest is a conformer's: no role, no witness block; a witness block added to it is
-     refused by the reader.
+  3. Every other manifest is a conformer's: no role, no witness block; a witness block added to
+     it is refused by the reader.
   3. The branch ledger lists, for a contract without an entry, every branch of its arguments —
      the enum values, both values of a boolean, a record's presence and its fields — so the to-do
      list per model-and-generator pair is complete; for an entry, the branches it does not admit.
@@ -18,6 +20,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -26,8 +29,6 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import capabilities                    # noqa: E402
 import catalog as catalog_mod          # noqa: E402
 
-REFERENCE = os.path.join(ROOT, 'generators', 'reference', 'capabilities.json')
-ZML = os.path.join(ROOT, 'generators', 'zml', 'capabilities.json')
 
 
 def check(label, ok, detail=''):
@@ -38,6 +39,21 @@ def check(label, ok, detail=''):
 def main():
     cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
     ok = True
+    paths = capabilities.manifests(ROOT)
+    REFERENCE, conformers = paths[0], paths[1:]
+    ok &= check(f"the manifests come from the tree, the witness first: {[os.path.relpath(p, ROOT) for p in paths]}",
+                REFERENCE.endswith(os.path.join('reference', 'capabilities.json')) and len(conformers) >= 2)
+    tmp = tempfile.mkdtemp(prefix='tensorspine-capabilities-')
+    for name in ('a', 'b'):
+        os.makedirs(os.path.join(tmp, 'generators', name))
+        with open(os.path.join(tmp, 'generators', name, 'capabilities.json'), 'w', encoding='utf-8') as f:
+            json.dump({'role': 'witness'}, f)
+    for forged_root, label in ((tmp, 'two witness manifests'), (os.path.join(tmp, 'generators'), 'no manifest at all')):
+        try:
+            capabilities.manifests(forged_root)
+            ok &= check(f"a tree with {label} is refused", False, "accepted")
+        except ValueError as e:
+            ok &= check(f"a tree with {label} is refused, naming the rule", '§4.1' in str(e), str(e)[:120])
     manifest, errors = capabilities.load(REFERENCE)
     errors += capabilities.names(manifest, cat) + capabilities.witness_problems(manifest, os.path.dirname(REFERENCE))
     ok &= check("reference: the manifest validates, names resolve, witness kernels and fixtures exist", not errors, errors[:2])
@@ -64,16 +80,18 @@ def main():
     run = subprocess.run(cli, capture_output=True, text=True)
     ok &= check("reference: --coverage --strict exits 1 while a contract version has no witness (§10.2)",
                 run.returncode == 1 and '--strict: refused' in run.stdout, run.stdout[-300:])
-    zml, errors = capabilities.load(ZML)
-    errors += capabilities.witness_problems(zml, os.path.dirname(ZML))
-    ok &= check("zml: a conformer's manifest — no role, no witness block, accepted",
-                not errors and 'role' not in zml and not any('witness' in e for e in zml['contracts'].values()), errors[:1])
-    ok &= check("zml: a conformer witnesses nothing", capabilities.unwitnessed(zml, cat) is None)
-    forged = json.loads(json.dumps(zml))
-    first = next(iter(forged['contracts']))
-    forged['contracts'][first]['witness'] = {'kernel': 'primitives/x.zig', 'tolerance': {'f32': {'atol': 0, 'rtol': 0}}, 'fixtures': []}
-    problems = capabilities.witness_problems(forged, os.path.dirname(ZML))
-    ok &= check("zml: a witness block in a conformer's manifest is refused", len(problems) == 1 and 'role is conformer' in problems[0], problems[:1])
+    for path in conformers:
+        name = os.path.basename(os.path.dirname(path))
+        conformer, errors = capabilities.load(path)
+        errors += capabilities.names(conformer, cat) + capabilities.witness_problems(conformer, os.path.dirname(path))
+        ok &= check(f"{name}: a conformer's manifest — validates, names resolve, no role, no witness block",
+                    not errors and 'role' not in conformer and not any('witness' in e for e in conformer['contracts'].values()), errors[:1])
+        ok &= check(f"{name}: a conformer witnesses nothing", capabilities.unwitnessed(conformer, cat) is None)
+        forged = json.loads(json.dumps(conformer))
+        first = next(iter(forged['contracts']))
+        forged['contracts'][first]['witness'] = {'kernel': 'primitives/x', 'tolerance': {'f32': {'atol': 0, 'rtol': 0}}, 'fixtures': []}
+        problems = capabilities.witness_problems(forged, os.path.dirname(path))
+        ok &= check(f"{name}: a witness block in a conformer's manifest is refused", len(problems) == 1 and 'role is conformer' in problems[0], problems[:1])
     forged = json.loads(json.dumps(manifest))
     forged['contracts']['norm.rms@1.0.0']['witness']['fixtures'] = ['norm.rms@1.0.0/nowhere']
     problems = capabilities.witness_problems(forged, os.path.dirname(REFERENCE))
