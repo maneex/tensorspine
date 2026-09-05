@@ -415,38 +415,23 @@
             "sliding_attention"
           ],
           "when": {
-            "all": [
-              {
-                "compare": {
-                  "operator": "not_equal",
-                  "left": {
-                    "op": "modulo",
-                    "args": [
-                      {
-                        "index": "layer"
-                      },
-                      {
-                        "literal": 5
-                      }
-                    ]
-                  },
-                  "right": {
-                    "literal": 4
-                  }
-                }
-              },
-              {
-                "compare": {
-                  "operator": "less",
-                  "left": {
+            "compare": {
+              "operator": "not_equal",
+              "left": {
+                "op": "modulo",
+                "args": [
+                  {
                     "index": "layer"
                   },
-                  "right": {
-                    "literal": 29
+                  {
+                    "literal": 5
                   }
-                }
+                ]
+              },
+              "right": {
+                "literal": 4
               }
-            ]
+            }
           }
         },
         "attn_post_n": {
