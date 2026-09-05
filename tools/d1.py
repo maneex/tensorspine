@@ -115,9 +115,10 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
             raise ValueError(f"contract nesting deeper than {MAX_DEPTH}")
         occurrence = keys.pop(key)
         instance = _prefix + identity(key)
+        env0 = dict(key[3]) if key[0] == 'gen' else {}       # a generated site's indices (§5.2)
         sub_assignment = {}
         for arg_name, arg_value in occurrence['arguments'].items():
-            v = static(arg_value)
+            v = static(arg_value, env0)
             if v is not UNRESOLVED:
                 sub_assignment[arg_name] = v
         sub = emit(catalog_mod.template_path(cat, definition), cat, sub_assignment,
@@ -128,7 +129,6 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
                                "arguments": dict(sub_assignment)}
         if 'weights_location_prefix' in occurrence:
             from validate import _physical_name
-            env0 = dict(key[3]) if key[0] == 'gen' else {}
             prefix, problem = _physical_name(occurrence['weights_location_prefix'], env0, value, {})
             if problem:
                 raise ValueError(f"{instance}: weights_location_prefix: {problem}")
@@ -146,7 +146,8 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     for key, occurrence in keys.items():
         contract_name = occurrence['contract']['name']
         definition = cat['contracts'][contract_name]
-        args = {a: static(v) for a, v in occurrence['arguments'].items()}
+        env = dict(key[3]) if key[0] == 'gen' else {}        # a generated site's indices (§5.2)
+        args = {a: static(v, env) for a, v in occurrence['arguments'].items()}
         for arg_name, decl in definition['arguments'].items():
             if arg_name not in args and 'default' in decl:
                 args[arg_name] = contract_value(decl['default'], args)
