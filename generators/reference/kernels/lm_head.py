@@ -4,7 +4,7 @@ from kernels._common import chunked_matmul, refuse_unknown, supports_from
 CONTRACT = ("lm_head", "1.0.0")
 
 
-CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any"}, "states": []}
+CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "softcap": "absent"}, "states": []}   # softcap: S4
 
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):

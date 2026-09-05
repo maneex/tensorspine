@@ -1,8 +1,8 @@
-"""lm_head@1.0.0 — one logit per vocabulary entry."""
+"""lm_head@1.0.0 — one logit per vocabulary entry; `softcap` refused."""
 from primitives._common import linear, supports_from
 
 CONTRACT = ("lm_head", "1.0.0")
-CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any"}, "states": []}
+CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "softcap": "absent"}, "states": []}
 
 
 def supports(arguments):

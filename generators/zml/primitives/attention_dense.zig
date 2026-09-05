@@ -14,6 +14,9 @@
 //! | qk_norm kind rms                | implemented, over head_dim and before RoPE |
 //! | qk_norm kind layer              | refused                                    |
 //! | temperature                     | refused                                    |
+//! | scale (≠ head_dim^-1/2)         | refused                                    |
+//! | kv_source shared                | refused                                    |
+//! | qk_norm values                  | refused                                    |
 //! | output_gate                     | implemented: per head, query rows then gate rows of `q_gated` |
 //! | q/k/v/out biases                | implemented                                |
 //!
@@ -38,11 +41,11 @@ pub const primitive: p.Primitive = .{
     .run = run,
     .needs_positions = true,
     .capabilities =
-    \\{"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any",
+    \\{"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any", "scale": "absent",
     \\               "mask": ["causal", "none"], "window": "absent", "chunk": "absent",
-    \\               "cross": [false], "streaming": [false], "temperature": "absent",
+    \\               "cross": [false], "streaming": [false], "kv_source": ["own"], "temperature": "absent",
     \\               "output_gate": "any",
-    \\               "qk_norm": {"absent": true, "fields": {"kind": ["rms"], "eps": "any",
+    \\               "qk_norm": {"absent": true, "fields": {"kind": ["rms"], "eps": "any", "values": [false],
     \\                           "scale": {"absent": true, "fields": {"zero_centered": "any"}}}},
     \\               "rope": {"absent": true, "fields": {"theta": "any", "layout": ["split"],
     \\                        "partial": "any", "scaling": "absent",

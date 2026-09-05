@@ -8,6 +8,7 @@
 | rope: theta, layout split, partial, scaling yarn | emitted (rotate-half; YaRN's frequencies computed at emission as the reference computes them) |
 | rope: layout interleaved / 2d, mrope, scaling llama3 / linear | refused                     |
 | qk_norm, temperature, output_gate | refused                                                |
+| scale, kv_source shared         | refused                                                  |
 | q/k/v/out biases                | emitted                                                  |
 
 Conventions as the reference reads them: keys of the current elements join the state before the
@@ -22,9 +23,9 @@ from onnx import TensorProto
 from primitives._common import linear, supports_from
 
 CONTRACT = ("attention.dense", "1.0.0")
-CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any",
+CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any", "scale": "absent",
                               "mask": ["causal", "none"], "window": "absent", "chunk": "absent", "cross": [False],
-                              "streaming": [False], "temperature": "absent",
+                              "streaming": [False], "kv_source": ["own"], "temperature": "absent",
                               "rope": {"absent": True, "fields": {"theta": "any", "layout": ["split"], "partial": "any",
                                        "mrope": "absent",
                                        "scaling": {"absent": True, "fields": {"kind": ["yarn"], "factor": "any", "orig_ctx": "any",

@@ -45,6 +45,7 @@
         "heads": "any",
         "head_dim": "any",
         "kv_heads": "any",
+        "scale": "absent",
         "mask": [
           "causal",
           "none"
@@ -57,6 +58,9 @@
         "streaming": [
           false
         ],
+        "kv_source": [
+          "own"
+        ],
         "temperature": "absent",
         "output_gate": "any",
         "qk_norm": {
@@ -66,6 +70,9 @@
               "rms"
             ],
             "eps": "any",
+            "values": [
+              false
+            ],
             "scale": {
               "absent": true,
               "fields": {
@@ -182,7 +189,8 @@
     "lm_head@1.0.0": {
       "arguments": {
         "width": "any",
-        "vocabulary": "any"
+        "vocabulary": "any",
+        "softcap": "absent"
       },
       "states": []
     },

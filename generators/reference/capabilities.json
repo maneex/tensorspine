@@ -3,9 +3,9 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "4a8a6c9",
+    "version": "a92f8be",
     "generator": "generators/reference/ref.py capabilities",
-    "generated": "2026-09-05"
+    "generated": "2026-09-06"
   },
   "compute_dtypes": [
     "f32",
@@ -61,6 +61,7 @@
         "heads": "any",
         "head_dim": "any",
         "kv_heads": "any",
+        "scale": "absent",
         "mask": [
           "causal",
           "none"
@@ -77,6 +78,9 @@
           true
         ],
         "streaming": "any",
+        "kv_source": [
+          "own"
+        ],
         "temperature": "absent",
         "rope": {
           "absent": true,
@@ -122,6 +126,9 @@
               "rms"
             ],
             "eps": "any",
+            "values": [
+              false
+            ],
             "scale": {
               "absent": true,
               "fields": {
@@ -435,7 +442,8 @@
     "lm_head@1.0.0": {
       "arguments": {
         "width": "any",
-        "vocabulary": "any"
+        "vocabulary": "any",
+        "softcap": "absent"
       },
       "states": [],
       "witness": {

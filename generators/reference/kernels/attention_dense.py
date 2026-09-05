@@ -16,6 +16,9 @@
 | rope: scaling llama3 / linear   | refused                                         |
 | qk_norm kind rms (eps, scale, zero_centered) | implemented, before RoPE           |
 | qk_norm kind layer              | refused                                         |
+| qk_norm values                  | refused (S4)                                    |
+| scale (a score scale ≠ head_dim⁻½) | refused (S4)                                  |
+| kv_source shared                | refused (S4)                                    |
 | temperature                     | refused                                         |
 | q/k/v/out biases                | implemented                                     |
 | output_gate (`q_gated`)         | implemented: per head, query rows then gate rows |
@@ -36,20 +39,20 @@ import torch
 from kernels._common import present, refuse_unknown, supports_from, w
 
 CONTRACT = ("attention.dense", "1.0.0")
-KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'mask', 'window', 'chunk', 'cross', 'streaming', 'rope',
+KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'scale', 'mask', 'window', 'chunk', 'cross', 'streaming', 'kv_source', 'rope',
          'qk_norm', 'temperature', 'q_bias', 'k_bias', 'v_bias', 'out_bias', 'output_gate'}
 
 
-CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any",
+CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any", "scale": "absent",
                               "mask": ["causal", "none"], "window": {"absent": True, "fields": {"span": "any"}}, "chunk": "absent",
-                              "cross": [False, True], "streaming": "any", "temperature": "absent",
+                              "cross": [False, True], "streaming": "any", "kv_source": ["own"], "temperature": "absent",
                               "rope": {"absent": True, "fields": {"theta": "any", "layout": ["split"], "partial": "any",
                                        "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
                                                                               "sections": ["contiguous", "interleaved"]}},
                                        "scaling": {"absent": True, "fields": {"kind": ["yarn"], "factor": "any", "orig_ctx": "any",
                                                    "beta_fast": "any", "beta_slow": "any", "attention_factor": "any",
                                                    "low": "absent", "high": "absent"}}}},
-                              "qk_norm": {"absent": True, "fields": {"kind": ["rms"], "eps": "any",
+                              "qk_norm": {"absent": True, "fields": {"kind": ["rms"], "eps": "any", "values": [False],
                                           "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
                               "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
                 "states": ["append", "window"],
