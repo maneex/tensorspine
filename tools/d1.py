@@ -21,8 +21,8 @@ from collections import defaultdict, deque
 import catalog as catalog_mod
 import model as model_mod
 import schema as schema_mod
-from expr import (UNRESOLVED, contract_condition, contract_value, index_grid, missing_assignment,
-                  model_condition, model_value, resolve_quantities, static_argument)
+from expr import (UNRESOLVED, argument_references, contract_condition, contract_value, index_grid,
+                  missing_assignment, model_condition, model_value, resolve_quantities, static_argument)
 
 MAX_DEPTH = 8
 
@@ -47,6 +47,26 @@ def _record_defaults(declared, values, root):
             if v is not UNRESOLVED and v is not None:
                 record[field] = v
         _record_defaults(t['fields'], record, root)
+
+
+def _across_positions(definition, args, where):
+    """Whether the occurrence reads positions of its stream beyond those of the element it
+    produces: the contract's `effects.across_positions` condition (§4.1, O9.5) on its resolved
+    arguments, as V18 evaluates it; false when the contract declares none ("absent, the
+    primitive reads its own element alone"). An argument the condition reads and the document
+    leaves unresolved makes the fact undecidable — a refusal, never a guess: `contract_condition`
+    answers false to what it cannot decide, which is right for a guard and wrong for a fact."""
+    effect = definition.get('effects', {}).get('across_positions')
+    if not effect:
+        return False
+    for path in sorted(argument_references(effect['when'])):
+        cur = args
+        for part in path.split('.'):
+            cur = cur.get(part) if isinstance(cur, dict) else None
+        if cur is UNRESOLVED:
+            raise ValueError(f"{where}: across_positions is undecidable — its condition reads argument "
+                             f"'{path}', which does not resolve")
+    return bool(contract_condition(effect['when'], {k: v for k, v in args.items() if v is not UNRESOLVED}))
 
 
 def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
@@ -158,7 +178,8 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         nodes[_prefix + identity(key)] = {
             "contract": occurrence['contract'],
             "arguments": {k: v for k, v in args.items() if v is not UNRESOLVED},
-            "families": families}
+            "families": families,
+            "across_positions": _across_positions(definition, args, _prefix + identity(key))}
 
     # --- unroll the edges ---------------------------------------------------
     def loop_envs(binding, label=''):

@@ -13,7 +13,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import model as model_mod                                        # noqa: E402
-from expr import UNRESOLVED, model_condition, model_value        # noqa: E402
+from expr import UNRESOLVED, argument_references, model_condition, model_value   # noqa: E402
 
 
 def check(label, ok, detail=''):
@@ -73,6 +73,18 @@ def main():
     r = resolve_quantities(doc)
     ok &= check("derived chain resolves in any declaration order (inner before width before its inputs)",
                 r.get('width') == 4096 and r.get('inner') == 16384)
+    # the contract side: the argument paths a condition reads, for a derived fact that must refuse
+    # rather than answer false when one of them is unresolved (D1's across_positions)
+    ok &= check("argument_references: a compare on a record path through not/any, and a present test",
+                argument_references({"any": [{"not": {"compare": {"operator": "equal", "left": {"argument": "rope.scaling.kind"},
+                                                                    "right": {"literal": "yarn"}}}}, {"present": "bias"}]})
+                == {"rope.scaling.kind", "bias"})
+    ok &= check("argument_references: through the expressions compared — a conditional's test and both branches",
+                argument_references({"compare": {"operator": "greater",
+                                                 "left": {"if": {"present": "a"}, "then": {"argument": "b"},
+                                                          "else": {"op": "add", "args": [{"argument": "c"}, {"literal": 1}]}},
+                                                 "right": {"literal": 1}}}) == {"a", "b", "c"})
+    ok &= check("argument_references: a boolean condition reads nothing", argument_references({"boolean": True}) == set())
     print("expressions: all good" if ok else "expressions: FAILED")
     return 0 if ok else 1
 

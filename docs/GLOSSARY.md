@@ -12,6 +12,18 @@ Concept names are written in ordinary text. Literal JSON fields and values are w
 
 ## A
 
+### Across positions
+
+A contract's declaration, as a condition over its arguments, that the primitive reads positions of
+its stream beyond those of the element it produces (O9.5): a convolution its neighbouring frames,
+attention every earlier position, a pooler with a reduction the whole sequence; a merge reads only
+the group its transform declares and does not qualify. Absent, the primitive reads its own element
+alone. Evaluated per occurrence, it is D1's `across_positions`; on a fragmented stream it demands
+a state carried across the fragments (V18); with the states and the streams it tells a batching
+runtime which occurrences it may evaluate on several sessions' elements at once (harness guide
+§8). See [Specification §4.1](SPECIFICATION.md#41--contract-contents-o92-semantic-part) and
+[§5.3](SPECIFICATION.md#53--indexing-domains-streams-and-fragmentation).
+
 ### Argument
 
 A scalar, enum, boolean, or record supplied by an occurrence to its primitive contract. Arguments

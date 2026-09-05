@@ -15,6 +15,11 @@ facts known independently.
      the stream's count for its kind (§5.3); every structural cut is legal (no
      crossing edge points backwards); every document's peak is a set of D2 values at a D1
      node whose bytes add up.
+  4. Across positions (§4.1, O9.5): every D1 node carries `across_positions`, the contract's
+     condition on the node's own arguments; a node reading across positions of a fragmented
+     stream owns a state carried across its fragments (V18 as a property of the products); the
+     counts on Llama, ColBERT, Whisper, Voxtral, Qwen 3.5 4B, DeepSeek and the template; a
+     condition over an argument the document leaves unresolved refuses the derivation.
 
     python3 tests/run_derived.py
 """
@@ -22,6 +27,8 @@ import glob
 import json
 import os
 import sys
+import tempfile
+from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -33,6 +40,7 @@ import d1                              # noqa: E402
 import derive                          # noqa: E402
 import schema as schema_mod            # noqa: E402
 import validate                        # noqa: E402
+from expr import contract_condition    # noqa: E402
 from signature import ASSIGNMENTS, corpus, name_of   # noqa: E402
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
@@ -42,6 +50,12 @@ MODELS = os.path.join(ROOT, 'data', 'models')
 def check(label, ok, detail=''):
     print(f"  {'ok  ' if ok else 'FAIL'} {label}" + (f"\n         {detail}" if detail and not ok else ''))
     return ok
+
+
+def across(cat, node):
+    """The contract's across_positions condition on a D1 node's arguments (§4.1); false when absent."""
+    effect = cat['contracts'][node['contract']['name']].get('effects', {}).get('across_positions')
+    return bool(effect and contract_condition(effect['when'], node['arguments']))
 
 
 def main():
@@ -86,6 +100,28 @@ def main():
             ok &= check(f"{name}: cut {c['cut']} has a payload of distinct values", len(payload) == len(c['payload']))
             if not crossing and c['payload']:
                 ok &= check(f"{name}: cut {c['cut']} payload values are edge sources", False)
+        # across_positions (§4.1, O9.5): every node carries it, equal to the contract's condition on the
+        # node's own arguments — false when the contract declares none
+        nodes_d1 = doc['d1']['nodes']
+        wrong = [n for n, e in nodes_d1.items() if not isinstance(e.get('across_positions'), bool) or e['across_positions'] != across(cat, e)]
+        ok &= check(f"{name}: every D1 node carries across_positions, the contract's condition on its own arguments",
+                    not wrong, str(wrong[:3]))
+        # V18 as a property of the products: a node reading across positions of a fragmented stream owns a
+        # state carried across that stream's fragments
+        fragmented = {e.get('stream', n) for n, e in doc['d1']['interfaces']['inputs'].items() if e.get('fragmented')}
+        reads = {}
+        for v in doc['d2']['values']:
+            for t in v.get('to', []):
+                reads.setdefault(t.rsplit('.', 1)[0], set()).add(v['domain']['stream'])
+        carried_on = {}
+        for s in doc['d4']['states']:
+            if s['carried_across_fragments'] and s['stream']:
+                for m in s['members']:
+                    carried_on.setdefault(m.rsplit('.', 1)[0], set()).add(s['stream']['stream'])
+        bad = [(n, st) for n, e in nodes_d1.items() if e['across_positions']
+               for st in reads.get(n, ()) & fragmented if st not in carried_on.get(n, ())]
+        ok &= check(f"{name}: every node reading across positions of a fragmented stream carries a state across its fragments (V18)",
+                    not bad, str(bad[:3]))
         docs[name] = doc
     l3 = docs['llama3-8b']
     kv = [s for s in l3['d4']['states'] if s['state'] == 'kv']
@@ -201,6 +237,51 @@ def main():
     ok &= check("colbert-v2: 198 tensors located one-to-one — enc.attn.q[layer=3] under bert.encoder.layer, the head on linear.weight",
                 cb.get('enc.attn.q[layer=3]') == {'tensor': 'bert.encoder.layer.3.attention.self.query.weight'}
                 and cb.get('pooler.weight') == {'tensor': 'linear.weight'} and len(cb_names) == 198 and len(set(cb_names)) == 198)
+    # across_positions on the corpus (§4.1, O9.5), counted by contract
+    def flagged(name):
+        return Counter(e['contract']['name'] for e in docs[name]['d1']['nodes'].values() if e['across_positions'])
+
+    def stateless(name):
+        members = {m.rsplit('.', 1)[0] for s in docs[name]['d4']['states'] for m in s['members']}
+        return [n for n, e in docs[name]['d1']['nodes'].items() if e['across_positions'] and n not in members]
+    ok &= check("llama3-8b: 32 occurrences read across positions — the attentions, nothing else",
+                flagged('llama3-8b') == {'attention.dense': 32}, str(flagged('llama3-8b')))
+    ok &= check("colbert-v2: the 12 attentions read across positions; the pooler with reduce none does not",
+                flagged('colbert-v2') == {'attention.dense': 12} and docs['colbert-v2']['d1']['nodes']['pooler']['arguments']['reduce'] == 'none'
+                and not docs['colbert-v2']['d1']['nodes']['pooler']['across_positions'], str(flagged('colbert-v2')))
+    ok &= check("whisper-large-v3: the stem and 96 attentions read across positions; the stem and the encoder's 32 hold no state — "
+                "the case a state-based proxy gets wrong",
+                flagged('whisper-large-v3') == {'attention.dense': 96, 'conv_frontend': 1} and len(stateless('whisper-large-v3')) == 33
+                and all(n == 'conv_frontend' or n.startswith('encoder/attn') for n in stateless('whisper-large-v3')),
+                str((flagged('whisper-large-v3'), stateless('whisper-large-v3')[:3])))
+    ok &= check("voxtral-realtime: the stem and 58 attentions read across positions; the temporal projector, a merge, does not",
+                flagged('voxtral-realtime') == {'attention.dense': 58, 'conv_frontend': 1}
+                and not v['d1']['nodes']['audio_projector']['across_positions'], str(flagged('voxtral-realtime')))
+    ok &= check("qwen3.5-4b-text: 8 attentions and 24 gated deltas read across positions",
+                flagged('qwen3.5-4b-text') == {'attention.dense': 8, 'sequence.gated_delta': 24}, str(flagged('qwen3.5-4b-text')))
+    ok &= check("deepseek-v4-pro: 62 latent attentions and the MTP merge read across positions",
+                flagged('deepseek-v4-pro') == {'attention.latent_compressed': 62, 'mtp.merge': 1}, str(flagged('deepseek-v4-pro')))
+    ok &= check("decoder-causal-yarn: 26 attentions read across positions under the assignment",
+                flagged('decoder-causal-yarn@1.0.0') == {'attention.dense': 26}, str(flagged('decoder-causal-yarn@1.0.0')))
+    ok &= check("gemma3n: aux_select carries its layer index in D1 — an index-valued argument, evaluated in the site's environment",
+                g['d1']['nodes']['decoder/aux_select[layer=7]']['arguments'].get('layer') == 7,
+                str(g['d1']['nodes']['decoder/aux_select[layer=7]']['arguments']))
+    # an undecidable condition is a refusal, never false: whisper's stem with its kernel left to an
+    # external quantity that no assignment supplies
+    with open(os.path.join(MODELS, 'whisper-large-v3.json'), encoding='utf-8') as f:
+        undecided = json.load(f)
+    undecided['quantities']['k'] = {"type": {"kind": "cardinality"}, "source": {"kind": "external"}}
+    undecided['occurrences']['conv_frontend']['arguments']['kernel'] = {"quantity": "k"}
+    tmp = tempfile.mkdtemp(prefix='tensorspine-derived-')
+    path = os.path.join(tmp, 'whisper-undecided.json')
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(undecided, f)
+    try:
+        d1.emit(path, cat, {})
+        ok &= check("an across_positions condition over an argument the document leaves unresolved refuses the derivation", False, "emitted")
+    except ValueError as e:
+        ok &= check("an across_positions condition over an argument the document leaves unresolved refuses the derivation, naming the argument",
+                    'across_positions' in str(e) and "'kernel'" in str(e), str(e)[:200])
     print("derived: all good" if ok else "derived: FAILED")
     return 0 if ok else 1
 

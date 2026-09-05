@@ -75,7 +75,7 @@ contract's declared correction or sparsity bound.
 
 | Field | Content |
 |---|---|
-| `nodes` | One entry per emitted occurrence, keyed by identifier: `contract` `{name, version}`, `arguments` after declared defaults were applied (records as objects), `families` (the site's and its composition's). |
+| `nodes` | One entry per emitted occurrence, keyed by identifier: `contract` `{name, version}`, `arguments` after declared defaults were applied (records as objects), `families` (the site's and its composition's), and `across_positions` — derived: whether the occurrence reads positions of its stream beyond those of the element it produces, the contract's `effects.across_positions` condition (§4.1, O9.5) on those arguments as V18 evaluates it, `false` when the contract declares no such effect. A condition the arguments leave undecidable refuses the derivation; it never answers `false`. With D4's states and D2's streams, what a batching runtime reads to split its sessions (harness guide §8). |
 | `edges` | Every value edge: `rule` (the binding, `<composition>.<rule>` for a scoped one), `from` and `to` as `{node, port}`. An edge into a template instance fans out to the template's destinations; an edge out of one starts at the template's source. |
 | `interfaces.inputs` | Per public input: `to` (the ports it feeds, expanded), `kind`, optional `stream` (the stream it joins) and `fragmented`. |
 | `interfaces.outputs` | Per public output: `node`, `port`, `generative`. Its domain is derived (§2.3) and appears in D2. |

@@ -231,6 +231,16 @@ The language describes one session's invocation. Batching is downstream:
 4. Read `d2.peak_live` for the logical value peak of one invocation. If the field is absent, stop:
    the activation peak is not derivable from the remaining products. Physical batched peak still
    depends on the engine's schedule, fusion, workspace and buffer reuse.
+5. Evaluate an occurrence on several sessions' elements at once only when its
+   `d1.nodes.*.across_positions` is false, it owns no state (`d4.states[].members`: a state is
+   per session by its `d4.states[].instance_key`), and every value it reads is on one
+   `d2.values[].domain` stream (a value of another stream is a per-session broadcast); everything
+   else is per session. A `merge` reads whole groups and every delivery is aligned (§5.3,
+   `d2.streams.*.fragment_alignment`), so it qualifies. The field is the contract's
+   `effects.across_positions` evaluated on the occurrence's arguments (§4.1), the fact V18
+   rejects on; a runtime that guesses it from the states alone is wrong wherever a stateless
+   occurrence reads across positions — an encoder's attention, a front end's convolution.
 
-TensorSpine therefore supplies the state terms and the single-invocation logical value peak. The
-harness supplies concurrency, batching strategy and every physical-memory term.
+TensorSpine therefore supplies the state terms, the single-invocation logical value peak and the
+per-occurrence facts a batching split reads. The harness supplies concurrency, batching strategy
+and every physical-memory term.

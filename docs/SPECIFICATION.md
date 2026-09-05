@@ -639,7 +639,7 @@ code or human knowledge of a named mechanism:
 
 | Product | Content |
 |---|---|
-| **D1** | **Expanded graph:** occurrences, edges, and families. |
+| **D1** | **Expanded graph:** occurrences, edges, and families; per occurrence, whether its contract reads across positions (§4.1). |
 | **D2** | **Values:** the value and shape inventory; the payload of every legal cut — the values live at it, sized per invocation; the peak of live values along one order of the graph, the activation peak of an invocation; and the fragment alignment of every fragmented stream (§5.3). |
 | **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor; when the document locates its weights, the evaluated location of every tensor. |
 | **D4** | **Complete state:** descriptors, instances, keys, state liveness, visits per phase, and permitted operations. |

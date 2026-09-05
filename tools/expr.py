@@ -101,6 +101,41 @@ def contract_condition(c, args):
     return _COMPARISONS[cp['operator']](l, r)
 
 
+def _argument_refs(e):
+    if not isinstance(e, dict):
+        return set()
+    out = set()
+    if 'argument' in e:
+        out.add(e['argument'])
+    for x in e.get('args', []):
+        out |= _argument_refs(x)
+    for k in ('then', 'else'):
+        if k in e:
+            out |= _argument_refs(e[k])
+    if 'if' in e:
+        out |= argument_references(e['if'])
+    return out
+
+
+def argument_references(c):
+    """The argument paths a contract condition reads: those of every `compare` (through the
+    expressions compared, the tests of their conditionals included) and of every `present`
+    test, through `not`, `all` and `any`. What `condition_references` is for the model side.
+    A derived fact evaluated from a condition needs it: `contract_condition` answers false to
+    what it cannot decide, which is right for a guard and wrong for a fact, so the emitter
+    refuses when any path listed here is unresolved."""
+    out = set()
+    if 'not' in c:
+        out |= argument_references(c['not'])
+    for x in c.get('all', []) + c.get('any', []):
+        out |= argument_references(x)
+    if 'present' in c:
+        out.add(c['present'])
+    if 'compare' in c:
+        out |= _argument_refs(c['compare']['left']) | _argument_refs(c['compare']['right'])
+    return out
+
+
 # --- model side: expressions over quantities and indices ------------------
 
 def quantity_references(e):

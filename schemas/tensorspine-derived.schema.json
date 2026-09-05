@@ -212,12 +212,17 @@
                   "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
                 },
                 "minItems": 1
+              },
+              "across_positions": {
+                "type": "boolean",
+                "description": "Derived: whether the occurrence reads positions of its stream beyond those of the element it produces — the contract's `effects.across_positions` condition (§4.1, O9.5) on the node's resolved arguments, as V18 evaluates it; false when the contract declares no such effect. A condition the arguments leave undecidable refuses the derivation, never answers false. With the states (D4) and the streams (D2), what a batching runtime reads to decide which occurrences it may evaluate on several sessions' elements at once (harness guide §8)."
               }
             },
             "required": [
               "contract",
               "arguments",
-              "families"
+              "families",
+              "across_positions"
             ]
           }
         },

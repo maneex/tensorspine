@@ -745,8 +745,28 @@ def products(model_path, cat, assignment=None):
     p5 = d5(graph, cat, p3, p4, p2, result['stats'])
     p6 = d6(graph, cat, p2)
     document = d1_mod.emit(model_path, cat, assignment)
+    _consistent(document['d1']['nodes'], graph)
     document.update({"d2": p2, "d3": p3, "d4": p4, "d5": p5, "d6": p6})
     return document
+
+
+def _consistent(nodes, graph):
+    """D1's arguments are the validator's, node by node. Two resolutions exist — the emitter's,
+    which D1 carries, and the analysis's, which D4's carrying, V18 and the costs read — and their
+    agreement is checked here rather than assumed: a node the two resolve differently, or one
+    that only one of them knows, fails the derivation by name. Every derived fact that is a
+    function of the arguments (D1's `across_positions`, D4's `carried_across_fragments`) agrees
+    when the arguments do."""
+    resolved = {ident(k): entry for k, entry in graph['resolved'].items()}
+    if set(resolved) != set(nodes):
+        odd = sorted(set(resolved) ^ set(nodes))
+        raise ValueError(f"{odd[0]}: {'emitted by D1, unknown to the validator' if odd[0] in nodes else 'resolved by the validator, absent from D1'}")
+    for name, node in nodes.items():
+        args = resolved[name][2]
+        if args != node['arguments']:
+            differing = sorted(k for k in set(args) | set(node['arguments']) if args.get(k) != node['arguments'].get(k))
+            raise ValueError(f"{name}: D1 and the validator resolve argument '{differing[0]}' differently — "
+                             f"{node['arguments'].get(differing[0])!r} against {args.get(differing[0])!r}")
 
 
 def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None,
