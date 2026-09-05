@@ -186,6 +186,7 @@ def d4(graph, cat):
         span = _num(contract_value(rule['span'], args)) if rule and 'span' in rule else None
         entry = {"identity": inst['identity'],
                  "members": [f"{ident(k)}.{s}" for k, s in inst['members']],
+                 "writer": f"{ident(inst['writer'][0])}.{inst['writer'][1]}" if inst.get('writer') else None,
                  "contract": name, "state": sname,
                  "law": rule['law'] if rule else None, "access": rule['access'] if rule else None,
                  "sharing": rule['sharing'] if rule else None,

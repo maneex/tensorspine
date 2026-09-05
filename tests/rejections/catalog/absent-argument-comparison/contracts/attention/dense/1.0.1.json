@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.1",
     "summary": "Dense or grouped-query attention, self or cross, with optional window, biases, output gate and Q/K norm.",
-    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; `qk_norm` declares its learned scales inside itself (`qk_norm.scale`), so that a scale cannot be declared without the normalization it belongs to. Each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.\n\nThe projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).",
+    "description": "Projects `input` to `heads` query heads and `kv_heads` key/value heads of `head_dim`, scores each query against the keys its `mask` allows, and projects the weighted values back to `width`. Fewer KV heads than query heads is grouped-query attention; one KV head is multi-query attention.\n\nThree arguments change what the primitive *is* rather than how it computes:\n\n- `cross` makes it **cross-attention**: keys and values come from the `source_values` port, in the stream the edge into it carries, and the cache is frozen once that stream is complete;\n- `window` bounds the span a query may attend to, and turns the cache into a ring of that span;\n- `streaming` says the input arrives in fragments (§5.3): the cache is carried across fragments even when `mask` is `none`, so a later fragment can attend to earlier ones.\n\n`rope` and `temperature` change the computation, never a tensor or a state, which is why they are not structural; `qk_norm` declares its learned scales inside itself (`qk_norm.scale`), so that a scale cannot be declared without the normalization it belongs to. Each is a closed record or enum, so a variant the contract does not name is refused rather than passed through. The `kv` state exists whenever the computation can be resumed — a causal or chunked mask, a streaming input, or cross-attention. A bidirectional encoder processed in one pass (`mask: none`, neither `streaming` nor `cross`) is stateless.\n\nThe projections are stored as the reference implementation stores them — `q`, `k`, `v` and `out`, one tensor each; with `output_gate`, the query projection carries the gate rows interleaved per head (`q_gated`).\n\nKeys and values may be **shared** across occurrences (`kv_source`): the member of a state identity with `own` projects and writes them, the members with `shared` read that storage and own no key/value projections — one writer per identity (V20), as Gemma 3n's KV-sharing layers, YOCO and cross-layer attention do.",
     "tags": [
       "sequence-operator"
     ],
@@ -175,6 +175,25 @@
         "required": false,
         "structural": true,
         "description": "The input arrives in fragments (§5.3). The cache is carried across fragments even when `mask` is `none`."
+      },
+      "kv_source": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "own",
+            "shared"
+          ]
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": "own"
+        },
+        "description": "Where the keys and values come from: `own`, this occurrence's projections, which it writes to its `kv` state; `shared`, the state identity it is a member of, written by another occurrence — this one has no `k`, `v`, their biases or `k_norm`, and never writes (V20).",
+        "value_descriptions": {
+          "own": "Keys and values projected here; the occurrence writes its `kv` state.",
+          "shared": "Keys and values read from the identity's writer; no key/value projections, no write."
+        }
       },
       "rope": {
         "type": {
@@ -828,7 +847,18 @@
             }
           ]
         },
-        "description": "Key projection: `kv_heads` heads of `head_dim` rows."
+        "description": "Key projection: `kv_heads` heads of `head_dim` rows.",
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "kv_source"
+            },
+            "right": {
+              "literal": "own"
+            }
+          }
+        }
       },
       "v": {
         "role": "attention.qkv_projection",
@@ -881,7 +911,18 @@
             }
           ]
         },
-        "description": "Value projection: `kv_heads` heads of `head_dim` rows."
+        "description": "Value projection: `kv_heads` heads of `head_dim` rows.",
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "kv_source"
+            },
+            "right": {
+              "literal": "own"
+            }
+          }
+        }
       },
       "out": {
         "role": "attention.output_projection",
@@ -1036,15 +1077,30 @@
           ]
         },
         "present_when": {
-          "compare": {
-            "operator": "equal",
-            "left": {
-              "argument": "k_bias"
+          "all": [
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "k_bias"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
             },
-            "right": {
-              "literal": true
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "kv_source"
+                },
+                "right": {
+                  "literal": "own"
+                }
+              }
             }
-          }
+          ]
         },
         "description": "Bias of the key projection."
       },
@@ -1092,15 +1148,30 @@
           ]
         },
         "present_when": {
-          "compare": {
-            "operator": "equal",
-            "left": {
-              "argument": "v_bias"
+          "all": [
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "v_bias"
+                },
+                "right": {
+                  "literal": true
+                }
+              }
             },
-            "right": {
-              "literal": true
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "kv_source"
+                },
+                "right": {
+                  "literal": "own"
+                }
+              }
             }
-          }
+          ]
         },
         "description": "Bias of the value projection."
       },
@@ -1174,7 +1245,22 @@
           ]
         },
         "present_when": {
-          "present": "qk_norm.scale"
+          "all": [
+            {
+              "present": "qk_norm.scale"
+            },
+            {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "argument": "kv_source"
+                },
+                "right": {
+                  "literal": "own"
+                }
+              }
+            }
+          ]
         },
         "description": "Learned scale of the key normalization."
       }
@@ -1220,6 +1306,17 @@
               }
             }
           ]
+        },
+        "written_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "kv_source"
+            },
+            "right": {
+              "literal": "own"
+            }
+          }
         },
         "payload": {
           "k": {

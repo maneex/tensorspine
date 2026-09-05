@@ -436,6 +436,8 @@ def contract_references(d, cat):
     for sname, port in d['state_ports'].items():
         label = f"state '{sname}'"
         conditions.append((f"{label} present_when", port['present_when'], set()))
+        if 'written_when' in port:
+            conditions.append((f"{label} written_when", port['written_when'], set()))
         if 'carried_across' in port:
             conditions.append((f"{label} carried_across", port['carried_across']['when'], set()))
         growing = sorted({rule['law'] for rule in port['rules']} - {'fixed'})

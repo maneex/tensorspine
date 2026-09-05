@@ -1,9 +1,9 @@
 {
   "schema": "tensorspine/2.0",
-  "model": "gemma3n_kvshare",
+  "model": "rejection-v18-no-writer",
   "catalog": [
     {
-      "base": "../catalog/"
+      "base": "../../../data/catalog/"
     }
   ],
   "quantities": {
@@ -382,7 +382,7 @@
                     "index": "layer"
                   },
                   "right": {
-                    "literal": 20
+                    "literal": 18
                   }
                 }
               },
@@ -717,7 +717,7 @@
                     "index": "layer"
                   },
                   "right": {
-                    "literal": 20
+                    "literal": 18
                   }
                 }
               },

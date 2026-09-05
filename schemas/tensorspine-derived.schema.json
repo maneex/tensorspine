@@ -769,6 +769,10 @@
                 },
                 "minItems": 1
               },
+              "writer": {
+                "$ref": "#/$defs/value_reference",
+                "description": "The member that writes the storage (its port's written_when holds); the others read it (V20)."
+              },
               "contract": {
                 "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
               },
@@ -915,6 +919,7 @@
             "required": [
               "identity",
               "members",
+              "writer",
               "contract",
               "state",
               "law",

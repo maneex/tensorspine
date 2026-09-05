@@ -23,7 +23,8 @@ derivation; V13 no dangling output; V14 precision admissibility on parameter
 and state identities; V15 tying compatibility; V16 a carried state on a
 fragmented stream; V18 an occurrence reading across positions of a fragmented
 stream carries a state across its fragments; V19 a joining input joins at a
-kind the stream carries independently of it. Bindings inherit the presence of
+kind the stream carries independently of it; V20 one writer per state identity
+instance. Bindings inherit the presence of
 the occurrences they name (§5.2 rule 3). Template contracts are expanded at
 every call site (§4.6).
 """
@@ -1105,6 +1106,20 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 advisories.append(f"{name}@{where(key)}.{state_name}: a self-indexed state "
                                   f"on the fragmented stream '{mine[1]}' that is not carried "
                                   f"— reset at every fragment")
+    # --- V20: one writer per state identity instance (§4.3 writing) ---------------
+    for inst in state_instances:
+        writers = []
+        for key, sname in inst['members']:
+            _n, definition, args = resolved[key]
+            port = definition['state_ports'].get(sname)
+            if port is None or not contract_condition(port['present_when'], args):
+                continue
+            if 'written_when' not in port or contract_condition(port['written_when'], args):
+                writers.append((key, sname))
+        if len(writers) != 1:
+            fail('V20', f"state {inst['identity']}: {len(writers)} writer(s) among {len(inst['members'])} member(s) — "
+                        f"exactly one member writes an identity, the others read it")
+        inst['writer'] = writers[0] if writers else None
     stats['state_slots'] = len(state_slots)
     stats['state_identities'] = state_identities
 

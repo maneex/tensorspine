@@ -10,7 +10,7 @@
   "residual.add": 64,
   "sequence.gated_delta": 24
  },
- "wl": "16608befa151ba96",
+ "wl": "655fec3eb89a5d25",
  "parameter_slots": 427,
  "tensors": 426,
  "shared": 1,

@@ -1017,6 +1017,10 @@
         "present_when": {
           "$ref": "#/$defs/condition"
         },
+        "written_when": {
+          "$ref": "#/$defs/condition",
+          "description": "The condition over the arguments under which the occurrence writes this state; absent, it always does. An identity instance has exactly one writer among its members (V20): the others read the storage the writer fills."
+        },
         "payload": {
           "type": "object",
           "propertyNames": {

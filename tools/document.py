@@ -61,7 +61,7 @@ GRAMMAR = {
     'port': {'shape', 'domain', 'multiplicity', 'present_when', 'note', 'role'},
     'parameter': {'role', 'shape', 'present_when', 'multiplicity', 'note', 'views', 'sharing'},
     'constant': {'shape', 'present_when', 'note', 'role'},
-    'state': {'present_when', 'payload', 'rules', 'operations', 'key_axes', 'carried_across', 'note'},
+    'state': {'present_when', 'written_when', 'payload', 'rules', 'operations', 'key_axes', 'carried_across', 'note'},
     'carrying': {'when', 'note'},
     'component': {'shape', 'multiplicity', 'note', 'present_when', 'role'},
     'rule': {'when', 'law', 'access', 'sharing', 'indexed_by', 'span', 'stride', 'note'},
@@ -905,6 +905,8 @@ class Renderer:
                 out += prose(sdocs['description'])
             out += note_block(s.get('note'))
             facts = [f"- Present when: {cond(s['present_when'])}"]
+            if 'written_when' in s:
+                facts.append(f"- Written when: {cond(s['written_when'])} — the other members of its identity read it (V20)")
             if s.get('key_axes'):
                 facts.append('- Instance key axes: ' +
                              ', '.join(self.link_axis(a) for a in s['key_axes']))

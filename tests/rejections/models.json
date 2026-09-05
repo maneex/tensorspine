@@ -376,6 +376,18 @@
       "expect": "V17",
       "match": "already bound by text/",
       "note": "Two instances of one template under one prefix name the same physical tensors: a physical tensor is bound by one identity (V17, I9), and two instances share nothing (§5.2 rule 8)."
+    },
+    {
+      "document": "models/v20-two-writers.json",
+      "expect": "V20",
+      "match": "state shared.sliding.kv: 2 writer(s)",
+      "note": "A shared identity with two writers: layer 20 kept its own projections beside layer 18's — exactly one member writes (V20). Cut from gemma3n-kvshare."
+    },
+    {
+      "document": "models/v20-no-writer.json",
+      "expect": "V20",
+      "match": "state shared.sliding.kv: 0 writer(s)",
+      "note": "A shared identity nobody writes: layer 18 made a reader too (V20). Cut from gemma3n-kvshare."
     }
   ]
 }

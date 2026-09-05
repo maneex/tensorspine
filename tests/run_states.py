@@ -47,6 +47,10 @@ def main():
                 and r['stats']['state_identities'] == 20, str(r['stats']))
     ok &= check("gemma3n: exactly the two shared identities have no layer index",
                 sorted(shared) == ['shared.full.kv', 'shared.sliding.kv'], str(shared))
+    writers = {i['identity']: i.get('writer') for i in r['graph']['state_instances'] if i['identity'].startswith('shared.')}
+    ok &= check("gemma3n: the shared identities are written by layers 18 and 19; the readers own no key/value projections (V20)",
+                writers.get('shared.sliding.kv') == (('gen', 'decoder', 'attn', (('layer', 18),)), 'kv')
+                and writers.get('shared.full.kv') == (('gen', 'decoder', 'attn_full', (('layer', 19),)), 'kv'), str(writers))
     r = validate.analyse(os.path.join(MODELS, 'voxtral-realtime.json'), cat)
     ok &= check("voxtral: the encoder attention state, the front end's two histories and the decoder attention state are carried "
                 "across the fragments of `audio` — the decoder's, at kind token, since the token input joins that stream (V18)",

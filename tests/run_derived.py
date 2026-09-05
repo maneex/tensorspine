@@ -193,6 +193,8 @@ def main():
     shared = [s for s in g['d4']['states'] if s['identity'].startswith('shared.')]
     ok &= check("gemma3n: the shared identities carry no layer in their instance key",
                 len(shared) == 2 and all(s['instance_key'] == ['instance.session', 'instance.branch'] for s in shared))
+    ok &= check("gemma3n: D4 names the writer of each shared identity — layer 18 for the sliding ring, 19 for the full cache",
+                {s['identity']: s['writer'] for s in shared} == {'shared.sliding.kv': 'decoder/attn[layer=18].kv', 'shared.full.kv': 'decoder/attn_full[layer=19].kv'})
     ok &= check("llama3-8b: no O5.10 information loss once every flattened axis declares its factors",
                 l3['d6']['information_loss'] == [])
     parts = {(p['node'], json.dumps(p['target'], sort_keys=True)): p for p in l3['d6']['partitions']}
