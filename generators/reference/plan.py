@@ -57,6 +57,14 @@ class Plan:
             key = (entry['contract']['name'], entry['contract']['version'])
             index[node] = len(self.steps)
             self.steps.append(Step(node, kernels.get(key), entry, graph))   # None: refused if ever evaluated
+        # a shared state is written by one member and read by the others (V18): the writer must run first
+        for ident, st in graph.states.items():
+            if len(st.get('members', [])) > 1 and st.get('writer'):
+                writer = index.get(st['writer'].rsplit('.', 1)[0])
+                for m in st['members']:
+                    reader = index.get(m.rsplit('.', 1)[0])
+                    if writer is not None and reader is not None and reader < writer:
+                        raise ValueError(f"{ident}: {m} is evaluated before its writer {st['writer']} — it would read what is not written yet")
         self.dump_values = {}
         for c in graph.cuts:
             for p in c['payload']:

@@ -22,6 +22,17 @@ def w(ctx, t):
     return t.to(ctx.dtype)
 
 
+def rms_norm(x, scale, eps, zero_centered=False):
+    """x · rsqrt(mean(x²) + eps) · scale, the statistics in fp32; `scale` None for a norm without
+    a learned scale (Gemma 3n's value norm)."""
+    import torch
+    var = x.to(torch.float32).pow(2).mean(-1, keepdim=True)
+    y = (x.to(torch.float32) * torch.rsqrt(var + eps)).to(x.dtype)
+    if scale is None:
+        return y
+    return y * (scale + 1 if zero_centered else scale)
+
+
 UPCAST_CHUNK_BYTES = 256 * 2**20     # the largest fp32 temporary a chunked projection makes
 
 

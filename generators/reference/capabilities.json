@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "a92f8be",
+    "version": "1891986",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-06"
   },
@@ -61,7 +61,7 @@
         "heads": "any",
         "head_dim": "any",
         "kv_heads": "any",
-        "scale": "absent",
+        "scale": "any",
         "mask": [
           "causal",
           "none"
@@ -79,7 +79,8 @@
         ],
         "streaming": "any",
         "kv_source": [
-          "own"
+          "own",
+          "shared"
         ],
         "temperature": "absent",
         "rope": {
@@ -126,9 +127,7 @@
               "rms"
             ],
             "eps": "any",
-            "values": [
-              false
-            ],
+            "values": "any",
             "scale": {
               "absent": true,
               "fields": {
@@ -159,7 +158,8 @@
       "notes": [
         "mrope for one position stream only: an image would need the sections to differ",
         "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel",
-        "a window with mask none is refused at run time: a query attends to itself and the span \u2212 1 positions before it, the causal reading"
+        "a window with mask none is refused at run time: a query attends to itself and the span \u2212 1 positions before it, the causal reading",
+        "a shared window reader serves one position per invocation once its ring has wrapped (finding 26)"
       ],
       "witness": {
         "kernel": "kernels/attention_dense.py",
@@ -181,6 +181,60 @@
           "attention.dense@1.0.0/cross",
           "attention.dense@1.0.0/window",
           "attention.dense@1.0.0/window-streaming"
+        ]
+      }
+    },
+    "conditioning.layer_select@1.0.0": {
+      "arguments": {
+        "layers": "any",
+        "width": "any",
+        "layer": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/conditioning_layer_select.py",
+        "tolerance": {
+          "f32": {
+            "atol": 0.0,
+            "rtol": 0.0
+          },
+          "bf16": {
+            "atol": 0.01,
+            "rtol": 0.01
+          }
+        },
+        "fixtures": [
+          "conditioning.layer_select@1.0.0/basic"
+        ]
+      }
+    },
+    "conditioning.multiplicative@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "condition_width": "any",
+        "eps": "any",
+        "activation": [
+          "silu",
+          "gelu",
+          "gelu_tanh",
+          "relu2"
+        ]
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/conditioning_multiplicative.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "conditioning.multiplicative@1.0.0/gelu-tanh"
         ]
       }
     },
@@ -307,6 +361,33 @@
         ]
       }
     },
+    "embedding.token_auxiliary@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "vocabulary": "any",
+        "layers": "any",
+        "per_layer_width": "any",
+        "per_layer_vocabulary": "any",
+        "eps": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/embedding_token_auxiliary.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "embedding.token_auxiliary@1.0.0/basic"
+        ]
+      }
+    },
     "embedding.token_position@1.0.0": {
       "arguments": {
         "width": "any",
@@ -411,13 +492,7 @@
         ],
         "in_bias": "any",
         "out_bias": "any",
-        "activation_sparsity": {
-          "absent": true,
-          "values": [
-            0,
-            0.0
-          ]
-        }
+        "activation_sparsity": "any"
       },
       "states": [],
       "witness": {
@@ -443,7 +518,7 @@
       "arguments": {
         "width": "any",
         "vocabulary": "any",
-        "softcap": "absent"
+        "softcap": "any"
       },
       "states": [],
       "witness": {
@@ -636,6 +711,172 @@
         },
         "fixtures": [
           "residual.add@1.0.0/basic"
+        ]
+      }
+    },
+    "residual.altup_correct@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "streams": "any",
+        "eps": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_altup_correct.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "residual.altup_correct@1.0.0/basic"
+        ]
+      }
+    },
+    "residual.altup_predict@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "streams": "any",
+        "eps": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_altup_predict.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "residual.altup_predict@1.0.0/basic"
+        ]
+      }
+    },
+    "residual.combine@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "left_scale": "any",
+        "right_scale": "any",
+        "output_scale": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_combine.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-06,
+            "rtol": 1e-05
+          },
+          "bf16": {
+            "atol": 0.01,
+            "rtol": 0.01
+          }
+        },
+        "fixtures": [
+          "residual.combine@1.0.0/basic"
+        ]
+      }
+    },
+    "residual.laurel@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "rank": "any",
+        "eps": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_laurel.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "residual.laurel@1.0.0/basic"
+        ]
+      }
+    },
+    "residual.stream_collapse@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "streams": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_stream_collapse.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "residual.stream_collapse@1.0.0/basic"
+        ]
+      }
+    },
+    "residual.stream_expand@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "streams": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_stream_expand.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-05,
+            "rtol": 0.0001
+          },
+          "bf16": {
+            "atol": 0.1,
+            "rtol": 0.02
+          }
+        },
+        "fixtures": [
+          "residual.stream_expand@1.0.0/basic"
+        ]
+      }
+    },
+    "residual.stream_inject@1.0.0": {
+      "arguments": {
+        "width": "any",
+        "streams": "any"
+      },
+      "states": [],
+      "witness": {
+        "kernel": "kernels/residual_stream_inject.py",
+        "tolerance": {
+          "f32": {
+            "atol": 1e-06,
+            "rtol": 1e-05
+          },
+          "bf16": {
+            "atol": 0.01,
+            "rtol": 0.01
+          }
+        },
+        "fixtures": [
+          "residual.stream_inject@1.0.0/basic"
         ]
       }
     },

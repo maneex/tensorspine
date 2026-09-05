@@ -1,10 +1,10 @@
-"""lm_head@1.0.0 — one logit per vocabulary entry."""
+"""lm_head@1.0.0 — one logit per vocabulary entry; with `softcap`, tanh(logits / softcap) · softcap."""
 from kernels._common import chunked_matmul, refuse_unknown, supports_from
 
 CONTRACT = ("lm_head", "1.0.0")
 
 
-CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "softcap": "absent"}, "states": []}   # softcap: S4
+CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "softcap": "any"}, "states": []}
 
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
@@ -22,4 +22,9 @@ def supports(arguments):
     return supports_from(CAPABILITIES, arguments)
 
 def run(ctx, arguments, inputs, params, states, physical=None):
-    return {'logits': chunked_matmul(ctx, inputs['input'], params['weight'])}   # the head upcast in bounded chunks
+    logits = chunked_matmul(ctx, inputs['input'], params['weight'])            # the head upcast in bounded chunks
+    c = arguments.get('softcap')
+    if c:
+        import torch
+        logits = torch.tanh(logits / c) * c
+    return {'logits': logits}

@@ -7,7 +7,7 @@
 | activation gelu_tanh   | implemented                  |
 | activation relu2       | implemented                  |
 | in_bias, out_bias      | implemented                  |
-| activation_sparsity    | refused when > 0             |
+| activation_sparsity    | implemented: Gaussian top-k on the gate before the activation — cutoff = mean + std (biased) · Φ⁻¹(fraction) per element over the inner axis, relu(gate − cutoff) |
 """
 import torch
 import torch.nn.functional as F
@@ -20,7 +20,7 @@ ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approxim
 
 CAPABILITIES = {"arguments": {"width": "any", "inner": "any", "activation": ["silu", "gelu", "gelu_tanh", "relu2"],
                               "in_bias": "any", "out_bias": "any",
-                              "activation_sparsity": {"absent": True, "values": [0, 0.0]}},
+                              "activation_sparsity": "any"},
                 "states": []}
 
 
@@ -48,6 +48,11 @@ def run(ctx, arguments, inputs, params, states, physical=None):
     if arguments.get('in_bias'):
         g = g + w(ctx, params['gate_bias'])
         u = u + w(ctx, params['up_bias'])
+    sparsity = arguments.get('activation_sparsity') or 0
+    if sparsity > 0:
+        z = torch.distributions.Normal(0.0, 1.0).icdf(torch.tensor(float(sparsity)))
+        cutoff = g.mean(-1, keepdim=True) + g.std(-1, keepdim=True, unbiased=False) * z.to(g.dtype)
+        g = F.relu(g - cutoff)
     h = ACT[arguments['activation']](g) * u
     y = h @ w(ctx, params['out']).T
     if arguments.get('out_bias'):

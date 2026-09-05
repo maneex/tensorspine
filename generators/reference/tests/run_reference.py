@@ -40,6 +40,7 @@ sys.path.insert(0, REF)
 import graph as graph_mod        # noqa: E402
 import loader                    # noqa: E402
 import registry                  # noqa: E402
+import state as state_mod        # noqa: E402
 from kernels import attention_dense  # noqa: E402
 from module import TensorspineModel  # noqa: E402
 from plan import Plan            # noqa: E402
@@ -175,6 +176,8 @@ def main(compile_step=False, full=False):
     ok &= multiplicity_case(check, tmp)
     ok &= whisper_random_case(check, tmp)
     ok &= voxtral_random_case(check, tmp)
+    ok &= gemma_random_case(check, tmp)
+    ok &= gemma_batch_case(check, tmp)
     ok &= sharing_case(check, tmp)
     ok &= batch_case(check, tmp)
     ok &= voxtral_batch_case(check, tmp)
@@ -358,6 +361,110 @@ def moe_random_case(check, tmp):
     for _ in range(3):
         bt.append(greedy(bsession.decode(bt[-1]), g))
     ok &= check(f"tiny qwen3.5-moe: {len(blocked.blocks)} blocks give the same logits and tokens",
+                len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
+    return ok
+
+
+TINY_GEMMA = {'quantities.d.source.value': 64, 'quantities.heads.source.value': 4, 'quantities.kv_heads.source.value': 2,
+              'quantities.hd.source.value': 16, 'quantities.ffn.source.value': 128, 'quantities.vocab.source.value': 256,
+              'quantities.per_layer_vocab.source.value': 256, 'quantities.per_layer_width.source.value': 16,
+              'quantities.laurel_rank.source.value': 8, 'quantities.window.source.value': 8}
+
+
+def gemma_batch_case(check, tmp):
+    """B06 on the shared-KV document (breadth plan G10): the tiny 21-layer Gemma batched on the packed
+    layout — two prompts of different lengths prefilled together and decoded together twice, against
+    each alone; the split the runner reads from the topology is the two attention sites (own and
+    readers, each holding the identity's state) per session, everything else on the union; every
+    state's length, the shared ring's included, is its session's own."""
+    ok = True
+    kernels = registry.load_kernels()
+    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'gemma3n-kvshare.json'), 'decoder.layer=21', tmp)
+    path, _ = graph_mod.edited(path, TINY_GEMMA, tmp, 'tiny-batch')
+    g = graph_mod.load(path)
+    params = loader.random_parameters(g, 'cpu', seed=2)
+    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    per = {n.split('[')[0] for n, v in model.per_session.items() if v}
+    ok &= check(f"batch (tiny gemma3n): the occurrences evaluated per session are the two attention sites, own and readers — {sorted(per)}",
+                per == {'decoder/attn', 'decoder/attn_full'}, str(sorted(per)))
+    A, B = [1, 2, 3, 4, 5, 6], [9, 10, 11]
+
+    def session():
+        return Session(model, 64, 'cpu', torch.float32)
+    alone = []
+    for prompt in (A, B):
+        s = session()
+        logits = [s.prefill(prompt)[g.generative[0]].clone()]
+        tokens = [greedy({g.generative[0]: logits[-1]}, g)]
+        for _ in range(2):
+            logits.append(s.decode(tokens[-1])[g.generative[0]].clone())
+            tokens.append(greedy({g.generative[0]: logits[-1]}, g))
+        alone.append((logits, tokens, {i: st.length for i, st in s.states.items()}))
+    batch = Batch([session(), session()])
+    outs = batch.prefill([A, B])
+    logits = [[o[g.generative[0]].clone()] for o in outs]
+    nxt = [greedy(o, g) for o in outs]
+    tokens = [[n] for n in nxt]
+    for _ in range(2):
+        outs = batch.decode(nxt)
+        nxt = [greedy(o, g) for o in outs]
+        for k, o in enumerate(outs):
+            logits[k].append(o[g.generative[0]].clone())
+            tokens[k].append(nxt[k])
+    worst = max(float((x - y).abs().max()) for k in range(2) for x, y in zip(logits[k], alone[k][0]))
+    ok &= check(f"batch (tiny gemma3n): two prompts of {len(A)} and {len(B)} tokens prefilled and decoded as one packed batch give each session's own "
+                f"logits (max |d| {worst:.1e}) and tokens",
+                all(torch.allclose(x, y, atol=1e-5, rtol=1e-4) for k in range(2) for x, y in zip(logits[k], alone[k][0]))
+                and tokens == [a[1] for a in alone], f"batched {tokens}, alone {[a[1] for a in alone]}")
+    ok &= check("batch (tiny gemma3n): every state's length is its session's own, the shared ring's included",
+                all({i: st.length for i, st in s.states.items()} == a[2] for s, a in zip(batch.sessions, alone))
+                and [s.states['shared.sliding.kv'].length for s in batch.sessions] == [len(A) + 2, len(B) + 2])
+    return ok
+
+
+def gemma_random_case(check, tmp):
+    """The Gemma 3n document on random weights, 21 layers so that layer 20 reads the ring layer 18
+    writes, a window of 8: the four-stream residual, the per-layer inputs, the shared ring, the
+    shared cache (layer 19 alone once truncated), blocks across the writer and its reader, and the
+    refusal of a window reader's multi-position invocation once the ring has wrapped (finding 26)."""
+    ok = True
+    path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'gemma3n-kvshare.json'), 'decoder.layer=21', tmp)
+    path, _ = graph_mod.edited(path, TINY_GEMMA, tmp, 'tiny')
+    g = graph_mod.load(path)
+    kernels = registry.load_kernels()
+    refused = registry.refusals(g, kernels)
+    ok &= check("tiny gemma3n: every contract has a kernel for its arguments", not refused, refused[:2])
+    ok &= check("tiny gemma3n: the shared ring is written by layer 18 and read by layer 20; the full cache has layer 19 alone",
+                g.states['shared.sliding.kv']['writer'] == 'decoder/attn[layer=18].kv'
+                and 'decoder/attn[layer=20].kv' in g.states['shared.sliding.kv']['members']
+                and g.states['shared.full.kv']['members'] == ['decoder/attn_full[layer=19].kv'])
+    params = loader.random_parameters(g, 'cpu', seed=2)
+    ok &= check("tiny gemma3n: a multiplicity slot is one stacked tensor", list(params['expand.projection'].shape) == [3, 64, 64])
+    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
+    out = session.prefill([1, 2, 3, 4, 5, 6])
+    logits = out[g.generative[0]]
+    tokens = [greedy(out, g)]
+    for _ in range(10):                                              # past the window of 8: the ring wraps
+        o = session.decode(tokens[-1])
+        tokens.append(greedy(o, g))
+    ok &= check("tiny gemma3n: prefill and ten decodes past the window give finite logits on their D2 shapes",
+                list(logits.shape) == [6, 256] and bool(torch.isfinite(logits).all()) and session.states['shared.sliding.kv'].length == 16)
+    try:
+        session.run({g.token_input: torch.tensor([7, 8])})
+        ok &= check("tiny gemma3n: a window reader refuses a multi-position invocation once the ring wrapped (finding 26)", False)
+    except state_mod.Refusal as e:
+        ok &= check("tiny gemma3n: a window reader refuses a multi-position invocation once the ring wrapped (finding 26)", 'finding 26' in str(e))
+    resident = loader.state_bytes(g, 64, torch.float32) + loader.largest_temporary(g, torch.float32)
+    total = g.d3_totals['bytes']
+    blocked = Plan(g, kernels, max_bytes=resident + total // 3, elements=64, resident_bytes=resident)
+    bmodel = TensorspineModel(g, blocked, None, torch.float32, 'cpu', source=loader.RandomSource(params).materialise)
+    bsession = Session(bmodel, capacity=64, device='cpu', dtype=torch.float32)
+    bl = bsession.prefill([1, 2, 3, 4, 5, 6])[g.generative[0]]
+    bt = [greedy({g.generative[0]: bl}, g)]
+    for _ in range(10):
+        bt.append(greedy(bsession.decode(bt[-1]), g))
+    ok &= check(f"tiny gemma3n: {len(blocked.blocks)} blocks, the shared ring's writer and reader in different ones, give the same logits and tokens",
                 len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
     return ok
 

@@ -117,11 +117,36 @@ def truncated(model_path, spec, out_dir):
         elif isinstance(node, list):
             for i, v in enumerate(node):
                 walk(v, path + (i,))
-    walk(model.get('bindings', {}), ('bindings',))
+    for kind in ('values', 'parameters', 'constants'):          # not the states: their members are pruned below
+        walk(model.get('bindings', {}).get(kind, {}), ('bindings', kind))
     walk(model['compositions'][comp].get('bindings', {}), ('compositions', comp, 'bindings'))
     for site, occ in model['compositions'][comp]['occurrences'].items():
         walk(occ.get('when', {}), ('compositions', comp, 'occurrences', site, 'when'))
-    return edited(model_path, edits, out_dir, suffix=f"{stop}{index}s")
+    path, notes = edited(model_path, edits, out_dir, suffix=f"{stop}{index}s")
+    # a shared state names its members by literal index: those beyond the new range go, and an
+    # identity left without members with them (an index outside the range is a rejection, §5.2)
+    with open(path, encoding='utf-8') as f:
+        doc = json.load(f)
+    pruned = []
+    for sid, binding in list(doc.get('bindings', {}).get('states', {}).items()):
+        keep = []
+        for m in binding['members']:
+            occ = m['occurrence']
+            lit = ((occ.get('indices') or {}).get(index) or {}).get('literal')
+            if occ.get('kind') == 'generated' and occ.get('composition') == comp and lit is not None and lit >= stop:
+                pruned.append(f"bindings.states.{sid}: member {occ['occurrence']}[{index}={lit}] beyond {stop}, dropped")
+            else:
+                keep.append(m)
+        if keep:
+            binding['members'] = keep
+        else:
+            del doc['bindings']['states'][sid]
+            pruned.append(f"bindings.states.{sid}: no member left, dropped")
+    if pruned:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(doc, f, indent=2, ensure_ascii=False)
+            f.write('\n')
+    return path, notes + pruned
 
 
 class Graph:

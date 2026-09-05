@@ -7,6 +7,9 @@
 | mask chunked (`chunk`)          | refused                                         |
 | cross (`source_values`)         | implemented under `mask: none`: keys and values are projected from the source elements the invocation delivers and appended to `kv` along the source stream — a delivery of nothing (every decode step) appends nothing — and every query attends to the whole cache; with `rope` refused (the source positions are not delivered to the kernel); with `mask: causal` refused (a query's position and a source position are on different streams) |
 | streaming                       | implemented: a carrying property — the cache survives the fragments, the computation is the mask's and the window's |
+| scale                           | implemented: the document's score scale, else head_dim⁻½ |
+| qk_norm values                  | implemented: the values RMS-normalised over head_dim with the record's eps, no learned scale, before the state |
+| kv_source shared                | implemented: no key/value projections; keys and values read from the identity's writer — after it in the order (the plan checks); a window reader serves one position per invocation once its ring has wrapped, since an earlier query's span would reach positions the ring evicted (finding 26) |
 | window (`span`)                 | implemented with `mask: causal`: the cache is a ring of `span` positions; a query at `p` attends to the keys at `j` with `p − span < j ≤ p` — itself and the `span − 1` before it, `transformers`' sliding mask — read from the ring's valid entries (whose positions are the last before the fragment) followed by the fragment's own, the ring appended after, so a fragment longer than the span is served too; with `mask: none` refused (a bidirectional window is not what any document declares) |
 | rope: theta, layout split       | implemented (rotate-half)                       |
 | rope: layout interleaved / 2d   | refused                                         |
@@ -36,23 +39,24 @@ by the document and, for a single position stream, both layouts are plain RoPE.
 """
 import math
 import torch
-from kernels._common import present, refuse_unknown, supports_from, w
+from kernels._common import present, refuse_unknown, rms_norm, supports_from, w
+from state import Refusal
 
 CONTRACT = ("attention.dense", "1.0.0")
 KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'scale', 'mask', 'window', 'chunk', 'cross', 'streaming', 'kv_source', 'rope',
          'qk_norm', 'temperature', 'q_bias', 'k_bias', 'v_bias', 'out_bias', 'output_gate'}
 
 
-CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any", "scale": "absent",
+CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any", "scale": "any",
                               "mask": ["causal", "none"], "window": {"absent": True, "fields": {"span": "any"}}, "chunk": "absent",
-                              "cross": [False, True], "streaming": "any", "kv_source": ["own"], "temperature": "absent",
+                              "cross": [False, True], "streaming": "any", "kv_source": ["own", "shared"], "temperature": "absent",
                               "rope": {"absent": True, "fields": {"theta": "any", "layout": ["split"], "partial": "any",
                                        "mrope": {"absent": True, "fields": {"t": "any", "h": "any", "w": "any",
                                                                               "sections": ["contiguous", "interleaved"]}},
                                        "scaling": {"absent": True, "fields": {"kind": ["yarn"], "factor": "any", "orig_ctx": "any",
                                                    "beta_fast": "any", "beta_slow": "any", "attention_factor": "any",
                                                    "low": "absent", "high": "absent"}}}},
-                              "qk_norm": {"absent": True, "fields": {"kind": ["rms"], "eps": "any", "values": [False],
+                              "qk_norm": {"absent": True, "fields": {"kind": ["rms"], "eps": "any", "values": "any",
                                           "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
                               "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
                 "states": ["append", "window"],
@@ -60,7 +64,8 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
                 "transforms": ["align"],
                 "notes": ["mrope for one position stream only: an image would need the sections to differ",
                           "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel",
-                          "a window with mask none is refused at run time: a query attends to itself and the span − 1 positions before it, the causal reading"]}
+                          "a window with mask none is refused at run time: a query attends to itself and the span − 1 positions before it, the causal reading",
+                          "a shared window reader serves one position per invocation once its ring has wrapped (finding 26)"]}
 
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
@@ -143,16 +148,11 @@ def rope_split(x, positions, theta, partial=None, scaling=None):
     return torch.cat([xr, xp], dim=-1) if r < d else xr
 
 
-def rms_norm(x, scale, eps, zero_centered):
-    var = x.to(torch.float32).pow(2).mean(-1, keepdim=True)
-    y = (x.to(torch.float32) * torch.rsqrt(var + eps)).to(x.dtype)
-    return y * (scale + 1 if zero_centered else scale)
-
-
-def attend(q, K, V, length, qpos, causal, static=False):
+def attend(q, K, V, length, qpos, causal, static=False, scale=None):
     """Scores of q [n, h, d] against the first `length` positions of K/V [cap, kv, d]
     (their positions are 0..length-1); GQA by repeating KV heads. `static` keeps
-    the whole buffer and masks (the compiled form); otherwise the buffer is sliced."""
+    the whole buffer and masks (the compiled form); otherwise the buffer is sliced.
+    `scale` replaces head_dim⁻½ when the document states one."""
     n, h, d = q.shape
     kv = K.shape[1]
     if not static:
@@ -161,7 +161,7 @@ def attend(q, K, V, length, qpos, causal, static=False):
     if h != kv:
         K = K.repeat_interleave(h // kv, dim=1)
         V = V.repeat_interleave(h // kv, dim=1)
-    scores = torch.einsum('nhd,mhd->hnm', q, K) * (1.0 / math.sqrt(d))
+    scores = torch.einsum('nhd,mhd->hnm', q, K) * (float(scale) if scale is not None else 1.0 / math.sqrt(d))
     kpos = torch.arange(m, device=q.device)
     allowed = kpos[None, :] < length
     if causal:
@@ -171,16 +171,16 @@ def attend(q, K, V, length, qpos, causal, static=False):
     return torch.einsum('hnm,mhd->nhd', p, V).reshape(n, h * d)
 
 
-def attend_positions(q, K, V, qpos, kpos, causal, span):
+def attend_positions(q, K, V, qpos, kpos, causal, span, scale=None):
     """Scores of q [n, h, d] at positions qpos [n] against K/V [m, kv, d] at positions kpos [m],
     every key masked by its position: causal keeps j ≤ p, the window keeps j > p − span (the query
-    among its own span). GQA by repeating KV heads."""
+    among its own span). GQA by repeating KV heads; `scale` replaces head_dim⁻½."""
     n, h, d = q.shape
     kv = K.shape[1]
     if h != kv:
         K = K.repeat_interleave(h // kv, dim=1)
         V = V.repeat_interleave(h // kv, dim=1)
-    scores = torch.einsum('nhd,mhd->hnm', q, K) * (1.0 / math.sqrt(d))
+    scores = torch.einsum('nhd,mhd->hnm', q, K) * (float(scale) if scale is not None else 1.0 / math.sqrt(d))
     allowed = torch.ones((n, K.shape[0]), dtype=torch.bool, device=q.device)
     if causal:
         allowed = allowed & (kpos[None, :] <= qpos[:, None])
@@ -196,6 +196,7 @@ def run(ctx, arguments, inputs, params, states, physical=None):
     n = x.shape[0]
     h, d, kv = arguments['heads'], arguments['head_dim'], arguments['kv_heads']
     cross = bool(arguments.get('cross'))
+    shared = arguments.get('kv_source') == 'shared'      # a reader: no key/value projections, the identity's writer filled the state
     src = inputs['source_values'] if cross else x        # cross: the source elements this invocation delivers, none at a decode step
     m = src.shape[0]
     gate = None
@@ -204,52 +205,75 @@ def run(ctx, arguments, inputs, params, states, physical=None):
         q, gate = qg[:, :, 0, :], qg[:, :, 1, :]
     else:
         q = x @ w(ctx, params['q']).T
-    k = src @ w(ctx, params['k']).T
-    v = src @ w(ctx, params['v']).T
     if arguments.get('q_bias'):
         q = q + w(ctx, params['q_bias'])
-    if arguments.get('k_bias'):
-        k = k + w(ctx, params['k_bias'])
-    if arguments.get('v_bias'):
-        v = v + w(ctx, params['v_bias'])
-    q, k, v = q.reshape(n, h, d), k.view(m, kv, d), v.view(m, kv, d)
+    q = q.reshape(n, h, d)
+    k = v = None
+    if not shared:
+        k = src @ w(ctx, params['k']).T
+        v = src @ w(ctx, params['v']).T
+        if arguments.get('k_bias'):
+            k = k + w(ctx, params['k_bias'])
+        if arguments.get('v_bias'):
+            v = v + w(ctx, params['v_bias'])
+        k, v = k.view(m, kv, d), v.view(m, kv, d)
     qk_norm = arguments.get('qk_norm')
     if qk_norm and qk_norm['kind'] == 'rms':
         eps = qk_norm['eps']
         scale = qk_norm.get('scale')                    # present: q_norm and k_norm are declared
         zc = bool(scale and scale.get('zero_centered'))
         one = torch.ones(d, device=x.device, dtype=x.dtype)
-        qs = w(ctx, params['q_norm']) if scale is not None else one
-        ks = w(ctx, params['k_norm']) if scale is not None else one
-        q = rms_norm(q, qs, eps, zc)
-        k = rms_norm(k, ks, eps, zc)
+        q = rms_norm(q, w(ctx, params['q_norm']) if scale is not None else one, eps, zc)
+        if not shared:
+            k = rms_norm(k, w(ctx, params['k_norm']) if scale is not None else one, eps, zc)
+            if qk_norm.get('values'):
+                v = rms_norm(v, None, eps)              # the values normalised too, no learned scale
     rope = arguments.get('rope')
     if rope:
         if cross:
             raise ValueError("cross attention with rope: the source stream's positions are not delivered to this kernel")
         q = rope_split(q, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
-        k = rope_split(k, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
+        if not shared:
+            k = rope_split(k, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
     causal = arguments['mask'] == 'causal'
     window = arguments.get('window')
-    if window is not None:
-        if not causal:
-            raise ValueError("attention.dense: a window with mask none is not implemented (the reading is causal: a query and the span − 1 before it)")
-        st = states['kv']                                    # a ring of `span` positions: the last before this fragment
+    span = int(window['span']) if window is not None else None
+    score = arguments.get('scale')                       # the document's score scale, else head_dim⁻½
+    if window is not None and not causal:
+        raise ValueError("attention.dense: a window with mask none is not implemented (the reading is causal: a query and the span − 1 before it)")
+    if shared:
+        # the identity's writer appended this invocation's positions earlier in the order (the plan checks it):
+        # the state holds them, so nothing is appended here and the queries' own positions are among the keys
+        st = states['kv']
+        if st.law == 'window':
+            if n > 1 and st.length > span:
+                raise Refusal(f"a shared window state serves one position at a time once its ring has wrapped: "
+                              f"{n} positions asked, {st.length} written, span {span} (finding 26)")
+            prev, n_prev = st.tail()                     # the last min(length, span) positions, in order
+            K, V = prev['k'][:n_prev].to(q.dtype), prev['v'][:n_prev].to(q.dtype)
+            kpos = torch.arange(st.length - n_prev, st.length, device=q.device)
+        else:
+            bufs, length = st.read()
+            K, V = bufs['k'][:length].to(q.dtype), bufs['v'][:length].to(q.dtype)
+            kpos = torch.arange(length, device=q.device)
+        out = attend_positions(q, K, V, ctx.positions, kpos, causal, span, score)
+    elif window is not None:
+        st = states['kv']                                # a ring of `span` positions: the last before this fragment
         prev, n_prev = st.tail()
         p0 = int(ctx.positions[0]) if n else 0
         kpos = torch.cat([torch.arange(p0 - n_prev, p0, device=q.device), ctx.positions])
         K = torch.cat([prev['k'][:n_prev].to(q.dtype), k], dim=0)
         V = torch.cat([prev['v'][:n_prev].to(q.dtype), v], dim=0)
-        out = attend_positions(q, K, V, ctx.positions, kpos, causal, int(window['span']))
+        out = attend_positions(q, K, V, ctx.positions, kpos, causal, span, score)
         st.append({'k': k, 'v': v})
     elif 'kv' in states:
         st = states['kv']
-        if m:                                                # a cross cache is appended along the source stream, when it delivers
+        if m:                                            # a cross cache is appended along the source stream, when it delivers
             st.append({'k': k, 'v': v})
         bufs, length = st.read()
-        out = attend(q, bufs['k'].to(q.dtype), bufs['v'].to(q.dtype), length, ctx.positions, causal, static=ctx.static)
+        out = attend(q, bufs['k'].to(q.dtype), bufs['v'].to(q.dtype), length, ctx.positions, causal, static=ctx.static, scale=score)
     else:
-        out = attend(q, k, v, n, ctx.positions, causal)
+        out = attend(q, k, v, n, ctx.positions, causal, scale=score)
     if gate is not None:
         out = out * torch.sigmoid(gate.reshape(n, h * d))
     y = out @ w(ctx, params['out']).T
