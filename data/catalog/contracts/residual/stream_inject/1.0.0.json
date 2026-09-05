@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Reinjects a modified active stream into the set of residual streams.",
-    "description": "Replaces the active stream among `streams` with the given `active` vector; the other streams pass through. No parameter.",
+    "description": "Adds `active` to every stream but the active one, which passes through unchanged: a layer's per-layer term enters the auxiliary streams (Gemma 3n: `streams[1:] += active`). No parameter.",
     "tags": [
       "parallel-residual"
     ],

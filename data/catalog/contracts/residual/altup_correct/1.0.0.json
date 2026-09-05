@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "AltUp correction: updates every stream from the computed active stream and rescales it.",
-    "description": "Given the predicted streams and the layer's output on the active one, `correction` (`streams × streams`) propagates the difference to every stream; `correct_scale` rescales the active output.",
+    "description": "Given the predicted streams and the layer's output on the active one, `correction` (`streams × streams`) propagates the difference to every stream; `correct_scale` rescales the active output. Computation: the router of the layer's output, as in `altup_predict`, gives one coefficient per stream, plus one; the innovation `activated − predicted active` times each stream's coefficient is added to the predictions; `active` is the corrected active stream multiplied channel-wise by `correct_scale`, while `streams` keeps it unscaled.",
     "tags": [
       "parallel-residual"
     ],

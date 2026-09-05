@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Per-layer conditioning: gates the input, multiplies by the condition, projects back and normalizes.",
-    "description": "The input is projected by `gate` to `condition_width` and multiplied element-wise with `condition`; `projection` brings the product back to `width`, and `norm` normalizes it (RMS, `eps`). The result is what the layer adds to its residual.",
+    "description": "The input is projected by `gate` to `condition_width`, passed through `activation`, and multiplied element-wise with `condition`; `projection` brings the product back to `width`, and `norm` normalizes it (RMS, `eps`). The result is what the layer adds to its residual.",
     "arguments": {
       "width": {
         "type": {
@@ -30,6 +30,20 @@
         "required": true,
         "structural": false,
         "description": "Epsilon of the normalization; changes no tensor."
+      },
+      "activation": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "silu",
+            "gelu",
+            "gelu_tanh",
+            "relu2"
+          ]
+        },
+        "required": true,
+        "structural": false,
+        "description": "Applied to the gate projection before the product with `condition` (Gemma 3n: `gelu_tanh`)."
       }
     },
     "ports": {

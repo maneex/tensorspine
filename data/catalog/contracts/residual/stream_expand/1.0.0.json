@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Expands the active stream into `streams` residual streams, one projection per auxiliary stream.",
-    "description": "The first stream is the input itself; each of the `streams - 1` others is a `width × width` projection of it (`projection`, multiplicity `streams - 1`).",
+    "description": "The first stream is the input itself; each of the `streams - 1` others is a `width × width` projection of it (`projection`, multiplicity `streams - 1`). Each projected stream is rescaled to the input's root-mean-square magnitude (the ratio of the two RMS values, the projected one floored at 1e-5).",
     "tags": [
       "parallel-residual"
     ],

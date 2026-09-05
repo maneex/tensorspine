@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Token embedding that also emits a per-layer auxiliary vector for every layer of the stack.",
-    "description": "Besides the usual `output`, the primitive computes `auxiliary`: for each of `layers` layers, a `per_layer_width` vector obtained by summing a per-layer table lookup of the token (`per_layer_embed`, over a vocabulary of `per_layer_vocabulary`) with a projection of the main embedding (`per_layer_model_projection`), normalized by `per_layer_projection_norm`. Each layer then selects its slice with `conditioning.layer_select` and applies it with `conditioning.multiplicative`.",
+    "description": "Besides the usual `output`, the primitive computes `auxiliary`: for each of `layers` layers, a `per_layer_width` vector obtained by summing a per-layer table lookup of the token (`per_layer_embed`, over a vocabulary of `per_layer_vocabulary`) with a projection of the main embedding (`per_layer_model_projection`), normalized by `per_layer_projection_norm`. Each layer then selects its slice with `conditioning.layer_select` and applies it with `conditioning.multiplicative`. Scales, as Gemma computes them: the token embedding is multiplied by √`width`; the per-layer lookup by √`per_layer_width`; the projection of the main embedding by `width`⁻½ before its normalization; the sum of the normalized projection and the lookup by 1/√2.",
     "arguments": {
       "width": {
         "type": {

@@ -242,6 +242,9 @@
         },
         "vocabulary": {
           "quantity": "vocab"
+        },
+        "softcap": {
+          "literal": 30
         }
       },
       "families": [
@@ -357,6 +360,9 @@
                 },
                 "scale": {
                   "record": {}
+                },
+                "values": {
+                  "literal": true
                 }
               }
             },
@@ -392,6 +398,9 @@
               "else": {
                 "literal": "own"
               }
+            },
+            "scale": {
+              "literal": 1
             }
           },
           "families": [
@@ -643,6 +652,9 @@
             },
             "eps": {
               "quantity": "eps"
+            },
+            "activation": {
+              "literal": "gelu_tanh"
             }
           },
           "families": [
@@ -699,6 +711,9 @@
                 },
                 "scale": {
                   "record": {}
+                },
+                "values": {
+                  "literal": true
                 }
               }
             },
@@ -727,6 +742,9 @@
               "else": {
                 "literal": "own"
               }
+            },
+            "scale": {
+              "literal": 1
             }
           },
           "families": [

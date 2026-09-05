@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Collapses `streams` residual streams back to one: projects the auxiliary streams and reduces.",
-    "description": "Each of the `streams - 1` auxiliary streams is projected by its own `width × width` matrix and reduced with the active stream into one `width` vector.",
+    "description": "Each of the `streams - 1` auxiliary streams is projected by its own `width × width` matrix and reduced with the active stream into one `width` vector. Each projected stream is rescaled to the active stream's root-mean-square magnitude (floor 1e-5); the result is the mean over all `streams` streams.",
     "tags": [
       "parallel-residual"
     ],

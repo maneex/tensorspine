@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "Output head: projects the hidden state to one logit per vocabulary entry.",
-    "description": "`weight` has the same role and the same axes in the same order as `embed.weight`, so the two may share one tensor without a view (weight tying).",
+    "description": "`weight` has the same role and the same axes in the same order as `embed.weight`, so the two may share one tensor without a view (weight tying). With `softcap`, the logits are bounded to ±`softcap` through a `tanh`.",
     "external_docs": [
       {
         "url": "https://arxiv.org/abs/1608.05859",
@@ -30,6 +30,14 @@
         "required": true,
         "structural": true,
         "description": "Number of vocabulary entries."
+      },
+      "softcap": {
+        "type": {
+          "kind": "real"
+        },
+        "required": false,
+        "structural": false,
+        "description": "Logit soft-capping: `tanh(logits / softcap) · softcap`; absent, none. Gemma 2 and 3n: 30."
       }
     },
     "ports": {

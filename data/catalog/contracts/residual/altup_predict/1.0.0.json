@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "AltUp prediction: mixes the `streams` residual streams and selects the active one.",
-    "description": "The input carries `streams` parallel residual streams. A router (`router`, after `router_norm`) computes mixing coefficients; `prediction` (`streams*streams × streams`) applies them to predict every stream from the current ones; the active stream is emitted separately for the layer to compute on.",
+    "description": "The input carries `streams` parallel residual streams. A router (`router`, after `router_norm`) computes mixing coefficients; `prediction` (`streams*streams × streams`) applies them to predict every stream from the current ones; the active stream is emitted separately for the layer to compute on. Computation: the router reads `router_norm(active) · width⁻¹` and its output passes through `tanh`; the `streams·streams` coefficients are reshaped `[streams, streams]` and transposed, applied across the streams, and the input streams are added back (`predictions = coefficients · input + input`); `active` is the predicted active stream.",
     "tags": [
       "parallel-residual"
     ],

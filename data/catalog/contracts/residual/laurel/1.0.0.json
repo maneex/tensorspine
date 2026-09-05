@@ -5,7 +5,7 @@
   "definition": {
     "version": "1.0.0",
     "summary": "LAuReL branch: a low-rank projection of the input, normalized, to be added to the residual.",
-    "description": "`left` projects `width` to `rank`, `right` projects back to `width`, and `norm` (RMS, `eps`) normalizes the result: a learned, low-rank augmentation of the residual connection.",
+    "description": "`left` projects `width` to `rank`, `right` projects back to `width`, `norm` (RMS, `eps`) normalizes that term, and the input is added: `output = input + norm(right(left(input)))` — a learned, low-rank augmentation of the residual connection.",
     "external_docs": [
       {
         "url": "https://arxiv.org/abs/2411.07501",

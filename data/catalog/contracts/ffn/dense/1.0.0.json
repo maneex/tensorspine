@@ -80,7 +80,7 @@
         },
         "required": false,
         "structural": false,
-        "description": "Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none.",
+        "description": "Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none. The selection is a Gaussian top-k on the gate projection before the activation: per element, `cutoff = mean + std · Φ⁻¹(fraction)` over the inner axis (the standard deviation biased), then `relu(gate − cutoff)`.",
         "note": "structural fraction of activations zeroed after selection"
       }
     },
