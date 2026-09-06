@@ -130,7 +130,7 @@
             }
           ]
         },
-        "description": "Projection of one auxiliary stream, `streams - 1` times."
+        "description": "Projection of one auxiliary stream, `streams - 1` times: copy c (stored first, the storage axis `multiplicity` of §3.4) projects stream c + 1 — `transformers` applies `altup_unembed_projections[i - 1]` to stream i."
       }
     },
     "constants": {},

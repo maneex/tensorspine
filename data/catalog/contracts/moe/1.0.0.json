@@ -400,7 +400,7 @@
             }
           ]
         },
-        "description": "Gate projection of one shared expert, `shared` times."
+        "description": "Gate projection of one shared expert, `shared` times: copy c (stored first, the storage axis `multiplicity` of §3.4) is shared expert c; the experts' outputs are summed, so the order does not change the result."
       },
       "shared_up": {
         "role": "ffn.up_projection",
@@ -441,7 +441,7 @@
             }
           ]
         },
-        "description": "Up projection of one shared expert, `shared` times."
+        "description": "Up projection of one shared expert, `shared` times: copy c is shared expert c, as for `shared_gate`."
       },
       "shared_out": {
         "role": "ffn.down_projection",
@@ -482,7 +482,7 @@
             }
           ]
         },
-        "description": "Down projection of one shared expert, `shared` times."
+        "description": "Down projection of one shared expert, `shared` times: copy c is shared expert c, as for `shared_gate`."
       },
       "shared_output_gate": {
         "role": "moe.shared_gate",
