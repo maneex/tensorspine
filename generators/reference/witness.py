@@ -337,6 +337,35 @@ def verify(fid, kernels, strict_provenance=False):
         ok &= verdict.ok
         lines.append(f"{fid}: {verdict.compared} positions, outputs and states at {dtype} within atol {tol['atol']:g} rtol {tol['rtol']:g} "
                      f"(max |d| {verdict.worst:.1e})" + (f"  {verdict.detail()}" if not verdict.ok else ''))
+    # §5.3's invariance (R17): a fixture whose stream is fragmented and delivered in two or more
+    # invocations must give, delivered whole in one, the concatenated recorded outputs and the
+    # recorded final states — the sufficient condition the contract's invariant now guarantees. A
+    # non-fragmented multi-invocation fixture (a bidirectional pass, cross with a frozen source) is
+    # not invariant to concatenation and is not checked; a fixture under a declared conditions entry
+    # (finding 26, a shared window reader once its ring has wrapped) is skipped and says so.
+    fragmented = [n for n, e in g.interfaces['inputs'].items() if e.get('fragmented')]
+    if fragmented and len(meta['invocations']) > 1:
+        K = len(meta['invocations'])
+        names = sorted({n for inv in meta['invocations'] for n in inv})
+        whole = {}
+        for name in names:
+            parts = [tensors[f"in/{k}/{name}"] for k in range(K) if f"in/{k}/{name}" in tensors]
+            whole[name] = torch.cat(parts, 0)
+        given_whole = {f"in/0/{name}": t for name, t in whole.items()}
+        one = [{name: whole[name].shape[0] for name in whole}]
+        got = run(g, kernels, {i: t.to(torch.float32) if t.is_floating_point() else t for i, t in params.items()},
+                  one, torch.float32, given=given_whole)
+        out_names = sorted({key.split('/', 3)[2] for key in tensors if key.startswith('out/0/')})
+        want = {f"out/0/{name}": torch.cat([tensors[f"out/{k}/{name}"] for k in range(K) if f"out/{k}/{name}" in tensors])
+                for name in out_names}
+        want.update({f"state/0/{key.split('/', 2)[2]}": t for key, t in tensors.items() if key.startswith(f"state/{K - 1}/")})
+        got = {k: v for k, v in got.items() if not k.startswith('in/')}
+        verdict = compare(got, want, atol, rtol)
+        ok &= verdict.ok
+        total = whole[fragmented[0]].shape[0]
+        lines.append(f"{fid}: the {K} fragments delivered whole ({total} elements on {fragmented[0]}) give the concatenated "
+                     f"outputs and the final states (§5.3, max |d| {verdict.worst:.1e})" + ('' if verdict.ok else f"  DIFFER {verdict.detail()}"))
+
     # the union (harness guide §8): the invocations as sessions of one packed invocation, at f32;
     # every recorded output of every invocation is required of the batch
     model = TensorspineModel(g, Plan(g, kernels), {i: t.to(torch.float32) for i, t in params.items()}, torch.float32, 'cpu')

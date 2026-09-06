@@ -199,6 +199,16 @@ a time (f32 rounding across row counts: a few 1e-5 on the checkpoint). A `sequen
 is held by an `append` state indexed by the port, so a decode step delivering nothing on it is
 evaluated through the held condition (§7).
 
+Two obligations bound a fragmented delivery (§5.3), both derived by the language, never declared.
+**Alignment**: a fragment delivers whole merge groups, so a fragment that is not a multiple of the
+stream's `fragment_alignment` is refused. **Source completeness**: a stream a reader reads whole —
+a by_source cross-attention cache — must be complete before the reader's first fragment, so the
+runner refuses a schedule that would fragment such a source across the reader's invocations
+(`schedule()`); Whisper delivers its audio whole in the prefill, so nothing in the corpus is
+refused. The invariance itself is the contract's: a streaming attention looks back, so its mask is
+never `none` (V8), and the witness checks every fragmented unit fixture delivered whole gives the
+concatenated fragments' outputs and their final states.
+
 Conventions: a value's tensor has the element axis first, then the port's axes in the contract's
 order; one session per invocation unless `--batch packed` puts several on the element axis
 (Batching, below); parameters stay at their D3 dtype and are upcast per

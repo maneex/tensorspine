@@ -1216,6 +1216,16 @@ def schedule(g, ids, recorded, steps):
     joined = {n: t for n, t in recorded.items() if g.input_stream[n] == stream}
     if not joined:
         return dict(recorded), lambda k: None
+    # R18 (§5.3, source completeness): a stream a reader reads whole (a by_source cache — cross
+    # attention's source) must be complete before the reader's first fragment, so it is never the
+    # fragmented stream the token input joins. The corpus delivers such a source whole in the
+    # prefill (Whisper's audio); a schedule that fragmented it across the steps is refused here,
+    # where the runner delivers, rather than left to compute on what has not arrived.
+    by_source = {st['stream']['stream'] for st in g.states.values()
+                 if st.get('sharing') == 'by_source' and st.get('stream')}
+    if stream in by_source:
+        raise ValueError(f"{stream}: a source read whole (a by_source cache) cannot be fragmented across the "
+                         f"reader's invocations — it must be complete before the reader's first fragment (§5.3, R18)")
     first = len(ids) * per_token
     prefill = {n: (t[:first] if n in joined else t) for n, t in recorded.items()}
     for n, t in joined.items():
