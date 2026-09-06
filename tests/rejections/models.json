@@ -442,6 +442,12 @@
       "expect": "V8",
       "match": "'top_k does not exceed the number of experts' does not hold",
       "note": "A mixture routing to more experts than exist: top_k <= experts is an invariant (V8)."
+    },
+    {
+      "document": "models/v8-streaming-bidirectional.json",
+      "expect": "V8",
+      "match": "a streaming attention looks back: its mask is causal or chunked, never none",
+      "note": "A streaming attention with mask none: the sufficient condition for fragment invariance (§5.3) fails — the first fragment cannot attend to what has not arrived. Measured on identity projections: whole [0.66976, 0.33024] against split [1, 0], max |d| 0.33. Excluded by invariant (V8, R16)."
     }
   ]
 }
