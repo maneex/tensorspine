@@ -194,7 +194,7 @@ An occurrence is a graph node. The language keeps these five categories distinct
 | Category | Meaning | Example |
 |---|---|---|
 | **Primitive argument** | A scalar, enum, or record of such values. | `heads`, `mask`, `inner` |
-| **Parameter tensor** | A **learned** weight with shape, role, and sharing rule. | Attention Q/K/V/O projections |
+| **Parameter tensor** | A **learned** weight with shape, role, and sharing rule; optionally a **multiplicity** — m independent copies of that shape, a storage axis (§3.4), never an axis of the computation. | Attention Q/K/V/O projections; Gemma 3n's `streams − 1` AltUp projections |
 | **External constant or buffer** | Non-learned numeric data with identity, shape, and type. | A position table |
 | **Value port** | A temporary input or output. | Residual activation |
 | **State port** | Storage that survives a token invocation. | A cache |
@@ -237,7 +237,15 @@ named axis of the slot's shape, its names carrying that coordinate (`stack`); lo
 consecutively along an axis (`concat`); a region of one physical tensor along an axis, at an
 offset, of the logical extent (`slice`). A physical name is tagged data — literal strings, a
 composition index printed in decimal, the coordinate of an enclosing stack — never a format
-string; the axes it names are the slot's shape axis names. A document locates all of its parameter
+string; the axes it names are the slot's shape axis names, and `multiplicity` for the **storage axis** of a
+slot that declares one. A slot that declares a **multiplicity** is m tensors of its shape, applied
+independently (one per auxiliary stream, one per shared expert); it is stored with one axis before its
+shape axes — local name `multiplicity`, the catalog's `storage.multiplicity`, extent m — which every form
+addresses as it addresses a shape axis: a `stack` over it takes one location per copy, a `tensor` the
+copies whole as [m, …]. The storage axis belongs to the stored form alone: it is in no contract shape, so
+no partition (§4.4) or flattening factor (O5.10) follows from it; its name is reserved among a slot's
+axis names; a present slot's count resolves to a positive integer (V7), none being `present_when`;
+tying compares shapes as stored (V15). A document locates all of its parameter
 identities or none (V17); a tied identity has one location. A template locates all of its identities
 or none, its names written below a **weights location prefix** that each instance supplies
 (`weights_location_prefix`, literal strings and indices of the enclosing composition): the location
@@ -598,7 +606,7 @@ implicit default.
 | **V4** | Shapes compose: source and destination shapes have the same rank and, position by position, the same axis identity and equal extents; local names and natures are not compared; factors are compared when both declare them. The same rule binds a constant slot to its constant and the members of a parameter identity. |
 | **V5** | Indexing domains agree on every edge (§5.3). |
 | **V6** | The value graph is acyclic within an invocation. |
-| **V7** | Bindings are total and unique: every input port of an emitted occurrence is fed exactly once; every parameter, constant and state slot present under its `present_when` is bound exactly once; a slot absent by its condition is bound by nothing. |
+| **V7** | Bindings are total and unique: every input port of an emitted occurrence is fed exactly once; every parameter, constant and state slot present under its `present_when` is bound exactly once; a slot absent by its condition is bound by nothing. A present slot's declared multiplicity resolves to a positive integer: a slot with no copies is absent by its condition, never by arithmetic (§3.4). |
 | **V8** | Conditional argument combinations satisfy the contract. Meaningless combinations are excluded by invariant, never merely by a missing guard (I11). |
 | **V9** | A state identity connects only compatible ports: the same applicable rule, the same key axes, and equal payload shapes and indexing domains; a present state port that no rule matches is rejected. |
 | **V10** | Every repetition, guard and derivation resolves under §5.2 and §2.2. |
@@ -606,9 +614,9 @@ implicit default.
 | **V12** | Every construction has one reading; references and literals are unambiguous (I5, I6); a document or unit with duplicate member names in any object is rejected. |
 | **V13** | Every output port of an emitted occurrence is consumed by an edge or exposed by a public output. |
 | **V14** | A dtype selected for a parameter identity is admissible for the role of every member; one selected for a state identity, for the role of every payload component of every member; absent, each role's default applies. |
-| **V15** | Parameter identity compatibility (§3.4). |
+| **V15** | Parameter identity compatibility (§3.4): the members' shapes are compared as stored — the storage axis of a declared multiplicity before the slot's axes — so equal per-copy shapes with different counts, or a declared count against none, do not share an identity. |
 | **V16** | An occurrence whose state is carried across fragments (its contract's `carried_across` condition holds) sits on a fragmented stream. |
-| **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat. A document that locates its weights instantiates only templates that locate their identities, and gives each instance a `weights_location_prefix` (`[]` is one); a prefix locates the instance's tensors, so a document carrying one locates its weights and every other identity needs its location; a template instance without a prefix in a document that locates its weights, a prefix on an instance of an unlocated template, or on an occurrence that is not a template instance, is a rejection; the prefixed names of an instance are bound once like every other, so two instances under one prefix collide. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
+| **V17** | Locations are total or absent: a document with one located parameter identity locates every parameter identity instance. A physical name is bound by one identity; the slices of one physical tensor do not overlap and do not coexist with a whole binding of it; a `stack` names an axis of the slot — or `multiplicity`, the storage axis of a slot that declares one (§3.4) — and its part carries that coordinate; a `slice` offset resolves to a non-negative integer, and a slice is not a part of a concat. A document that locates its weights instantiates only templates that locate their identities, and gives each instance a `weights_location_prefix` (`[]` is one); a prefix locates the instance's tensors, so a document carrying one locates its weights and every other identity needs its location; a template instance without a prefix in a document that locates its weights, a prefix on an instance of an unlocated template, or on an occurrence that is not a template instance, is a rejection; the prefixed names of an instance are bound once like every other, so two instances under one prefix collide. Against a checkpoint: every located tensor exists with the D3 shape — unit axes the physical tensor has and the logical shape lacks being dropped — and the D3 dtype (I9). |
 | **V18** | An occurrence whose contract reads across positions (§4.1), on a fragmented stream, carries a state across the fragments of that stream (§5.3). |
 | **V19** | A public input that joins a stream joins it at a kind the stream carries independently of the input: a value in that domain that does not descend from it (§2.3, §5.3). |
 | **V20** | A state identity instance has exactly one writer among its present members: the member whose port's `written_when` holds, or every member when the port declares none. |
@@ -643,7 +651,7 @@ code or human knowledge of a named mechanism:
 |---|---|
 | **D1** | **Expanded graph:** occurrences, edges, and families; per occurrence, whether its contract reads across positions (§4.1). |
 | **D2** | **Values:** the value and shape inventory; the payload of every legal cut — the values live at it, sized per invocation; the peak of live values along one order of the graph, the activation peak of an invocation; and the fragment alignment of every fragmented stream (§5.3). |
-| **D3** | **Parameter tensors:** shapes, sharing, and total count; the role, selected dtype and sensitivity of every tensor; when the document locates its weights, the evaluated location of every tensor. |
+| **D3** | **Parameter tensors:** shapes as stored (a declared multiplicity leading, §3.4), sharing, and total count; the role, selected dtype and sensitivity of every tensor; when the document locates its weights, the evaluated location of every tensor. |
 | **D4** | **Complete state:** descriptors, instances, keys, the writer of each identity instance, state liveness, visits per phase, and permitted operations. |
 | **D5** | **Logical costs:** parameters, activations, state per element, computation — derived from the inventory and the declared corrections (§4.1) — and the payload crossing each legal cut per invocation. |
 | **D6** | **Legal cuts and semantic partition axes:** the legal cuts of the expanded graph, and for every occurrence the partitions its contract declares with their communications and granularity; a flattened axis without factors is reported as information loss (O5.10). Partitions are declared per occurrence; their consistency across occurrences — the residual width through norm, add and feed-forward, a head partition aligned to the KV groups of its layer — is compilation's (§10.3), the axis identities on D1's edges being what a compiler aligns. |

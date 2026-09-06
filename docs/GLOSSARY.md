@@ -46,9 +46,11 @@ partition axes are not silently lost. See
 
 ### Axis space
 
-Every axis belongs to the value space — the dimensions of values and tensors — or to the instance
+Every axis belongs to the value space — the dimensions of values and tensors — to the instance
 space (`instance.session`, `instance.branch`), the key axes along which state allocations are
-distinct. See [Specification §4.3](SPECIFICATION.md#43--state-derivation).
+distinct, or to the storage space (`storage.multiplicity`): an addressing dimension of the stored
+form, in no contract shape. See [Specification §4.3](SPECIFICATION.md#43--state-derivation) and
+[§3.4](SPECIFICATION.md#34--bindings) for the storage axis.
 
 ## B
 
@@ -311,6 +313,17 @@ graph-specific causes and relationships; contracts derive reusable consequences.
 §2](SPECIFICATION.md#2--model-document) and [Model guide
 §2](TENSORSPINE-MODEL_JSON.md#2--the-tensorspine-20-model-document).
 
+## M
+
+### Multiplicity (of a parameter slot)
+
+A parameter slot may declare a multiplicity: the slot is m tensors of its shape, applied
+independently — one per auxiliary stream (`residual.stream_expand`), one per shared expert
+(`moe`). The copies are not an axis of the computation; they are stored with a leading
+[storage axis](#storage-axis), and D3's `elements` is the product of the stored shape, the count
+in it once. A present slot's count is a positive integer (V7); none is `present_when`. See
+[Specification §3.4](SPECIFICATION.md#34--bindings).
+
 ## N
 
 ### Nature
@@ -490,6 +503,15 @@ storage — the one whose port's `written_when` holds (V20) — and the others r
 The generated, untracked page reporting catalog and corpus state, implementation coverage and recorded
 verification for the commit from which the site was built. It reports project state, never language
 validity or primitive meaning. See the [status page](https://maneex.github.io/tensorspine/status/).
+
+### Storage axis
+
+The leading axis of a parameter slot that declares a [multiplicity](#multiplicity-of-a-parameter-slot):
+local name `multiplicity`, the catalog's `storage.multiplicity`, extent the count. A location
+addresses it as it addresses a shape axis — a `stack` over it is one location per copy, a `tensor`
+the copies whole as [m, …] — and D3's shape leads with it (derived documents 2.1). It belongs to the
+stored form alone: no partition or flattening reasoning follows from it, V15 compares it when tying,
+and its name is reserved among a slot's axis names. See [Specification §3.4](SPECIFICATION.md#34--bindings).
 
 ### Stream
 

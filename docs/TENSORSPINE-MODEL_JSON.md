@@ -227,11 +227,13 @@ format string. Four forms cover the checkpoints in the corpus:
 | Form | Meaning | Where it is needed |
 |---|---|---|
 | `{"tensor": name}` | one physical tensor | Llama, Qwen 3.5 text |
-| `{"stack": {"axis": a, "part": location}}` | one location per coordinate of the slot's axis `a`, the names carrying `{"coordinate": a}` | Qwen 3.5 397B's MTP experts, stored one tensor per expert |
+| `{"stack": {"axis": a, "part": location}}` | one location per coordinate of the slot's axis `a` — or of `multiplicity`, the storage axis of a slot that declares one: one location per copy — the names carrying `{"coordinate": a}` | Qwen 3.5 397B's MTP experts, stored one tensor per expert; Gemma 3n's AltUp projections, one tensor per copy |
 | `{"concat": {"axis": a, "parts": [ … ]}}` | locations laid consecutively along `a`, each of its own extent | a checkpoint that splits what the contract stores fused |
 | `{"slice": {"tensor": name, "axis": a, "offset": expression}}` | the region of one physical tensor at `offset` along `a`, of the slot's extent | Qwen 3.5's vision tower stores `attn.qkv` fused |
 
-Axes are the slot's shape axis names, as the catalog reference lists them. Locations are total or
+Axes are the slot's shape axis names, as the catalog reference lists them, and `multiplicity` for the
+storage axis of a slot that declares one (§3.4): a `tensor` location on such a slot takes the copies whole,
+[m, …], and D3's shape leads with that axis. Locations are total or
 absent; a physical tensor is bound once (a tied identity has one location). A template locates its
 identities below a prefix, and an instance supplies it: `"weights_location_prefix": ["language_model.model."]`
 on the invoking occurrence, literal strings and `{"index": …}` of the enclosing composition, `[]`

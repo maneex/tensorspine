@@ -5,9 +5,15 @@
 > one schema, D1 required and D2–D6 optional.
 
 *Companion to `schemas/tensorspine-derived.schema.json` (`$id`
-`https://tensorspine.dev/schema/2.0/derived.json`), emitted by `tensorspine --d1` and
+`https://tensorspine.dev/schema/2.1/derived.json`), emitted by `tensorspine --d1` and
 `tensorspine --derive`. Non-normative: the [specification](SPECIFICATION.md) defines what the
 products *are* (§7) and leaves their encoding open; this is the repository's encoding.*
+
+> **2.1 (6 Sep 2026).** D3's `shape` is the shape as stored: a slot that declares a multiplicity leads
+> with the storage axis `storage.multiplicity` (Specification §3.4, finding 30). A 2.0 reader that took
+> `shape` as the per-copy shape and multiplied by `multiplicity` would double count, so the head string
+> moves and such a reader refuses the document instead of misreading it (ARCHITECTURE §3.8); every other
+> field keeps its value. Consumers pin the exact string.
 
 ---
 
@@ -37,7 +43,7 @@ implementation are inputs a consumer adds.
 
 | Field | Content |
 |---|---|
-| `schema` | `tensorspine-derived/2.0` |
+| `schema` | `tensorspine-derived/2.1` |
 | `model` | The model document's identifier. |
 | `catalog` | The bases the document declares (§2). |
 | `assignment` | The values supplied for the external quantities — empty for a concrete model, the call-site or `--assign` values for a template (§4.6). One document is one assignment. |
@@ -119,10 +125,10 @@ One entry per parameter identity instance, a tied tensor once.
 | `contract`, `slot`, `role` | Of the first member; V15 makes the others compatible. |
 | `sensitivity` | The role's quantisation advice (`quantizable`, `reduced`, `full_precision`), carried through as §7 requires. |
 | `dtype` | The dtype the binding selects, else the role's default (V14). |
-| `shape` | Axis identity and evaluated extent, with factors when the contract declared them. |
-| `multiplicity`, `elements`, `bytes` | `elements` includes the multiplicity; `bytes` is elements × the dtype's width. |
+| `shape` | Axis identity and evaluated extent, **as stored**: a slot that declares a multiplicity leads with the storage axis `storage.multiplicity` of that extent (§3.4, since 2.1), then its shape axes, with factors when the contract declared them. |
+| `multiplicity`, `elements`, `bytes` | `elements` is the product of the shape's extents — the declared count is in it once, never a further multiplier; `multiplicity` restates that count, descriptive (1 when the slot declares none); `bytes` is elements × the dtype's width. |
 | `tied` | Whether the identity has several members. |
-| `location` | When the document locates its weights: the evaluated location — physical names with indices and coordinates substituted, a `stack` expanded into its parts, a `slice` with its `offset` and `extent`, `dim` the position of the named axis in the shape; a tensor of a template instance carries the instance's prefix, so its name is whole. What a loader reads; what `--checkpoint` checks against the file headers (V17). |
+| `location` | When the document locates its weights: the evaluated location — physical names with indices and coordinates substituted, a `stack` expanded into its parts, a `slice` with its `offset` and `extent`, `dim` the position of the named axis in the shape (the storage axis, when declared, is position 0); a tensor of a template instance carries the instance's prefix, so its name is whole. What a loader reads; what `--checkpoint` checks against the file headers (V17). |
 | `sparsity` | When the slot belongs to a sparsity unit (§4.5): the unit's index and axis, `activated_per_element`, `units` (the axis extent) and `activated_fraction`. A lookup table is `1 / vocabulary`. |
 | `totals` | `tensors`, `elements`, `bytes`, `tied`. |
 
