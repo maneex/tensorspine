@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  language:
+    # the twelve language suites: the schemas, the catalog, the corpus, the tools — jsonschema alone
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install jsonschema
+        run: python3 -m pip install "jsonschema==4.25.0"
+      - name: Language suites
+        run: python3 tests/run_all.py --language-only
+
+  generators:
+    # the reference generator and its witness, the ONNX generator, in the pinned environment
+    # (tests/requirements.txt, CPU torch); no checkpoint is on the runner, so every fixture check
+    # says `skip`, and the witness's regeneration is printed rather than required exact
+    # (docs/TENSORSPINE-FIXTURE.md §5). ZML is not in CI.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install the pinned environment
+        run: python3 -m pip install -r tests/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: Versions
+        run: |
+          python3 --version
+          python3 -c "import importlib.metadata as m; print(' '.join(f'{p}=={m.version(p)}' for p in ('jsonschema', 'numpy', 'safetensors', 'torch', 'transformers', 'onnx', 'onnxruntime')))"
+      - name: Fixtures on the schema
+        run: python3 tests/run_fixtures.py
+      - name: Locations against checkpoint headers
+        run: python3 tests/run_artifact.py
+      - name: Reference harness
+        run: python3 generators/reference/tests/run_reference.py --no-strict-provenance
+      - name: Witness
+        run: python3 generators/reference/ref.py witness all
+      - name: ONNX harness
+        run: python3 generators/onnx/tests/run_onnx.py
