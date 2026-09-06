@@ -345,6 +345,39 @@ def main():
         advisories = lint.model_advisories(cat, [path])
         ok &= check(f"{label}: --lint reports it off the schema and does not analyse it",
                     len(advisories) == 1 and 'off the schema' in advisories[0][1] and expect in advisories[0][1], str(advisories[:1]))
+    # G (R20): the generated JSON Schema per contract version (non-normative). Every corpus
+    # occurrence's resolved arguments validate against its contract's schema; a scalar domain
+    # violation is caught by it, while a relation between arguments (an invariant) is invisible to
+    # JSON Schema and kept as an x-tensorspine-* annotation, which the check states.
+    import contract_schema
+    import jsonschema
+    schemas = {cid: s for cid, s in contract_schema.render(cat).items()}
+    bad = []
+    checked = 0
+    for name, doc in docs.items():
+        for node, e in doc['d1']['nodes'].items():
+            sch = schemas.get(f"{e['contract']['name']}@{e['contract']['version']}")
+            if sch is None:
+                continue
+            checked += 1
+            errs = list(jsonschema.Draft202012Validator(sch).iter_errors(e['arguments']))
+            if errs:
+                bad.append(f"{name} {node}: {errs[0].message}")
+    ok &= check(f"G: every corpus occurrence's resolved arguments validate against its contract's generated schema ({checked} occurrences)",
+                not bad, str(bad[:3]))
+    att = schemas['attention.dense@1.0.0']
+    v = jsonschema.Draft202012Validator(att)
+    ok &= check("G: a scalar domain violation is caught by the schema — window.span 0 below minimum, kv_heads 0 below minimum, a fractional span not an integer",
+                bool(list(v.iter_errors({'width': 8, 'heads': 4, 'head_dim': 8, 'mask': 'causal', 'window': {'span': 0}})))
+                and bool(list(v.iter_errors({'width': 8, 'heads': 4, 'head_dim': 8, 'kv_heads': 0, 'mask': 'causal'})))
+                and bool(list(v.iter_errors({'width': 8, 'heads': 4, 'head_dim': 8, 'mask': 'causal', 'window': {'span': 2.5}}))))
+    ok &= check("G: a relation between arguments is invisible to JSON Schema — heads not a multiple of kv_heads validates, and is carried in x-tensorspine-invariants",
+                not list(v.iter_errors({'width': 8, 'heads': 32, 'head_dim': 8, 'kv_heads': 3, 'mask': 'causal'}))
+                and any('multiple' in i['description'] for i in att['x-tensorspine-invariants']))
+    moe = schemas['moe@1.0.0']
+    ok &= check("G: top_k above experts validates against the moe schema too — a relation, not a domain",
+                not list(jsonschema.Draft202012Validator(moe).iter_errors({'width': 8, 'experts': 4, 'top_k': 8, 'inner': 8}))
+                and any('experts' in i['description'] for i in moe['x-tensorspine-invariants']))
     print("derived: all good" if ok else "derived: FAILED")
     return 0 if ok else 1
 

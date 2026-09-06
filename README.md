@@ -342,6 +342,7 @@ python3 tools/tensorspine --derive data/models/llama3-8b.json -o /path/   # D1�
 python3 tools/tensorspine --view data/models/llama3-8b.json -o /path/out.html
 python3 tools/tensorspine --validate --checkpoint "$TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B" data/models/llama3-8b.json
 python3 tools/tensorspine --document catalog -o /tmp/CATALOG-REFERENCE.md   # the catalog, as Markdown
+python3 tools/tensorspine --document contract-schema -o /tmp/schemas/   # one JSON Schema per contract version (non-normative)
 
 # Templates require external quantity assignments.
 python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json \
@@ -383,6 +384,11 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
 - `--document catalog` renders every unit of the catalog bases — definitions and documentation
   fields — into one Markdown file. Malformed documentation is a refusal (exit 1); a unit without
   documentation is rendered from its definition alone.
+- `--document contract-schema` renders one JSON Schema per contract version from its argument
+  declarations — types, enums, records, and literal domains as bounds; a bound that names another
+  argument, an invariant, conditional presence and units become `x-tensorspine-*` annotations, since
+  JSON Schema cannot enforce them. Non-normative and not a derived product: the validator stays the
+  authority ([catalog-unit guide](docs/TENSORSPINE-CATALOG-UNIT.md)).
 
 ### Tests
 

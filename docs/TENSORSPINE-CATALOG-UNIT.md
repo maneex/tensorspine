@@ -145,6 +145,7 @@ choice (V1).
 ```sh
 python3 tools/tensorspine --validate        # loads the catalog a document declares; a broken unit is refused, naming the file
 python3 tools/tensorspine --document catalog -o /tmp/CATALOG-REFERENCE.md   # every unit, definitions and documentation, as Markdown
+python3 tools/tensorspine --document contract-schema -o /tmp/schemas/   # one JSON Schema per contract version, from its arguments (non-normative)
 python3 tests/run_rejections.py             # the catalog cases: a unit off the schema, or citing what the catalog does not hold, is refused
 ```
 
