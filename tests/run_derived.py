@@ -241,10 +241,10 @@ def main():
                     for d in docs.values() for t in d['d3']['tensors'] if t['elements'] is not None))
     gp = {t['identity']: t for t in g['d3']['tensors']}
     ok &= check("gemma3n: expand.projection is stored [3, 2048, 2048], storage.multiplicity first, multiplicity 3, 12 582 912 elements; "
-                "the totals (4 435 182 688 elements, 8 870 488 256 bytes) and D6 (545 partitions, 32 losses) unchanged",
+                "the totals (4 435 182 688 elements, 8 870 365 376 bytes with the correction scale stored bf16) and D6 (545 partitions, 32 losses) unchanged",
                 [(a['axis'], a['extent']) for a in gp['expand.projection']['shape']] == [('storage.multiplicity', 3), ('model.width', 2048), ('model.width', 2048)]
                 and gp['expand.projection']['multiplicity'] == 3 and gp['expand.projection']['elements'] == 12582912
-                and g['d3']['totals']['elements'] == 4435182688 and g['d3']['totals']['bytes'] == 8870488256
+                and g['d3']['totals']['elements'] == 4435182688 and g['d3']['totals']['bytes'] == 8870365376    # the correction scale stored bf16 (S4.2)
                 and len(g['d6']['partitions']) == 545 and len(g['d6']['information_loss']) == 32,
                 str(gp['expand.projection'].get('shape')))
     sg = q35['decoder.mlp.shared_gate[layer=0]']
@@ -254,6 +254,15 @@ def main():
                 and sg['multiplicity'] == 1 and sg['elements'] == 1048576 and sg['location'] == {'tensor': 'model.language_model.layers.0.mlp.shared_expert.gate_proj.weight'}
                 and docs['qwen3.5-35b-a3b']['d3']['totals']['elements'] == 35107181936 and len(docs['qwen3.5-35b-a3b']['d6']['partitions']) == 589,
                 str(sg['shape']))
+    ok &= check("gemma3n: 697 tensors located under model.language_model — the two stream projections as stacks of three altup(_unembed)_projections.{c}.weight at dim 0 "
+                "(the storage axis), the readers' k/v/k_norm without an identity from layer 20 on, the per-layer tables whole",
+                all(t.get('location') for t in g['d3']['tensors']) and len(g['d3']['tensors']) == 697
+                and gp['expand.projection']['location'] == {'stack': {'axis': 'multiplicity', 'dim': 0, 'parts': [{'tensor': f'model.language_model.altup_projections.{i}.weight'} for i in range(3)]}}
+                and gp['unembed.projection']['location']['stack']['parts'][2] == {'tensor': 'model.language_model.altup_unembed_projections.2.weight'}
+                and 'decoder.attn.k[layer=20]' not in gp and gp['decoder.attn.k[layer=17]']['location'] == {'tensor': 'model.language_model.layers.17.self_attn.k_proj.weight'}
+                and gp['embed.per_layer_embed']['location'] == {'tensor': 'model.language_model.embed_tokens_per_layer.weight'}
+                and [a['extent'] for a in gp['embed.per_layer_embed']['shape']] == [262144, 7680],
+                str(gp['expand.projection'].get('location')))
     ok &= check("a slot that declares no multiplicity has no storage axis (llama3-8b, every tensor)",
                 all(a['axis'] != 'storage.multiplicity' for t in l3['d3']['tensors'] for a in t['shape']) and l3['d3']['totals']['elements'] == 8030261248)
     cb = {t['identity']: t.get('location') for t in docs['colbert-v2']['d3']['tensors']}
