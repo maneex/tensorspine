@@ -366,12 +366,15 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
   and per cached position with the status the algebra gives them, corrections, sparsity bounds and
   cut payloads (D5); legal cuts, the partitions that apply and the O5.10 information loss (D6).
 - `--view` produces a self-contained HTML inspector: every box of the diagram carries what D3 and
-  D4 say about it — parameter bytes, state bytes per cached position — and D5's share of the
-  operations when the shares add up, and every arrow carries the geometry of the value it holds
-  (axis, extent, dtype, and its count when the value is not one per element of its own stream).
-  The figures are laid out with the diagram, not painted into it: the chips above only choose
-  which of them the gauge bars compare. `--site-nav FILE` puts the navigation of the
-  documentation site at the top, as used by `tools/site.sh`.
+  D4 say about it — parameter bytes on one line, state bytes per cached position on the next —
+  and D5's share of the operations when the shares add up; every arrow carries the type of the
+  value it holds, `bf16[tokens, model.width=4096]` — the stream it lives on, then the axes of one
+  element of it. The first axis carries no `= extent` and never will: how many elements an
+  invocation carries is deployment intent, never a number the model states (§10.3); `audio/8` is
+  one element per eight of the audio stream, and a token index is `i32[tokens]`. Every figure is
+  laid out with the diagram rather than painted into it afterwards, and nothing has to be selected
+  to be read. `--site-nav FILE` puts the navigation of the documentation site at the top, as used
+  by `tools/site.sh`.
 - `--document catalog` renders every unit of the catalog bases — definitions and documentation
   fields — into one Markdown file. Malformed documentation is a refusal (exit 1); a unit without
   documentation is rendered from its definition alone.

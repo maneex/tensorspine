@@ -40,6 +40,14 @@ Assumptions made (v1 of this tool):
     exactly like a cycle even though it isn't one;
   - a composition's instance count, and any range label, is only shown when
     its bounds resolve to literals or literal "model_constant" quantities.
+
+No derived figure is hidden behind a control, and there is no control: every
+box prints what D3 and D4 say about it -- its parameter bytes, its state bytes
+per cached position -- and D5's share when the shares add up; every arrow
+prints the type of the value it carries, from D2. They are part of the label
+Graphviz lays out, so the space they take is the space they need: nothing is
+reserved empty and painted in afterwards, and nothing has to be selected to
+be read.
 """
 import contextlib
 import html
@@ -73,13 +81,6 @@ CHIP = "#d5cfc2"          # --chip, node border
 ACCENT = "#15577f"        # --accent, compositions
 NOTE = "#7a5a2e"          # --note-label, index range, carry and derived figures
 
-# Every occurrence and composition node carries one more label row, kept empty
-# until the page paints a derived measure into it. It is reserved at layout
-# time on purpose: switching measure then repaints, and never reflows a
-# diagram Graphviz has already laid out. The em dash is a placeholder with a
-# glyph, so that Graphviz emits the <text> element the page writes into; the
-# page empties it on load.
-MEASURE_ROW = ('\u2014', 9.5, NOTE, True, False)
 
 
 # ---------- minimal scalar-expression evaluator (tensorspine/2.0 §2.2) ----------
@@ -227,6 +228,215 @@ def build_graph(data):
     return nodes, edges, internal
 
 
+# ---------- the derived figures a diagram carries ----------
+# The labels are laid out with their figures in them, so this side has to read
+# the derived document too: what a box stands for (a root occurrence is
+# itself, a composition every occurrence it generated, a site every instance
+# of that site), what D3 and D4 say about that set, and which value an arrow
+# carries. The maps built here are handed to the page as well, so that the two
+# readings cannot drift -- the inspector reads D5's share from these, and no
+# longer computes it a second time in JavaScript.
+
+
+def fmt_int(n):
+    return f"{round(n):,}".replace(',', ' ')
+
+
+def fmt_bytes(n):
+    if not n:
+        return '\u2014'
+    if n >= 2 ** 30:
+        return f"{n / 2 ** 30:.2f} GiB"
+    if n >= 2 ** 20:
+        return f"{n / 2 ** 20:.1f} MiB"
+    if n >= 1024:
+        return f"{n / 1024:.0f} KiB" if n >= 10240 else f"{n / 1024:.1f} KiB"
+    return f"{fmt_int(n)} B"
+
+
+def fmt_ops(n):
+    if not n:
+        return '\u2014'
+    if n >= 1e9:
+        return f"{n / 1e9:.2f} Gop"
+    if n >= 1e6:
+        return f"{n / 1e6:.2f} Mop"
+    return f"{fmt_int(n)} op"
+
+
+def member_node(member):
+    """A member is `<node>.<slot>`, a value `<node>.<port>`; a node identifier
+    never carries a dot of its own (\u00a75.2 rule 2: the index sits in
+    brackets), so the last one splits it."""
+    i = member.rfind('.')
+    return member if i < 0 else member[:i]
+
+
+class DiagramFacts:
+    """What the derived document says about one box, or one arrow, of a diagram."""
+
+    def __init__(self, derived):
+        self.d1 = derived['d1']
+        self.node_ids = list(self.d1['nodes'])
+        self.values = derived['d2']['values']
+        self.by_source = {}
+        for v in self.values:
+            self.by_source.setdefault(member_node(v['value']), []).append(v)
+        self._members = {}
+        self.parameters, self.state, self.operations, self.operations_ok = self._measures(derived)
+
+    # -- the three measures, per expanded node --------------------------------
+    # Bytes are attributed to every node that reads the tensor, so a tied
+    # tensor is shown at each of its members; D3's own total counts it once,
+    # and that is the figure the status bar carries.
+    #
+    # Operations are the one figure this page derives rather than reads: D5
+    # reports operations per element for the model, not per node. The
+    # inventory rule of §4.1 splits it -- two operations per weight element
+    # per element, at the activated fraction of a sparsity unit -- over the
+    # SLOTS a tensor satisfies, not over the tensors: a tied tensor is
+    # resident once but read at each member. The sparsity unit belongs to a
+    # contract (§4.5), and D3 records the unit of its first member only, so
+    # the fraction applies to a member whose node runs that contract and to no
+    # other: a table tied between an `embed` lookup and an `lm_head`
+    # projection is sparse at the lookup and dense at the projection. Element
+    # corrections land in the same total. The split is offered only when it
+    # adds back up to what D5 says.
+    def _measures(self, derived):
+        params, state, ops = {}, {}, {}
+        for t in derived['d3']['tensors']:
+            for m in t['members']:
+                node = member_node(m)
+                params[node] = params.get(node, 0) + t['bytes']
+        for st in derived['d4']['states']:
+            b = st.get('bytes_per_cached_position')
+            if b is None:
+                b = st.get('bytes_bounded') or 0
+            for m in st['members']:
+                node = member_node(m)
+                state[node] = state.get(node, 0) + b
+        total = 0.0
+        for t in derived['d3']['tensors']:
+            fraction = (t.get('sparsity') or {}).get('activated_fraction')
+            fraction = 1 if fraction is None else fraction
+            for m in t['members']:
+                node = member_node(m)
+                declared = self.d1['nodes'].get(node)
+                sparse = bool(declared) and declared['contract']['name'] == t['contract']
+                v = 2 * t['elements'] * (fraction if sparse else 1)
+                ops[node] = ops.get(node, 0) + v
+                total += v
+        for c in derived['d5'].get('corrections') or []:
+            if c.get('per') == 'element':
+                ops[c['node']] = ops.get(c['node'], 0) + c['value']
+                total += c['value']
+        reported = ((derived['d5'].get('operations') or {}).get('element') or {}).get('value')
+        ok = reported is not None and (total == 0 if reported == 0
+                                       else abs(total - reported) <= max(1, reported * 1e-9))
+        return params, state, ops, ok
+
+    def measures_payload(self):
+        return {'parameters': {'byNode': self.parameters, 'ok': True},
+                'state': {'byNode': self.state, 'ok': True},
+                'operations': {'byNode': self.operations, 'ok': self.operations_ok}}
+
+    # -- the expanded nodes one box stands for -------------------------------
+    def members(self, node_id):
+        if node_id in self._members:
+            return self._members[node_id]
+        if node_id.startswith('root:'):
+            name = node_id[5:]
+            out = [i for i in self.node_ids if i == name]
+        elif node_id.startswith('comp:'):
+            prefix = node_id[5:] + '/'
+            out = [i for i in self.node_ids if i.startswith(prefix)]
+        elif '::' in node_id:
+            comp, site = node_id.split('::', 1)
+            prefix = f"{comp}/{site}["
+            out = [i for i in self.node_ids if i.startswith(prefix)]
+        else:
+            out = []
+        self._members[node_id] = out
+        return out
+
+    # -- what a box prints ---------------------------------------------------
+    def figure_rows(self, node_id):
+        members = self.members(node_id)
+        if not members:
+            return []
+        p = sum(self.parameters.get(i, 0) for i in members)
+        s = sum(self.state.get(i, 0) for i in members)
+        rows = [(f"D3 {fmt_bytes(p)}", 9, NOTE, True, False),
+                (f"D4 {fmt_bytes(s)}{'/pos' if s else ''}", 9, NOTE, True, False)]
+        if self.operations_ok:
+            o = sum(self.operations.get(i, 0) for i in members)
+            rows.append((f"D5 {fmt_ops(o)}{'/element' if o else ''}", 9, NOTE, True, False))
+        return rows
+
+    # -- what an arrow prints ------------------------------------------------
+    # A value is an array: its leading axis is the stream it lives on, and the
+    # shape D2 gives is the geometry of ONE element on it. That leading axis
+    # has no extent -- how many elements an invocation carries is deployment
+    # intent, never a number the language states (§10.3) -- so it is printed by
+    # name, at the count saying how many of the stream's own elements one of
+    # these is worth.
+    def values_on(self, a, b):
+        if a.startswith('in:'):
+            name, dst = a[3:], set(self.members(b))
+            return [v for v in self.values if v['value'] == name
+                    and any(member_node(t) in dst for t in v.get('to') or [])]
+        if b.startswith('out:'):
+            name = b[4:]
+            src = set(self.members(a))
+            return [v for v in self.values if name in (v.get('exposed') or [])
+                    and member_node(v['value']) in src]
+        dst = set(self.members(b))
+        return [v for node in self.members(a) for v in self.by_source.get(node, [])
+                if any(member_node(t) in dst for t in v.get('to') or [])]
+
+    def edge_rows(self, a, b):
+        seen, texts = set(), []
+        for v in self.values_on(a, b):
+            t = value_geometry(v)
+            if t not in seen:
+                seen.add(t)
+                texts.append(t)
+        if not texts:
+            return []
+        if len(texts) > 2:
+            return [(f"{len(texts)} values", 8.5, NOTE, False, False)]
+        return [(t, 8.5, NOTE, True, False) for t in texts]
+
+
+def stream_axis(count):
+    """A value's leading axis, named by the stream it counts against: one
+    element per element of the stream is the stream's own name, one per eight
+    is `audio/8`, and a stream a transform inserted into another is a sum."""
+    parts = []
+    for name, n in (count or {}).items():
+        if n == 1:
+            parts.append(name)
+        elif n and float(1 / n).is_integer():
+            parts.append(f"{name}/{int(1 / n)}")
+        else:
+            parts.append(f"{name}\u00d7{n}")
+    return ' + '.join(parts)
+
+
+def value_geometry(v):
+    """The type of the value: `bf16[tokens, model.width=4096]`, `i32[tokens]`.
+
+    The dtype, then the axes of the array -- the stream axis first, then the
+    axes of one element of it. An axis carries `= extent` when the model states
+    one; the stream axis never does, and that absence is the whole point (the
+    elements an invocation carries are deployment intent, §10.3). An extent is
+    a dimension, not a total, so it is printed whole, without the digit
+    grouping a figure carries."""
+    axes = [stream_axis(v.get('count'))] if v.get('count') else []
+    axes += [f"{a['axis']}={a['extent']}" for a in v.get('shape') or []]
+    return f"{v.get('dtype', '')}[{', '.join(axes)}]"
+
+
 # ---------- DOT generation ----------
 
 def dot_qid(s):
@@ -246,7 +456,7 @@ def html_label(rows):
     return '<' + ''.join(parts) + '>'
 
 
-def top_node_dot(node_id, node, data, quantities):
+def top_node_dot(node_id, node, data, quantities, facts):
     kind = node['type']
     if kind in ('input', 'output'):
         if kind == 'input':
@@ -260,8 +470,8 @@ def top_node_dot(node_id, node, data, quantities):
     if kind == 'occurrence':
         o = data['occurrences'][node['name']]
         rows = [(node['name'], 14, INK, True, True),
-                (f"{o['contract']['name']} \u00b7 {o['contract']['version']}", 10, MUTED, False, False),
-                MEASURE_ROW]
+                (f"{o['contract']['name']} \u00b7 {o['contract']['version']}", 10, MUTED, False, False)]
+        rows += facts.figure_rows(node_id) if facts else []
         return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="{CHIP}", fillcolor="{BG_RAISED}", label={html_label(rows)}];'
     # composition, collapsed representation: one box, expanded structure is a
     # separate diagram rendered into its own comp-section (see comp_section_html)
@@ -275,12 +485,12 @@ def top_node_dot(node_id, node, data, quantities):
     sites = list(comp['occurrences'].keys())
     rows = [(node['name'], 14, ACCENT, True, True),
             (badge, 9.5, NOTE, False, False),
-            (f"{len(sites)} occurrence(s) per instance", 8.5, MUTED, False, False),
-            MEASURE_ROW]
+            (f"{len(sites)} occurrence(s) per instance", 8.5, MUTED, False, False)]
+    rows += facts.figure_rows(node_id) if facts else []
     return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="{CHIP}", fillcolor="{BG_TINT}", label={html_label(rows)}];'
 
 
-def top_level_dot(data, nodes, edges, quantities):
+def top_level_dot(data, nodes, edges, quantities, facts):
     lines = [
         'digraph G {',
         '  bgcolor="transparent";',
@@ -290,14 +500,16 @@ def top_level_dot(data, nodes, edges, quantities):
         f'  edge [color="{FAINT}", penwidth=1.2, arrowsize=0.7, arrowhead=vee];',
     ]
     for node_id, node in nodes.items():
-        lines.append(top_node_dot(node_id, node, data, quantities))
+        lines.append(top_node_dot(node_id, node, data, quantities, facts))
     for a, b in edges:
-        lines.append(f'  {dot_qid(a)} -> {dot_qid(b)};')
+        rows = facts.edge_rows(a, b) if facts else []
+        label = f' [label={html_label(rows)}]' if rows else ''
+        lines.append(f'  {dot_qid(a)} -> {dot_qid(b)}{label};')
     lines.append('}')
     return '\n'.join(lines)
 
 
-def comp_internal_dot(comp_name, comp_def, internal_edges):
+def comp_internal_dot(comp_name, comp_def, internal_edges, facts):
     sites = list(comp_def['occurrences'].keys())
     carry_targets = {e['to'] for e in internal_edges if e['carry']}
     seq_edges = [(e['from'], e['to']) for e in internal_edges if not e['carry']]
@@ -317,10 +529,13 @@ def comp_internal_dot(comp_name, comp_def, internal_edges):
                 (f"{so['contract']['name']} \u00b7 {so['contract']['version']}", 9, MUTED, False, False)]
         if site in carry_targets:
             rows.append(('\u21ba carry from previous instance', 8, NOTE, False, False))
-        rows.append(MEASURE_ROW)   # always last: the page finds it by position
+        rows += facts.figure_rows(node_id) if facts else []
         lines.append(f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, label={html_label(rows)}];')
     for a, b in seq_edges:
-        lines.append(f'  {dot_qid(comp_name + "::" + a)} -> {dot_qid(comp_name + "::" + b)};')
+        fa, fb = f"{comp_name}::{a}", f"{comp_name}::{b}"
+        rows = facts.edge_rows(fa, fb) if facts else []
+        label = f' [label={html_label(rows)}]' if rows else ''
+        lines.append(f'  {dot_qid(fa)} -> {dot_qid(fb)}{label};')
     lines.append('}')
     return '\n'.join(lines)
 
@@ -341,8 +556,8 @@ def render_svg(dot_source):
     return svg[svg.index('<svg'):]
 
 
-def comp_section_html(name, comp_def, internal_edges, quantities):
-    svg = render_svg(comp_internal_dot(name, comp_def, internal_edges))
+def comp_section_html(name, comp_def, internal_edges, quantities, facts):
+    svg = render_svg(comp_internal_dot(name, comp_def, internal_edges, facts))
     idx_names = list(comp_def['indices'].keys())
     n = comp_instance_count(comp_def, quantities)
     range_label = ', '.join(
@@ -362,15 +577,16 @@ def comp_section_html(name, comp_def, internal_edges, quantities):
 </div>'''
 
 
-def canvas_html(data):
+def canvas_html(data, facts):
     require_dot()
     quantities = data.get('quantities', {})
     nodes, edges, internal = build_graph(data)
-    top_svg = render_svg(top_level_dot(data, nodes, edges, quantities))
+    top_svg = render_svg(top_level_dot(data, nodes, edges, quantities, facts))
     sections = ''.join(
-        comp_section_html(name, comp_def, internal.get(name, []), quantities)
+        comp_section_html(name, comp_def, internal.get(name, []), quantities, facts)
         for name, comp_def in data['compositions'].items())
-    return f'<div class="top-graph">{top_svg}</div>\n<div class="comp-sections">{sections}</div>'
+    return (f'<div class="top-graph">{top_svg}</div>\n'
+            f'<div class="comp-sections">{sections}</div>')
 
 
 TEMPLATE = r"""<!doctype html>
@@ -649,12 +865,8 @@ TEMPLATE = r"""<!doctype html>
 
   /* One row above the diagram: which derived quantity is painted on the
      nodes, and which legal cut is marked across them. */
-  .measurebar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; height: 42px; padding: 0 28px 0 32px; border-bottom: 1px solid var(--rule); background: var(--bg-raised); }
+  .cutbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; height: 42px; padding: 0 28px 0 32px; border-bottom: 1px solid var(--rule); background: var(--bg-raised); }
   .mlabel { flex-shrink: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .mchip { flex-shrink: 0; padding: 3px 10px; border: 1px solid var(--chip); border-radius: 999px; font-size: 11.5px; color: var(--ink-3); cursor: pointer; user-select: none; white-space: nowrap; }
-  .mchip:hover { border-color: var(--ink-3); }
-  .mchip.on { background: var(--bg-tint); border-color: var(--note-label); color: var(--note-label); font-weight: 500; }
-  .mchip em { font-style: normal; font-family: var(--mono); font-size: 11px; opacity: 0.75; }
   .mright { margin-left: auto; display: flex; align-items: center; gap: 10px; position: relative; }
   .cutsel { display: flex; align-items: center; gap: 8px; max-width: 280px; height: 26px; padding: 0 10px; background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); cursor: pointer; user-select: none; }
   .cutsel .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -667,12 +879,6 @@ TEMPLATE = r"""<!doctype html>
   .cutmenu .r:hover { background: var(--bg); }
   .cutmenu .r.on { background: var(--bg-tint); color: var(--accent); }
 
-  /* A measure painted into the node Graphviz already laid out: the gauge is
-     drawn inside the box, the figure goes in the label row reserved for it. */
-  #canvas g.node text:nth-of-type(n+2):last-of-type { visibility: hidden; }
-  #canvas.measured g.node text:nth-of-type(n+2):last-of-type { visibility: visible; }
-  #canvas .gauge-track { fill: var(--rule); }
-  #canvas .gauge-fill { fill: var(--note-label); }
   /* A cut marked across the diagram: a node whose expanded occurrences are all
      on the near side, some of them, or none. */
   #canvas g.node.cut-in > path, #canvas g.node.cut-in > polygon { stroke: var(--accent); stroke-width: 1.6px; }
@@ -828,7 +1034,7 @@ TEMPLATE = r"""<!doctype html>
     .canvas, .rawpane { padding: 26px 24px 48px; }
     .prodrail { width: 200px; padding-left: 20px; }
     .prodbody { padding: 22px 20px 48px; }
-    .measurebar { gap: 8px; padding: 0 20px 0 24px; }
+    .cutbar { gap: 8px; padding: 0 20px 0 24px; }
     /* Past this width the sections start to run off the bar; fade the edge
        they scroll past rather than let them end mid-word. */
     .sitebar .nav-main {
@@ -845,7 +1051,7 @@ TEMPLATE = r"""<!doctype html>
     .sitebar .name { font-size: 19.2px; }
   }
   @media print {
-    .sitebar, .nav, .topbar, .measurebar, .inspector, .statusbar { display: none; }
+    .sitebar, .nav, .topbar, .cutbar, .inspector, .statusbar { display: none; }
     .page, .content, .body-row { display: block; height: auto; overflow: visible; }
     .canvas { overflow: visible; padding: 0; background-image: none; }
     body { background: #fff; }
@@ -883,12 +1089,7 @@ __NAVBAR__
       </div>
     </header>
 
-    <div class="measurebar" id="measurebar">
-      <span class="mlabel">Measure</span>
-      <span class="mchip on" data-measure="none">none</span>
-      <span class="mchip" data-measure="parameters">parameters <em>D3</em></span>
-      <span class="mchip" data-measure="state">cache / position <em>D4</em></span>
-      <span class="mchip" data-measure="operations">operations / element <em>D5</em></span>
+    <div class="cutbar" id="cutbar">
       <div class="mright">
         <span class="mlabel">Cut</span>
         <div class="cutsel" id="cutsel"><span class="nm">none</span><span class="car">&#9662;</span></div>
@@ -929,6 +1130,10 @@ const RAW = __MODEL_JSON__;
 // then holds the emitter's reason, in its own words.
 const DERIVED = __DERIVED_JSON__;
 const DERIVED_NOTE = __DERIVED_NOTE__;
+// The per-node shares of D3, D4 and D5, computed once on the Python side —
+// the diagram labels are laid out with them in, and the inspector reads the
+// same numbers, so there is one reading of them and not two.
+const MEASURES_BY_NODE = __MEASURES_JSON__;
 const HAS = DERIVED != null;
 
 // ---------- escaping helpers ----------
@@ -1128,6 +1333,25 @@ function fmtCounts(count) {
   return Object.entries(count || {}).map(([k, v]) => `${k} ${v}`).join(' + ') || '—';
 }
 
+// The type of a value: `i32[tokens]` is an array of token indices,
+// `bf16[tokens, model.width=4096]` an array of hidden vectors, `audio/8` one
+// element per eight of the audio stream. The first axis is the stream the
+// value lives on and carries no `= extent`, because how many elements an
+// invocation carries is deployment intent (§10.3); D2's shape gives the axes
+// of one element of it.
+function streamAxis(count) {
+  return Object.entries(count || {}).map(([name, n]) =>
+    n === 1 ? name : (n && Number.isInteger(1 / n) ? `${name}/${1 / n}` : `${name}×${n}`)).join(' + ');
+}
+
+function valueGeometry(v) {
+  const axes = v.count ? [streamAxis(v.count)] : [];
+  // An extent is a dimension, not a total: printed whole, without the digit
+  // grouping a figure carries, so the axis and its extent read as one.
+  for (const a of v.shape || []) axes.push(`${a.axis}=${a.extent}`);
+  return `${v.dtype}[${axes.join(', ')}]`;
+}
+
 // A member is "<node>.<slot>"; a node identifier never carries a dot of its
 // own (§5.2 rule 2: the index sits in brackets), so the last one splits it.
 function nodeOfMember(member) {
@@ -1152,12 +1376,14 @@ function nodeIndex(id) {
 }
 
 // A listing folded along the model's own index: the 32 rows of
-// decoder.attn.q[layer=0…31] are one row that opens into 32.
+// decoder.attn.q[layer=0…31] are one row that opens into 32. The index is not
+// always last — a value is `decoder/attn[layer=3].output` — so whatever
+// follows it belongs to the key too.
 function foldOf(id) {
-  const m = /^(.*)\[([^\]]*)\]$/.exec(id);
+  const m = /^(.*)\[([^\]]*)\](.*)$/.exec(id);
   if (!m) return { key: id, index: null };
   const names = m[2].split(',').map(part => part.split('=')[0].trim());
-  return { key: `${m[1]}[${names.join(',')}]`, index: m[2] };
+  return { key: `${m[1]}[${names.join(',')}]${m[3]}`, index: m[2] };
 }
 
 function foldGroups(ids) {
@@ -1174,12 +1400,12 @@ function foldGroups(ids) {
 }
 
 function foldLabel(key, members) {
-  const m = /^(.*)\[([^\]]*)\]$/.exec(key);
+  const m = /^(.*)\[([^\]]*)\](.*)$/.exec(key);
   if (!m) return `${key} ×${members.length}`;
   const names = m[2].split(',');
   const spans = names.map((name, i) => {
     const values = members.map(id => {
-      const inner = /\[([^\]]*)\]$/.exec(id);
+      const inner = /^.*\[([^\]]*)\]/.exec(id);
       const part = inner ? inner[1].split(',')[i] : null;
       return part ? part.split('=').slice(1).join('=') : null;
     }).filter(v => v != null);
@@ -1190,7 +1416,7 @@ function foldLabel(key, members) {
     }
     return name;
   });
-  return `${m[1]}[${spans.join(',')}]`;
+  return `${m[1]}[${spans.join(',')}]${m[3]}`;
 }
 
 // ---------- what each product says about a set of nodes ----------
@@ -1204,6 +1430,15 @@ function statesOf(nodes) {
   const set = new Set(nodes);
   return DERIVED.d4.states.filter(t => t.members.some(m => set.has(nodeOfMember(m))));
 }
+// D2 keys a value by the port that produces it; a public input is a value of
+// its own name (§5.3), listed at the node it feeds.
+function valuesOf(nodes) {
+  if (!HAS) return [];
+  const set = new Set(nodes);
+  return DERIVED.d2.values.filter(v => set.has(nodeOfMember(v.value))
+    || (!v.value.includes('.') && (v.to || []).some(t => set.has(nodeOfMember(t)))));
+}
+
 function correctionsOf(nodes) {
   if (!HAS) return [];
   const set = new Set(nodes);
@@ -1231,139 +1466,10 @@ function partitionTarget(t) {
 }
 
 // ---------- measures ----------
-// Bytes are attributed to every node that reads the tensor, so a tied tensor
-// is shown at each of its members; D3's own total counts it once, and that is
-// the figure the status bar carries.
-function bytesByNode() {
-  const out = {};
-  for (const t of DERIVED.d3.tensors) {
-    for (const m of t.members) out[nodeOfMember(m)] = (out[nodeOfMember(m)] || 0) + t.bytes;
-  }
-  return out;
-}
-
-function stateBytesByNode() {
-  const out = {};
-  for (const st of DERIVED.d4.states) {
-    const b = st.bytes_per_cached_position != null ? st.bytes_per_cached_position
-            : (st.bytes_bounded != null ? st.bytes_bounded : 0);
-    for (const m of st.members) out[nodeOfMember(m)] = (out[nodeOfMember(m)] || 0) + b;
-  }
-  return out;
-}
-
-// The one figure this page derives rather than reads: D5 reports operations
-// per element for the model, not per node. The inventory rule of §4.1 splits
-// it — two operations per weight element per element, at the activated
-// fraction of a sparsity unit — over the SLOTS a tensor satisfies, not over
-// the tensors: a tied tensor is resident once but read at each member.
-//
-// The sparsity unit belongs to a contract (§4.5), and D3 records the unit of
-// its first member only, so the fraction applies to a member whose node runs
-// that contract and to no other: a table tied between an `embed` lookup and
-// an `lm_head` projection is sparse at the lookup and dense at the
-// projection. Element corrections land in the same total (§4.1).
-//
-// The split is offered only when it adds back up to what D5 says.
-function operationsByNode() {
-  const out = {};
-  let total = 0;
-  const add = (node, ops) => { total += ops; out[node] = (out[node] || 0) + ops; };
-  for (const t of DERIVED.d3.tensors) {
-    const fraction = t.sparsity && t.sparsity.activated_fraction != null
-      ? t.sparsity.activated_fraction : 1;
-    for (const m of t.members) {
-      const node = nodeOfMember(m);
-      const sparse = D1.nodes[node] && D1.nodes[node].contract.name === t.contract;
-      add(node, 2 * t.elements * (sparse ? fraction : 1));
-    }
-  }
-  for (const c of DERIVED.d5.corrections || []) if (c.per === 'element') add(c.node, c.value);
-  const reported = ((DERIVED.d5.operations || {}).element || {}).value;
-  const agrees = reported != null && (reported === 0 ? total === 0
-                                      : Math.abs(total - reported) <= Math.max(1, reported * 1e-9));
-  return { byNode: out, agrees };
-}
-
-const MEASURES = {
-  parameters: { label: 'parameters', product: 'D3', fmt: fmtBytes },
-  state: { label: 'cache / position', product: 'D4', fmt: fmtBytes },
-  operations: { label: 'operations / element', product: 'D5', fmt: fmtOps },
-};
-
-let measureValues = null;      // { name -> {byNode, ok} }, built once on load
-
-function buildMeasures() {
-  if (!HAS) return null;
-  const ops = operationsByNode();
-  return {
-    parameters: { byNode: bytesByNode(), ok: true },
-    state: { byNode: stateBytesByNode(), ok: true },
-    operations: { byNode: ops.byNode, ok: ops.agrees },
-  };
-}
-
-// A diagram node stands for a set of expanded nodes; its figure is their sum.
-function diagramMembers(nodeId) {
-  if (nodeId.startsWith('root:')) { const n = nodeId.slice(5); return NODE_IDS.filter(id => id === n); }
-  if (nodeId.startsWith('comp:')) { const n = nodeId.slice(5); return NODE_IDS.filter(id => id.startsWith(n + '/')); }
-  const sep = nodeId.indexOf('::');
-  if (sep !== -1) {
-    const prefix = `${nodeId.slice(0, sep)}/${nodeId.slice(sep + 2)}[`;
-    return NODE_IDS.filter(id => id.startsWith(prefix));
-  }
-  return [];
-}
-
-let currentMeasure = 'none';
-
-function paintMeasure(name) {
-  currentMeasure = name;
-  document.querySelectorAll('.mchip').forEach(c => c.classList.toggle('on', c.dataset.measure === name));
-  const spec = MEASURES[name];
-  const table = spec && measureValues && measureValues[name].ok ? measureValues[name].byNode : null;
-  document.getElementById('canvas').classList.toggle('measured', !!table);
-
-  // The figure goes in the label row Graphviz reserved for it — always the
-  // last <text> of the node — so nothing reflows when the measure changes.
-  const figures = new Map();
-  let peak = 0;
-  document.querySelectorAll('#canvas g.node').forEach(g => {
-    const members = diagramMembers(g.getAttribute('id'));
-    if (!members.length) return;
-    let v = 0;
-    if (table) for (const id of members) v += table[id] || 0;
-    figures.set(g, v);
-    if (v > peak) peak = v;
-  });
-
-  document.querySelectorAll('#canvas .gauge').forEach(n => n.remove());
-  document.querySelectorAll('#canvas g.node').forEach(g => {
-    const texts = g.querySelectorAll('text');
-    if (!texts.length || !figures.has(g)) return;
-    const slot = texts[texts.length - 1];
-    if (!table) { slot.textContent = ''; return; }
-    const v = figures.get(g);
-    slot.textContent = spec.fmt(v);
-    if (!peak) return;
-    const shape = g.querySelector('path, polygon, ellipse');
-    if (!shape) return;
-    const box = shape.getBBox();
-    const x = box.x + 11, w = Math.max(0, box.width - 22);
-    const y = box.y + box.height - 7.5;
-    const NS = 'http://www.w3.org/2000/svg';
-    const track = document.createElementNS(NS, 'rect');
-    track.setAttribute('class', 'gauge gauge-track');
-    track.setAttribute('x', x); track.setAttribute('y', y);
-    track.setAttribute('width', w); track.setAttribute('height', 3); track.setAttribute('rx', 1.5);
-    const fill = document.createElementNS(NS, 'rect');
-    fill.setAttribute('class', 'gauge gauge-fill');
-    fill.setAttribute('x', x); fill.setAttribute('y', y);
-    fill.setAttribute('width', Math.max(v > 0 ? 1.5 : 0, w * (v / peak)));
-    fill.setAttribute('height', 3); fill.setAttribute('rx', 1.5);
-    g.appendChild(track); g.appendChild(fill);
-  });
-}
+// Nothing selects a measure any more: every figure is in the label of the box
+// it belongs to, laid out with the diagram. What is left of the three measures
+// is the per-node table the inspector reads for D5's share.
+const measureValues = MEASURES_BY_NODE;   // { name -> {byNode, ok} }
 
 // ---------- legal cuts ----------
 // The block of a cut is the ancestor closure of its seed set (§7): a layer cut
@@ -1592,6 +1698,23 @@ function derivedSections(sel) {
   const head = (which, label, tail) =>
     `<h4 class="insp"><span class="dnum">${which}</span>${esc(label)}${tail ? `<span class="n">${esc(tail)}</span>` : ''}</h4>`;
   const none = what => `<div class="insp-none">no ${what}</div>`;
+
+  // D2 — the values this set of nodes produces, and what they carry
+  const values = valuesOf(nodes);
+  L.push(head('D2', 'values', values.length ? String(values.length) : null));
+  if (!values.length) L.push(none('value'));
+  else {
+    const byValue = new Map(values.map(v => [v.value, v]));
+    for (const g of foldGroups(values.map(v => v.value))) {
+      const v = byValue.get(g.members[0]);
+      L.push(`<div class="drow">
+        <div class="n">${esc(g.label)}</div>
+        <div class="m"><span>${esc(v.role)}</span><b>${esc(fmtBytes(v.bytes_per_element))} / element</b></div>
+        <div class="m"><span><code>${esc(valueGeometry(v))}</code>${g.members.length > 1 ? ` · ×${g.members.length}` : ''}</span></div>
+        <div class="m"><span>${esc(v.domain.kind)} · ${esc(v.domain.stream)}${v.exposed ? ' · output ' + esc(v.exposed.join(', ')) : ''}</span></div>
+      </div>`);
+    }
+  }
 
   // D3
   const tensors = tensorsOf(nodes);
@@ -2073,6 +2196,14 @@ function productBody(which) {
   }
 
   if (which === 'd2') {
+    const values = foldedRows(d2.values, v => v.value,
+      (v, label, n, open) =>
+        `<td class="id">${chev(label, n, open)}</td>` +
+        `<td class="m">${esc(shapeAxes(v.shape) || '—')}</td>` +
+        `<td class="m">${esc(v.dtype)}</td><td class="m">${esc(v.role)}</td>` +
+        `<td class="m">${esc(fmtCounts(v.count))}</td>` +
+        `<td class="num">${esc(fmtBytes(v.bytes_per_element))}</td>`,
+      () => null);
     const cuts = d2.cuts.map(c =>
       `<tr class="pick" data-select='${escAttr(JSON.stringify({ kind: 'cut', name: c.cut }))}'>` +
       `<td class="id">${esc(c.cut)}</td><td class="m">${esc(c.kind)}</td>` +
@@ -2088,6 +2219,10 @@ function productBody(which) {
                ['widest cut', fmtBytes(Math.max(...d2.cuts.map(c => c.bytes_per_element), 0)), 'q']]) +
       `<div class="foldnote" style="margin:16px 0 0">streams</div>` +
       pTable([{ label: 'stream', w: '34%' }, { label: 'kind', w: '22%' }, { label: 'count' }], streams) +
+      `<div class="foldnote" style="margin:22px 0 0">values \u2014 the geometry every edge of the graph carries</div>` +
+      pTable([{ label: 'value', w: '34%' }, { label: 'shape', w: '20%' }, { label: 'dtype', w: '8%' },
+              { label: 'role', w: '16%' }, { label: 'count', w: '12%' },
+              { label: 'bytes / element', right: true }], values) +
       `<div class="foldnote" style="margin:22px 0 0">legal cuts — pick one to mark it on the diagram</div>` +
       pTable([{ label: 'cut', w: '34%' }, { label: 'kind', w: '11%' }, { label: 'blocks', w: '17%' },
               { label: 'crossing', w: '14%', right: true },
@@ -2317,7 +2452,7 @@ function switchTab(name) {
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   document.querySelector('.body-row').style.display = name === 'graph' ? 'flex' : 'none';
-  document.getElementById('measurebar').style.display = name === 'graph' ? 'flex' : 'none';
+  document.getElementById('cutbar').style.display = name === 'graph' ? 'flex' : 'none';
   document.getElementById('prodpane').style.display = name === 'products' ? 'flex' : 'none';
   document.getElementById('rawpane').style.display = name === 'raw' ? 'block' : 'none';
   if (name === 'products') renderProducts();
@@ -2346,9 +2481,7 @@ function onModeClick(ev) {
   if (d && !d.classList.contains('disabled')) setTreeMode(d.dataset.mode);
 }
 
-function onMeasureClick(ev) {
-  const chip = ev.target.closest('.mchip');
-  if (chip && !chip.classList.contains('disabled')) { paintMeasure(chip.dataset.measure); return; }
+function onCutBarClick(ev) {
   const sel = ev.target.closest('#cutsel');
   const menu = document.getElementById('cutmenu');
   if (sel) { menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; return; }
@@ -2405,18 +2538,10 @@ function init() {
   document.getElementById('derived-tag-text').textContent = HAS ? 'derived \u00b7 D1\u2013D6' : 'no derived document';
   if (!HAS) tag.title = DERIVED_NOTE || '';
 
-  measureValues = buildMeasures();
   if (!HAS) {
-    document.getElementById('measurebar').style.display = 'none';
+    document.getElementById('cutbar').style.display = 'none';
     document.querySelector('#modeseg [data-mode="derived"]').classList.add('disabled');
   } else {
-    document.querySelectorAll('.mchip').forEach(c => {
-      const m = c.dataset.measure;
-      if (m !== 'none' && !measureValues[m].ok) {
-        c.classList.add('disabled');
-        c.title = 'the per-node shares do not add up to what D5 reports';
-      }
-    });
     buildCutMenu();
   }
 
@@ -2428,12 +2553,11 @@ function init() {
   showRaw('model');
   document.getElementById('statusbar').innerHTML = buildStatus();
   renderProducts();
-  paintMeasure('none');       // empties the label row every node reserved
 
   document.getElementById('tree').addEventListener('click', onTreeClick);
   document.getElementById('canvas').addEventListener('click', onCanvasClick);
   document.getElementById('modeseg').addEventListener('click', onModeClick);
-  document.getElementById('measurebar').addEventListener('click', onMeasureClick);
+  document.getElementById('cutbar').addEventListener('click', onCutBarClick);
   document.getElementById('prodpane').addEventListener('click', onProductsClick);
   document.getElementById('inspector').addEventListener('click', onInspectorClick);
   document.getElementById('inspector2').addEventListener('click', onInspectorClick);
@@ -2510,7 +2634,8 @@ def js_payload(obj):
 
 
 def build_html(data, derived, note, title, nav_html=None):
-    canvas = canvas_html(data)
+    facts = DiagramFacts(derived) if derived else None
+    canvas = canvas_html(data, facts)
     title_html = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
     return (TEMPLATE
             .replace('__TITLE__', title_html)
@@ -2518,6 +2643,7 @@ def build_html(data, derived, note, title, nav_html=None):
             .replace('__CANVAS_HTML__', canvas)
             .replace('__MODEL_JSON__', js_payload(data))
             .replace('__DERIVED_JSON__', js_payload(derived))
+            .replace('__MEASURES_JSON__', js_payload(facts.measures_payload() if facts else None))
             .replace('__DERIVED_NOTE__', js_payload(note)))
 
 
