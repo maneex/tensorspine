@@ -26,7 +26,7 @@ fields refused); V4 shape unification; V5 indexing domains as (kind, stream)
 with the declared transforms; V6 acyclicity; V7 totality and uniqueness of
 bindings, state slots included; V9 member compatibility; V10 resolvable
 ranges, guards and derivations; V11 a literal quantity against its declared
-derivation; V13 no dangling output; V14 precision admissibility on parameter
+derivation; V8 a primitive contract's invariants on the resolved arguments; V13 no dangling output; V14 precision admissibility on parameter
 and state identities; V15 tying compatibility; V16 a carried state on a
 fragmented stream; V18 an occurrence reading across positions of a fragmented
 stream carries a state across its fragments; V19 a joining input joins at a
@@ -43,8 +43,8 @@ from collections import Counter, defaultdict, deque
 import catalog as catalog_mod
 import model as model_mod
 import schema as schema_mod
-from expr import (UNRESOLVED, contract_condition, contract_value, index_grid,
-                  missing_assignment, model_condition, model_value,
+from expr import (UNRESOLVED, argument_references, contract_condition, contract_value,
+                  index_grid, missing_assignment, model_condition, model_value,
                   quantity_references, resolve_quantities, static_argument)
 
 MAX_CONTRACT_DEPTH = 8
@@ -120,8 +120,20 @@ def instance_ports(exposed):
     return ports
 
 
+def _resolve_path(path, args):
+    """The value an argument path resolves to in a resolved-argument map, `None` when absent."""
+    cur = args
+    for part in path.split('.'):
+        if not isinstance(cur, dict) or part not in cur:
+            return None
+        cur = cur[part]
+    return cur
+
+
 def _check_domain(v, domain, label, problems):
-    """A value against a declared domain (§4.6: admissibility at the call site)."""
+    """A model quantity value against its declared domain (§2.2). A bound is a model scalar
+    expression; only a literal bound is checked here (the empty scope leaves a quantity-referencing
+    bound undecidable)."""
     if domain['kind'] == 'set':
         if v not in domain['values']:
             problems.append(('V3', f"argument '{label}' = {v!r} is outside the set {domain['values']}"))
@@ -132,6 +144,29 @@ def _check_domain(v, domain, label, problems):
             continue
         limit = model_value(bound['value'], {})
         if limit is UNRESOLVED:
+            continue
+        inside = (v >= limit if edge == 'lower' else v <= limit) if bound['inclusive'] \
+            else (v > limit if edge == 'lower' else v < limit)
+        if not inside:
+            problems.append(('V3', f"argument '{label}' = {v!r} is {op} the domain bound "
+                                   f"{limit!r} ({'inclusive' if bound['inclusive'] else 'exclusive'})"))
+
+
+def _check_argument_domain(v, domain, label, problems, scope):
+    """A primitive argument value against its declared domain (§4.6: admissibility at the call
+    site). A bound's value is a scalar literal or a reference to another argument
+    (`kv_heads <= heads`), evaluated in the occurrence's resolved arguments; an undecidable bound
+    (its argument refused upstream) is skipped, not read as a limit."""
+    if domain['kind'] == 'set':
+        if v not in domain['values']:
+            problems.append(('V3', f"argument '{label}' = {v!r} is outside the set {domain['values']}"))
+        return
+    for edge, op in (('lower', 'below'), ('upper', 'above')):
+        bound = domain.get(edge)
+        if bound is None:
+            continue
+        limit = contract_value(bound['value'], scope)
+        if limit is UNRESOLVED or limit is None:
             continue
         inside = (v >= limit if edge == 'lower' else v <= limit) if bound['inclusive'] \
             else (v > limit if edge == 'lower' else v < limit)
@@ -186,7 +221,7 @@ def _resolve_record(declared, given, evaluate, root, path, problems, into=None):
         before = len(problems)
         _check_type(values[arg_name], decl['type'], label, evaluate, root, problems, values)
         if len(problems) == before and 'domain' in decl and values[arg_name] is not UNRESOLVED:
-            _check_domain(values[arg_name], decl['domain'], label, problems)
+            _check_argument_domain(values[arg_name], decl['domain'], label, problems, root)
         if len(problems) > before and decl['type']['kind'] != 'record':
             # Refused once, with its reason; nothing downstream reads it as a value.
             values[arg_name] = UNRESOLVED
@@ -224,6 +259,9 @@ def _check_type(v, t, label, evaluate, root, problems, siblings):
         if not isinstance(v, (int, float)):
             problems.append(('V3', f"argument '{label}' = {v!r} is not a number"
                                    + (f" of {t['unit']}" if kind == 'physical' else "")))
+        elif kind == 'physical' and t['unit'] != 'seconds' and float(v) != int(v):
+            problems.append(('V3', f"argument '{label}' = {v!r} is not a whole number of {t['unit']} "
+                                   f"(only seconds is real)"))
     elif kind == 'enum':
         if v not in t['values']:
             problems.append(('V3', f"argument '{label}' = {v!r} is not among {t['values']}"))
@@ -578,6 +616,20 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                                            lambda v: static(v, env))
         for code, message in problems:
             fail(code, f"{name} @{where(key)}: {message}")
+        # V8: the contract's invariants on the resolved arguments (§6), after the types and
+        # domains. An invariant reading an argument refused upstream (UNRESOLVED) is skipped — the
+        # V3 line already covers it; otherwise it must hold. `contract_condition` guards a
+        # maybe-absent argument with `present` (catalog.contract_references enforces it at load),
+        # so a decidable invariant is never spuriously false.
+        for inv in definition.get('invariants', []):
+            refs = argument_references(inv['holds'])
+            if any(_resolve_path(p, args) is UNRESOLVED for p in refs):
+                continue
+            if not contract_condition(inv['holds'], args):
+                shown = ', '.join(f"{p} = {_resolve_path(p, args)}" for p in sorted(refs)
+                                  if _resolve_path(p, args) is not None)
+                fail('V8', f"{name} @{where(key)}: '{inv['description']}' does not hold"
+                           + (f" ({shown})" if shown else ""))
         if template_file is not None and not problems:
             # Expansion at the call site: the template under this assignment.
             if _depth + 1 > MAX_CONTRACT_DEPTH:

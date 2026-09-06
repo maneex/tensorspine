@@ -166,9 +166,23 @@ parameterized document denotes one such graph for every admissible assignment. S
 
 ### Domain
 
-See [Indexing domain](#indexing-domain). A quantity's declared set or interval is instead its value
-domain; it constrains admissible scalar values and does not index a port. See
-[Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04).
+See [Indexing domain](#indexing-domain). A quantity's, or a primitive argument's, declared set or
+interval is instead its **value domain**: it constrains admissible scalar values and does not index
+a port. A primitive argument's domain is checked at every call site under V3, its bounds literals or
+references to required-or-defaulted arguments (`kv_heads` in `[1, heads]`); a physical value in
+tokens, elements, bytes or operations is additionally a whole number. See
+[Specification §2.1](SPECIFICATION.md#21--quantities-o21-o22-o23-o04),
+[§4.6](SPECIFICATION.md#46--template-contracts) and the
+[catalog-unit guide](TENSORSPINE-CATALOG-UNIT.md).
+
+### Invariant
+
+A relation a primitive contract declares over its arguments that must hold for an occurrence to be
+admissible — `heads` a multiple of `kv_heads`, `top_k` no greater than `experts`. Checked under V8,
+after the types and domains (V3), on the resolved arguments with defaults applied. A domain
+constrains one argument; an invariant relates several. See
+[Specification §6](SPECIFICATION.md#6--validity) and the
+[catalog-unit guide](TENSORSPINE-CATALOG-UNIT.md#5--invariants).
 
 ### Derived products (D1–D6)
 

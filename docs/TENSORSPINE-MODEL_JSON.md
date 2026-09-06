@@ -343,11 +343,12 @@ A complete primitive contract provides the consequences needed to interpret an o
 
 | Contract element | Content |
 |---|---|
-| **Arguments** | Types, required status, explicit defaults, conditional presence (`present_when`) and structural arguments. |
+| **Arguments** | Types, required status, explicit defaults, conditional presence (`present_when`), structural arguments, and numeric **domains** (an interval or set, V3). |
 | **Value ports** | Typed inputs and outputs, shapes, roles and domains — a kind, or `inherit`. |
 | **Parameters and constants** | Conditional logical slots, shapes, precision roles and sharing rules. |
 | **State ports** | Conditional presence, payload components, key axes, ordered derivation rules and the condition under which the state is carried across fragments. |
-| **Effects** | The ports read and written. |
+| **Effects** | The ports read and written, and whether the operation reads across positions. |
+| **Invariants** | Relations the arguments must satisfy — `heads` a multiple of `kv_heads` (V8). |
 | **Logical cost** | Derived from the parameter inventory — two operations per weight element per element of the output domain, at the activated fraction of a sparse unit — plus the contract's declared **corrections**: guarded entries, each an expression with a status, counted per `element`, `cached_position`, `sequence` or `invocation`; every entry whose condition holds contributes. Never executed FLOPs. |
 | **Semantic partitions** | Axes along which partitioning preserves meaning and the resulting logical communication; every contract states at least one, `any_axis` or `none`. |
 | **Sparsity** | One or more **units** for a primitive activating only some parameters per element: the slots and axis that form a unit, the policy that selects units (an argument, an input port, or the element itself), the count activated per element and the union bound per invocation. A lookup table is the limiting case: one row per element (§4.5). |

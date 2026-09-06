@@ -295,8 +295,13 @@ def _absent_comparisons(c, guarded, optional):
             yield from _absent_comparisons(s, g, optional)
         return
     if 'any' in c:
+        # the dual of `all` + `present`: `any[not present X, P(X)]` reads X only when it is present,
+        # so a `not present` disjunct guards X for the others — an invariant that holds vacuously
+        # when a conditional field is absent (a yarn-only bound under llama3 scaling)
+        g = set(guarded) | {s['not']['present'] for s in c['any']
+                            if isinstance(s, dict) and isinstance(s.get('not'), dict) and 'present' in s['not']}
         for s in c['any']:
-            yield from _absent_comparisons(s, guarded, optional)
+            yield from _absent_comparisons(s, g, optional)
         return
     if 'not' in c:
         yield from _absent_comparisons(c['not'], guarded, optional)
@@ -390,6 +395,18 @@ def contract_references(d, cat):
         for pth in _expression_paths(decl.get('default', {})):
             if pth not in paths:
                 out.append(f"{label}: default reads undeclared argument '{pth}'")
+        dom = decl.get('domain')
+        if dom and dom['kind'] == 'interval':
+            # a bound may name another argument; it must be declared and always resolve, so a
+            # maybe-absent argument (optional, no default) is refused rather than read as no bound
+            for edge in ('lower', 'upper'):
+                b = dom.get(edge)
+                if b and isinstance(b['value'], dict) and 'argument' in b['value']:
+                    pth = b['value']['argument']
+                    if pth not in paths:
+                        out.append(f"{label}: domain {edge} bound reads undeclared argument '{pth}'")
+                    elif pth in optional:
+                        out.append(f"{label}: domain {edge} bound reads '{pth}', which may be absent — a bound must always resolve (§4.6)")
         if 'present_when' in decl:
             conditions.append((f"{label} present_when", decl['present_when'], enclosing))
         if t['kind'] == 'record':
@@ -398,6 +415,12 @@ def contract_references(d, cat):
 
     for name, decl in d['arguments'].items():
         enum_checks(decl, f"argument '{name}'", name)
+
+    for i, inv in enumerate(d.get('invariants', [])):
+        # an invariant's condition is a contract condition: every argument it reads must be
+        # declared, and one that may be absent must be guarded by a `present` test of it (§4.3),
+        # exactly as every other condition of the contract is checked below
+        conditions.append((f"invariant {i} ('{inv['description']}')", inv['holds'], set()))
 
     ports = {}
     for side in ('inputs', 'outputs'):

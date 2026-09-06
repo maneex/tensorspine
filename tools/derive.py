@@ -28,6 +28,7 @@ rule 2) — as D1 names it.
 """
 import json
 import os
+import math
 from collections import Counter, defaultdict, deque
 
 import catalog as catalog_mod
@@ -52,6 +53,16 @@ def ident(key):
 
 def _num(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) and v is not UNRESOLVED else None
+
+
+def _sound(value, kind, where):
+    """A derived count or byte figure must be non-negative and finite (R11). After the argument
+    domains (V3) and invariants (V8) it cannot be otherwise, so a violation here is an internal
+    inconsistency — a domain the validator is missing — named and raised, never clamped."""
+    if value is not None and (not math.isfinite(value) or value < 0):
+        raise ValueError(f"{where}: derived {kind} is {value!r} — negative or non-finite, which the "
+                         f"validator's domains should have refused (admitted upstream, a domain is missing)")
+    return value
 
 
 def _shape(shape, args, multiplicity=None):
@@ -138,7 +149,8 @@ def d3(graph, cat):
                  "sensitivity": cat['precision'][param['role']]['sensitivity'],
                  "dtype": dtype, "shape": _shape(param['shape'], args, param.get('multiplicity')),
                  "multiplicity": _num(contract_value(param['multiplicity'], args)) if 'multiplicity' in param else 1,
-                 "elements": n, "bytes": (n * BYTES[dtype]) if n is not None else None,
+                 "elements": _sound(n, 'element count', inst['identity']),
+                 "bytes": _sound((n * BYTES[dtype]) if n is not None else None, 'byte size', inst['identity']),
                  "tied": len(inst['members']) > 1}
         if unit:
             entry['sparsity'] = unit
@@ -185,10 +197,11 @@ def d4(graph, cat):
             dtype = _dtype(graph, cat, inst['dtype'], comp['role'])
             n = _elements(comp['shape'], args)
             payload.append({"component": cname, "role": comp['role'], "dtype": dtype,
-                            "shape": _shape(comp['shape'], args), "elements": n,
-                            "bytes": (n * BYTES[dtype]) if n is not None else None})
+                            "shape": _shape(comp['shape'], args),
+                            "elements": _sound(n, 'state element count', inst['identity']),
+                            "bytes": _sound((n * BYTES[dtype]) if n is not None else None, 'state byte size', inst['identity'])})
         per_position = sum(c['bytes'] or 0 for c in payload)
-        span = _num(contract_value(rule['span'], args)) if rule and 'span' in rule else None
+        span = _sound(_num(contract_value(rule['span'], args)) if rule and 'span' in rule else None, 'state span', inst['identity'])
         entry = {"identity": inst['identity'],
                  "members": [f"{ident(k)}.{s}" for k, s in inst['members']],
                  "writer": f"{ident(inst['writer'][0])}.{inst['writer'][1]}" if inst.get('writer') else None,

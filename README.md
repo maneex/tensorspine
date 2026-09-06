@@ -141,6 +141,7 @@ The TensorSpine documentation has deliberately separate roles:
 |---|---|---|
 | **README** (this document) | Why TensorSpine exists, what it covers, and what is in the repository | Orientation |
 | **[Model JSON guide](docs/TENSORSPINE-MODEL_JSON.md)** | How to read and author a `tensorspine/2.0` JSON document | Practical, non-normative |
+| **[Catalog-unit guide](docs/TENSORSPINE-CATALOG-UNIT.md)** | Why the catalog-unit schema has its objects, and what each one declares | Practical, non-normative |
 | **[Language specification](docs/SPECIFICATION.md)** | What a document means and which documents are valid | Normative |
 | **[Glossary](docs/GLOSSARY.md)** | What a TensorSpine term means and where its canonical definition lives | Navigational, non-normative |
 | **[Architecture](docs/ARCHITECTURE.md)** | Why the language has its current boundaries and design choices | Design rationale, non-normative |
@@ -234,6 +235,7 @@ tensorspine/
 ├── docs/
 │   ├── ARCHITECTURE.md           non-normative design rationale
 │   ├── TENSORSPINE-MODEL_JSON.md     practical, non-normative model-format guide
+│   ├── TENSORSPINE-CATALOG-UNIT.md   the catalog-unit schema: its objects, domains, invariants
 │   ├── TENSORSPINE-DERIVED_JSON.md   the derived document: D1–D6 as JSON
 │   ├── TENSORSPINE-FIXTURE.md        unit and integration fixture format
 │   ├── HARNESS.md                    serving decisions mapped to D1–D6
@@ -317,9 +319,12 @@ validate against it before writing ([derived document](docs/TENSORSPINE-DERIVED_
 
 `tensorspine-catalog-unit.schema.json` closes the catalog vocabulary: argument types (there is no
 opaque type), state laws, access geometries, sharing granularities, partition communications and
-precision sensitivities are enumerations. Every unit is read against it when a catalog is loaded,
-and the references a unit makes — axes, precision roles, ports, argument paths in conditions — are
-resolved; a unit outside the vocabulary is a load error naming the file.
+precision sensitivities are enumerations. An argument declaration may carry a numeric **domain** (an
+interval or set, V3) and a contract a list of **invariants** (relations over its arguments, V8).
+Every unit is read against it when a catalog is loaded, and the references a unit makes — axes,
+precision roles, ports, argument paths in conditions, domain bounds, invariants — are resolved; a
+unit outside the vocabulary is a load error naming the file. Its
+[companion guide](docs/TENSORSPINE-CATALOG-UNIT.md) describes each object.
 
 ### Tools
 

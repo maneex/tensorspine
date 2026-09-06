@@ -55,9 +55,9 @@ DOC_SCHEMA_ID = 'https://tensorspine.dev/schema/2.0/documentation.json'
 GRAMMAR = {
     'contract': {'version', 'arguments', 'ports', 'parameters', 'constants', 'state_ports',
                  'effects', 'logical_cost', 'sparsity', 'partitions', 'note',
-                 'domain_transforms'},
+                 'domain_transforms', 'invariants'},
     'template': {'version', 'template', 'note'},
-    'argument': {'type', 'required', 'structural', 'default', 'present_when', 'note'},
+    'argument': {'type', 'required', 'structural', 'default', 'domain', 'present_when', 'note'},
     'port': {'shape', 'domain', 'multiplicity', 'present_when', 'note', 'role'},
     'parameter': {'role', 'shape', 'present_when', 'multiplicity', 'note', 'views', 'sharing'},
     'constant': {'shape', 'present_when', 'note', 'role'},
@@ -280,6 +280,20 @@ def domain_str(d):
     else:
         where = json.dumps(origin)
     return f"{d['kind']} ({where})"
+
+
+def argument_domain_str(dom):
+    """A primitive argument's domain (§4.6), for the catalog reference: a set as `one of …`, an
+    interval as a mathematical range whose bounds are literals or `\`argument\``."""
+    def bound(b):
+        v = b['value']
+        return str(v['literal']) if 'literal' in v else f"`{v['argument']}`"
+    if dom['kind'] == 'set':
+        return 'one of ' + ', '.join(f"`{json.dumps(v)}`" for v in dom['values'])
+    lo, hi = dom.get('lower'), dom.get('upper')
+    left = ('[' if lo and lo['inclusive'] else '(') + (bound(lo) if lo else '&minus;&infin;')
+    right = (bound(hi) if hi else '&infin;') + (']' if hi and hi['inclusive'] else ')')
+    return f"{left}, {right}"
 
 
 def origin_str(o):
@@ -784,7 +798,8 @@ class Renderer:
             if 'present_when' in a:
                 desc = (desc + '<br>' if desc else '') + f"*Applicable when {cond(a['present_when'])}.*"
             rows.append([f"{indent}`{full}`", tdesc, 'yes' if a.get('required') else 'no',
-                         default, 'yes' if a.get('structural') else 'no', desc])
+                         default, 'yes' if a.get('structural') else 'no',
+                         argument_domain_str(a['domain']) if 'domain' in a else '', desc])
             if kind == 'enum' and 'value_descriptions' in adocs:
                 for v in adocs['value_descriptions']:
                     if not any(str(x) == v for x in t['values']):
@@ -806,13 +821,18 @@ class Renderer:
         if not d['arguments']:
             return out + ['This contract takes no argument.', '']
         rows, enums = self.argument_rows(d['arguments'], where, label)
-        out += table(['Argument', 'Type', 'Required', 'Default', 'Structural', 'Description'], rows)
+        out += table(['Argument', 'Type', 'Required', 'Default', 'Structural', 'Domain', 'Description'], rows)
         for full, values, descriptions in enums:
             out.append(f"Values of `{full}`:")
             out.append('')
             for v in values:
                 text = descriptions.get(str(v), '')
                 out.append(f"- `{json.dumps(v)}`" + (f" — {text}" if text else ''))
+            out.append('')
+        if d.get('invariants'):
+            out += ['Invariants (V8) — relations the resolved arguments must satisfy:', '']
+            for inv in d['invariants']:
+                out.append(f"- {inv['description']} — {code(cond(inv['holds']))}")
             out.append('')
         return out
 

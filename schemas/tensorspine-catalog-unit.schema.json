@@ -491,6 +491,9 @@
         "default": {
           "$ref": "#/$defs/expression"
         },
+        "domain": {
+          "$ref": "#/$defs/argument_domain"
+        },
         "present_when": {
           "$ref": "#/$defs/condition"
         },
@@ -511,6 +514,30 @@
         "type",
         "required",
         "structural"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "domain"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "cardinality",
+                      "real",
+                      "physical"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
       ]
     },
     "argument_declaration": {
@@ -530,6 +557,9 @@
         "default": {
           "$ref": "#/$defs/expression"
         },
+        "domain": {
+          "$ref": "#/$defs/argument_domain"
+        },
         "present_when": {
           "$ref": "#/$defs/condition"
         },
@@ -550,6 +580,30 @@
         "type",
         "required",
         "structural"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "domain"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "cardinality",
+                      "real",
+                      "physical"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
       ]
     },
     "axis_nature": {
@@ -1370,6 +1424,13 @@
         "effects": {
           "$ref": "#/$defs/effects"
         },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contract_invariant"
+          },
+          "description": "The relations V8 checks on the resolved arguments (§6): each a condition that must hold and a description of what it means. Domains constrain one argument; an invariant relates several."
+        },
         "partitions": {
           "type": "array",
           "minItems": 1,
@@ -1442,7 +1503,7 @@
           "enum": [
             "value",
             "instance",
-                                                                "storage"
+            "storage"
           ]
         },
         "summary": {
@@ -1789,6 +1850,110 @@
         }
       },
       "description": "One activatable unit (§4.5, O6.6): the slots that form it, the axis it is laid out along, what selects it, how many are activated per element of the output domain, and the bound per invocation. A lookup table is the limiting case: one row per element."
+    },
+    "argument_domain_bound": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "inclusive"
+      ],
+      "description": "An interval endpoint of an argument domain: a value and whether it is inclusive. The value is a scalar literal or a reference to another argument of the same contract — a bound like `kv_heads <= heads` names `heads`. The referenced argument must be required or defaulted, so it always resolves at a call site (catalog.contract_references refuses one that may be absent).",
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/literal_expression"
+            },
+            {
+              "$ref": "#/$defs/argument_expression"
+            }
+          ]
+        },
+        "inclusive": {
+          "type": "boolean"
+        }
+      }
+    },
+    "argument_interval_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "interval"
+        },
+        "lower": {
+          "$ref": "#/$defs/argument_domain_bound"
+        },
+        "upper": {
+          "$ref": "#/$defs/argument_domain_bound"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "lower"
+          ]
+        },
+        {
+          "required": [
+            "upper"
+          ]
+        }
+      ]
+    },
+    "argument_set_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "values"
+      ],
+      "properties": {
+        "kind": {
+          "const": "set"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal"
+          }
+        }
+      }
+    },
+    "argument_domain": {
+      "description": "A numeric precondition on a primitive argument, checked under V3 after the type at every call site (§4.6): an interval with a lower and/or upper bound, or a finite set of admissible values. Admitted on a cardinality, real or physical argument only; a relation between two arguments (heads a multiple of kv_heads) is an invariant, not a domain.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/argument_interval_domain"
+        },
+        {
+          "$ref": "#/$defs/argument_set_domain"
+        }
+      ]
+    },
+    "contract_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holds",
+        "description"
+      ],
+      "description": "A relation the resolved arguments must satisfy for the occurrence to be admissible — V8 (§6). Evaluated after the types and domains (V3), on the arguments with defaults applied, in the occurrence's index environment. A condition that reads an argument which may be absent must guard it with a `present` test, as every contract condition must (§4.3); a condition undecidable for another reason is a refusal, never read as false.",
+      "properties": {
+        "holds": {
+          "$ref": "#/$defs/condition"
+        },
+        "description": {
+          "type": "string",
+          "description": "What the relation means, in words — the text V8 prints when it does not hold."
+        }
+      }
     }
   }
 }
