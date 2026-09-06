@@ -19,9 +19,6 @@
 | rope: scaling llama3 / linear   | refused                                         |
 | qk_norm kind rms (eps, scale, zero_centered) | implemented, before RoPE           |
 | qk_norm kind layer              | refused                                         |
-| qk_norm values                  | refused (S4)                                    |
-| scale (a score scale ≠ head_dim⁻½) | refused (S4)                                  |
-| kv_source shared                | refused (S4)                                    |
 | temperature                     | refused                                         |
 | q/k/v/out biases                | implemented                                     |
 | output_gate (`q_gated`)         | implemented: per head, query rows then gate rows |
@@ -60,12 +57,15 @@ CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any",
                                           "scale": {"absent": True, "fields": {"zero_centered": "any"}}}},
                               "q_bias": "any", "k_bias": "any", "v_bias": "any", "out_bias": "any", "output_gate": "any"},
                 "states": ["append", "window"],
-                "excluding": [{"cross": True, "mask": "causal"}],
+                "excluding": [{"cross": True, "mask": "causal"},
+                              {"when": {"all": [{"compare": {"operator": "equal", "left": {"argument": "cross"}, "right": {"literal": True}}},
+                                                {"present": "rope"}]},
+                               "reason": "cross attention with rope: the source stream's positions are not delivered to this kernel"}],
+                "conditions": [{"when": {"all": [{"compare": {"operator": "equal", "left": {"argument": "kv_source"}, "right": {"literal": "shared"}}},
+                                                 {"present": "window"}]},
+                                "note": "a shared window reader serves one position per invocation once its ring has wrapped (finding 26)"}],
                 "transforms": ["align"],
-                "notes": ["mrope for one position stream only: an image would need the sections to differ",
-                          "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel",
-                          "a window with mask none is refused at run time: a query attends to itself and the span − 1 positions before it, the causal reading",
-                          "a shared window reader serves one position per invocation once its ring has wrapped (finding 26)"]}
+                "notes": ["mrope for one position stream only: an image would need the sections to differ"]}
 
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):
@@ -230,8 +230,9 @@ def run(ctx, arguments, inputs, params, states, physical=None):
                 v = rms_norm(v, None, eps)              # the values normalised too, no learned scale
     rope = arguments.get('rope')
     if rope:
-        if cross:
-            raise ValueError("cross attention with rope: the source stream's positions are not delivered to this kernel")
+        # cross + rope is refused by the manifest (excluding) before any run; the assert is the
+        # kernel's own guard should a caller reach it without consulting supports()
+        assert not cross, "cross attention with rope: supports() refuses this (manifest excluding)"
         q = rope_split(q, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
         if not shared:
             k = rope_split(k, ctx.positions, rope['theta'], rope.get('partial'), rope.get('scaling'))
@@ -239,8 +240,8 @@ def run(ctx, arguments, inputs, params, states, physical=None):
     window = arguments.get('window')
     span = int(window['span']) if window is not None else None
     score = arguments.get('scale')                       # the document's score scale, else head_dim⁻½
-    if window is not None and not causal:
-        raise ValueError("attention.dense: a window with mask none is not implemented (the reading is causal: a query and the span − 1 before it)")
+    # a window applies only under a causal mask (window.present_when = mask causal, I11): the
+    # contract refuses window with mask none, so the kernel never sees the combination
     if shared:
         # the identity's writer appended this invocation's positions earlier in the order (the plan checks it):
         # the state holds them, so nothing is appended here and the queries' own positions are among the keys

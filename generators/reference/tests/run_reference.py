@@ -188,6 +188,7 @@ def main(compile_step=False, full=False, strict_provenance=True):
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
     ok &= compare_case(check, tmp)
     ok &= witness_case(check, strict_provenance)
+    ok &= consistency_case(check, tmp)
     ok &= moe_random_case(check, tmp)
     ok &= multiplicity_case(check, tmp)
     ok &= whisper_random_case(check, tmp)
@@ -279,6 +280,90 @@ def witness_case(check, strict_provenance=True):
     declared = {f"{n}@{v}/{c['case']}" for n, v, _k, c in witness.cases(kernels)}
     ok &= check(f"witness: the {len(declared)} cases the kernels declare are the {len(ids)} fixtures committed",
                 declared == set(ids), str(sorted(declared ^ set(ids))[:3]))
+    return ok
+
+
+def consistency_case(check, tmp):
+    """R14 (generators/CAPABILITIES.md): the manifest and the kernels agree — every argument
+    combination the validator admits is either refused by supports() and never run, or run once on
+    tiny shapes without raising. A raise on an admitted combination is a kernel refusing what the
+    manifest does not declare (the review's C3). Over every kernel, from each of its unit fixtures
+    (valid bases), every manifest-enumerated value of every top-level argument is overridden in
+    turn, and each present record is dropped; each combination is derived (an invalid one is
+    counted and skipped), and an admitted one is run for one invocation."""
+    import json
+    import witness
+    import capabilities as cap
+    import catalog as catalog_mod
+    kernels = registry.load_kernels()
+    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    manifest, errs = cap.load(os.path.join(REF, 'capabilities.json'))
+    if errs:
+        return check("consistency: the manifest loads", False, str(errs[:2]))
+    import graph as g_mod
+    tried = admitted = refused_validator = refused_supports = structural = 0
+    failures = []
+    for (name, version), kernel in sorted(kernels.items()):
+        entry = manifest['contracts'].get(f"{name}@{version}")
+        if entry is None:
+            continue
+        table = entry['arguments']
+        # a combination is (arguments, the invocations and seed of the fixture it varies): the
+        # fixture's own delivery is a valid one for the contract's ports — an insert's source
+        # delivering nothing where it must (splice), a merge's groups aligned. `kv_source: shared`
+        # is a topological feature (a writer occurrence a one-occurrence document cannot hold), so
+        # it is not overridden here; the gemma3n random case exercises it on a real topology.
+        combos = []
+        seen = set()
+        for c in getattr(kernel, 'FIXTURES', []):
+            base = c['arguments']
+            base_ports = {n for inv in c['invocations'] for n in inv}
+            variants = [dict(base)]
+            for arg, rule in table.items():
+                if arg == 'kv_source':                 # a shared reader needs a writer occurrence
+                    continue
+                values = rule if isinstance(rule, list) else (rule.get('values') if isinstance(rule, dict) else None)
+                for v in (values or []):
+                    if v is not None and base.get(arg) != v:
+                        variants.append({**base, arg: v})
+            for arg in list(base):
+                if isinstance(base[arg], dict):
+                    variants.append({k: v for k, v in base.items() if k != arg})
+            for a in variants:
+                key = json.dumps(a, sort_keys=True)
+                if key not in seen:
+                    seen.add(key)
+                    combos.append((a, c['invocations'], c['seed'], base_ports))
+        for args, invocations, seed, base_ports in combos:
+            tried += 1
+            base_dir = witness.fixture_dir(name, version)
+            try:
+                doc = witness.document(name, version, args, cat, witness.catalog_base_from(base_dir))
+                gpath = witness._materialise(doc, tmp)
+                gg = g_mod.load(gpath)
+            except (ValueError, KeyError):
+                refused_validator += 1
+                continue
+            # a variant that changes the input-port set (cross adds a source) cannot be delivered by
+            # the base fixture's invocations — a structural change, covered by the corpus and the
+            # per-model random cases; the pairwise run here holds the port set fixed
+            if set(doc['interfaces']['inputs']) != base_ports:
+                structural += 1
+                continue
+            resolved = gg.nodes['unit']['arguments']
+            if cap.supports(entry, resolved):
+                refused_supports += 1
+                continue
+            admitted += 1
+            try:
+                params = witness.parameters(gg, seed)
+                witness.run(gg, kernels, params, invocations, torch.float32, seed=seed)
+            except Exception as e:  # noqa: BLE001
+                failures.append(f"{name}@{version} {args}: {type(e).__name__}: {str(e)[:120]}")
+    ok = check(f"consistency: {tried} combinations over {len(kernels)} kernels — {admitted} admitted and run, "
+               f"{refused_supports} refused by the manifest, {refused_validator} refused by the validator, "
+               f"{structural} structural (port set changed); no admitted combination raised",
+               not failures, '\n         '.join(failures[:4]))
     return ok
 
 

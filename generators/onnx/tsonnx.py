@@ -245,7 +245,7 @@ def manifest():
     for (name, ver), p in sorted(prims.items()):
         cap = dict(p.CAPABILITIES)
         entry = {'arguments': cap['arguments'], 'states': list(cap.get('states', []))}
-        for key in ('excluding', 'transforms', 'notes'):
+        for key in ('excluding', 'conditions', 'transforms', 'notes'):
             if cap.get(key):
                 entry[key] = list(cap[key])
         for target, table in every.items():

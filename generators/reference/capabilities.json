@@ -3,7 +3,7 @@
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "1891986",
+    "version": "3fdeadd",
     "generator": "generators/reference/ref.py capabilities",
     "generated": "2026-09-06"
   },
@@ -150,16 +150,57 @@
         {
           "cross": true,
           "mask": "causal"
+        },
+        {
+          "when": {
+            "all": [
+              {
+                "compare": {
+                  "operator": "equal",
+                  "left": {
+                    "argument": "cross"
+                  },
+                  "right": {
+                    "literal": true
+                  }
+                }
+              },
+              {
+                "present": "rope"
+              }
+            ]
+          },
+          "reason": "cross attention with rope: the source stream's positions are not delivered to this kernel"
+        }
+      ],
+      "conditions": [
+        {
+          "when": {
+            "all": [
+              {
+                "compare": {
+                  "operator": "equal",
+                  "left": {
+                    "argument": "kv_source"
+                  },
+                  "right": {
+                    "literal": "shared"
+                  }
+                }
+              },
+              {
+                "present": "window"
+              }
+            ]
+          },
+          "note": "a shared window reader serves one position per invocation once its ring has wrapped (finding 26)"
         }
       ],
       "transforms": [
         "align"
       ],
       "notes": [
-        "mrope for one position stream only: an image would need the sections to differ",
-        "cross attention with rope is refused at run time: the source stream's positions are not delivered to the kernel",
-        "a window with mask none is refused at run time: a query attends to itself and the span \u2212 1 positions before it, the causal reading",
-        "a shared window reader serves one position per invocation once its ring has wrapped (finding 26)"
+        "mrope for one position stream only: an image would need the sections to differ"
       ],
       "witness": {
         "kernel": "kernels/attention_dense.py",

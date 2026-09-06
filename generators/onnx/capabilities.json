@@ -2,7 +2,7 @@
   "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "onnx",
-    "version": "a92f8be",
+    "version": "3fdeadd",
     "generator": "generators/onnx/tsonnx.py capabilities",
     "generated": "2026-09-06"
   },

@@ -333,7 +333,7 @@ def manifest():
     for (name, ver), k in sorted(kernels.items()):
         cap = dict(k.CAPABILITIES)
         entry = {'arguments': cap['arguments'], 'states': list(cap.get('states', []))}
-        for key in ('excluding', 'transforms', 'notes'):
+        for key in ('excluding', 'conditions', 'transforms', 'notes'):
             if cap.get(key):
                 entry[key] = list(cap[key])
         entry['witness'] = {'kernel': os.path.relpath(k.__file__, HERE),

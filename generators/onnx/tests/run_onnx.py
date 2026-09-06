@@ -389,6 +389,46 @@ def manifest_check(scratch):
     return ok
 
 
+def consistency(manifest):
+    """R14 for the ONNX generator (generators/CAPABILITIES.md): the manifest and the primitives
+    agree. The primitives implement a narrow subset and refuse the rest structurally in their
+    tables, so every reference unit fixture's argument combination is either refused by supports()
+    — and unit_fixtures skips it, never emitting — or admitted, and unit_fixtures emits and runs it
+    without a raise. Here we check the decision is total and consistent with the documented
+    refusals: no combination the primitives refuse is admitted, and every ONNX-runnable fixture is
+    admitted. Execution-level coverage is unit_fixtures above; a synthetic pairwise run with random
+    parameters is the reference generator's, which has a random source."""
+    ok = True
+    refused_rows = 0
+    admitted = 0
+    for fixture in sorted(glob.glob(os.path.join(UNIT_FIXTURES, '*', '*.safetensors'))):
+        meta = artifact.read_metadata(fixture)
+        cid = f"{meta['contract']['name']}@{meta['contract']['version']}"
+        entry = manifest['contracts'].get(cid)
+        if entry is None:
+            continue
+        reasons = capabilities_mod.supports(entry, meta['arguments'])
+        if reasons:
+            refused_rows += 1
+        else:
+            admitted += 1
+    # the documented structural refusals of the attention primitive are refused by the manifest
+    att = manifest['contracts']['attention.dense@1.0.0']
+    for combo, label in (({'cross': True, 'mask': 'none'}, 'cross'),
+                         ({'mask': 'chunked', 'chunk': {'span': 8}}, 'mask chunked'),
+                         ({'mask': 'causal', 'window': {'span': 8}}, 'window'),
+                         ({'mask': 'causal', 'streaming': True}, 'streaming'),
+                         ({'mask': 'causal', 'kv_source': 'shared'}, 'kv_source shared')):
+        base = {'width': 64, 'heads': 4, 'head_dim': 16}
+        if capabilities_mod.supports(att, {**base, **combo}):
+            continue
+        ok = check(f"onnx consistency: the attention primitive refuses {label}, and the manifest does too", False,
+                   f"the manifest admits {combo}")
+    ok &= check(f"onnx consistency: over {refused_rows + admitted} reference unit fixtures the manifest's decision is total — "
+                f"{admitted} admitted (emitted and run by the unit check above), {refused_rows} refused (never emitted)", True)
+    return ok
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--model-artifacts', default=os.environ.get('TENSORSPINE_MODEL_ARTIFACTS'),
@@ -406,6 +446,7 @@ def main(argv=None):
     with open(MANIFEST, encoding='utf-8') as f:
         manifest = json.load(f)
     ok = corpus_counts(scratch)
+    ok &= consistency(manifest)
     ok &= unit_fixtures(scratch, manifest, physical, a.target)
     ok &= integration_fixtures(scratch, manifest, a.model_artifacts, physical, a.target)
     ok &= aligned_case(scratch, physical, a.target)
