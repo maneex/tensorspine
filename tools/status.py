@@ -126,12 +126,26 @@ def generator(manifest_path, cat, model_paths):
     if errors:
         raise ValueError(f"{manifest_path}: " + '; '.join(errors))
     missing, branches, verdicts = capabilities_mod.coverage(manifest, cat, model_paths)
+    # the declared run-time conditions each admitted document runs under (finding 26): re-derived
+    # here, since coverage keeps only the verdict
+    conds = {}
+    for path in model_paths:
+        name = os.path.basename(path)
+        if name not in verdicts or not verdicts[name][0]:
+            continue
+        with open(path, encoding='utf-8') as f:
+            model = json.load(f)
+        c = catalog_mod.load_for(path, model)
+        cs = capabilities_mod.conditions(manifest, derive.products(path, c), c)
+        if cs:
+            conds[name] = cs
     return {
         'path': manifest_path,
         'manifest': manifest,
         'missing': missing,
         'branches': branches,
         'verdicts': verdicts,
+        'conditions': conds,
         # the reader's own definition (§10.2): None for a conformer, which witnesses nothing;
         # a template contract is realised by its template and has no witness to lack
         'unwitnessed': capabilities_mod.unwitnessed(manifest, cat),
@@ -292,9 +306,10 @@ def render_status(state):
         out += (_table(['Contract', 'Not admitted'], gaps) if gaps else ['None.', ''])
         out += ['#### Corpus admission', '']
         out += _table(
-            ['Document', 'Verdict', 'First reason'],
+            ['Document', 'Verdict', 'First reason', 'Runs under a condition'],
             [[f'`{name}`', 'can run' if ok else 'cannot run',
-              '—' if ok else capabilities_mod.condensed(reasons)[0]]
+              '—' if ok else capabilities_mod.condensed(reasons)[0],
+              '<br>'.join(f'{node}: {note}' for node, _cid, note in item.get('conditions', {}).get(name, [])) or '—']
              for name, (ok, reasons) in item['verdicts'].items()],
         )
     out += ['## Verification', '',

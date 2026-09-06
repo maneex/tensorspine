@@ -265,8 +265,16 @@
         "excluding": {
           "type": "array",
           "items": {
-            "type": "object"
-          }
+            "oneOf": [
+              {
+                "$ref": "#/$defs/exclusion_flat"
+              },
+              {
+                "$ref": "#/$defs/exclusion_predicate"
+              }
+            ]
+          },
+          "description": "Combinations the kernel refuses although each value alone is implemented (generators/CAPABILITIES.md): a flat form (equalities) or a predicate with its reason. `can_run` refuses a document that matches one."
         },
         "states": {
           "type": "array",
@@ -282,7 +290,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Prose a reader may want and nothing evaluates — a convention, a limitation the arguments already express. Not `excluding` (which refuses) nor `conditions` (which a runtime honours)."
         },
         "transforms": {
           "type": "array",
@@ -297,6 +306,13 @@
         },
         "witness": {
           "$ref": "#/$defs/witness"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition_note"
+          },
+          "description": "Declared run-time conditions an admitted document runs under: the combination is admitted, and the kernel refuses only when the delivery violates the note. `--capabilities` and the status page print them; `can_run` is unchanged."
         }
       }
     },
@@ -353,6 +369,52 @@
         }
       },
       "description": "The binding of a contract version to its witness (Specification §4.1): the language declares the role, the witness generator's manifest names the kernel, its tolerances and its fixtures, and the reader checks that each exists. Derived from the kernels' own tables, never written by hand."
+    },
+    "exclusion_flat": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ]
+      },
+      "description": "A refused combination as equalities on declared scalar arguments — every named argument at the given value at once. A manifest over independent values over-approximates; this says where."
+    },
+    "exclusion_predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "when",
+        "reason"
+      ],
+      "properties": {
+        "when": {
+          "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/condition"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "description": "A refused combination as a condition over the resolved arguments, with the reason the kernel gives — `all[cross = true, present rope]`, refused because the source positions are not delivered."
+    },
+    "condition_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "when",
+        "note"
+      ],
+      "properties": {
+        "when": {
+          "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/condition"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "description": "A declared condition an admitted document runs under: the kernel runs when `when` holds and refuses at run time when the delivery violates the note — a shared window reader once its ring has wrapped (finding 26). Unlike `excluding`, the combination IS run, under the stated limit."
     }
   },
   "description": "A manifest per generator: what it can evaluate, in the language's vocabulary — so that a runtime infers whether it can run a document, and a maintainer reads what is not covered yet. Generated from the generator's code. Physical parameters and the targeted backend are opaque and not described here."

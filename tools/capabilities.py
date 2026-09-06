@@ -17,7 +17,8 @@ import os
 import artifact as artifact_mod
 import catalog as catalog_mod
 import derive
-from expr import contract_condition
+import schema as schema_mod
+from expr import argument_references, contract_condition
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEMA = os.path.join(ROOT, 'generators', 'capabilities.schema.json')
@@ -65,7 +66,10 @@ def supports(entry, arguments):
         if name not in arguments and isinstance(rule, dict) and not rule.get('absent', True):
             reasons.append(f"{name}=absent")
     for combo in entry.get('excluding', []):
-        if all(arguments.get(k) == v for k, v in combo.items()):
+        if 'when' in combo:                         # a predicate over the resolved arguments
+            if contract_condition(combo['when'], arguments):
+                reasons.append(combo.get('reason') or "an excluded combination")
+        elif all(arguments.get(k) == v for k, v in combo.items()):
             reasons.append("combination " + ", ".join(f"{k}={v}" for k, v in combo.items()))
     return reasons
 
@@ -93,10 +97,10 @@ def manifests(root=ROOT):
 def load(path):
     with open(path, encoding='utf-8') as f:
         manifest = json.load(f)
-    import jsonschema
-    with open(SCHEMA, encoding='utf-8') as f:
-        schema = json.load(f)
-    errors = [e.message for e in jsonschema.Draft202012Validator(schema).iter_errors(manifest)]
+    # the schema $refs the catalog-unit condition grammar for `excluding`/`conditions` predicates;
+    # validate through the tools' registry (indexed by $id) so that reference resolves
+    reg = schema_mod.registry(os.path.join(ROOT, 'schemas'))
+    errors = [schema_mod.format_error(e) for e in schema_mod.check_document(SCHEMA, manifest, reg)]
     return manifest, errors
 
 
@@ -181,6 +185,20 @@ def names(manifest, cat):
         for law in entry.get('states', []):
             if law not in manifest['state_laws']:
                 errors.append(f"{cid}: state law {law} not in the manifest's state_laws")
+        declared = set(catalog_mod._declared_paths(definition['arguments']))
+        for combo in entry.get('excluding', []):
+            if 'when' in combo:
+                for pth in argument_references(combo['when']):
+                    if pth not in declared:
+                        errors.append(f"{cid}: excluding predicate reads undeclared argument '{pth}'")
+            else:
+                for k in combo:
+                    if k not in definition['arguments']:
+                        errors.append(f"{cid}: excluding names undeclared argument '{k}'")
+        for c in entry.get('conditions', []):
+            for pth in argument_references(c['when']):
+                if pth not in declared:
+                    errors.append(f"{cid}: conditions predicate reads undeclared argument '{pth}'")
     return errors
 
 
@@ -269,6 +287,33 @@ def can_run(manifest, doc, cat, delivered=None):
         if st['kind'] not in manifest['domains']['kinds']:
             reasons.append(f"stream {sname}: kind {st['kind']} not handled")
     return (not reasons), reasons
+
+
+def conditions(manifest, doc, cat, delivered=None):
+    """The declared run-time conditions (generators/CAPABILITIES.md) an admitted document runs
+    under: a `{when, note}` of a contract whose `when` holds on an evaluated occurrence's
+    arguments. The combination is admitted (can_run is unchanged); the note says what the kernel
+    refuses at run time if the delivery violates it — a shared window reader once its ring has
+    wrapped (finding 26). Returns [(node, cid, note)]."""
+    d1, d2 = doc['d1'], doc['d2']
+    generative = [n for n, o in d1['interfaces']['outputs'].items() if o.get('generative')]
+    if delivered is None:
+        delivered = {v['input'] for v in d2['values'] if 'input' in v
+                     and (set(v.get('required_for', [])) & set(generative) or not generative)}
+    active = evaluated(doc, cat, delivered)
+    out = []
+    for node in d1['topological_order']:
+        if node not in active:
+            continue
+        entry = d1['nodes'][node]
+        cid = f"{entry['contract']['name']}@{entry['contract']['version']}"
+        cap = manifest['contracts'].get(cid)
+        if not cap:
+            continue
+        for c in cap.get('conditions', []):
+            if contract_condition(c['when'], entry['arguments']):
+                out.append((node, cid, c['note']))
+    return out
 
 
 # --- coverage --------------------------------------------------------------------
@@ -382,10 +427,14 @@ def run(manifest_path, documents, catalog_bases=None, inputs=None, report_covera
             model = json.load(f)
         c = catalog_mod.load_for(path, model, catalog_bases)
         doc = derive.products(path, c)
-        ok, reasons = can_run(manifest, doc, c, set(inputs) if inputs else None)
+        delivered = set(inputs) if inputs else None
+        ok, reasons = can_run(manifest, doc, c, delivered)
         print(f"  {os.path.basename(path):34s} {'can run' if ok else 'cannot'}")
         for r in condensed(reasons)[:8]:
             print(f"      {r}")
+        if ok:
+            for node, cid, note in conditions(manifest, doc, c, delivered):
+                print(f"      under a condition — {node} ({cid}): {note}")
         failed += not ok
     if report_coverage:
         missing, branches, verdicts = coverage(manifest, cat, corpus or [])

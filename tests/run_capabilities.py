@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import capabilities                    # noqa: E402
 import catalog as catalog_mod          # noqa: E402
+import derive                          # noqa: E402
 
 
 
@@ -75,6 +76,36 @@ def main():
                 str(branches.get('attention.latent_compressed@1.0.0', [])[:6]))
     ok &= check("ledger: an entry lists only the branches it does not admit — attention.dense's mask=chunked, not mask=causal",
                 'mask=chunked' in branches.get('attention.dense@1.0.0', []) and 'mask=causal' not in branches.get('attention.dense@1.0.0', []))
+    # the three forms of a combination limit (generators/CAPABILITIES.md), on hand-built entries so
+    # the mechanism is tested apart from any one manifest
+    flat = {'arguments': {'cross': [True, False], 'mask': ['causal', 'none']}, 'excluding': [{'cross': True, 'mask': 'causal'}]}
+    ok &= check("excluding, flat: a matching combination is refused, a non-matching one is not",
+                capabilities.supports(flat, {'cross': True, 'mask': 'causal'}) and not capabilities.supports(flat, {'cross': True, 'mask': 'none'}))
+    rope_pred = {'when': {'all': [{'compare': {'operator': 'equal', 'left': {'argument': 'cross'}, 'right': {'literal': True}}},
+                                  {'present': 'rope'}]}, 'reason': 'cross attention with rope: the source positions are not delivered'}
+    pred = {'arguments': {'cross': [True, False], 'rope': {'absent': True, 'fields': {'theta': 'any'}}}, 'excluding': [rope_pred]}
+    ok &= check("excluding, predicate: cross with rope is refused with its reason, cross without rope is not",
+                capabilities.supports(pred, {'cross': True, 'rope': {'theta': 1.0}}) == ['cross attention with rope: the source positions are not delivered']
+                and not capabilities.supports(pred, {'cross': True}))
+    # conditions: a {when, note} entry reports the note for an admitted occurrence whose `when` holds
+    gemma = os.path.join(ROOT, 'data', 'models', 'gemma3n-kvshare.json')
+    gc = catalog_mod.load_for(gemma, json.load(open(gemma, encoding='utf-8')))
+    gdoc = derive.products(gemma, gc)
+    probe = json.loads(json.dumps(manifest))
+    probe['contracts']['attention.dense@1.0.0']['conditions'] = [{
+        'when': {'all': [{'compare': {'operator': 'equal', 'left': {'argument': 'kv_source'}, 'right': {'literal': 'shared'}}}, {'present': 'window'}]},
+        'note': 'one position per invocation once the ring has wrapped (finding 26)'}]
+    reported = capabilities.conditions(probe, gdoc, gc)
+    ok &= check("conditions: the shared-window note is reported for every reader that runs under it, and for no other occurrence",
+                reported and all('finding 26' in n for _n, _c, n in reported)
+                and all(gdoc['d1']['nodes'][node]['arguments'].get('kv_source') == 'shared' for node, _c, _n in reported),
+                str(reported[:1]))
+    # names(): a predicate reading an argument the contract does not declare is refused at load
+    bad = json.loads(json.dumps(manifest))
+    bad['contracts']['norm.rms@1.0.0']['excluding'] = [{'when': {'compare': {'operator': 'equal', 'left': {'argument': 'nonexistent'}, 'right': {'literal': 1}}}, 'reason': 'x'}]
+    errs = capabilities.names(bad, cat)
+    ok &= check("names: an excluding predicate on an undeclared argument is refused, naming it",
+                any("undeclared argument 'nonexistent'" in e for e in errs), str(errs[:2]))
     cli = [os.path.join(ROOT, 'tools', 'tensorspine'), '--capabilities', REFERENCE, '--coverage', '--strict',
            os.path.join(ROOT, 'data', 'models', 'llama3-8b.json')]
     run = subprocess.run(cli, capture_output=True, text=True)

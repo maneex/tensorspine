@@ -43,8 +43,28 @@ Per argument, or per record field:
 | `{"absent": b, "fields": {…}}` | a record, checked field by field; an unknown field is refused |
 
 `excluding` lists argument combinations refused although each value alone is implemented — a
-manifest by independent values over-approximates, and this is where it says so. An argument the
-table does not name is refused: the manifest is closed, like the contract.
+manifest by independent values over-approximates, and this is where it says so. Two forms per entry:
+
+| Form | Meaning |
+|---|---|
+| `{arg: value, …}` | the flat form: refused when every named argument holds the given value at once (`{"cross": true, "mask": "causal"}`) |
+| `{"when": condition, "reason": "…"}` | a predicate over the resolved arguments in the catalog-unit condition grammar (`compare`, `present`, `all`/`any`/`not`), with the reason the kernel gives — `all[cross = true, present rope]` |
+
+`conditions` is the counterpart for a limit that depends on the *delivery*, not the arguments: an
+entry `{"when": condition, "note": "…"}` says the combination **is** admitted (`can_run` is
+unchanged), and the kernel refuses at run time only when the delivery violates the note — a shared
+window reader once its ring has wrapped, which reads one position per invocation (finding 26).
+`--capabilities` and the status page print, for each admitted document, the conditions it runs
+under. **A kernel refuses at run time only under a declared condition; any other refusal on an
+admitted combination is a bug** — the consistency test (the reference and ONNX harnesses) covers
+every table pairwise and holds each generator to it.
+
+`notes` is prose a reader may want and nothing evaluates: a convention, or a limitation the
+arguments already express. It refuses nothing and no runtime honours it.
+
+An argument the table does not name is refused: the manifest is closed, like the contract. Every
+argument, field, value, `excluding` predicate and `conditions` predicate is resolved against the
+catalog when the manifest is read; a name outside the contract is an error.
 
 ## The physical parameters, and the backend
 
