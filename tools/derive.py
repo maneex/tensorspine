@@ -740,7 +740,15 @@ def d6(graph, cat, products2):
 
 # --- entry points -----------------------------------------------------------
 
-def products(model_path, cat, assignment=None):
+def products(model_path, cat, assignment=None, schema_dir=None):
+    """D1–D6 of one document, or `ValueError("not valid, no products: …")` with the validator's
+    first line. Both stages of `--validate` are crossed here, in their order — the structural one
+    (the schema, V12) before the semantic one — because this is the one entry every derivation
+    takes: the command line, the status and artifact tools, the capabilities reader and every
+    generator. A document off the schema has no products, whatever asked for them."""
+    problems = validate_mod.structural(model_path, catalog_mod.DEFAULT_SCHEMAS if schema_dir is None else schema_dir)
+    if problems:
+        raise ValueError(f"not valid, no products: {problems[0]}")
     result = validate_mod.analyse(model_path, cat, assignment)
     if result['errors']:
         raise ValueError(f"not valid, no products: {result['errors'][0]}")
@@ -785,7 +793,7 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
         with open(path, encoding='utf-8') as f:
             document = json.load(f)
         try:
-            cat = catalog_mod.load_for(path, document, catalog_bases, models_base=models_base)
+            cat = catalog_mod.load_for(path, document, catalog_bases, schema_dir, models_base)
         except catalog_mod.CatalogError as e:
             failed += 1
             print(f"  {name:34s} catalog refused: {e}")
@@ -796,7 +804,7 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
             print(f"  {name:34s} skipped: needs --assign for {unset}")
             continue
         try:
-            doc = products(path, cat, assignment)
+            doc = products(path, cat, assignment, schema_dir)
         except (ValueError, KeyError, OSError) as e:
             failed += 1
             print(f"  {name:34s} failed: {e}")

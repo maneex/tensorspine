@@ -12,6 +12,13 @@ Everything reported here is a refusal with its cause, never advice: §8.1 makes
 explicit refusal the normative obligation, and I7 forbids silent defaults. What
 is legal but questionable belongs to `--lint`, which never blocks.
 
+Every command crosses both stages in this order, not `--validate` alone:
+`derive.products` — the one entry of every derivation, taken by `--derive`,
+`--view`, `--document status`, the checkpoint check, the capabilities reader and
+every generator — runs `structural` before `analyse`, and `--lint` analyses no
+document that is off the schema. A document the grammar refuses has no
+products, whatever asked for them.
+
 Coverage of the semantic stage (§6): V1 resolution — catalog bases, contracts,
 templates, occurrences, ports, streams; V2 arguments and defaults; V3 argument
 types and domains (records recursively, defaults applied first, inapplicable

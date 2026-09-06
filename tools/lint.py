@@ -81,12 +81,19 @@ def unreferenced_vocabulary(cat):
     return findings
 
 
-def model_advisories(cat, model_paths):
+def model_advisories(cat, model_paths, schema_dir=None):
     """What the validator noticed but does not refuse: a self-indexed state on
     a fragmented stream that is not carried across fragments — reset at every
-    fragment, which is legal and worth a second look."""
+    fragment, which is legal and worth a second look. The analysis assumes the
+    grammar, so a document off the schema is reported as such and not analysed:
+    `--validate` is where its refusal belongs."""
     findings = []
+    schema_dir = catalog_mod.DEFAULT_SCHEMAS if schema_dir is None else schema_dir
     for path in model_paths:
+        problems = validate_mod.structural(path, schema_dir)
+        if problems:
+            findings.append((os.path.basename(path), f"off the schema, not analysed (--validate refuses it): {problems[0]}"))
+            continue
         with open(path, encoding='utf-8') as f:
             document = json.load(f)
         if missing_assignment(document):
@@ -97,17 +104,18 @@ def model_advisories(cat, model_paths):
     return findings
 
 
-def run(model_paths, catalog_bases, relative_to=None, models_base=None):
+def run(model_paths, catalog_bases, relative_to=None, models_base=None, schema_dir=None):
     """Every rule, over the given models. Always returns 0 — advisory only.
     The catalog is the command line's, else the bases the first model declares."""
+    schema_dir = catalog_mod.DEFAULT_SCHEMAS if schema_dir is None else schema_dir
     if not catalog_bases:
         with open(model_paths[0], encoding='utf-8') as f:
             catalog_bases = catalog_mod.bases_of(model_paths[0], json.load(f))
-    cat = catalog_mod.load(*catalog_bases, models_base=models_base)
+    cat = catalog_mod.load(*catalog_bases, schema_dir=schema_dir, models_base=models_base)
     findings = []
     findings += uncalled_contracts(cat, model_paths)
     findings += unreferenced_vocabulary(cat)
-    findings += model_advisories(cat, model_paths)
+    findings += model_advisories(cat, model_paths, schema_dir)
 
     seen = set()
     for scope, message in findings:

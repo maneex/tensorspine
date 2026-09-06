@@ -15,15 +15,17 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import catalog as catalog_mod   # noqa: E402
 import derive                   # noqa: E402
 
+SCHEMAS = os.path.join(ROOT, 'schemas')
 DTYPES = {'bf16': 'bfloat16', 'f16': 'float16', 'f32': 'float32'}
 
 
 def derive_document(model_path, assignment=None):
-    """D1–D6 of a model document, through the language's own tools."""
+    """D1–D6 of a model document, through the language's own tools: the catalog read against the
+    repository's schemas, the document through both stages of `--validate` (`derive.products`)."""
     with open(model_path, encoding='utf-8') as f:
         model = json.load(f)
-    cat = catalog_mod.load_for(model_path, model)
-    return derive.products(model_path, cat, assignment)
+    cat = catalog_mod.load_for(model_path, model, schema_dir=SCHEMAS)
+    return derive.products(model_path, cat, assignment, schema_dir=SCHEMAS)
 
 
 def load(path, assignment=None):

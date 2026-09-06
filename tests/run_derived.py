@@ -20,6 +20,9 @@ facts known independently.
      stream owns a state carried across its fragments (V18 as a property of the products); the
      counts on Llama, ColBERT, Whisper, Voxtral, Qwen 3.5 4B, DeepSeek and the template; a
      condition over an argument the document leaves unresolved refuses the derivation.
+  5. The grammar before the meaning (the review's I2): a document off the schema — a foreign
+     schema tag, a misspelt occurrence field — has no products; `derive.products` refuses it with
+     `--validate`'s own first line, and `--lint` reports it unanalysed.
 
     python3 tests/run_derived.py
 """
@@ -315,6 +318,33 @@ def main():
     except ValueError as e:
         ok &= check("an across_positions condition over an argument the document leaves unresolved refuses the derivation, naming the argument",
                     'across_positions' in str(e) and "'kernel'" in str(e), str(e)[:200])
+    # the grammar before the meaning (I2): a document off the schema has no products, and the refusal
+    # is --validate's own line — the derivation crosses the structural stage, not the semantic one alone
+    import lint
+    with open(os.path.join(MODELS, 'llama3-8b.json'), encoding='utf-8') as f:
+        source = f.read()
+    llama = json.loads(source)
+    for label, mutate, expect in (
+            ("a foreign schema tag", lambda d: d.__setitem__('schema', 'not-tensorspine/99'), "schema: 'tensorspine/2.0' was expected"),
+            ("a misspelt occurrence field", lambda d: d['occurrences']['embed'].__setitem__('argumants', d['occurrences']['embed'].pop('arguments')),
+             "occurrences/embed: 'arguments' is a required property")):
+        mutated = json.loads(source)
+        mutate(mutated)
+        mutated['catalog'] = [{"base": os.path.join(ROOT, 'data', 'catalog') + os.sep}]
+        path = os.path.join(tmp, f"llama-{label.split()[-1]}.json")
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(mutated, f)
+        line = validate.structural(path, SCHEMAS)
+        ok &= check(f"{label}: --validate refuses it at the structural stage", bool(line) and expect in line[0], str(line[:1]))
+        try:
+            derive.products(path, cat)
+            ok &= check(f"{label}: derive.products refuses it with --validate's line", False, "derived")
+        except ValueError as e:
+            ok &= check(f"{label}: derive.products refuses it with --validate's line",
+                        str(e) == f"not valid, no products: {line[0]}", str(e)[:200])
+        advisories = lint.model_advisories(cat, [path])
+        ok &= check(f"{label}: --lint reports it off the schema and does not analyse it",
+                    len(advisories) == 1 and 'off the schema' in advisories[0][1] and expect in advisories[0][1], str(advisories[:1]))
     print("derived: all good" if ok else "derived: FAILED")
     return 0 if ok else 1
 

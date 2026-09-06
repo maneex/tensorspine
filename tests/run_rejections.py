@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Rejection tests: every case of §10.2 the tools cover must be refused, with
 the code and the reason the manifest names. A case that is accepted, or
-refused for another reason, fails the run.
+refused for another reason, fails the run. Every case the grammar refuses
+(`expect: schema`) is refused a second time through `derive.products`, the
+entry of every derivation: the grammar is crossed before the meaning wherever
+a document is read, not under `--validate` alone (the review's I2).
 
     python3 tests/run_rejections.py            # exit 0 when every case is refused as expected
 """
@@ -14,6 +17,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import catalog as catalog_mod          # noqa: E402
+import derive                          # noqa: E402
 import validate                        # noqa: E402
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
@@ -37,6 +41,15 @@ def model_cases():
                 lines = [l for l in lines if l.startswith(f"[{case['expect']}]")]
         hit = [l for l in lines if case['match'] in l]
         yield case['document'], bool(hit), lines[:3]
+        if case['expect'] == 'schema':
+            # the same document through the derivation: refused before any analysis, with the
+            # structural stage's first line — --validate's own text
+            try:
+                derive.products(path, cat)
+                yield f"{case['document']} through derive.products", False, ["derived: the structural stage was not crossed"]
+            except ValueError as e:
+                yield (f"{case['document']} through derive.products",
+                       str(e) == f"not valid, no products: {lines[0]}", [str(e)])
 
 
 def catalog_cases():

@@ -201,7 +201,7 @@ def dispatch(args, documents, bases, assignment, parser):
     if args.lint:
         import lint
         print(f"lint  {len(documents)} document(s)")
-        return lint.run(documents, bases, relative_to=ROOT)
+        return lint.run(documents, bases, relative_to=ROOT, schema_dir=args.schemas)
 
     if args.d1:
         import d1
