@@ -10,7 +10,7 @@ DTYPES = {'bf16': 'bfloat16', 'f16': 'float16', 'f32': 'float32'}
 def load(path):
     with open(path, encoding='utf-8') as f:
         doc = json.load(f)
-    if doc.get('schema') != 'tensorspine-derived/2.0':
+    if doc.get('schema') != 'tensorspine-derived/2.1':
         raise ValueError(f"{path}: not a derived document; derive it first (tensorspine --derive MODEL -o DIR)")
     return Graph(doc)
 

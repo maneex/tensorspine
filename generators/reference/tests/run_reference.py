@@ -172,6 +172,7 @@ def main(compile_step=False, full=False):
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
     ok &= witness_case(check)
     ok &= moe_random_case(check, tmp)
+    ok &= multiplicity_case(check, tmp)
     ok &= whisper_random_case(check, tmp)
     ok &= voxtral_random_case(check, tmp)
     ok &= sharing_case(check, tmp)
@@ -288,6 +289,40 @@ def sharing_case(check, tmp):
     r1x, _ = x.states[ring1].read(); r1y, _ = y.states[ring1].read()
     ok &= check("sharing: within_span — the same last three tokens give equal rings at layer 0 and different rings at layer 1: a runtime proves the prefix, not the span",
                 torch.equal(r0x['w'], r0y['w']) and not torch.equal(r1x['w'], r1y['w']))
+    return ok
+
+
+def multiplicity_case(check, tmp):
+    """Finding 30: a slot with a multiplicity is stored with a leading storage axis. Three separately
+    named matrices under a `stack` over `multiplicity` and one fused [3, …] tensor load to identical
+    values in the same copy order — through the language's own resolver and the loader's assembly."""
+    from safetensors.torch import save_file
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import catalog as catalog_mod
+    import validate
+    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    slot = cat['contracts']['residual.stream_expand']['parameters']['projection']
+    args = {'width': 2, 'streams': 4}
+    copies = [torch.arange(4, dtype=torch.float32).reshape(2, 2) + 10 * i for i in range(3)]
+    ck = os.path.join(tmp, 'multiplicity')
+    os.makedirs(ck, exist_ok=True)
+    save_file({**{f'p.{i}.weight': copies[i] for i in range(3)}, 'p.weight': torch.stack(copies)},
+              os.path.join(ck, 'model.safetensors'))
+    shape = validate._storage_shape(slot)
+    logical = [3, 2, 2]
+    none = lambda e, env=None: None          # no `{index}` item to evaluate  # noqa: E731
+    stacked, p1 = validate.evaluate_location({'stack': {'axis': 'multiplicity', 'part': {'tensor': ['p.', {'coordinate': 'multiplicity'}, '.weight']}}},
+                                             {}, shape, args, none)
+    fused, p2 = validate.evaluate_location({'tensor': ['p.weight']}, {}, shape, args, none)
+    ok = check("multiplicity: the resolver expands a stack over the storage axis into three parts at dim 0 and takes the fused tensor whole",
+               not p1 and not p2 and stacked['stack']['dim'] == 0 and len(stacked['stack']['parts']) == 3 and fused == {'tensor': 'p.weight'},
+               str(p1[:1] or p2[:1] or stacked))
+    src = loader.Source(None, ck, 'cpu')
+    a, b = src.assemble(stacked, logical), src.assemble(fused, logical)
+    ok &= check("multiplicity: three separately named [2, 2] matrices and one fused [3, 2, 2] tensor load to identical values",
+                list(a.shape) == logical and torch.equal(a, b), f"{list(a.shape)} vs {list(b.shape)}")
+    ok &= check("multiplicity: copy i of the stack is the matrix named i — the copy order is the coordinate",
+                all(torch.equal(a[i], copies[i]) for i in range(3)))
     return ok
 
 
@@ -769,6 +804,8 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     refused = registry.refusals(g, kernels, active)
     ok &= check(f"{label}: every contract the delivery evaluates has a kernel for its arguments", not refused, refused[:2])
     params = loader.load_parameters(g, checkpoint, 'cpu')
+    ok &= check(f"{label}: every loaded parameter has D3's stored shape — the shape random parameters draw (a declared multiplicity leading)",
+                all(list(params[i].shape) == [a['extent'] for a in t['shape']] for i, t in g.tensors.items()))
     model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
     capacity = stream_capacity(g, recorded)
     session = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)

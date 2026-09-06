@@ -30,7 +30,7 @@ def load(path, assignment=None):
     """A `Graph` from a derived document, or from a model document derived here."""
     with open(path, encoding='utf-8') as f:
         doc = json.load(f)
-    if doc.get('schema') == 'tensorspine-derived/2.0':
+    if doc.get('schema') == 'tensorspine-derived/2.1':
         return Graph(doc)
     return Graph(derive_document(path, assignment))
 
