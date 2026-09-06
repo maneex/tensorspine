@@ -140,6 +140,31 @@
       "base": "catalog/reserved-axis-multiplicity",
       "match": "axis name 'multiplicity' is reserved",
       "note": "A parameter slot naming a shape axis `multiplicity`, the name of the storage axis a location resolver addresses (§3.4, finding 30) — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/domain-on-enum",
+      "match": "'enum' is not one of ['cardinality', 'real', 'physical']",
+      "note": "A domain on an enum argument — a domain constrains a number, not an enumeration; the schema admits it only on cardinality, real or physical (C.1)."
+    },
+    {
+      "base": "catalog/invariant-no-description",
+      "match": "'description' is a required property",
+      "note": "A contract invariant without its description — the text V8 prints must be there (schema)."
+    },
+    {
+      "base": "catalog/invariant-undeclared-argument",
+      "match": "tests undeclared argument 'nonexistent'",
+      "note": "An invariant reading an argument the contract does not declare (V8's condition is a contract condition, checked at load like every other)."
+    },
+    {
+      "base": "catalog/invariant-absent-comparison",
+      "match": "compares 'scale', which may be absent, outside a present test",
+      "note": "An invariant comparing an optional argument without a `present` guard — undecidable, refused at load (§4.3), not read as false."
+    },
+    {
+      "base": "catalog/domain-bound-optional-argument",
+      "match": "domain upper bound reads 'scale', which may be absent",
+      "note": "A domain bound naming an argument that may be absent — a bound must always resolve, so it names a required or defaulted argument (§4.6, R06)."
     }
   ]
 }

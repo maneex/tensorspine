@@ -39,7 +39,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`."
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "experts": {
         "type": {
@@ -47,7 +56,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of routed experts."
+        "description": "Number of routed experts.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "top_k": {
         "type": {
@@ -55,7 +73,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Experts activated per token."
+        "description": "Experts activated per token.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "inner": {
         "type": {
@@ -63,7 +90,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Inner width of one routed expert."
+        "description": "Inner width of one routed expert.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "shared": {
         "type": {
@@ -73,6 +109,15 @@
         "structural": true,
         "default": {
           "literal": 0
+        },
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": true
+          }
         },
         "description": "Number of shared experts applied to every token; zero for none."
       },
@@ -112,7 +157,16 @@
         },
         "required": false,
         "structural": false,
-        "description": "Factor applied to the routed experts' combined output; absent, 1."
+        "description": "Factor applied to the routed experts' combined output; absent, 1.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       },
       "scoring": {
         "type": {
@@ -144,6 +198,15 @@
         "default": {
           "argument": "inner"
         },
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        },
         "description": "Inner width of one shared expert."
       },
       "swiglu_limit": {
@@ -152,7 +215,16 @@
         },
         "required": false,
         "structural": false,
-        "description": "Clamp applied to the gate and up activations inside each expert; absent, none."
+        "description": "Clamp applied to the gate and up activations inside each expert; absent, none.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       },
       "shared_output_gate": {
         "type": {
@@ -183,7 +255,16 @@
         "required": false,
         "structural": true,
         "note": "vocabulary of the token to experts table",
-        "description": "Size of a fixed token-to-experts table; present, routing is a table lookup rather than `router`."
+        "description": "Size of a fixed token-to-experts table; present, routing is a table lookup rather than `router`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       }
     },
     "ports": {
@@ -585,6 +666,22 @@
         "output"
       ]
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "less_or_equal",
+            "left": {
+              "argument": "top_k"
+            },
+            "right": {
+              "argument": "experts"
+            }
+          }
+        },
+        "description": "top_k does not exceed the number of experts"
+      }
+    ],
     "partitions": [
       {
         "target": {

@@ -13,7 +13,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of both operands."
+        "description": "Feature width of both operands.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       }
     },
     "ports": {

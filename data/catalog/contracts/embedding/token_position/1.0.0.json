@@ -21,7 +21,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the embedding."
+        "description": "Feature width of the embedding.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "vocabulary": {
         "type": {
@@ -29,7 +38,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of token identifiers."
+        "description": "Number of token identifiers.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "positions": {
         "type": {
@@ -37,7 +55,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of positions the table covers: the maximum sequence length."
+        "description": "Number of positions the table covers: the maximum sequence length.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       }
     },
     "ports": {

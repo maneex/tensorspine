@@ -21,7 +21,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the hidden state."
+        "description": "Feature width of the hidden state.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "project_to": {
         "type": {
@@ -29,7 +38,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the embedding."
+        "description": "Feature width of the embedding.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "normalize": {
         "type": {

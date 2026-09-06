@@ -21,7 +21,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`."
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "condition_width": {
         "type": {
@@ -29,7 +38,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Width of the condition vector."
+        "description": "Width of the condition vector.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "rank": {
         "type": {
@@ -37,7 +55,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Rank of the condition path: `in` projects the condition to `rank`, `out` projects it back to `width`."
+        "description": "Rank of the condition path: `in` projects the condition to `rank`, `out` projects it back to `width`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "activation": {
         "type": {
@@ -253,6 +280,36 @@
         "output"
       ]
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "less_or_equal",
+            "left": {
+              "argument": "rank"
+            },
+            "right": {
+              "argument": "width"
+            }
+          }
+        },
+        "description": "the rank does not exceed the width"
+      },
+      {
+        "holds": {
+          "compare": {
+            "operator": "less_or_equal",
+            "left": {
+              "argument": "rank"
+            },
+            "right": {
+              "argument": "condition_width"
+            }
+          }
+        },
+        "description": "the rank does not exceed the condition width"
+      }
+    ],
     "logical_cost": [
       {
         "expression": {

@@ -13,7 +13,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of both inputs and of the output."
+        "description": "Feature width of both inputs and of the output.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       }
     },
     "ports": {

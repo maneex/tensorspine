@@ -21,7 +21,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Channels of the embedding: `width / 2` frequencies, each a cosine and a sine."
+        "description": "Channels of the embedding: `width / 2` frequencies, each a cosine and a sine.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "theta": {
         "type": {
@@ -29,7 +38,16 @@
         },
         "required": true,
         "structural": false,
-        "description": "Base of the frequencies: `f_i = theta^(−i / (width / 2))`. Changes the computation, no tensor; required, since the value the weights were trained against is not a default."
+        "description": "Base of the frequencies: `f_i = theta^(−i / (width / 2))`. Changes the computation, no tensor; required, since the value the weights were trained against is not a default.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       }
     },
     "ports": {
@@ -84,6 +102,30 @@
         "embedding"
       ]
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "op": "modulo",
+              "args": [
+                {
+                  "argument": "width"
+                },
+                {
+                  "literal": 2
+                }
+              ]
+            },
+            "right": {
+              "literal": 0
+            }
+          }
+        },
+        "description": "the width is even"
+      }
+    ],
     "logical_cost": [
       {
         "expression": {

@@ -48,7 +48,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`: the residual stream dimension."
+        "description": "Feature width of `input` and `output`: the residual stream dimension.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "heads": {
         "type": {
@@ -56,7 +65,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of query heads."
+        "description": "Number of query heads.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "head_dim": {
         "type": {
@@ -64,7 +82,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Dimension of one head; queries, keys and values share it."
+        "description": "Dimension of one head; queries, keys and values share it.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "kv_heads": {
         "type": {
@@ -75,6 +102,21 @@
         "default": {
           "argument": "heads"
         },
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          },
+          "upper": {
+            "value": {
+              "argument": "heads"
+            },
+            "inclusive": true
+          }
+        },
         "note": "without GQA, as many KV heads as Q heads: a fact of the primitive, hence a contract default",
         "description": "Number of key/value heads. Fewer than `heads` is grouped-query attention; one is multi-query attention."
       },
@@ -84,7 +126,16 @@
         },
         "required": false,
         "structural": false,
-        "description": "Factor applied to the query·key scores; absent, head_dim⁻½ — the standard dot-product scale. Gemma 3n scores with 1 (its queries and keys are normalized); Gemma 3 with `query_pre_attn_scalar`⁻½."
+        "description": "Factor applied to the query·key scores; absent, head_dim⁻½ — the standard dot-product scale. Gemma 3n scores with 1 (its queries and keys are normalized); Gemma 3 with `query_pre_attn_scalar`⁻½.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       },
       "mask": {
         "type": {
@@ -115,7 +166,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Window span, in tokens."
+              "description": "Window span, in tokens.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             }
           }
         },
@@ -124,12 +184,12 @@
         "description": "Sliding window: a query attends to at most `span` preceding positions, and the cache becomes a ring of that span. Inapplicable with `mask: chunked`, whose span is `chunk.span`.",
         "present_when": {
           "compare": {
-            "operator": "not_equal",
+            "operator": "equal",
             "left": {
               "argument": "mask"
             },
             "right": {
-              "literal": "chunked"
+              "literal": "causal"
             }
           }
         }
@@ -145,7 +205,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Chunk span, in tokens: a query attends within its own chunk of `span` positions."
+              "description": "Chunk span, in tokens: a query attends within its own chunk of `span` positions.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             }
           }
         },
@@ -216,7 +285,16 @@
               },
               "required": true,
               "structural": false,
-              "description": "Base of the rotary frequencies."
+              "description": "Base of the rotary frequencies.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 0
+                  },
+                  "inclusive": false
+                }
+              }
             },
             "layout": {
               "type": {
@@ -245,7 +323,22 @@
               },
               "required": false,
               "structural": false,
-              "description": "Fraction of `head_dim` that is rotated; the rest is left as is. The rotated channels are the first `partial * head_dim` of each head, and their base frequencies are computed on that width, not on `head_dim`. Absent, the whole head is rotated."
+              "description": "Fraction of `head_dim` that is rotated; the rest is left as is. The rotated channels are the first `partial * head_dim` of each head, and their base frequencies are computed on that width, not on `head_dim`. Absent, the whole head is rotated.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 0
+                  },
+                  "inclusive": false
+                },
+                "upper": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "mrope": {
               "type": {
@@ -257,7 +350,16 @@
                     },
                     "required": true,
                     "structural": false,
-                    "description": "Channels of the temporal section."
+                    "description": "Channels of the temporal section.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 1
+                        },
+                        "inclusive": true
+                      }
+                    }
                   },
                   "h": {
                     "type": {
@@ -265,7 +367,16 @@
                     },
                     "required": true,
                     "structural": false,
-                    "description": "Channels of the height section."
+                    "description": "Channels of the height section.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 1
+                        },
+                        "inclusive": true
+                      }
+                    }
                   },
                   "w": {
                     "type": {
@@ -273,7 +384,16 @@
                     },
                     "required": true,
                     "structural": false,
-                    "description": "Channels of the width section."
+                    "description": "Channels of the width section.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 1
+                        },
+                        "inclusive": true
+                      }
+                    }
                   },
                   "sections": {
                     "type": {
@@ -325,7 +445,16 @@
                     },
                     "required": true,
                     "structural": false,
-                    "description": "Ratio between the served context and `orig_ctx`."
+                    "description": "Ratio between the served context and `orig_ctx`.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "orig_ctx": {
                     "type": {
@@ -333,7 +462,16 @@
                     },
                     "required": true,
                     "structural": false,
-                    "description": "Context length the frequencies were trained at."
+                    "description": "Context length the frequencies were trained at.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 1
+                        },
+                        "inclusive": true
+                      }
+                    }
                   },
                   "beta_fast": {
                     "type": {
@@ -352,7 +490,16 @@
                         }
                       }
                     },
-                    "description": "YaRN: number of rotations above which a frequency is left unscaled."
+                    "description": "YaRN: number of rotations above which a frequency is left unscaled.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "beta_slow": {
                     "type": {
@@ -371,7 +518,16 @@
                         }
                       }
                     },
-                    "description": "YaRN: number of rotations below which a frequency is fully interpolated."
+                    "description": "YaRN: number of rotations below which a frequency is fully interpolated.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "attention_factor": {
                     "type": {
@@ -390,7 +546,16 @@
                         }
                       }
                     },
-                    "description": "YaRN: the factor multiplying the rotated queries and keys — the paper's 0.1·ln(factor) + 1 unless the checkpoint defines otherwise (Ministral 3: 1)."
+                    "description": "YaRN: the factor multiplying the rotated queries and keys — the paper's 0.1·ln(factor) + 1 unless the checkpoint defines otherwise (Ministral 3: 1).",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "low": {
                     "type": {
@@ -409,7 +574,16 @@
                         }
                       }
                     },
-                    "description": "Llama 3: low-frequency factor."
+                    "description": "Llama 3: low-frequency factor.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": true
+                      }
+                    }
                   },
                   "high": {
                     "type": {
@@ -428,7 +602,16 @@
                         }
                       }
                     },
-                    "description": "Llama 3: high-frequency factor."
+                    "description": "Llama 3: high-frequency factor.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": true
+                      }
+                    }
                   }
                 }
               },
@@ -468,7 +651,16 @@
               },
               "required": true,
               "structural": false,
-              "description": "Added to the mean square (`rms`) or the variance (`layer`) before the root; changes no tensor."
+              "description": "Added to the mean square (`rms`) or the variance (`layer`) before the root; changes no tensor.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 0
+                  },
+                  "inclusive": false
+                }
+              }
             },
             "values": {
               "type": {
@@ -519,7 +711,16 @@
               },
               "required": true,
               "structural": false,
-              "description": "Positions per temperature step: the scale grows once per `floor` positions."
+              "description": "Positions per temperature step: the scale grows once per `floor` positions.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "scale": {
               "type": {
@@ -527,7 +728,16 @@
               },
               "required": true,
               "structural": false,
-              "description": "Growth of the logit scale per step."
+              "description": "Growth of the logit scale per step.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 0
+                  },
+                  "inclusive": false
+                }
+              }
             }
           }
         },
@@ -1647,6 +1857,86 @@
         "description": "every query reads the keys and values of earlier positions of its stream"
       }
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "op": "modulo",
+              "args": [
+                {
+                  "argument": "heads"
+                },
+                {
+                  "argument": "kv_heads"
+                }
+              ]
+            },
+            "right": {
+              "literal": 0
+            }
+          }
+        },
+        "description": "heads is a multiple of kv_heads"
+      },
+      {
+        "holds": {
+          "any": [
+            {
+              "not": {
+                "present": "rope.scaling.beta_slow"
+              }
+            },
+            {
+              "not": {
+                "present": "rope.scaling.beta_fast"
+              }
+            },
+            {
+              "compare": {
+                "operator": "less_or_equal",
+                "left": {
+                  "argument": "rope.scaling.beta_slow"
+                },
+                "right": {
+                  "argument": "rope.scaling.beta_fast"
+                }
+              }
+            }
+          ]
+        },
+        "description": "under yarn scaling, beta_slow does not exceed beta_fast"
+      },
+      {
+        "holds": {
+          "any": [
+            {
+              "not": {
+                "present": "rope.scaling.low"
+              }
+            },
+            {
+              "not": {
+                "present": "rope.scaling.high"
+              }
+            },
+            {
+              "compare": {
+                "operator": "less_or_equal",
+                "left": {
+                  "argument": "rope.scaling.low"
+                },
+                "right": {
+                  "argument": "rope.scaling.high"
+                }
+              }
+            }
+          ]
+        },
+        "description": "under llama3 scaling, the correction range low does not exceed high"
+      }
+    ],
     "partitions": [
       {
         "target": {

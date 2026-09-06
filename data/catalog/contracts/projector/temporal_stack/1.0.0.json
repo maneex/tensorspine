@@ -24,7 +24,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the language model."
+        "description": "Feature width of the language model.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "source_width": {
         "type": {
@@ -32,7 +41,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the audio encoder."
+        "description": "Feature width of the audio encoder.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "merge_count": {
         "type": {
@@ -40,7 +58,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Frames stacked into one token."
+        "description": "Frames stacked into one token.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "activation": {
         "type": {

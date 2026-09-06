@@ -24,7 +24,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`."
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "key_heads": {
         "type": {
@@ -32,7 +41,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of query/key heads."
+        "description": "Number of query/key heads.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "value_heads": {
         "type": {
@@ -40,7 +58,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of value heads, and of recurrent state matrices."
+        "description": "Number of value heads, and of recurrent state matrices.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "head_dim": {
         "type": {
@@ -48,7 +75,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Dimension of one head; the state matrix of a value head is `head_dim × head_dim`."
+        "description": "Dimension of one head; the state matrix of a value head is `head_dim × head_dim`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "out_gate": {
         "type": {
@@ -83,7 +119,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Channels of the convolution: the projected query, key and value width."
+              "description": "Channels of the convolution: the projected query, key and value width.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "kernel": {
               "type": {
@@ -91,7 +136,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Kernel support, in positions."
+              "description": "Kernel support, in positions.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "history": {
               "type": {
@@ -99,7 +153,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Positions of history the `conv` state keeps between invocations."
+              "description": "Positions of history the `conv` state keeps between invocations.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             }
           }
         },
@@ -567,6 +630,61 @@
         "description": "the recurrence carries every earlier position into the state, and the convolution reads `conv.history` earlier inputs"
       }
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "op": "modulo",
+              "args": [
+                {
+                  "argument": "value_heads"
+                },
+                {
+                  "argument": "key_heads"
+                }
+              ]
+            },
+            "right": {
+              "literal": 0
+            }
+          }
+        },
+        "description": "value_heads is a multiple of key_heads"
+      },
+      {
+        "holds": {
+          "any": [
+            {
+              "not": {
+                "present": "conv"
+              }
+            },
+            {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "argument": "conv.history"
+                },
+                "right": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "argument": "conv.kernel"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "description": "the convolution history holds at least kernel minus one frames"
+      }
+    ],
     "partitions": [
       {
         "target": {

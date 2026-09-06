@@ -30,7 +30,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the vision tower."
+        "description": "Feature width of the vision tower.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "patch": {
         "type": {
@@ -38,7 +47,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Spatial patch side, in pixels."
+        "description": "Spatial patch side, in pixels.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "channels": {
         "type": {
@@ -46,7 +64,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Image channels."
+        "description": "Image channels.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "temporal_patch": {
         "type": {
@@ -57,6 +84,15 @@
         "default": {
           "literal": 1
         },
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        },
         "description": "Frames per patch, for video; one for images."
       },
       "pos": {
@@ -65,7 +101,16 @@
         },
         "required": false,
         "structural": true,
-        "description": "Number of learned patch positions; absent when positions are rotary or computed."
+        "description": "Number of learned patch positions; absent when positions are rotary or computed.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "bias": {
         "type": {

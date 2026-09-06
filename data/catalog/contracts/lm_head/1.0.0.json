@@ -21,7 +21,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the hidden state."
+        "description": "Feature width of the hidden state.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "vocabulary": {
         "type": {
@@ -29,7 +38,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of vocabulary entries."
+        "description": "Number of vocabulary entries.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "softcap": {
         "type": {
@@ -37,7 +55,16 @@
         },
         "required": false,
         "structural": false,
-        "description": "Logit soft-capping: `tanh(logits / softcap) · softcap`; absent, none. Gemma 2 and 3n: 30."
+        "description": "Logit soft-capping: `tanh(logits / softcap) · softcap`; absent, none. Gemma 2 and 3n: 30.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       }
     },
     "ports": {

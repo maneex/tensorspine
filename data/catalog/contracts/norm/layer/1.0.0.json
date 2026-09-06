@@ -20,7 +20,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width normalized over."
+        "description": "Feature width normalized over.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "eps": {
         "type": {
@@ -28,7 +37,16 @@
         },
         "required": true,
         "structural": false,
-        "description": "Added to the variance before the root; changes no tensor."
+        "description": "Added to the variance before the root; changes no tensor.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       }
     },
     "ports": {

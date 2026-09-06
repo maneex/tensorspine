@@ -13,7 +13,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of layers in the input."
+        "description": "Number of layers in the input.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "width": {
         "type": {
@@ -21,7 +30,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Width of one slice."
+        "description": "Width of one slice.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "layer": {
         "type": {
@@ -101,6 +119,22 @@
         "output"
       ]
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "less",
+            "left": {
+              "argument": "layer"
+            },
+            "right": {
+              "argument": "layers"
+            }
+          }
+        },
+        "description": "the selected layer is within the model's layers"
+      }
+    ],
     "partitions": [
       {
         "target": {

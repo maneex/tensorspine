@@ -16,7 +16,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the language model."
+        "description": "Feature width of the language model.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "source_width": {
         "type": {
@@ -24,7 +33,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the vision tower."
+        "description": "Feature width of the vision tower.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "merge_count": {
         "type": {
@@ -32,7 +50,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Patches merged into one token."
+        "description": "Patches merged into one token.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       }
     },
     "ports": {

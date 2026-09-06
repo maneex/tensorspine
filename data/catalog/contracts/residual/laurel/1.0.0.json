@@ -20,7 +20,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`."
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "rank": {
         "type": {
@@ -28,7 +37,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Rank of the low-rank pair."
+        "description": "Rank of the low-rank pair.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "eps": {
         "type": {
@@ -36,7 +54,16 @@
         },
         "required": true,
         "structural": false,
-        "description": "Epsilon of the normalization; changes no tensor."
+        "description": "Epsilon of the normalization; changes no tensor.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       }
     },
     "ports": {
@@ -174,6 +201,22 @@
         "output"
       ]
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "less_or_equal",
+            "left": {
+              "argument": "rank"
+            },
+            "right": {
+              "argument": "width"
+            }
+          }
+        },
+        "description": "the rank does not exceed the width"
+      }
+    ],
     "partitions": [
       {
         "target": {

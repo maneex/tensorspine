@@ -16,7 +16,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the token stream."
+        "description": "Feature width of the token stream.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       }
     },
     "ports": {

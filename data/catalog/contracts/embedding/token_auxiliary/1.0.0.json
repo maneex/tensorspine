@@ -13,7 +13,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the main embedding."
+        "description": "Feature width of the main embedding.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "vocabulary": {
         "type": {
@@ -21,7 +30,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of token identifiers."
+        "description": "Number of token identifiers.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "layers": {
         "type": {
@@ -29,7 +47,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of layers receiving an auxiliary vector."
+        "description": "Number of layers receiving an auxiliary vector.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "per_layer_width": {
         "type": {
@@ -37,7 +64,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Width of one auxiliary vector."
+        "description": "Width of one auxiliary vector.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "per_layer_vocabulary": {
         "type": {
@@ -45,7 +81,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Size of the per-layer table's vocabulary."
+        "description": "Size of the per-layer table's vocabulary.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "eps": {
         "type": {
@@ -53,7 +98,16 @@
         },
         "required": true,
         "structural": false,
-        "description": "Epsilon of `per_layer_projection_norm`."
+        "description": "Epsilon of `per_layer_projection_norm`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       }
     },
     "ports": {

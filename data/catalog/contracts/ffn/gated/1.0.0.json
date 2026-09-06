@@ -21,7 +21,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`."
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "inner": {
         "type": {
@@ -29,7 +38,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Inner width: the size of the gate and up outputs."
+        "description": "Inner width: the size of the gate and up outputs.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "activation": {
         "type": {
@@ -81,7 +99,22 @@
         "required": false,
         "structural": false,
         "description": "Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none. The selection is a Gaussian top-k on the gate projection before the activation: per element, `cutoff = mean + std · Φ⁻¹(fraction)` over the inner axis (the standard deviation biased), then `relu(gate − cutoff)`.",
-        "note": "structural fraction of activations zeroed after selection"
+        "note": "structural fraction of activations zeroed after selection",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": true
+          },
+          "upper": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       }
     },
     "ports": {

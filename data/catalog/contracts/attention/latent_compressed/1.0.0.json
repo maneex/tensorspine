@@ -24,7 +24,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`."
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "heads": {
         "type": {
@@ -32,7 +41,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of query heads; every head reads the same latent."
+        "description": "Number of query heads; every head reads the same latent.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "head_dim": {
         "type": {
@@ -40,7 +58,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Dimension of one head and of the cached latent."
+        "description": "Dimension of one head and of the cached latent.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "q_rank": {
         "type": {
@@ -48,7 +75,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Rank of the query bottleneck: `q_a` projects to it, `q_b` expands it to the heads."
+        "description": "Rank of the query bottleneck: `q_a` projects to it, `q_b` expands it to the heads.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "o_groups": {
         "type": {
@@ -56,7 +92,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Number of groups of the low-rank output projection; each group covers `heads*head_dim / o_groups` channels."
+        "description": "Number of groups of the low-rank output projection; each group covers `heads*head_dim / o_groups` channels.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "o_rank": {
         "type": {
@@ -64,7 +109,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Rank of one output group."
+        "description": "Rank of one output group.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "mask": {
         "type": {
@@ -95,7 +149,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Window span, in tokens."
+              "description": "Window span, in tokens.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             }
           }
         },
@@ -113,7 +176,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Positions folded into one cached latent; also the stride at which the caches grow."
+              "description": "Positions folded into one cached latent; also the stride at which the caches grow.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "overlap": {
               "type": {
@@ -139,7 +211,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Dimension of one index head and of a cached index key."
+              "description": "Dimension of one index head and of a cached index key.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "heads": {
               "type": {
@@ -147,7 +228,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Number of index heads."
+              "description": "Number of index heads.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "topk": {
               "type": {
@@ -155,7 +245,16 @@
               },
               "required": true,
               "structural": true,
-              "description": "Positions the index keeps per query."
+              "description": "Positions the index keeps per query.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "overlap": {
               "type": {
@@ -181,7 +280,16 @@
               },
               "required": true,
               "structural": false,
-              "description": "Base of the rotary frequencies of the decoupled key."
+              "description": "Base of the rotary frequencies of the decoupled key.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 0
+                  },
+                  "inclusive": false
+                }
+              }
             },
             "compress_theta": {
               "type": {
@@ -189,7 +297,16 @@
               },
               "required": false,
               "structural": false,
-              "description": "Base of the rotary frequencies applied inside the compressor; absent, `theta`."
+              "description": "Base of the rotary frequencies applied inside the compressor; absent, `theta`.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 0
+                  },
+                  "inclusive": false
+                }
+              }
             },
             "partial_dims": {
               "type": {
@@ -197,7 +314,16 @@
               },
               "required": false,
               "structural": false,
-              "description": "Channels of `head_dim` that carry the decoupled rotary key; absent, the whole head is rotated."
+              "description": "Channels of `head_dim` that carry the decoupled rotary key; absent, the whole head is rotated.",
+              "domain": {
+                "kind": "interval",
+                "lower": {
+                  "value": {
+                    "literal": 1
+                  },
+                  "inclusive": true
+                }
+              }
             },
             "scaling": {
               "type": {
@@ -227,7 +353,16 @@
                     },
                     "required": true,
                     "structural": false,
-                    "description": "Ratio between the served context and `orig_ctx`."
+                    "description": "Ratio between the served context and `orig_ctx`.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "orig_ctx": {
                     "type": {
@@ -235,7 +370,16 @@
                     },
                     "required": true,
                     "structural": false,
-                    "description": "Context length the frequencies were trained at."
+                    "description": "Context length the frequencies were trained at.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 1
+                        },
+                        "inclusive": true
+                      }
+                    }
                   },
                   "beta_fast": {
                     "type": {
@@ -254,7 +398,16 @@
                         }
                       }
                     },
-                    "description": "YaRN: number of rotations above which a frequency is left unscaled."
+                    "description": "YaRN: number of rotations above which a frequency is left unscaled.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "beta_slow": {
                     "type": {
@@ -273,7 +426,16 @@
                         }
                       }
                     },
-                    "description": "YaRN: number of rotations below which a frequency is fully interpolated."
+                    "description": "YaRN: number of rotations below which a frequency is fully interpolated.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "attention_factor": {
                     "type": {
@@ -292,7 +454,16 @@
                         }
                       }
                     },
-                    "description": "YaRN: the factor multiplying the rotated queries and keys — the paper's 0.1·ln(factor) + 1 unless the checkpoint defines otherwise (Ministral 3: 1)."
+                    "description": "YaRN: the factor multiplying the rotated queries and keys — the paper's 0.1·ln(factor) + 1 unless the checkpoint defines otherwise (Ministral 3: 1).",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": false
+                      }
+                    }
                   },
                   "low": {
                     "type": {
@@ -311,7 +482,16 @@
                         }
                       }
                     },
-                    "description": "Llama 3: low-frequency factor."
+                    "description": "Llama 3: low-frequency factor.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": true
+                      }
+                    }
                   },
                   "high": {
                     "type": {
@@ -330,7 +510,16 @@
                         }
                       }
                     },
-                    "description": "Llama 3: high-frequency factor."
+                    "description": "Llama 3: high-frequency factor.",
+                    "domain": {
+                      "kind": "interval",
+                      "lower": {
+                        "value": {
+                          "literal": 0
+                        },
+                        "inclusive": true
+                      }
+                    }
                   }
                 }
               },
@@ -1262,6 +1451,120 @@
         "description": "every query reads the cached latents of earlier positions"
       }
     },
+    "invariants": [
+      {
+        "holds": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "op": "modulo",
+              "args": [
+                {
+                  "op": "multiply",
+                  "args": [
+                    {
+                      "argument": "heads"
+                    },
+                    {
+                      "argument": "head_dim"
+                    }
+                  ]
+                },
+                {
+                  "argument": "o_groups"
+                }
+              ]
+            },
+            "right": {
+              "literal": 0
+            }
+          }
+        },
+        "description": "heads times head_dim is a multiple of o_groups"
+      },
+      {
+        "holds": {
+          "compare": {
+            "operator": "less",
+            "left": {
+              "argument": "compress.overlap"
+            },
+            "right": {
+              "argument": "compress.ratio"
+            }
+          }
+        },
+        "description": "the compression overlap is less than the ratio"
+      },
+      {
+        "holds": {
+          "any": [
+            {
+              "not": {
+                "present": "index"
+              }
+            },
+            {
+              "compare": {
+                "operator": "less",
+                "left": {
+                  "argument": "index.overlap"
+                },
+                "right": {
+                  "argument": "compress.ratio"
+                }
+              }
+            }
+          ]
+        },
+        "description": "the index overlap is less than the compression ratio"
+      },
+      {
+        "holds": {
+          "any": [
+            {
+              "not": {
+                "present": "rope.partial_dims"
+              }
+            },
+            {
+              "compare": {
+                "operator": "less_or_equal",
+                "left": {
+                  "argument": "rope.partial_dims"
+                },
+                "right": {
+                  "argument": "head_dim"
+                }
+              }
+            }
+          ]
+        },
+        "description": "the partial rope dimensions do not exceed head_dim"
+      },
+      {
+        "holds": {
+          "compare": {
+            "operator": "less_or_equal",
+            "left": {
+              "argument": "q_rank"
+            },
+            "right": {
+              "op": "multiply",
+              "args": [
+                {
+                  "argument": "heads"
+                },
+                {
+                  "argument": "head_dim"
+                }
+              ]
+            }
+          }
+        },
+        "description": "the query rank does not exceed heads times head_dim"
+      }
+    ],
     "partitions": [
       {
         "target": {

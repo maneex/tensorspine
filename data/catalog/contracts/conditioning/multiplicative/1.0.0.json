@@ -13,7 +13,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of `input` and `output`."
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "condition_width": {
         "type": {
@@ -21,7 +30,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Width of the conditioning vector."
+        "description": "Width of the conditioning vector.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "eps": {
         "type": {
@@ -29,7 +47,16 @@
         },
         "required": true,
         "structural": false,
-        "description": "Epsilon of the normalization; changes no tensor."
+        "description": "Epsilon of the normalization; changes no tensor.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
       },
       "activation": {
         "type": {

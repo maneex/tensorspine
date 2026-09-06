@@ -390,16 +390,58 @@
       "note": "A shared identity nobody writes: layer 18 made a reader too (V20). Cut from gemma3n-kvshare."
     },
     {
-      "document": "models/v7-zero-copies.json",
-      "expect": "V7",
-      "match": "declares a multiplicity that resolves to 0",
-      "note": "A present slot with zero copies: one residual stream leaves `streams − 1 = 0` projections — a positive integer number of copies is required, none is `present_when` (§3.4, finding 30). Cut from gemma3n-kvshare."
+      "document": "models/v3-streams-below-two.json",
+      "expect": "V3",
+      "match": "argument 'streams' = 1 is below the domain bound 2",
+      "note": "A residual stream expansion with a single stream: `streams` is refused by its domain (>= 2) at V3, which subsumes the zero-copies check (a multiplicity of `streams - 1 = 0`); the V7 zero-copies refusal stays as defence for any future unguarded multiplicity (finding 30). Cut from gemma3n-kvshare."
     },
     {
       "document": "models/v15-multiplicity-mismatch.json",
       "expect": "V15",
       "match": "storage.multiplicity",
       "note": "Two projection slots of equal per-copy shape [2048, 2048] tied with different counts (3 and 2): the storage shape is what V15 compares (finding 30). Cut from gemma3n-kvshare."
+    },
+    {
+      "document": "models/v3-span-zero.json",
+      "expect": "V3",
+      "match": "argument 'window.span' = 0 is below the domain bound 1",
+      "note": "A sliding window of zero tokens: the span's domain is >= 1 (V3)."
+    },
+    {
+      "document": "models/v3-span-fractional.json",
+      "expect": "V3",
+      "match": "argument 'window.span' = 2.5 is not a whole number of tokens",
+      "note": "A physical value in tokens is a whole number; only seconds is real (V3, R07)."
+    },
+    {
+      "document": "models/v3-kv-heads-zero.json",
+      "expect": "V3",
+      "match": "argument 'kv_heads' = 0 is below the domain bound 1",
+      "note": "Zero key/value heads: kv_heads has domain [1, heads] (V3)."
+    },
+    {
+      "document": "models/v3-window-with-none.json",
+      "expect": "V3",
+      "match": "argument 'window' is present but inapplicable",
+      "note": "A sliding window with mask `none`: a window reading is causal, so window is applicable only when mask is causal (present_when, I11); present-but-inapplicable is refused, not ignored (I2)."
+    },
+    {
+      "document": "models/v8-kv-heads-non-divisor.json",
+      "expect": "V8",
+      "match": "'heads is a multiple of kv_heads' does not hold",
+      "note": "32 heads with 3 kv_heads: the grouped-query relation is an invariant (V8) — the review's headline case."
+    },
+    {
+      "document": "models/v3-eps-zero.json",
+      "expect": "V3",
+      "match": "argument 'eps' = 0 is below the domain bound 0 (exclusive)",
+      "note": "A normalisation epsilon of zero: eps has domain > 0 (V3)."
+    },
+    {
+      "document": "models/v8-top-k-above-experts.json",
+      "expect": "V8",
+      "match": "'top_k does not exceed the number of experts' does not hold",
+      "note": "A mixture routing to more experts than exist: top_k <= experts is an invariant (V8)."
     }
   ]
 }

@@ -24,7 +24,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Feature width of the encoder."
+        "description": "Feature width of the encoder.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "mels": {
         "type": {
@@ -32,7 +41,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Mel bins per frame."
+        "description": "Mel bins per frame.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "stride": {
         "type": {
@@ -40,7 +58,16 @@
         },
         "required": true,
         "structural": true,
-        "description": "Stride of the second convolution: input frames per output position."
+        "description": "Stride of the second convolution: input frames per output position.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "kernel": {
         "type": {
@@ -50,6 +77,15 @@
         "structural": true,
         "default": {
           "literal": 3
+        },
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
         },
         "description": "Kernel support of both convolutions, in frames."
       },
@@ -71,7 +107,16 @@
         "required": false,
         "structural": true,
         "note": "number of learned positions; absent for RoPE",
-        "description": "Number of learned positions; absent when positions are rotary."
+        "description": "Number of learned positions; absent when positions are rotary.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
       },
       "causal": {
         "type": {
