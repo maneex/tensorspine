@@ -135,6 +135,11 @@
       "base": "catalog/partition-granularity-undeclared",
       "match": "partition 0: granularity reads undeclared argument 'groupz'",
       "note": "A partition's granularity is an expression over the contract's arguments, like a span: one over an undeclared argument is refused at load — the fixture unit is version 1.0.1, a new identity beside the reference's."
+    },
+    {
+      "base": "catalog/reserved-axis-multiplicity",
+      "match": "axis name 'multiplicity' is reserved",
+      "note": "A parameter slot naming a shape axis `multiplicity`, the name of the storage axis a location resolver addresses (§3.4, finding 30) — the fixture unit is version 1.0.1, a new identity beside the reference's."
     }
   ]
 }

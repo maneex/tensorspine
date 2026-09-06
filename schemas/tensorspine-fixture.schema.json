@@ -136,7 +136,7 @@
         "arguments": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "https://tensorspine.dev/schema/2.0/derived.json#/$defs/argument_value"
+            "$ref": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/argument_value"
           },
           "description": "The occurrence's resolved arguments, declared defaults applied — D1's, for the one occurrence of `document`."
         },

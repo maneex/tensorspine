@@ -1441,7 +1441,8 @@
         "space": {
           "enum": [
             "value",
-            "instance"
+            "instance",
+                                                                "storage"
           ]
         },
         "summary": {

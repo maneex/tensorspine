@@ -1,0 +1,2057 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "v15-multiplicity-mismatch",
+  "catalog": [
+    {
+      "base": "../catalog/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 2048
+      }
+    },
+    "heads": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "kv_heads": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 2
+      }
+    },
+    "hd": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 256,
+        "derivation": {
+          "op": "floor_divide",
+          "args": [
+            {
+              "quantity": "d"
+            },
+            {
+              "quantity": "heads"
+            }
+          ]
+        }
+      }
+    },
+    "ffn": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8192
+      }
+    },
+    "vocab": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 262400
+      }
+    },
+    "eps": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-06
+      }
+    },
+    "precision": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    },
+    "layers": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 30
+      }
+    },
+    "altup_inputs": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 4
+      }
+    },
+    "per_layer_width": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 256
+      }
+    },
+    "per_layer_vocab": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 262144
+      }
+    },
+    "laurel_rank": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 64
+      }
+    },
+    "window": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 512
+      }
+    }
+  },
+  "constants": {},
+  "occurrences": {
+    "embed": {
+      "contract": {
+        "name": "embedding.token_auxiliary",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        },
+        "layers": {
+          "quantity": "layers"
+        },
+        "per_layer_width": {
+          "quantity": "per_layer_width"
+        },
+        "per_layer_vocabulary": {
+          "quantity": "per_layer_vocab"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "input",
+        "embedding"
+      ]
+    },
+    "expand": {
+      "contract": {
+        "name": "residual.stream_expand",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "streams": {
+          "quantity": "altup_inputs"
+        }
+      },
+      "families": [
+        "input",
+        "altup"
+      ]
+    },
+    "unembed": {
+      "contract": {
+        "name": "residual.stream_collapse",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "streams": {
+          "literal": 3
+        }
+      },
+      "families": [
+        "decoder",
+        "altup"
+      ]
+    },
+    "final_n": {
+      "contract": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "output",
+        "normalization"
+      ]
+    },
+    "lm_head": {
+      "contract": {
+        "name": "lm_head",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "vocabulary": {
+          "quantity": "vocab"
+        },
+        "softcap": {
+          "literal": 30
+        }
+      },
+      "families": [
+        "output"
+      ]
+    }
+  },
+  "compositions": {
+    "decoder": {
+      "indices": {
+        "layer": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "literal": 30
+          },
+          "step": {
+            "literal": 1
+          }
+        }
+      },
+      "families": [
+        "decoder",
+        "altup"
+      ],
+      "occurrences": {
+        "predict": {
+          "contract": {
+            "name": "residual.altup_predict",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "streams": {
+              "quantity": "altup_inputs"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "decoder",
+            "altup"
+          ]
+        },
+        "input_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "decoder",
+            "normalization"
+          ]
+        },
+        "laurel": {
+          "contract": {
+            "name": "residual.laurel",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "rank": {
+              "quantity": "laurel_rank"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "decoder",
+            "residual"
+          ]
+        },
+        "attn": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "causal"
+            },
+            "qk_norm": {
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                },
+                "eps": {
+                  "quantity": "eps"
+                },
+                "scale": {
+                  "record": {}
+                },
+                "values": {
+                  "literal": true
+                }
+              }
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 10000
+                }
+              }
+            },
+            "window": {
+              "record": {
+                "span": {
+                  "quantity": "window"
+                }
+              }
+            },
+            "kv_source": {
+              "if": {
+                "compare": {
+                  "operator": "greater_or_equal",
+                  "left": {
+                    "index": "layer"
+                  },
+                  "right": {
+                    "literal": 20
+                  }
+                }
+              },
+              "then": {
+                "literal": "shared"
+              },
+              "else": {
+                "literal": "own"
+              }
+            },
+            "scale": {
+              "literal": 1
+            }
+          },
+          "families": [
+            "decoder",
+            "attention",
+            "sliding_attention"
+          ],
+          "when": {
+            "compare": {
+              "operator": "not_equal",
+              "left": {
+                "op": "modulo",
+                "args": [
+                  {
+                    "index": "layer"
+                  },
+                  {
+                    "literal": 5
+                  }
+                ]
+              },
+              "right": {
+                "literal": 4
+              }
+            }
+          }
+        },
+        "attn_post_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "decoder",
+            "normalization"
+          ]
+        },
+        "attn_add": {
+          "contract": {
+            "name": "residual.combine",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "left_scale": {
+              "literal": 1
+            },
+            "right_scale": {
+              "literal": 1
+            }
+          },
+          "families": [
+            "decoder",
+            "residual"
+          ]
+        },
+        "laurel_add": {
+          "contract": {
+            "name": "residual.combine",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "left_scale": {
+              "literal": 1
+            },
+            "right_scale": {
+              "literal": 1
+            },
+            "output_scale": {
+              "literal": 0.7071067811865476
+            }
+          },
+          "families": [
+            "decoder",
+            "residual"
+          ]
+        },
+        "pre_ffn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "decoder",
+            "normalization"
+          ]
+        },
+        "ffn_sparse": {
+          "contract": {
+            "name": "ffn.gated",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "inner": {
+              "quantity": "ffn"
+            },
+            "activation": {
+              "literal": "gelu_tanh"
+            },
+            "activation_sparsity": {
+              "literal": 0.95
+            }
+          },
+          "families": [
+            "decoder",
+            "ffn",
+            "sparse"
+          ],
+          "when": {
+            "compare": {
+              "operator": "less",
+              "left": {
+                "index": "layer"
+              },
+              "right": {
+                "literal": 10
+              }
+            }
+          }
+        },
+        "post_ffn_n": {
+          "contract": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "decoder",
+            "normalization"
+          ]
+        },
+        "ffn_add": {
+          "contract": {
+            "name": "residual.combine",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "left_scale": {
+              "literal": 1
+            },
+            "right_scale": {
+              "literal": 1
+            }
+          },
+          "families": [
+            "decoder",
+            "residual"
+          ]
+        },
+        "correct": {
+          "contract": {
+            "name": "residual.altup_correct",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "streams": {
+              "quantity": "altup_inputs"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "decoder",
+            "altup"
+          ]
+        },
+        "aux_select": {
+          "contract": {
+            "name": "conditioning.layer_select",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "layers": {
+              "quantity": "layers"
+            },
+            "width": {
+              "quantity": "per_layer_width"
+            },
+            "layer": {
+              "index": "layer"
+            }
+          },
+          "families": [
+            "decoder",
+            "conditioning"
+          ]
+        },
+        "condition": {
+          "contract": {
+            "name": "conditioning.multiplicative",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "condition_width": {
+              "quantity": "per_layer_width"
+            },
+            "eps": {
+              "quantity": "eps"
+            },
+            "activation": {
+              "literal": "gelu_tanh"
+            }
+          },
+          "families": [
+            "decoder",
+            "conditioning"
+          ]
+        },
+        "inject": {
+          "contract": {
+            "name": "residual.stream_inject",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "streams": {
+              "quantity": "altup_inputs"
+            }
+          },
+          "families": [
+            "decoder",
+            "altup"
+          ]
+        },
+        "attn_full": {
+          "contract": {
+            "name": "attention.dense",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "heads": {
+              "quantity": "heads"
+            },
+            "kv_heads": {
+              "quantity": "kv_heads"
+            },
+            "head_dim": {
+              "quantity": "hd"
+            },
+            "mask": {
+              "literal": "causal"
+            },
+            "qk_norm": {
+              "record": {
+                "kind": {
+                  "literal": "rms"
+                },
+                "eps": {
+                  "quantity": "eps"
+                },
+                "scale": {
+                  "record": {}
+                },
+                "values": {
+                  "literal": true
+                }
+              }
+            },
+            "rope": {
+              "record": {
+                "theta": {
+                  "literal": 1000000
+                }
+              }
+            },
+            "kv_source": {
+              "if": {
+                "compare": {
+                  "operator": "greater_or_equal",
+                  "left": {
+                    "index": "layer"
+                  },
+                  "right": {
+                    "literal": 20
+                  }
+                }
+              },
+              "then": {
+                "literal": "shared"
+              },
+              "else": {
+                "literal": "own"
+              }
+            },
+            "scale": {
+              "literal": 1
+            }
+          },
+          "families": [
+            "decoder",
+            "attention",
+            "full_attention"
+          ],
+          "when": {
+            "all": [
+              {
+                "compare": {
+                  "operator": "equal",
+                  "left": {
+                    "op": "modulo",
+                    "args": [
+                      {
+                        "index": "layer"
+                      },
+                      {
+                        "literal": 5
+                      }
+                    ]
+                  },
+                  "right": {
+                    "literal": 4
+                  }
+                }
+              },
+              {
+                "compare": {
+                  "operator": "greater_or_equal",
+                  "left": {
+                    "index": "layer"
+                  },
+                  "right": {
+                    "literal": 4
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "ffn": {
+          "contract": {
+            "name": "ffn.gated",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "inner": {
+              "quantity": "ffn"
+            },
+            "activation": {
+              "literal": "gelu_tanh"
+            },
+            "activation_sparsity": {
+              "literal": 0
+            }
+          },
+          "families": [
+            "decoder",
+            "ffn",
+            "dense"
+          ],
+          "when": {
+            "compare": {
+              "operator": "greater_or_equal",
+              "left": {
+                "index": "layer"
+              },
+              "right": {
+                "literal": 10
+              }
+            }
+          }
+        }
+      },
+      "bindings": {
+        "values": {
+          "active_norm": {
+            "from": {
+              "site": "predict",
+              "port": "active"
+            },
+            "to": {
+              "site": "input_n",
+              "port": "input"
+            }
+          },
+          "norm_attn": {
+            "from": {
+              "site": "input_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn",
+              "port": "input"
+            }
+          },
+          "norm_laurel": {
+            "from": {
+              "site": "input_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "laurel",
+              "port": "input"
+            }
+          },
+          "attn_post": {
+            "from": {
+              "site": "attn",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_post_n",
+              "port": "input"
+            }
+          },
+          "active_residual": {
+            "from": {
+              "site": "predict",
+              "port": "active"
+            },
+            "to": {
+              "site": "attn_add",
+              "port": "left"
+            }
+          },
+          "attn_residual": {
+            "from": {
+              "site": "attn_post_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_add",
+              "port": "right"
+            }
+          },
+          "attn_laurel": {
+            "from": {
+              "site": "attn_add",
+              "port": "output"
+            },
+            "to": {
+              "site": "laurel_add",
+              "port": "left"
+            }
+          },
+          "laurel_residual": {
+            "from": {
+              "site": "laurel",
+              "port": "output"
+            },
+            "to": {
+              "site": "laurel_add",
+              "port": "right"
+            }
+          },
+          "pre_ffn": {
+            "from": {
+              "site": "laurel_add",
+              "port": "output"
+            },
+            "to": {
+              "site": "pre_ffn_n",
+              "port": "input"
+            }
+          },
+          "ffn_sparse": {
+            "from": {
+              "site": "pre_ffn_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_sparse",
+              "port": "input"
+            }
+          },
+          "ffn_post": {
+            "from": {
+              "site": "ffn_sparse",
+              "port": "output"
+            },
+            "to": {
+              "site": "post_ffn_n",
+              "port": "input"
+            }
+          },
+          "ffn_residual": {
+            "from": {
+              "site": "laurel_add",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_add",
+              "port": "left"
+            }
+          },
+          "ffn_branch": {
+            "from": {
+              "site": "post_ffn_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn_add",
+              "port": "right"
+            }
+          },
+          "predictions": {
+            "from": {
+              "site": "predict",
+              "port": "predictions"
+            },
+            "to": {
+              "site": "correct",
+              "port": "predictions"
+            }
+          },
+          "activated": {
+            "from": {
+              "site": "ffn_add",
+              "port": "output"
+            },
+            "to": {
+              "site": "correct",
+              "port": "activated"
+            }
+          },
+          "aux": {
+            "from": {
+              "occurrence": {
+                "kind": "root",
+                "occurrence": "embed"
+              },
+              "port": "auxiliary"
+            },
+            "to": {
+              "site": "aux_select",
+              "port": "input"
+            }
+          },
+          "condition_input": {
+            "from": {
+              "site": "correct",
+              "port": "active"
+            },
+            "to": {
+              "site": "condition",
+              "port": "input"
+            }
+          },
+          "condition_value": {
+            "from": {
+              "site": "aux_select",
+              "port": "output"
+            },
+            "to": {
+              "site": "condition",
+              "port": "condition"
+            }
+          },
+          "streams": {
+            "from": {
+              "site": "correct",
+              "port": "streams"
+            },
+            "to": {
+              "site": "inject",
+              "port": "streams"
+            }
+          },
+          "inject_active": {
+            "from": {
+              "site": "condition",
+              "port": "output"
+            },
+            "to": {
+              "site": "inject",
+              "port": "active"
+            }
+          },
+          "next": {
+            "from": {
+              "site": "inject",
+              "indices": {
+                "layer": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "layer"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "predict",
+              "port": "input"
+            },
+            "when": {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          },
+          "norm_attn_2": {
+            "from": {
+              "site": "input_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_full",
+              "port": "input"
+            }
+          },
+          "attn_post_2": {
+            "from": {
+              "site": "attn_full",
+              "port": "output"
+            },
+            "to": {
+              "site": "attn_post_n",
+              "port": "input"
+            }
+          },
+          "ffn_sparse_2": {
+            "from": {
+              "site": "pre_ffn_n",
+              "port": "output"
+            },
+            "to": {
+              "site": "ffn",
+              "port": "input"
+            }
+          },
+          "ffn_post_2": {
+            "from": {
+              "site": "ffn",
+              "port": "output"
+            },
+            "to": {
+              "site": "post_ffn_n",
+              "port": "input"
+            }
+          }
+        },
+        "parameters": {
+          "predict.prediction": {
+            "members": [
+              {
+                "site": "predict",
+                "parameter": "prediction"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "predict.router": {
+            "members": [
+              {
+                "site": "predict",
+                "parameter": "router"
+              },
+              {
+                "site": "correct",
+                "parameter": "router"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "predict.router_norm": {
+            "members": [
+              {
+                "site": "predict",
+                "parameter": "router_norm"
+              },
+              {
+                "site": "correct",
+                "parameter": "router_norm"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "input_n.weight": {
+            "members": [
+              {
+                "site": "input_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "laurel.left": {
+            "members": [
+              {
+                "site": "laurel",
+                "parameter": "left"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "laurel.right": {
+            "members": [
+              {
+                "site": "laurel",
+                "parameter": "right"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "laurel.norm": {
+            "members": [
+              {
+                "site": "laurel",
+                "parameter": "norm"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.q": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "q"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "when": {
+              "compare": {
+                "operator": "less",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 20
+                }
+              }
+            }
+          },
+          "attn.v": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "v"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "when": {
+              "compare": {
+                "operator": "less",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 20
+                }
+              }
+            }
+          },
+          "attn.out": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.q_norm": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "q_norm"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn.k_norm": {
+            "members": [
+              {
+                "site": "attn",
+                "parameter": "k_norm"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "when": {
+              "compare": {
+                "operator": "less",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 20
+                }
+              }
+            }
+          },
+          "attn_post_n.weight": {
+            "members": [
+              {
+                "site": "attn_post_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "pre_ffn_n.weight": {
+            "members": [
+              {
+                "site": "pre_ffn_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_sparse.gate": {
+            "members": [
+              {
+                "site": "ffn_sparse",
+                "parameter": "gate"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_sparse.up": {
+            "members": [
+              {
+                "site": "ffn_sparse",
+                "parameter": "up"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_sparse.out": {
+            "members": [
+              {
+                "site": "ffn_sparse",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "post_ffn_n.weight": {
+            "members": [
+              {
+                "site": "post_ffn_n",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "correct.correction": {
+            "members": [
+              {
+                "site": "correct",
+                "parameter": "correction"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "correct.correct_scale": {
+            "members": [
+              {
+                "site": "correct",
+                "parameter": "correct_scale"
+              }
+            ],
+            "dtype": "f32"
+          },
+          "condition.gate": {
+            "members": [
+              {
+                "site": "condition",
+                "parameter": "gate"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "condition.projection": {
+            "members": [
+              {
+                "site": "condition",
+                "parameter": "projection"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "condition.norm": {
+            "members": [
+              {
+                "site": "condition",
+                "parameter": "norm"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn_full.q": {
+            "members": [
+              {
+                "site": "attn_full",
+                "parameter": "q"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn_full.k": {
+            "members": [
+              {
+                "site": "attn_full",
+                "parameter": "k"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "when": {
+              "compare": {
+                "operator": "less",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 20
+                }
+              }
+            }
+          },
+          "attn_full.v": {
+            "members": [
+              {
+                "site": "attn_full",
+                "parameter": "v"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "when": {
+              "compare": {
+                "operator": "less",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 20
+                }
+              }
+            }
+          },
+          "attn_full.out": {
+            "members": [
+              {
+                "site": "attn_full",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn_full.q_norm": {
+            "members": [
+              {
+                "site": "attn_full",
+                "parameter": "q_norm"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "attn_full.k_norm": {
+            "members": [
+              {
+                "site": "attn_full",
+                "parameter": "k_norm"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "when": {
+              "compare": {
+                "operator": "less",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 20
+                }
+              }
+            }
+          },
+          "ffn_sparse.in_2.gate": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "gate"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_sparse.in_2.up": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "up"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          },
+          "ffn_sparse.out_2": {
+            "members": [
+              {
+                "site": "ffn",
+                "parameter": "out"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            }
+          }
+        },
+        "states": {
+          "attn.kv": {
+            "members": [
+              {
+                "site": "attn",
+                "state": "kv"
+              }
+            ],
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "not_equal",
+                    "left": {
+                      "op": "modulo",
+                      "args": [
+                        {
+                          "index": "layer"
+                        },
+                        {
+                          "literal": 5
+                        }
+                      ]
+                    },
+                    "right": {
+                      "literal": 4
+                    }
+                  }
+                },
+                {
+                  "compare": {
+                    "operator": "less",
+                    "left": {
+                      "index": "layer"
+                    },
+                    "right": {
+                      "literal": 18
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "attn_full.kv": {
+            "members": [
+              {
+                "site": "attn_full",
+                "state": "kv"
+              }
+            ],
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "op": "modulo",
+                      "args": [
+                        {
+                          "index": "layer"
+                        },
+                        {
+                          "literal": 5
+                        }
+                      ]
+                    },
+                    "right": {
+                      "literal": 4
+                    }
+                  }
+                },
+                {
+                  "all": [
+                    {
+                      "compare": {
+                        "operator": "greater_or_equal",
+                        "left": {
+                          "index": "layer"
+                        },
+                        "right": {
+                          "literal": 4
+                        }
+                      }
+                    },
+                    {
+                      "compare": {
+                        "operator": "less",
+                        "left": {
+                          "index": "layer"
+                        },
+                        "right": {
+                          "literal": 15
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "expand": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "embed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "expand"
+          },
+          "port": "input"
+        }
+      },
+      "entry": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "expand"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "predict",
+            "indices": {
+              "layer": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "unembed": {
+        "from": {
+          "occurrence": {
+            "kind": "generated",
+            "composition": "decoder",
+            "occurrence": "inject",
+            "indices": {
+              "layer": {
+                "literal": 29
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "unembed"
+          },
+          "port": "input"
+        }
+      },
+      "final": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "unembed"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "input"
+        }
+      },
+      "head": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "final_n"
+          },
+          "port": "output"
+        },
+        "to": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "embed.per_layer_embed": {
+        "tensor": {
+          "name": "embed.per_layer_embed"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "per_layer_embed"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "embed.per_layer_model_projection": {
+        "tensor": {
+          "name": "embed.per_layer_model_projection"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "per_layer_model_projection"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "embed.per_layer_projection_norm": {
+        "tensor": {
+          "name": "embed.per_layer_projection_norm"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "per_layer_projection_norm"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "expand.projection": {
+        "tensor": {
+          "name": "expand.projection"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "expand"
+            },
+            "parameter": "projection"
+          },
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "unembed"
+            },
+            "parameter": "projection"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "final_n.weight": {
+        "tensor": {
+          "name": "final_n.weight"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "final_n"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      },
+      "tied_embeddings": {
+        "tensor": {
+          "name": "tied_embeddings"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "parameter": "weight"
+          },
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "lm_head"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        }
+      }
+    },
+    "constants": {},
+    "states": {
+      "shared.sliding.kv": {
+        "identity": {
+          "name": "shared.sliding.kv"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 18
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 20
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 21
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 22
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 23
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 25
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 26
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 27
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn",
+              "indices": {
+                "layer": {
+                  "literal": 28
+                }
+              }
+            },
+            "state": "kv"
+          }
+        ]
+      },
+      "shared.full.kv": {
+        "identity": {
+          "name": "shared.full.kv"
+        },
+        "members": [
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_full",
+              "indices": {
+                "layer": {
+                  "literal": 19
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_full",
+              "indices": {
+                "layer": {
+                  "literal": 24
+                }
+              }
+            },
+            "state": "kv"
+          },
+          {
+            "occurrence": {
+              "kind": "generated",
+              "composition": "decoder",
+              "occurrence": "attn_full",
+              "indices": {
+                "layer": {
+                  "literal": 29
+                }
+              }
+            },
+            "state": "kv"
+          }
+        ]
+      }
+    }
+  },
+  "interfaces": {
+    "inputs": {
+      "tokens": {
+        "to": [
+          {
+            "occurrence": {
+              "kind": "root",
+              "occurrence": "embed"
+            },
+            "port": "tokens"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "main": {
+        "from": {
+          "occurrence": {
+            "kind": "root",
+            "occurrence": "lm_head"
+          },
+          "port": "logits"
+        },
+        "generative": true
+      }
+    }
+  }
+}

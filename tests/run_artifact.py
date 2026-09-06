@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import artifact                        # noqa: E402
 import catalog as catalog_mod          # noqa: E402
 import derive                          # noqa: E402
+import validate                        # noqa: E402
 
 LLAMA = os.path.join(ROOT, 'data', 'models', 'llama3-8b.json')
 SHIELD_DOC = os.path.join(ROOT, 'data', 'models', 'shieldstral-3b.json')
@@ -92,6 +93,39 @@ def main():
     sl['slice']['offset'] = 8
     e, a, s = artifact.check(d3_of(sl, [4, 4]), hh)
     ok &= check("slice: [8, 12) of [10, 4] does not fit", len(e) == 1 and 'does not fit' in e[0], e[:1])
+    # a slot with a multiplicity: the storage axis first, addressed by every form (§3.4, finding 30)
+    ms = {'stack': {'axis': 'multiplicity', 'dim': 0, 'parts': [{'tensor': f'p.{i}.weight'} for i in range(3)]}}
+    hh = {f'p.{i}.weight': {'dtype': 'bf16', 'shape': [2, 2], 'file': 'x'} for i in range(3)}
+    e, a, s = artifact.check(d3_of(ms, [3, 2, 2]), hh)
+    ok &= check("multiplicity: three [2, 2] under a stack over the storage axis make [3, 2, 2]", not e, e[:1])
+    e, a, s = artifact.check(d3_of(ms, [3, 2, 2]), {k: v for k, v in hh.items() if k != 'p.2.weight'})
+    ok &= check("multiplicity: a missing copy is an error naming it", len(e) == 1 and 'absent' in e[0] and 'p.2.weight' in e[0], e[:1])
+    e, a, s = artifact.check(d3_of({'tensor': 'p.weight'}, [3, 2, 2]), {'p.weight': {'dtype': 'bf16', 'shape': [3, 2, 2], 'file': 'x'}})
+    ok &= check("multiplicity: one fused [3, 2, 2] tensor is the copies whole", not e, e[:1])
+    e, a, s = artifact.check(d3_of({'tensor': 'p.weight'}, [3, 2, 2]), {'p.weight': {'dtype': 'bf16', 'shape': [2, 2, 2], 'file': 'x'}})
+    ok &= check("multiplicity: a fused tensor with the wrong count is an error", len(e) == 1 and 'has shape' in e[0], e[:1])
+    e, a, s = artifact.check(d3_of({'tensor': 'p.weight'}, [1, 2, 2]), {'p.weight': {'dtype': 'bf16', 'shape': [2, 2], 'file': 'x'}})
+    ok &= check("multiplicity: a declared count of one accepts the plain [2, 2] tensor for [1, 2, 2] (unit axes dropped, V17)", not e, e[:1])
+    # the resolver: a stack over `multiplicity` expands over the declared count, at dim 0, the coordinate in the names
+    expand = cat['contracts']['residual.stream_expand']['parameters']['projection']
+    args = {'width': 2048, 'streams': 4}
+    loc = {'stack': {'axis': 'multiplicity', 'part': {'tensor': ['model.language_model.altup_projections.', {'coordinate': 'multiplicity'}, '.weight']}}}
+    ev, problems = validate.evaluate_location(loc, {}, validate._storage_shape(expand), args, lambda e, env=None: None)
+    ok &= check("resolver: a stack over `multiplicity` on stream_expand's projection (streams 4) gives three parts altup_projections.{0,1,2}.weight at dim 0",
+                not problems and ev == {'stack': {'axis': 'multiplicity', 'dim': 0,
+                                                  'parts': [{'tensor': f'model.language_model.altup_projections.{i}.weight'} for i in range(3)]}},
+                str(problems[:1] or ev))
+    ev, problems = validate.evaluate_location({'stack': {'axis': 'feature', 'part': {'tensor': ['w.', {'coordinate': 'feature'}]}}}, {},
+                                              validate._storage_shape(expand), args, lambda e, env=None: None)
+    ok &= check("resolver: a stack over a shape axis of that slot sits after the storage axis (dim 1)",
+                not problems and ev['stack']['dim'] == 1 and len(ev['stack']['parts']) == 2048, str(problems[:1]))
+    weight = cat['contracts']['norm.rms']['parameters']['weight']
+    ev, problems = validate.evaluate_location(loc, {}, validate._storage_shape(weight), {'width': 8}, lambda e, env=None: None)
+    ok &= check("resolver: a stack over `multiplicity` on a slot that declares none is refused as an unknown axis",
+                ev is None and problems and 'not an axis of the slot' in problems[0], str(problems[:1]))
+    ev, problems = validate.evaluate_location(loc, {}, validate._storage_shape(expand), {'width': 2048, 'streams': 1}, lambda e, env=None: None)
+    ok &= check("resolver: a count of zero never builds an empty stack — refused with the resolved extent",
+                ev is None and problems and 'no coordinates' in problems[0] and '0' in problems[0], str(problems[:1]))
     # the located composite (§3.4): its instance's tensors, prefixed, are the flat document's names
     with open(SHIELD_DOC, encoding='utf-8') as f:
         sh = json.load(f)

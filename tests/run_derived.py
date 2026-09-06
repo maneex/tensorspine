@@ -25,6 +25,7 @@ facts known independently.
 """
 import glob
 import json
+import math
 import os
 import sys
 import tempfile
@@ -234,6 +235,27 @@ def main():
                 and [a['extent'] for a in q35['decoder.mlp.in[layer=0]']['shape']] == [256, 1024, 2048]
                 and [a['extent'] for a in q35['decoder.mlp.out[layer=0]']['shape']] == [256, 2048, 512]
                 and q35['decoder.mlp.in[layer=0]']['location'] == {'tensor': 'model.language_model.layers.0.mlp.experts.gate_up_proj'})
+    # a slot with a multiplicity is stored with the storage axis first (§3.4, finding 30)
+    ok &= check("every D3 tensor: elements is the product of its shape's extents — the storage axis carries the count once",
+                all(t['elements'] == math.prod(a['extent'] for a in t['shape'])
+                    for d in docs.values() for t in d['d3']['tensors'] if t['elements'] is not None))
+    gp = {t['identity']: t for t in g['d3']['tensors']}
+    ok &= check("gemma3n: expand.projection is stored [3, 2048, 2048], storage.multiplicity first, multiplicity 3, 12 582 912 elements; "
+                "the totals (4 435 182 688 elements, 8 870 488 256 bytes) and D6 (545 partitions, 32 losses) unchanged",
+                [(a['axis'], a['extent']) for a in gp['expand.projection']['shape']] == [('storage.multiplicity', 3), ('model.width', 2048), ('model.width', 2048)]
+                and gp['expand.projection']['multiplicity'] == 3 and gp['expand.projection']['elements'] == 12582912
+                and g['d3']['totals']['elements'] == 4435182688 and g['d3']['totals']['bytes'] == 8870488256
+                and len(g['d6']['partitions']) == 545 and len(g['d6']['information_loss']) == 32,
+                str(gp['expand.projection'].get('shape')))
+    sg = q35['decoder.mlp.shared_gate[layer=0]']
+    ok &= check("qwen3.5-35b-a3b: a declared multiplicity of one is an extent-one storage axis — shared_gate[layer=0] is [1, 512, 2048], "
+                "multiplicity 1, 1 048 576 elements, located on the plain tensor; the totals (35 107 181 936 elements) and D6 (589 partitions) unchanged",
+                [(a['axis'], a['extent']) for a in sg['shape']] == [('storage.multiplicity', 1), ('ffn.inner', 512), ('model.width', 2048)]
+                and sg['multiplicity'] == 1 and sg['elements'] == 1048576 and sg['location'] == {'tensor': 'model.language_model.layers.0.mlp.shared_expert.gate_proj.weight'}
+                and docs['qwen3.5-35b-a3b']['d3']['totals']['elements'] == 35107181936 and len(docs['qwen3.5-35b-a3b']['d6']['partitions']) == 589,
+                str(sg['shape']))
+    ok &= check("a slot that declares no multiplicity has no storage axis (llama3-8b, every tensor)",
+                all(a['axis'] != 'storage.multiplicity' for t in l3['d3']['tensors'] for a in t['shape']) and l3['d3']['totals']['elements'] == 8030261248)
     cb = {t['identity']: t.get('location') for t in docs['colbert-v2']['d3']['tensors']}
     cb_names = [v['tensor'] for v in cb.values() if v]
     ok &= check("colbert-v2: 198 tensors located one-to-one — enc.attn.q[layer=3] under bert.encoder.layer, the head on linear.weight",

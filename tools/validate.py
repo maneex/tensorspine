@@ -266,6 +266,20 @@ def _shape_identity(shape, args):
     return tuple((a['axis'], contract_value(a['extent'], args)) for a in shape['axes'])
 
 
+STORAGE_AXIS = 'storage.multiplicity'
+
+
+def _storage_shape(param):
+    """A parameter slot's shape as stored (§3.4, finding 30): a declared multiplicity is a leading
+    axis — local name `multiplicity`, the catalog's `storage.multiplicity`, extent the count —
+    before the shape axes. What a location addresses (V17), what V15 compares, what D3 writes;
+    absent from the computation's shape, which the contract declares."""
+    if 'multiplicity' not in param:
+        return param['shape']
+    lead = {'name': 'multiplicity', 'axis': STORAGE_AXIS, 'nature': 'storage', 'extent': param['multiplicity']}
+    return {'axes': [lead] + list(param['shape']['axes'])}
+
+
 def _present(element, args):
     return contract_condition(element['present_when'], args) if 'present_when' in element else True
 
@@ -316,8 +330,12 @@ def evaluate_location(loc, env, shape, args, value, coordinates=None, in_concat=
         dim = dim_of(axis, 'stack')
         if dim is None:
             return None, problems
+        n = extents[dim]
+        if not isinstance(n, (int, float)) or isinstance(n, bool) or n != int(n) or n < 1:
+            problems.append(f"stack: axis '{axis}' has no coordinates — its extent resolves to {n!r}")
+            return None, problems
         parts = []
-        for i in range(int(extents[dim])):
+        for i in range(int(n)):
             ev, p = evaluate_location(loc['stack']['part'], env, shape, args, value,
                                       {**coordinates, axis: i}, in_concat)
             problems.extend(p)
@@ -837,7 +855,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 param0 = resolved[first[0]][1]['parameters'].get(first[1]) if first else None
                 if param0 is not None:
                     args0 = resolved[first[0]][2]
-                    evaluated, problems = evaluate_location(binding['location'], env, param0['shape'], args0, value)
+                    evaluated, problems = evaluate_location(binding['location'], env, _storage_shape(param0), args0, value)
                     for msg in problems:
                         fail('V17', f"{instance}: {msg}")
                     if evaluated is not None:
@@ -863,12 +881,17 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 if not _present(param, args):
                     fail('V7', f"parameter {tid}: slot '{pname}' absent for these arguments")
                     continue
+                if 'multiplicity' in param:
+                    m = contract_value(param['multiplicity'], args)
+                    if not isinstance(m, (int, float)) or isinstance(m, bool) or m != int(m) or m < 1:
+                        fail('V7', f"parameter {tid}: slot '{pname}' declares a multiplicity that resolves to {m!r} — "
+                                   f"a present slot has a positive integer number of copies; none is `present_when` (§3.4)")
                 slot = (key, pname)
                 if slot in slots:
                     fail('V7', f"slot {name}.{pname} bound twice ({slots[slot]}, {tid})")
                 slots[slot] = tid
                 signatures.append((name, pname, param['role'],
-                                   _shape_identity(param['shape'], args), param['sharing']))
+                                   _shape_identity(_storage_shape(param), args), param['sharing']))   # the count is in it (V15)
                 rule = policy.get(param['role'])
                 if rule is not None and values:
                     bad = [v for v in values if v not in rule['admissible']]

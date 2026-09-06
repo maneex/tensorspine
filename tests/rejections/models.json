@@ -388,6 +388,18 @@
       "expect": "V20",
       "match": "state shared.sliding.kv: 0 writer(s)",
       "note": "A shared identity nobody writes: layer 18 made a reader too (V20). Cut from gemma3n-kvshare."
+    },
+    {
+      "document": "models/v7-zero-copies.json",
+      "expect": "V7",
+      "match": "declares a multiplicity that resolves to 0",
+      "note": "A present slot with zero copies: one residual stream leaves `streams − 1 = 0` projections — a positive integer number of copies is required, none is `present_when` (§3.4, finding 30). Cut from gemma3n-kvshare."
+    },
+    {
+      "document": "models/v15-multiplicity-mismatch.json",
+      "expect": "V15",
+      "match": "storage.multiplicity",
+      "note": "Two projection slots of equal per-copy shape [2048, 2048] tied with different counts (3 and 2): the storage shape is what V15 compares (finding 30). Cut from gemma3n-kvshare."
     }
   ]
 }

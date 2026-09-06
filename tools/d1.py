@@ -272,7 +272,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     graph = {"nodes": nodes, "edges": edges, "interfaces": interfaces, "topological_order": order}
     if instances:
         graph["instances"] = instances
-    return {"schema": "tensorspine-derived/2.0",
+    return {"schema": "tensorspine-derived/2.1",
             "model": model['model'],
             "catalog": model['catalog'],
             "assignment": {k: v for k, v in assignment.items() if k in declared},

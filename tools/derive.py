@@ -54,8 +54,13 @@ def _num(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) and v is not UNRESOLVED else None
 
 
-def _shape(shape, args):
+def _shape(shape, args, multiplicity=None):
+    """The shape as stored: a slot that declares a multiplicity leads with the storage axis
+    `storage.multiplicity` (§3.4, finding 30) — the copies have an address without being an axis
+    of the computation. `elements` is the product of these extents; the count is in it once."""
     out = []
+    if multiplicity is not None:
+        out.append({"axis": "storage.multiplicity", "extent": _num(contract_value(multiplicity, args))})
     for a in shape['axes']:
         entry = {"axis": a['axis'], "extent": _num(contract_value(a['extent'], args))}
         if 'factors' in a:
@@ -131,7 +136,7 @@ def d3(graph, cat):
                  "members": [f"{ident(k)}.{p}" for k, p in inst['members']],
                  "contract": name, "slot": pname, "role": param['role'],
                  "sensitivity": cat['precision'][param['role']]['sensitivity'],
-                 "dtype": dtype, "shape": _shape(param['shape'], args),
+                 "dtype": dtype, "shape": _shape(param['shape'], args, param.get('multiplicity')),
                  "multiplicity": _num(contract_value(param['multiplicity'], args)) if 'multiplicity' in param else 1,
                  "elements": n, "bytes": (n * BYTES[dtype]) if n is not None else None,
                  "tied": len(inst['members']) > 1}

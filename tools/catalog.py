@@ -424,6 +424,8 @@ def contract_references(d, cat):
             if param['role'] not in cat['precision']:
                 out.append(f"{label}: role '{param['role']}' has no precision rule")
             out.extend(_shape_problems(param['shape'], label, cat, paths))
+            out.extend(f"{label}: axis name 'multiplicity' is reserved — the storage axis of a slot that declares a multiplicity (§3.4)"
+                       for a in param['shape']['axes'] if a['name'] == 'multiplicity')
             if 'present_when' in param:
                 conditions.append((f"{label} present_when", param['present_when'], set()))
             if param.get('sharing', {}).get('kind') == 'shareable':

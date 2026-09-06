@@ -71,6 +71,8 @@ def unreferenced_vocabulary(cat):
     cited = set(_strings(cat['contracts']))
     findings = []
     for name in sorted(cat['axes']):
+        if cat['axes'][name]['space'] == 'storage':
+            continue                    # cited by the derivation (D3's storage axis, §3.4), never by a contract shape
         if name not in cited:
             findings.append(("catalog", f"axis '{name}' is cited by no contract"))
     for name in sorted(cat['precision']):

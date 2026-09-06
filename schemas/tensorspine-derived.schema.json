@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/2.0/derived.json",
-  "title": "TensorSpine derived document 2.0",
+  "$id": "https://tensorspine.dev/schema/2.1/derived.json",
+  "title": "TensorSpine derived document 2.1",
   "description": "What a valid model document and its contracts make computable (§7), as one document: the expanded graph D1, required, and the products D2–D6, each optional. Every product refers to D1's identifiers, so one document is one snapshot of one model under one assignment. The encoding is the repository's; the specification leaves it open.",
   "type": "object",
   "additionalProperties": false,
@@ -14,7 +14,7 @@
   ],
   "properties": {
     "schema": {
-      "const": "tensorspine-derived/2.0"
+      "const": "tensorspine-derived/2.1"
     },
     "model": {
       "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/model_id"
@@ -638,19 +638,22 @@
                 "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
               },
               "shape": {
-                "$ref": "#/$defs/shape"
+                "$ref": "#/$defs/shape",
+                "description": "Axis identity and evaluated extent, as stored: a slot that declares a multiplicity leads with the storage axis `storage.multiplicity` of that extent (2.1), then its shape axes."
               },
               "multiplicity": {
                 "type": [
                   "number",
                   "null"
-                ]
+                ],
+                "description": "The declared copy count — descriptive: the leading extent of `shape` when declared, 1 when the slot declares none. Never a further multiplier."
               },
               "elements": {
                 "type": [
                   "number",
                   "null"
-                ]
+                ],
+                "description": "The product of the shape's extents; `multiplicity` is already in it."
               },
               "bytes": {
                 "type": [
