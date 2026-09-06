@@ -92,8 +92,19 @@ python3 generators/reference/fixtures/dump_hf.py --model "$CK" --document llama3
 python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors     # at the fixture's own tolerance; --atol/--rtol override
 python3 $R witness attention.dense@1.0.0            # the unit fixtures of a contract version, regenerated and compared; --record writes them
 python3 $R witness all --record                       # every case every kernel declares (docs/TENSORSPINE-FIXTURE.md)
-python3 generators/reference/tests/run_reference.py [--compile] [--full]   # random weights; fixtures and full models when artifacts are present
+python3 generators/reference/tests/run_reference.py [--compile] [--full] [--no-strict-provenance]
+                   # random weights; fixtures and full models when artifacts are present; the witness's provenance strict by default
 ```
+
+`compare` returns a verdict ([fixture guide](../../docs/TENSORSPINE-FIXTURE.md) §4): every key the
+fixture records outside `in/` and `param/` must be in the dump, integers and booleans compare
+exactly before any cast, a dtype disagreement fails, and a comparison with no key compared fails —
+the exit status is 1 unless every required key was compared within tolerance. `witness` separates
+provenance from conformance: the parameters and inputs regenerated from the seed are compared
+exactly with the recorded ones and the line says so (`regenerated exactly`, `within the f32
+tolerance`, `DIFFER`); the verdict is the run against the stored tensors with every recorded key
+required, and a drift of the regeneration fails only under `--strict-provenance`, which the test
+suite passes by default on this box.
 
 ### Chat
 

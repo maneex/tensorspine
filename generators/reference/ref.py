@@ -240,8 +240,10 @@ def cmd_info(args):
 
 
 def cmd_compare(args):
-    """A dump of this generator against a fixture (docs/TENSORSPINE-FIXTURE.md): the tolerance is
-    the fixture's, for the dump's compute dtype, unless both --atol and --rtol override it."""
+    """A dump of this generator against a fixture (docs/TENSORSPINE-FIXTURE.md §4): the tolerance is
+    the fixture's, for the dump's compute dtype, unless both --atol and --rtol override it. The
+    verdict needs every key the fixture records outside `in/` and `param/` on both sides, and at
+    least one key compared; exit 1 otherwise."""
     from compare import compare
     ours, ho = read_dump(args.ours)
     theirs, ht = read_fixture(args.theirs)
@@ -250,14 +252,16 @@ def cmd_compare(args):
     if args.atol is not None or args.rtol is not None:
         atol = args.atol if args.atol is not None else atol
         rtol = args.rtol if args.rtol is not None else rtol
-    rows, failures, only = compare(ours, theirs, atol, rtol)
-    print(f"{len(rows)} keys compared (atol {atol}, rtol {rtol} for {compute}); tokens ours {ho.get('tokens')} theirs {ht.get('tokens')}")
-    for key, mabs, mrel, note in rows:
+    verdict = compare(ours, theirs, atol, rtol)
+    print(f"{verdict.compared} keys compared (atol {atol}, rtol {rtol} for {compute}); tokens ours {ho.get('tokens')} theirs {ht.get('tokens')}")
+    for key, mabs, mrel, note in verdict.rows:
         print(f"  {key:60s} " + (f"max|d| {mabs:.3e}  max rel {mrel:.3e}  {note}" if mabs is not None else note))
-    for k in only[:10]:
-        print(f"  only on one side: {k}")
-    print("compare: within tolerance" if not failures else f"compare: {failures} key(s) exceed")
-    return 1 if failures else 0
+    for k in verdict.missing:
+        print(f"  missing: {k}")
+    for k in verdict.unexpected[:10]:
+        print(f"  only in ours: {k}")
+    print(f"compare: {verdict.summary()}")
+    return 0 if verdict.ok else 1
 
 
 def compiled(model, args):
@@ -366,7 +370,7 @@ def cmd_capabilities(args):
 
 def cmd_witness(args):
     import witness
-    return witness.main(args.contract, args.record)
+    return witness.main(args.contract, args.record, args.strict_provenance)
 
 
 def cmd_verify(args):
@@ -563,6 +567,9 @@ def main(argv=None):
     p = sub.add_parser('witness')
     p.add_argument('contract', help='NAME@VERSION, NAME@VERSION/CASE, or all')
     p.add_argument('--record', action='store_true', help='write the fixtures under fixtures/contracts/ (else regenerate and compare)')
+    p.add_argument('--strict-provenance', action='store_true',
+                   help='fail a fixture whose parameters or inputs do not regenerate exactly from its seed; without it the drift is '
+                        'printed and the verdict is conformance against the stored tensors')
     p.set_defaults(fn=cmd_witness)
     p = sub.add_parser('verify'); common(p)
     p.add_argument('--checkpoint', metavar='DIR', required=True)

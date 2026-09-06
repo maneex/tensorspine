@@ -8,7 +8,9 @@ M0 — random weights, no checkpoint:
      value checked against D2;
   2. the dump holds exactly the values D2 lists at every layer cut, and every state;
   3. the masked (compiled-form) attention equals the sliced one;
-  4. optionally, the decode step compiles (`--compile`).
+  4. optionally, the decode step compiles (`--compile`);
+  5. the verdict of a comparison (docs/TENSORSPINE-FIXTURE.md §4): an empty comparison and a
+     required key absent are failures, integers compare exactly, a dtype disagreement fails.
 
 M1, M2 — for each committed fixture whose checkpoint is on disk (else `skip`): the truncated
 document loaded by location, every layer output, every state after prefill (KV; and for Qwen 3.5
@@ -23,9 +25,16 @@ the checkpoint. With `--full`, the whole models: the eight greedy tokens `transf
 naming a fixture taking its audio from it, or a sample the artifact's processor turns into a
 streaming prefill and fragments, transcribed to its end.
 
-    python3 generators/reference/tests/run_reference.py [--compile] [--full]
+    python3 generators/reference/tests/run_reference.py [--compile] [--full] [--no-strict-provenance]
+
+Every unit fixture must regenerate exactly from its seed on this box, where it was recorded;
+`--no-strict-provenance` (CI, another torch) prints the drift instead and keeps the verdict, which is
+conformance against the stored tensors.
 """
+import contextlib
+import io
 import os
+import re
 import sys
 import tempfile
 import time
@@ -65,7 +74,7 @@ def check(label, ok, detail=''):
     return ok
 
 
-def main(compile_step=False, full=False):
+def main(compile_step=False, full=False, strict_provenance=True):
     ok = True
     tmp = tempfile.mkdtemp(prefix='tensorspine-ref-test-')
     path, notes = graph_mod.edited(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'), TINY, tmp, 'tiny')
@@ -130,21 +139,27 @@ def main(compile_step=False, full=False):
     b = attention_dense.attend(q, K, V, 9, qpos, True, static=True)
     ok &= check("masked attention over the whole capacity equals the sliced form", torch.allclose(a, b, atol=1e-6))
     # YaRN (finding 10): the kernel's frequencies are transformers' for Shieldstral's record, whose
-    # attention factor the document states as 1; without mscale transformers gives the paper's value
-    from transformers import Ministral3Config
-    from transformers.modeling_rope_utils import _compute_yarn_parameters
-    yarn = {'kind': 'yarn', 'factor': 16, 'beta_fast': 32, 'beta_slow': 1, 'attention_factor': 1.0, 'orig_ctx': 16384}
-    rp = {'rope_type': 'yarn', 'rope_theta': 1e6, 'factor': 16.0, 'beta_fast': 32.0, 'beta_slow': 1.0, 'original_max_position_embeddings': 16384}
-    cfg = Ministral3Config(hidden_size=3072, num_attention_heads=32, head_dim=128, max_position_embeddings=262144,
-                           rope_parameters=dict(rp, mscale=1.0, mscale_all_dim=1.0))
-    theirs, factor = _compute_yarn_parameters(cfg, 'cpu')
-    ours = attention_dense.inv_freq(128, 1e6, yarn, 'cpu')
-    ok &= check("YaRN: the kernel's 64 inverse frequencies equal transformers' for Shieldstral's record, whose attention factor is 1",
-                torch.allclose(ours, theirs, atol=0, rtol=1e-6) and factor == 1.0)
-    _, paper = _compute_yarn_parameters(Ministral3Config(hidden_size=3072, num_attention_heads=32, head_dim=128,
-                                                         max_position_embeddings=262144, rope_parameters=dict(rp)), 'cpu')
-    ok &= check("YaRN: without mscale transformers' factor is the paper's 0.1·ln 16 + 1, the value deepseek-v4-pro states",
-                paper == 1.2772588722239782)
+    # attention factor the document states as 1; without mscale transformers gives the paper's value.
+    # `transformers` is the reference peer here, not this generator's dependency (F1): without it the
+    # check says skip, as a fixture check does without its checkpoint
+    try:
+        from transformers import Ministral3Config
+        from transformers.modeling_rope_utils import _compute_yarn_parameters
+    except ImportError:
+        print("  skip YaRN (transformers not importable)")
+    else:
+        yarn = {'kind': 'yarn', 'factor': 16, 'beta_fast': 32, 'beta_slow': 1, 'attention_factor': 1.0, 'orig_ctx': 16384}
+        rp = {'rope_type': 'yarn', 'rope_theta': 1e6, 'factor': 16.0, 'beta_fast': 32.0, 'beta_slow': 1.0, 'original_max_position_embeddings': 16384}
+        cfg = Ministral3Config(hidden_size=3072, num_attention_heads=32, head_dim=128, max_position_embeddings=262144,
+                               rope_parameters=dict(rp, mscale=1.0, mscale_all_dim=1.0))
+        theirs, factor = _compute_yarn_parameters(cfg, 'cpu')
+        ours = attention_dense.inv_freq(128, 1e6, yarn, 'cpu')
+        ok &= check("YaRN: the kernel's 64 inverse frequencies equal transformers' for Shieldstral's record, whose attention factor is 1",
+                    torch.allclose(ours, theirs, atol=0, rtol=1e-6) and factor == 1.0)
+        _, paper = _compute_yarn_parameters(Ministral3Config(hidden_size=3072, num_attention_heads=32, head_dim=128,
+                                                             max_position_embeddings=262144, rope_parameters=dict(rp)), 'cpu')
+        ok &= check("YaRN: without mscale transformers' factor is the paper's 0.1·ln 16 + 1, the value deepseek-v4-pro states",
+                    paper == 1.2772588722239782)
     if compile_step:
         t0 = time.time()
         try:
@@ -171,7 +186,8 @@ def main(compile_step=False, full=False):
     for m in (fresh, committed):
         m['generator'] = {k: v for k, v in m['generator'].items() if k not in ('version', 'generated')}
     ok &= check("the committed capabilities manifest is what the code generates", fresh == committed)
-    ok &= witness_case(check)
+    ok &= compare_case(check, tmp)
+    ok &= witness_case(check, strict_provenance)
     ok &= moe_random_case(check, tmp)
     ok &= multiplicity_case(check, tmp)
     ok &= whisper_random_case(check, tmp)
@@ -199,17 +215,66 @@ TINY_MOE = {'quantities.d.source.value': 64, 'quantities.attn_q.source.value': 4
             'compositions.vision.indices.layer.stop.literal': 2}      # the tower is not evaluated on text, but it is partitioned
 
 
-def witness_case(check):
+def compare_case(check, tmp):
+    """The verdict (docs/TENSORSPINE-FIXTURE.md §4, the review's I1 and I3): an unrelated dump
+    against a fixture is refused with nothing compared; a dump missing one recorded state is refused
+    naming it; a complete dump passes; integers compare exactly whatever the key and the tolerance;
+    an integer against a float of the same values is a dtype failure."""
+    import witness
+    import ref as ref_cli
+    from compare import write_dump
+
+    def cli(*argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = ref_cli.main(['compare', *argv])
+        return code, out.getvalue()
+    ok = True
+    fixture = witness.fixture_path('norm.rms@1.0.0/basic')
+    unrelated = os.path.join(tmp, 'unrelated.safetensors')
+    write_dump(unrelated, {'value/nothing': torch.zeros(2)}, {'compute': 'torch.float32'})
+    code, text = cli(unrelated, fixture)
+    ok &= check("compare: an unrelated dump against norm.rms@1.0.0/basic exits 1 with 0 keys compared", code == 1 and '0 keys compared' in text, text[-200:])
+    fid = next(f for f in witness.committed() if any(k.startswith('state/') for k in read_fixture(witness.fixture_path(f))[0]))
+    tensors, _ = read_fixture(witness.fixture_path(fid))
+    dump = {k: v for k, v in tensors.items() if not k.startswith(('param/', 'in/'))}
+    complete = os.path.join(tmp, 'complete.safetensors')
+    write_dump(complete, dump, {'compute': 'torch.float32'})
+    code, text = cli(complete, witness.fixture_path(fid))
+    ok &= check(f"compare: the fixture {fid}'s own outputs, positions and states as a dump exit 0", code == 0 and 'within tolerance' in text, text[-200:])
+    state = next(k for k in dump if k.startswith('state/'))
+    partial = os.path.join(tmp, 'partial.safetensors')
+    write_dump(partial, {k: v for k, v in dump.items() if k != state}, {'compute': 'torch.float32'})
+    code, text = cli(partial, witness.fixture_path(fid))
+    ok &= check(f"compare: the same dump without {state} exits 1 naming it", code == 1 and f"missing: {state}" in text, text[-200:])
+    big = (torch.tensor([16777216], dtype=torch.int64), torch.tensor([16777217], dtype=torch.int64))
+    for key in ('x', 'x/argmax'):
+        v = compare({key: big[0]}, {key: big[1]})
+        ok &= check(f"compare: int64 16777216 against 16777217 fails under key {key} — no float32 cast", not v.ok and v.failures == 1 and 'unequal' in v.rows[0][3])
+    v = compare({'x': torch.tensor([1000])}, {'x': torch.tensor([1001])}, atol=1e-3, rtol=1e-2)
+    ok &= check("compare: int64 1000 against 1001 fails under atol 1e-3, rtol 1e-2 — integers are exact", not v.ok and v.failures == 1)
+    v = compare({'x': torch.tensor([1000, 7], dtype=torch.int32)}, {'x': torch.tensor([1000, 7], dtype=torch.int64)})
+    ok &= check("compare: equal integers of different widths pass, compared in int64", v.ok and v.rows[0][3] == '2/2 equal')
+    v = compare({'x': torch.tensor([1000])}, {'x': torch.tensor([1000.0])})
+    ok &= check("compare: an int64 against a float32 of the same values fails on dtype", not v.ok and 'dtype int64 vs float32' in v.rows[0][3])
+    v = compare({'y': torch.zeros(2)}, {'x': torch.zeros(2)})
+    ok &= check("compare: no key in common is a failure with 0 compared, the required key missing and ours unexpected",
+                not v.ok and v.compared == 0 and v.missing == ['x'] and v.unexpected == ['y'])
+    return ok
+
+
+def witness_case(check, strict_provenance=True):
     """The witness did not change silently (docs/TENSORSPINE-FIXTURE.md §5): every committed unit
-    fixture regenerates from its seed and its run repeats within its own tolerance at every dtype
-    the kernel declares one for, with the parameters loaded from the fixture as a conformer loads
-    them; and every case a kernel declares is recorded."""
+    fixture regenerates from its seed — exactly, under strict provenance — and its run repeats
+    within its own tolerance at every dtype the kernel declares one for, with the parameters loaded
+    from the fixture as a conformer loads them and every recorded key required; and every case a
+    kernel declares is recorded."""
     import witness
     kernels = registry.load_kernels()
     ok = True
     ids = witness.committed()
     for fid in ids:
-        good, lines = witness.verify(fid, kernels)
+        good, lines = witness.verify(fid, kernels, strict_provenance)
         ok &= check(f"witness {fid}: regenerated and repeated within tolerance", good, '\n         '.join(lines))
     declared = {f"{n}@{v}/{c['case']}" for n, v, _k, c in witness.cases(kernels)}
     ok &= check(f"witness: the {len(declared)} cases the kernels declare are the {len(ids)} fixtures committed",
@@ -937,8 +1002,12 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
             out = session.decode(nxt, inputs=step_inputs(k))
             nxt = greedy(out, g)
             tokens.append(nxt)
-    rows, failures, _ = compare(ours, theirs, atol=atol, rtol=rtol)
-    worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
+    composition = header['truncation']['composition']
+    expected = expectation(g, composition)
+    absent = sorted(expected - set(theirs))
+    ok &= check(f"{label}: the fixture holds the value crossing each layer boundary of {composition}, every exposed output and every state "
+                f"{composition} writes on its own stream ({len(expected)} keys)", not absent, str(absent[:3]))
+    verdict = compare(ours, theirs, atol=atol, rtol=rtol, required=expected)
     if step_inputs(0) is not None:
         # §5.3's invariance on the checkpoint: the prefill the fixture recorded whole, delivered as one
         # fragment per token — the token with its frames, the settings with the first — gives the same
@@ -1005,14 +1074,48 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     ok &= check(f"{label}: {len(blocked.blocks)} blocks under --max-ram give the same {'outputs' if encoder else 'logits and tokens'}, "
                 f"{blocked.traffic_bytes() / 2**30:.2f} GiB of traffic per invocation",
                 len(blocked.blocks) > 1 and torch.equal(bl, primary) and bt == tokens)
-    ok &= check(f"{label}: {len(rows)} values{'' if encoder else ', states'} and {'outputs' if encoder else 'logits'} within tolerance of transformers (max |d| {worst:.1e})",
-                failures == 0, [r for r in rows if 'EXCEEDS' in r[3] or r[1] is None][:2])
-    if encoder:
-        exposed = [f"value/{o['node']}.{o['port']}" for o in g.interfaces['outputs'].values()]
-        ok &= check(f"{label}: the exposed output {exposed} is among the compared values", all(k in theirs for k in exposed))
-    else:
+    ok &= check(f"{label}: every recorded key compared — {verdict.compared} values{'' if encoder else ', states'} and {'outputs' if encoder else 'logits'} "
+                f"within tolerance of transformers (max |d| {verdict.worst:.1e})", verdict.ok, verdict.detail())
+    if not encoder:
         ok &= check(f"{label}: greedy tokens {tokens} equal transformers' {header['tokens']}", tokens == header['tokens'])
     return ok
+
+
+LAYER = re.compile(r'\[.*\blayer=(\d+)')
+
+
+def layer_of(node, composition):
+    """The layer index of a node of the composition; None for a node outside it."""
+    if not node.startswith(composition + '/'):
+        return None
+    m = LAYER.search(node)
+    return int(m.group(1)) if m else None
+
+
+def expectation(g, composition):
+    """What an integration fixture must hold and the reference must produce, read off the truncated
+    derived document (the fixture guide §4): the value crossing each layer boundary of the
+    truncated composition (the payload of every `layer`-kind cut of it — the output of every layer
+    but the last, whose value crosses the composition boundary and is compared when both sides hold
+    it), every exposed output, `logits/last` and `logits/argmax` for a generative document, and
+    every state an occurrence of the composition writes on its own stream. A state indexed by a
+    source stream (a cross-attention cache, a condition cache) is the source's evidence, which a
+    dumper may leave out and its `hook_map` then says so; a fixture value the reference routes
+    through a family cut instead (Gemma's per-layer inject) is compared when both hold it, never
+    required."""
+    keys = set()
+    for c in g.layer_cuts():
+        if c['cut'].startswith(composition + '['):
+            keys |= {f"value/{p['value']}" for p in c['payload']}
+    for name, o in g.interfaces['outputs'].items():
+        if g.generative and name == g.generative[0]:
+            keys |= {'logits/last', 'logits/argmax'}
+        else:
+            keys.add(f"value/{o['node']}.{o['port']}")
+    for ident, st in g.states.items():
+        if layer_of(st['writer'].rsplit('.', 1)[0], composition) is not None and not st['indexed_by_source']:
+            keys |= {f"state/{ident}/{p['component']}" for p in st['payload']}
+    return keys
 
 
 def schedule(g, ids, recorded, steps):
@@ -1181,4 +1284,5 @@ def m1_full(check):
 
 
 if __name__ == '__main__':
-    sys.exit(main(compile_step='--compile' in sys.argv, full='--full' in sys.argv))
+    sys.exit(main(compile_step='--compile' in sys.argv, full='--full' in sys.argv,
+                  strict_provenance='--no-strict-provenance' not in sys.argv))

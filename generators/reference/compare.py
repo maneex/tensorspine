@@ -3,7 +3,9 @@ language's fixture schema (`schemas/tensorspine-fixture.schema.json`,
 `docs/TENSORSPINE-FIXTURE.md`): what a conformer is checked against, whether it was produced by
 a contract version's witness (`unit`) or dumped from the delivery implementation of a whole model
 (`integration`). A dump is what a run of this generator leaves behind for a comparison: the same
-container, a header of plain facts, no schema. The comparison is one tolerance test per key."""
+container, a header of plain facts, no schema. The comparison is a verdict: one test per key
+present on both sides — exact for integers and booleans, a tolerance for floating values — and a
+failure for every required key absent on either side, or when nothing was compared at all."""
 import json
 import os
 import struct
@@ -79,27 +81,87 @@ def tolerance_for(metadata, compute):
     return entry['atol'], entry['rtol']
 
 
-def compare(ours, theirs, atol=1e-3, rtol=1e-2):
-    """One line per key present in both: max |a-b|, max |a-b| / (|b| + 1e-6), the worst
-    element. Returns (rows, failures, only-on-one-side)."""
+INTEGER = ('torch.bool', 'torch.uint8', 'torch.int8', 'torch.int16', 'torch.int32', 'torch.int64')
+
+
+class Verdict:
+    """What a comparison found (docs/TENSORSPINE-FIXTURE.md §4): `rows`, one per key compared —
+    `(key, max |a−b|, max relative, note)`, the numbers None when the key failed before any
+    difference was measured (a shape or a dtype); `failures`, how many rows failed; `missing`, the
+    required keys absent on either side; `unexpected`, the keys of ours the other side lacks
+    (reported, never failed); `compared`, how many keys were. `ok` is the verdict: no failure,
+    nothing required missing, and at least one key compared — an empty comparison proves nothing."""
+
+    def __init__(self, rows, failures, missing, unexpected):
+        self.rows, self.failures, self.missing, self.unexpected = rows, failures, missing, unexpected
+        self.compared = len(rows)
+
+    @property
+    def ok(self):
+        return not self.failures and not self.missing and self.compared > 0
+
+    @property
+    def worst(self):
+        """The largest absolute difference measured, 0.0 when none was."""
+        return max((r[1] for r in self.rows if r[1] is not None), default=0.0)
+
+    @property
+    def bad(self):
+        """The keys that failed: exceeding the tolerance, unequal, or refused on shape or dtype."""
+        return [r[0] for r in self.rows if 'EXCEEDS' in r[3] or 'unequal' in r[3] or r[1] is None]
+
+    def summary(self):
+        if self.compared == 0:
+            return "0 keys compared"
+        parts = []
+        if self.failures:
+            parts.append(f"{self.failures} key(s) exceed")
+        if self.missing:
+            parts.append(f"{len(self.missing)} required key(s) missing")
+        return ", ".join(parts) if parts else "within tolerance"
+
+    def detail(self, n=3):
+        """The first failing and missing keys, for a test's one-line explanation."""
+        return (f"EXCEEDS: {self.bad[:n]}" if self.bad else '') + (f"  MISSING: {self.missing[:n]}" if self.missing else '')
+
+
+def compare(ours, theirs, atol=1e-3, rtol=1e-2, required=None):
+    """The verdict of `ours` against `theirs`, the recorded side. Every key present on both is
+    tested: the dtypes are read before any cast — an integer or boolean tensor on either side
+    must be one on both, and the two compare exactly in int64 whatever their widths, a
+    disagreement (int64 against float32) being a failure; floating tensors compare in float32
+    element by element, |a − b| ≤ atol + rtol·|b|. `required` names the keys the verdict needs on
+    both sides; by default every key of `theirs` not under `in/` or `param/` — the inputs a fixture
+    records and the parameters a unit fixture is the checkpoint of, which a dump does not repeat."""
     import torch
     rows, failures = [], 0
     for key in sorted(set(ours) & set(theirs)):
-        a, b = ours[key].to(torch.float32), theirs[key].to(torch.float32)
+        a, b = ours[key], theirs[key]
         if a.shape != b.shape:
             rows.append((key, None, None, f"shape {list(a.shape)} vs {list(b.shape)}"))
             failures += 1
             continue
-        if a.dtype in (torch.int64, torch.int32) or key.endswith('argmax'):
+        integer = (str(a.dtype) in INTEGER, str(b.dtype) in INTEGER)
+        if any(integer):
+            if not all(integer):
+                rows.append((key, None, None, f"dtype {str(a.dtype)[6:]} vs {str(b.dtype)[6:]}"))
+                failures += 1
+                continue
+            a, b = a.to(torch.int64), b.to(torch.int64)
             same = int((a == b).sum())
-            rows.append((key, None, None, f"{same}/{a.numel()} equal"))
+            rows.append((key, None, None, f"{same}/{a.numel()} equal" + ("" if same == a.numel() else "  unequal")))
             failures += same != a.numel()
             continue
+        a, b = a.to(torch.float32), b.to(torch.float32)
         d = (a - b).abs()
         rel = d / (b.abs() + 1e-6)
-        worst = int(d.argmax())
+        worst = int(d.argmax()) if d.numel() else 0
         ok = bool((d <= atol + rtol * b.abs()).all())
-        rows.append((key, float(d.max()), float(rel.max()), f"worst at {list(torch.unravel_index(torch.tensor(worst), a.shape))}" + ("" if ok else "  EXCEEDS")))
+        where = f"worst at {list(torch.unravel_index(torch.tensor(worst), a.shape))}" if d.numel() else "empty"
+        rows.append((key, float(d.max()) if d.numel() else 0.0, float(rel.max()) if d.numel() else 0.0, where + ("" if ok else "  EXCEEDS")))
         failures += not ok
-    only = sorted(set(ours) ^ set(theirs))
-    return rows, failures, only
+    if required is None:
+        required = {k for k in theirs if not k.startswith(('in/', 'param/'))}
+    missing = sorted(k for k in required if k not in ours or k not in theirs)
+    unexpected = sorted(set(ours) - set(theirs))
+    return Verdict(rows, failures, missing, unexpected)

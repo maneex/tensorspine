@@ -21,10 +21,15 @@ positions, or a contract silent about it, fails here the day its fixture exists.
     ref.py witness NAME@VERSION|all --record    write the fixtures
     ref.py witness NAME@VERSION/CASE [--record]  one case of a contract version
 
-The regeneration is the check that the witness did not change silently: a difference beyond the
-fixture's own f32 tolerance is refused unless the contract version changes or the correction is a
-declared patch (§8.2), whose re-recorded fixtures say so. The same run at every other dtype the
-kernel declares a tolerance for is the check that the tolerance table holds.
+The regeneration is provenance, apart from conformance: the parameters and inputs regenerated
+from the seed are compared exactly with the recorded ones and the line says `regenerated exactly`,
+`within the f32 tolerance` or `DIFFER`; the verdict is the run against the stored tensors, which
+are the evidence, and every recorded position, output and state is required of it. A drift of the
+regeneration fails only under `--strict-provenance` — the rule on the box the fixtures are recorded
+on, where a silent change of the witness is what it catches: refused unless the contract version
+changes or the correction is a declared patch (§8.2), whose re-recorded fixtures say so. The same
+run at every other dtype the kernel declares a tolerance for is the check that the tolerance table
+holds.
 """
 import json
 import os
@@ -283,10 +288,11 @@ def record(name, version, kernel, case, cat, kernels):
     return path, len(tensors)
 
 
-def verify(fid, kernels):
-    """The committed fixture against the witness now: the parameters regenerated from the seed,
-    the run repeated with the parameters loaded from the fixture as a conformer would load them,
-    at f32 and at every other dtype the kernel states a tolerance for. Returns (ok, lines)."""
+def verify(fid, kernels, strict_provenance=False):
+    """The committed fixture against the witness now: the parameters and inputs regenerated from
+    the seed (provenance), the run repeated with the parameters loaded from the fixture as a
+    conformer would load them, at f32 and at every other dtype the kernel states a tolerance for
+    (conformance), and the union. Returns (ok, lines)."""
     path = fixture_path(fid)
     tensors, meta = read_fixture(path)
     name, version = meta['contract']['name'], meta['contract']['version']
@@ -300,7 +306,10 @@ def verify(fid, kernels):
     if errors:
         return False, [f"{fid}: the fixture is not its own checkpoint: {errors[0]}"]
     ok = True
-    # the seed: parameters and inputs regenerated from it are the recorded ones
+    # provenance (docs/TENSORSPINE-FIXTURE.md §5): the parameters and inputs regenerated from the seed
+    # against the recorded ones — exactly, within the f32 tolerance, or differing. The stored tensors
+    # are the evidence a conformer is checked against; regeneration says whether the fixture is what
+    # its seed claims, and a drift fails only under strict provenance (the recording box)
     atol, rtol = tolerance_for(meta, 'f32')
     fresh = {f"param/{i}": t.to(torch.float32) for i, t in parameters(g, meta['seed']).items()}
     gen = torch.Generator().manual_seed(meta['seed'] + 1)
@@ -308,11 +317,15 @@ def verify(fid, kernels):
         for name, t in inputs_for(g, delivered, gen, torch.float32).items():
             fresh[f"in/{k}/{name}"] = t.to(torch.float32) if t.is_floating_point() else t
     seeded = {k: v for k, v in tensors.items() if k.startswith(('param/', 'in/'))}
-    rows, failures, only = compare(fresh, seeded, atol, rtol)
-    worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
-    ok &= not failures and not only
-    lines.append(f"{fid}: {len(rows)} parameters and inputs regenerated from seed {meta['seed']} (max |d| {worst:.1e}){'' if not failures and not only else '  DIFFER'}")
-    # the run, as a conformer repeats it: parameters and inputs from the fixture, at each dtype
+    seed = compare(fresh, seeded, atol, rtol, required=set(seeded))
+    exact = seed.ok and seed.worst == 0.0
+    provenance = ('regenerated exactly' if exact else f"within the f32 tolerance (max |d| {seed.worst:.1e}), not exactly" if seed.ok
+                  else f"DIFFER (max |d| {seed.worst:.1e}) {seed.detail()}")
+    ok &= exact or not strict_provenance
+    lines.append(f"{fid}: {seed.compared} parameters and inputs from seed {meta['seed']}: {provenance}"
+                 + ('' if exact else '  — provenance drift, ' + ('refused under --strict-provenance' if strict_provenance else 'the verdict is conformance against the stored tensors')))
+    # conformance, as a conformer repeats it: parameters and inputs from the fixture, at each dtype;
+    # every recorded position, output and state is required of the run
     params = loader.load_parameters(g, path, 'cpu')
     recorded = {k: v for k, v in tensors.items() if not k.startswith(('param/', 'in/'))}
     for dtype, tol in sorted(meta['tolerance'].items()):
@@ -320,13 +333,12 @@ def verify(fid, kernels):
         got = run(g, kernels, {i: t.to(compute) if t.is_floating_point() else t for i, t in params.items()},
                   meta['invocations'], compute, given=tensors)
         got = {k: v for k, v in got.items() if not k.startswith('in/')}
-        rows, failures, only = compare(got, recorded, tol['atol'], tol['rtol'])
-        worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
-        bad = [r[0] for r in rows if 'EXCEEDS' in r[3] or r[1] is None] + only
-        ok &= not failures and not only
-        lines.append(f"{fid}: {len(rows)} positions, outputs and states at {dtype} within atol {tol['atol']:g} rtol {tol['rtol']:g} "
-                     f"(max |d| {worst:.1e})" + (f"  EXCEEDS: {bad[:3]}" if bad else ''))
-    # the union (harness guide §8): the invocations as sessions of one packed invocation, at f32
+        verdict = compare(got, recorded, tol['atol'], tol['rtol'])
+        ok &= verdict.ok
+        lines.append(f"{fid}: {verdict.compared} positions, outputs and states at {dtype} within atol {tol['atol']:g} rtol {tol['rtol']:g} "
+                     f"(max |d| {verdict.worst:.1e})" + (f"  {verdict.detail()}" if not verdict.ok else ''))
+    # the union (harness guide §8): the invocations as sessions of one packed invocation, at f32;
+    # every recorded output of every invocation is required of the batch
     model = TensorspineModel(g, Plan(g, kernels), {i: t.to(torch.float32) for i, t in params.items()}, torch.float32, 'cpu')
     if model.per_session['unit']:
         lines.append(f"{fid}: evaluated per session under a batch — reads across positions, holds a state or reads several streams")
@@ -338,12 +350,11 @@ def verify(fid, kernels):
            for r, delivered in zip(recorded_k, invocations)]
     outs = step_batch(model, ins, pos, [{} for _ in invocations])
     got = {f"out/{k}/{name}": t.detach().to(torch.float32) for k, o in enumerate(outs) for name, t in o.items()}
-    want = {f"out/{k}/{name}": tensors[f"out/{r}/{name}"] for k, r in enumerate(recorded_k) for name in outs[k]}
-    rows, failures, only = compare(got, want, atol, rtol)
-    worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
-    ok &= not failures and not only
+    want = {f"out/{k}/{key.split('/', 2)[2]}": t for k, r in enumerate(recorded_k) for key, t in tensors.items() if key.startswith(f"out/{r}/")}
+    verdict = compare(got, want, atol, rtol)
+    ok &= verdict.ok
     lines.append(f"{fid}: {len(meta['invocations'])} invocation(s) as {len(invocations)} sessions of one packed invocation give each "
-                 f"session its recorded outputs on the union (max |d| {worst:.1e})" + ('' if not failures and not only else '  DIFFER'))
+                 f"session its recorded outputs on the union (max |d| {verdict.worst:.1e})" + ('' if verdict.ok else f"  DIFFER {verdict.detail()}"))
     return ok, lines
 
 
@@ -362,7 +373,7 @@ def committed(only=None):
     return out
 
 
-def main(target, do_record):
+def main(target, do_record, strict_provenance=False):
     kernels = registry.load_kernels()
     cat = catalog_mod.load(CATALOG)
     only = None if target == 'all' else target
@@ -373,7 +384,7 @@ def main(target, do_record):
         return 0
     ok = True
     for fid in committed(only):
-        good, lines = verify(fid, kernels)
+        good, lines = verify(fid, kernels, strict_provenance)
         ok &= good
         for line in lines:
             print(f"  {'ok  ' if good else 'FAIL'} {line}")
