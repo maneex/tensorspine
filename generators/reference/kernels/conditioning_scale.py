@@ -17,7 +17,6 @@ import torch.nn.functional as F
 from kernels._common import supports_from, w
 
 CONTRACT = ("conditioning.scale", "1.0.0")
-ACROSS_POSITIONS = False     # per element: a batch may evaluate it on several sessions' elements at once (B03)
 ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approximate='tanh'),
        'relu2': lambda x: F.relu(x).pow(2)}
 

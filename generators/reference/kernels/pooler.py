@@ -12,7 +12,6 @@ import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from, w
 
 CONTRACT = ("pooler", "1.0.0")
-ACROSS_POSITIONS = True      # reduces over the sequence: a batch evaluates it per session (B03)
 
 
 CAPABILITIES = {"arguments": {"width": "any", "project_to": "any", "normalize": ["l2", "none"], "reduce": ["none"]},

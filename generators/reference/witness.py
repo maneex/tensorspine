@@ -10,6 +10,13 @@ run produced is the fixture: the parameters, and per invocation the inputs, the 
 outputs and every state. A conformer runs the same document from the same file and must agree
 within the tolerance the kernel declares for its compute dtype.
 
+The union (harness guide §8): an occurrence that does not read across positions (D1's
+`across_positions`), holds no state and reads one stream may be evaluated on several sessions'
+elements at once. On every unit fixture the rule admits, the fixture's invocations run as sessions
+of one packed invocation — each with its recorded positions, one invocation twice when there is
+only one — must give every session its recorded outputs: a kernel that secretly reads across
+positions, or a contract silent about it, fails here the day its fixture exists.
+
     ref.py witness NAME@VERSION|all             regenerate every case and compare with the committed fixture
     ref.py witness NAME@VERSION|all --record    write the fixtures
     ref.py witness NAME@VERSION/CASE [--record]  one case of a contract version
@@ -41,7 +48,7 @@ import graph as graph_mod              # noqa: E402
 import loader                          # noqa: E402
 import registry                        # noqa: E402
 from compare import compare, read_fixture, tolerance_for, write_fixture   # noqa: E402
-from module import TensorspineModel    # noqa: E402
+from module import TensorspineModel, step_batch    # noqa: E402
 from plan import Plan                  # noqa: E402
 from session import Session            # noqa: E402
 
@@ -319,6 +326,24 @@ def verify(fid, kernels):
         ok &= not failures and not only
         lines.append(f"{fid}: {len(rows)} positions, outputs and states at {dtype} within atol {tol['atol']:g} rtol {tol['rtol']:g} "
                      f"(max |d| {worst:.1e})" + (f"  EXCEEDS: {bad[:3]}" if bad else ''))
+    # the union (harness guide §8): the invocations as sessions of one packed invocation, at f32
+    model = TensorspineModel(g, Plan(g, kernels), {i: t.to(torch.float32) for i, t in params.items()}, torch.float32, 'cpu')
+    if model.per_session['unit']:
+        lines.append(f"{fid}: evaluated per session under a batch — reads across positions, holds a state or reads several streams")
+        return ok, lines
+    recorded_k = list(range(len(meta['invocations']))) if len(meta['invocations']) > 1 else [0, 0]
+    invocations = [meta['invocations'][r] for r in recorded_k]
+    ins = [{name: tensors[f"in/{r}/{name}"] for name in sorted(delivered)} for r, delivered in zip(recorded_k, invocations)]
+    pos = [{g.input_stream[name]: tensors[f"positions/{r}/{g.input_stream[name]}"] for name in delivered}
+           for r, delivered in zip(recorded_k, invocations)]
+    outs = step_batch(model, ins, pos, [{} for _ in invocations])
+    got = {f"out/{k}/{name}": t.detach().to(torch.float32) for k, o in enumerate(outs) for name, t in o.items()}
+    want = {f"out/{k}/{name}": tensors[f"out/{r}/{name}"] for k, r in enumerate(recorded_k) for name in outs[k]}
+    rows, failures, only = compare(got, want, atol, rtol)
+    worst = max((r[1] for r in rows if r[1] is not None), default=0.0)
+    ok &= not failures and not only
+    lines.append(f"{fid}: {len(meta['invocations'])} invocation(s) as {len(invocations)} sessions of one packed invocation give each "
+                 f"session its recorded outputs on the union (max |d| {worst:.1e})" + ('' if not failures and not only else '  DIFFER'))
     return ok, lines
 
 

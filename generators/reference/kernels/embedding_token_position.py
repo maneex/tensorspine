@@ -11,7 +11,6 @@ implementation would index out of its table.
 from kernels._common import supports_from
 
 CONTRACT = ("embedding.token_position", "1.0.0")
-ACROSS_POSITIONS = False     # per element: a batch may evaluate it on several sessions' elements at once (B03)
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "positions": "any"}, "states": []}

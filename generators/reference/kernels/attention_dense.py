@@ -36,7 +36,6 @@ import torch
 from kernels._common import present, refuse_unknown, supports_from, w
 
 CONTRACT = ("attention.dense", "1.0.0")
-ACROSS_POSITIONS = True      # reads every position of its stream held or delivered: a batch evaluates it per session (B03)
 KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'mask', 'window', 'chunk', 'cross', 'streaming', 'rope',
          'qk_norm', 'temperature', 'q_bias', 'k_bias', 'v_bias', 'out_bias', 'output_gate'}
 

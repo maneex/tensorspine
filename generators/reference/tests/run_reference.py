@@ -176,6 +176,7 @@ def main(compile_step=False, full=False):
     ok &= voxtral_random_case(check, tmp)
     ok &= sharing_case(check, tmp)
     ok &= batch_case(check, tmp)
+    ok &= voxtral_batch_case(check, tmp)
     ok &= m1(check)
     ok &= composite_case(check)
     ok &= by_source_case(check)
@@ -619,6 +620,75 @@ def batch_case(check, tmp):
     return ok
 
 
+def _max_diff(a, b):
+    return float((a - b).abs().max()) if a.shape == b.shape and a.numel() else (0.0 if a.shape == b.shape else float('inf'))
+
+
+def voxtral_batch_case(check, tmp):
+    """The tiny streaming document batched on the packed layout (B06 on a merge): two sessions of
+    different lengths — three tokens with twenty-four frames and two tokens with sixteen, each
+    with its own delay — prefilled together and decoded together twice, a token and eight frames
+    each, against each alone. The split is read from the derived document (harness guide §8):
+    the stem (it reads neighbouring frames), the attentions and the conditioning scales (a state,
+    two streams) per session; the temporal projector — a merge, its groups inside each session —
+    on the union with the embeddings, the norms, the feed-forwards, the residual sums and the
+    head."""
+    ok = True
+    path, _ = graph_mod.edited(os.path.join(ROOT, 'data', 'models', 'voxtral-realtime.json'), TINY_VOXTRAL, tmp, 'tiny-batch')
+    g = graph_mod.load(path)
+    kernels = registry.load_kernels()
+    params = loader.random_parameters(g, 'cpu', seed=9)
+    model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
+    per = {n for n, v in model.per_session.items() if v}
+    want_per = {n for n, e in g.nodes.items() if e['contract']['name'] in ('conv_frontend', 'attention.dense', 'conditioning.scale')}
+    ok &= check("batch (tiny voxtral): per session — the stem, the attentions and the conditioning scales; on the union — the temporal "
+                "projector (a merge), the time embedding, the fused embedding, the norms, the feed-forwards and the head",
+                per == want_per and not any(model.per_session[n] for n in ('audio_projector', 'time_embed', 'fuse', 'embed', 'lm_head')),
+                str(sorted(per ^ want_per)[:4]))
+    capacity = {'audio': 64, 'delay': 1}
+    gen = torch.Generator().manual_seed(11)
+    audio = [torch.randn(48, 8, generator=gen), torch.randn(40, 8, generator=gen)]
+    delays = [torch.tensor([6], dtype=torch.int32), torch.tensor([3], dtype=torch.int32)]
+    prompts, frames = [[1, 2, 3], [4, 5]], [24, 16]
+
+    def session():
+        return Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
+
+    def fragment(k, i):
+        return audio[k][frames[k] + 8 * i:frames[k] + 8 * i + 8]
+    alone = []
+    for k in range(2):
+        s = session()
+        logits = [s.prefill(prompts[k], inputs={'audio': audio[k][:frames[k]], 'delay': delays[k]})[g.generative[0]].clone()]
+        tokens = [greedy({g.generative[0]: logits[-1]}, g)]
+        for i in range(2):
+            logits.append(s.decode(tokens[-1], inputs={'audio': fragment(k, i)})[g.generative[0]].clone())
+            tokens.append(greedy({g.generative[0]: logits[-1]}, g))
+        alone.append((logits, tokens, recorded_states(s), dict(s.consumed)))
+    batch = Batch([session(), session()])
+    outs = batch.prefill(prompts, inputs=[{'audio': audio[k][:frames[k]], 'delay': delays[k]} for k in range(2)])
+    logits = [[o[g.generative[0]].clone()] for o in outs]
+    nxt = [greedy(o, g) for o in outs]
+    tokens = [[n] for n in nxt]
+    for i in range(2):
+        outs = batch.decode(nxt, inputs=[{'audio': fragment(k, i)} for k in range(2)])
+        nxt = [greedy(o, g) for o in outs]
+        for k, o in enumerate(outs):
+            logits[k].append(o[g.generative[0]].clone())
+            tokens[k].append(nxt[k])
+    worst = max(_max_diff(x, y) for k in range(2) for x, y in zip(logits[k], alone[k][0]))
+    ok &= check(f"batch (tiny voxtral): 3 tokens with 24 frames and 2 tokens with 16, prefilled and decoded together twice, give each "
+                f"session its own logits (max |d| {worst:.1e}, f32 rounding across row counts) and tokens — the temporal projector on the union",
+                all(x.shape == y.shape and torch.allclose(x, y, atol=1e-5, rtol=1e-4) for k in range(2) for x, y in zip(logits[k], alone[k][0]))
+                and tokens == [a[1] for a in alone], f"batched {tokens}, alone {[a[1] for a in alone]}")
+    d_states = max(_max_diff(recorded_states(s)[key], a[2][key]) for s, a in zip(batch.sessions, alone) for key in a[2])
+    ok &= check(f"batch (tiny voxtral): every ring, history and condition cache is its session's own (max |d| {d_states:.1e}); the audio "
+                f"streams advanced by 40 and 32 frames",
+                d_states < 1e-5 and [dict(s.consumed) for s in batch.sessions] == [a[3] for a in alone]
+                and [s.consumed['audio'] for s in batch.sessions] == [40, 32], str([dict(s.consumed) for s in batch.sessions]))
+    return ok
+
+
 def m1(check):
     ok = True
     for entry in FIXTURES:
@@ -747,16 +817,17 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     if not encoder and step_inputs(0) is None:
         # B06 on the checkpoint: the fixture's prompt and its first half as one packed batch, decoded
         # together for the fixture's steps — the first session against the fixture's own record, the
-        # second against its run alone
+        # second against its run alone; both deliver the prefill's other inputs (Whisper's audio, the
+        # cross source of both sessions), since a batch's sessions evaluate the same occurrences (§7)
         half = ids[:max(1, len(ids) // 2)]
         alone = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
-        a_logits = [alone.prefill(half)[g.generative[0]].clone()]
+        a_logits = [alone.prefill(half, inputs=prefill_inputs)[g.generative[0]].clone()]
         a_tokens = [greedy({g.generative[0]: a_logits[-1]}, g)]
         for _ in range(len(header['tokens']) - 1):
             a_logits.append(alone.decode(a_tokens[-1])[g.generative[0]].clone())
             a_tokens.append(greedy({g.generative[0]: a_logits[-1]}, g))
         batch = Batch([Session(model, capacity=capacity, device='cpu', dtype=torch.float32) for _ in range(2)])
-        outs = batch.prefill([ids, half])
+        outs = batch.prefill([ids, half], inputs=[prefill_inputs, prefill_inputs])
         b_logits = [[o[g.generative[0]].clone()] for o in outs]
         nxt = [greedy(o, g) for o in outs]
         b_tokens = [[n] for n in nxt]

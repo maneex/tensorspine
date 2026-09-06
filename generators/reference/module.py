@@ -82,13 +82,17 @@ def node_streams(graph, node):
 
 
 def evaluated_per_session(graph, step):
-    """Whether a batch evaluates the occurrence per session (B03): its kernel reads across
-    positions of its stream (`ACROSS_POSITIONS`, the contract's `effects.across_positions` as the
-    kernel knows it — the derived document does not state it per occurrence), it carries a state
-    (per session by its instance key, §4.4), or it reads values of several streams (a broadcast
-    from a per-session value); an undeclared kernel is taken to read across positions."""
-    across = getattr(step.kernel, 'ACROSS_POSITIONS', True) if step.kernel is not None else True
-    return bool(across or step.states or len(node_streams(graph, step.node)) > 1)
+    """Whether a batch evaluates the occurrence per session (B03; harness guide §8): it reads
+    across positions of its stream (D1's `across_positions`, the contract's condition evaluated on
+    the occurrence's arguments — the kernels declare nothing), it carries a state (per session by
+    its instance key, §4.4), or it reads values of several streams (a broadcast from a per-session
+    value). A derived document without the field is refused: the split is read, never guessed
+    from the states."""
+    entry = graph.nodes[step.node]
+    if 'across_positions' not in entry:
+        raise ShapeError(f"{step.node}: the derived document states no across_positions — derive it again "
+                         f"(tensorspine --derive MODEL -o DIR)")
+    return bool(entry['across_positions'] or step.states or len(node_streams(graph, step.node)) > 1)
 
 
 class TensorspineModel(nn.Module):
@@ -142,9 +146,16 @@ def feed(model, s, inputs, values):
 
 def evaluate(model, s, ctx, ins, params, sts, stream_positions):
     """One occurrence: the kernel on its inputs, parameters and states, at its positions (the
-    stream's, scaled by its D2 count, §5.3); every output checked against its D2 shape."""
-    ctx.positions = scaled(stream_positions, s.factor)
-    n = None if stream_positions is None else stream_positions.shape[0]
+    stream's, scaled by its D2 count, §5.3); every output checked against its D2 shape. On the
+    packed layout `stream_positions` is a list, one entry per session: each session's positions
+    are scaled on their own and then concatenated — a merge's block per session, never one arange
+    across the sessions."""
+    parts = stream_positions if isinstance(stream_positions, list) else [stream_positions]
+    if parts[0] is None:
+        ctx.positions, n = None, None
+    else:
+        ctx.positions = torch.cat([scaled(p, s.factor) for p in parts]) if len(parts) > 1 else scaled(parts[0], s.factor)
+        n = sum(p.shape[0] for p in parts)
     rows = {} if n is None else {port: elements(n, s.counts[port]) for port in s.outputs}   # refused before the kernel runs
     outs = s.kernel.run(ctx, s.arguments, ins, params, sts, model.physical.get(s.node))
     for port, t in outs.items():
@@ -202,12 +213,15 @@ def step(model, inputs, positions, states, dump=None):
 def step_batch(model, inputs, positions, states):
     """One invocation for several sessions — the packed layout (B03): `inputs`, `positions` and
     `states` hold one entry per session. An occurrence the model evaluates per session
-    (`per_session`: its kernel reads across positions, it carries a state, or it reads several
-    streams) runs on each session's elements and states in turn; every other occurrence runs once
-    on the sessions' elements concatenated along the element axis — the language's own axis, its
-    positions per element — and its outputs are split back by each session's rows. A session gets
-    what it would get alone, up to the rounding of a matrix product over more rows. The sessions
-    must evaluate the same occurrences (§7: one delivery pattern per invocation)."""
+    (`per_session`: it reads across positions, it carries a state, or it reads several streams)
+    runs on each session's elements and states in turn; every other occurrence runs once on the
+    sessions' elements concatenated along the element axis — the language's own axis, its
+    positions per element — and its outputs are split back, each session's rows being its
+    elements of the stream through the value's D2 count (a merge, the temporal projector, makes
+    fewer rows than it reads, and every aligned delivery keeps its groups inside a session,
+    §5.3). A session gets what it would get alone, up to the rounding of a matrix product over
+    more rows. The sessions must evaluate the same occurrences (§7: one delivery pattern per
+    invocation)."""
     k = len(inputs)
     if k == 1:
         return [step(model, inputs[0], positions[0], states[0])]
@@ -239,14 +253,16 @@ def step_batch(model, inputs, positions, states):
                         for i in range(k)]
             else:
                 first = next(iter(per[0]), None)
-                rows = [per[i][first].shape[0] if first is not None else 0 for i in range(k)]
+                delivered = [per[i][first].shape[0] if first is not None else 0 for i in range(k)]
                 joint = {port: torch.cat([per[i][port] for i in range(k)], dim=0) for port in per[0]}
-                jpos = None if spos[0] is None else torch.cat(spos)
-                out = evaluate(model, s, ctx, joint, params, {}, jpos)
+                out = evaluate(model, s, ctx, joint, params, {}, None if spos[0] is None else spos)
                 outs = [{} for _ in range(k)]
                 for port, t in out.items():
+                    rows = ([elements(spos[i].shape[0], s.counts[port]) for i in range(k)]
+                            if spos[0] is not None and port in s.counts else delivered)
                     if t.shape[0] != sum(rows):
-                        raise ShapeError(f"{s.node}.{port}: {t.shape[0]} rows for {rows} per session — not a per-element occurrence")
+                        raise ShapeError(f"{s.node}.{port}: {t.shape[0]} rows for {rows} per session — not the per-element "
+                                         f"occurrence the derived document describes")
                     for i, part in enumerate(torch.split(t, rows, dim=0)):
                         outs[i][port] = part
             for i in range(k):

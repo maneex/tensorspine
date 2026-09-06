@@ -207,14 +207,19 @@ every state port is keyed by session through its instance key, §4.4). This gene
 the **packed** layout, an argument of the generator (`--batch packed`, one layout per invocation,
 never per occurrence): the sessions' elements are concatenated on the element axis — the
 language's own axis, its positions per element — and the runner decides from the topology which
-occurrences it may evaluate on that union and which it must evaluate per session: an occurrence
-whose kernel reads across positions of its stream (`ACROSS_POSITIONS`, declared by each kernel,
-since the derived document does not state the contract's `effects.across_positions` per
-occurrence), one that carries a state (per session by its instance key), or one that reads values
-of several streams (a broadcast from a per-session value) runs on each session's own elements and
-states; every other occurrence — embeddings, norms, feed-forwards, the head, the residual sums,
-the mixture's per-element routing — runs once for all the sessions and its rows are split back.
-The kernels are untouched: they stay the contracts' per-element implementations.
+occurrences it may evaluate on that union and which it must evaluate per session (harness guide
+§8): an occurrence that reads across positions of its stream (D1's `across_positions`, the
+contract's `effects.across_positions` evaluated on the occurrence's arguments — the kernels
+declare nothing, and a derived document without the field is refused), one that carries a state
+(per session by its instance key), or one that reads values of several streams (a broadcast from
+a per-session value) runs on each session's own elements and states; every other occurrence —
+embeddings, norms, feed-forwards, the head, the residual sums, the mixture's per-element routing,
+a merge such as the temporal projector, whose groups every aligned delivery keeps inside a session
+— runs once for all the sessions and its rows are split back, each session's by its elements
+through the value's count. The kernels are untouched: they stay the contracts' per-element
+implementations. The witness checks the rule on every unit fixture it admits to the union: the
+fixture's invocations run as sessions of one packed invocation give each session its recorded
+outputs.
 
 `ref.py run MODEL … --ids 1,2,3 --ids 4,5 --batch packed` runs one session per prompt: prefilled
 together (their lengths may differ), then decoded together, greedily, each session's tokens on its

@@ -2,7 +2,6 @@
 from kernels._common import chunked_matmul, refuse_unknown, supports_from
 
 CONTRACT = ("lm_head", "1.0.0")
-ACROSS_POSITIONS = False     # per element: a batch may evaluate it on several sessions' elements at once (B03)
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any"}, "states": []}

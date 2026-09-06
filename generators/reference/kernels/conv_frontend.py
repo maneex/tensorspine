@@ -26,7 +26,6 @@ import torch.nn.functional as F
 from kernels._common import present, supports_from, w
 
 CONTRACT = ("conv_frontend", "1.0.0")
-ACROSS_POSITIONS = True      # reads neighbouring frames: a batch evaluates it per session (B03)
 
 
 CAPABILITIES = {"arguments": {"width": "any", "mels": "any", "stride": "any", "kernel": "any", "bias": "any", "position": "any",
