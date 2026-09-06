@@ -32,6 +32,11 @@ pub const Contract = struct {
 pub const Node = struct {
     contract: Contract,
     arguments: std.json.Value = .null,
+    /// Derived (D1): whether the occurrence reads positions of its stream beyond those of
+    /// the element it produces — the contract's `effects.across_positions` on the node's
+    /// arguments (§4.1). Null on a document that predates the field; the plan refuses it
+    /// rather than guess the split from the states.
+    across_positions: ?bool = null,
 };
 
 pub const PortRef = struct {

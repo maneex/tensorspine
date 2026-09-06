@@ -20,6 +20,7 @@ const log = std.log.scoped(.tspl);
 
 pub const Error = error{
     UnknownValue,
+    NoAcrossPositions,
     NoPrimitive,
     UnfedPort,
 };
@@ -72,9 +73,11 @@ pub const Step = struct {
     /// The name of the `stablehlo.composite` this occurrence becomes.
     composite: [:0]const u8,
     /// Whether a batch evaluates this occurrence per session — it reads across positions
-    /// (its primitive takes them) or holds a state (per session by its instance key, §4.4) —
-    /// or once on every session's elements together (batch-plan B05: the aligned layout,
-    /// the emitter's split; the primitive sees rank-2 values either way).
+    /// of its stream (D1's `across_positions`, the contract's condition on its arguments),
+    /// holds a state (per session by its instance key, §4.4) or reads values of several
+    /// streams (a broadcast from a per-session value) — or once on every session's
+    /// elements together (harness guide §8; batch-plan B05: the aligned layout, the
+    /// emitter's split; the primitive sees rank-2 values either way).
     per_session: bool,
 };
 
@@ -252,6 +255,12 @@ fn shapeOf(v: graph.Value, batch: i64, elements: i64, dt: zml.DataType) zml.Shap
     return sh;
 }
 
+/// The stream a value is on (D2's domain); a value without a domain is on none.
+fn streamOf(g: *const graph.Graph, value_name: []const u8) []const u8 {
+    const v = g.valueNamed(value_name) orelse return "";
+    return if (v.domain) |dm| dm.stream else "";
+}
+
 /// A plan evaluating exactly what `target` (a `node.port` value) needs — its ancestor
 /// closure, in the document's topological order.
 pub fn until(
@@ -315,8 +324,10 @@ pub fn until(
             return Error.NoPrimitive;
         };
 
-        // inputs: every edge landing on this node, then every public input feeding it
+        // inputs: every edge landing on this node, then every public input feeding it;
+        // the stream of each (D2), for the split below
         var inputs: std.ArrayList(PortBinding) = .empty;
+        var streams: std.ArrayList([]const u8) = .empty;
         for (d.d1.edges) |e| {
             if (!std.mem.eql(u8, e.to.node, node_id)) continue;
             const from = try std.fmt.allocPrint(a, "{s}.{s}", .{ e.from.node, e.from.port });
@@ -325,6 +336,7 @@ pub fn until(
                 return Error.UnfedPort;
             };
             try inputs.append(a, .{ .port = e.to.port, .source = .{ .value = .{ .step = p.step, .out = p.out } } });
+            try streams.append(a, streamOf(g, from));
         }
         for (d.d1.interfaces.inputs.map.keys(), d.d1.interfaces.inputs.map.values()) |name, entry| {
             for (entry.to) |t| {
@@ -340,6 +352,7 @@ pub fn until(
                     try public_shapes.append(a, shapeOf(v, batch, elements, publicDtype(try dtypes.of(v.dtype), compute)));
                 }
                 try inputs.append(a, .{ .port = t.port, .source = .{ .public = index.? } });
+                try streams.append(a, streamOf(g, name));
             }
         }
 
@@ -406,7 +419,22 @@ pub fn until(
             try shapes.append(a, shapeOf(v, batch, elements, compute));
         }
 
-        const per_session = prim.needs_positions or step_states.items.len > 0;
+        // Per session or on the union (harness guide §8): the occurrence reads across
+        // positions of its stream — D1's `across_positions`, read and never guessed from the
+        // states or from whether the primitive takes positions — holds a state (per session
+        // by its instance key), or reads values of several streams (a broadcast from a
+        // per-session value).
+        const across = node.across_positions orelse {
+            log.err("{s}: the derived document states no across_positions — derive it again (tensorspine --derive MODEL -o DIR)", .{node_id});
+            return Error.NoAcrossPositions;
+        };
+        var several_streams = false;
+        if (streams.items.len > 1) {
+            for (streams.items[1..]) |s| {
+                if (!std.mem.eql(u8, s, streams.items[0])) several_streams = true;
+            }
+        }
+        const per_session = across or step_states.items.len > 0 or several_streams;
         try steps.append(a, .{
             .node = node_id,
             .prim = prim,

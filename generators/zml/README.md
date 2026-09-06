@@ -264,12 +264,16 @@ the sessions' count is one more extent of the arity, beside the element count. E
 walk carries is `[sessions, elements, …]`; every state buffer `[members, sessions, …]`, the
 session axis inside the member axis so a dump per D4 identity stays contiguous; `start` is one
 position per session, and the positions follow. The emitter makes the split the reference
-generator's runner makes on its packed layout: an occurrence that reads across positions (its
-primitive takes them) or holds a state is evaluated once per session — one composite per session,
-on its slice, its positions and its view of the state buffers, which flow from one session's
-composite to the next — and every other occurrence once, on every session's elements merged into
-one element axis, its outputs split back. The primitives see rank-2 values either way and know
-nothing of the batch; a batch of one is today's graph with an axis of one in front, the same
-bytes. At most `MAX_SESSIONS` (16, the manifest's `sessions_per_invocation`) ride together;
-`--unit` and `--chat` run one session. The harness checks two sessions — the fixture's prompt and
-its reverse — against each alone on llama3-8b and the first hybrid, values and every state.
+generator's runner makes on its packed layout, read from the derived document (harness guide
+§8): an occurrence that reads across positions of its stream (D1's `across_positions`, the
+contract's condition on the occurrence's arguments; a document without the field is refused),
+holds a state or reads values of several streams is evaluated once per session — one composite
+per session, on its slice, its positions and its view of the state buffers, which flow from one
+session's composite to the next — and every other occurrence once, on every session's elements
+merged into one element axis, its positions merged the same way when its primitive takes them
+(ColBERT's position embedding), its outputs split back. The primitives see rank-2 values either
+way and know nothing of the batch; a batch of one is today's graph with an axis of one in front,
+the same bytes. At most `MAX_SESSIONS` (16, the manifest's `sessions_per_invocation`) ride
+together; `--unit` and `--chat` run one session. The harness checks two sessions — the fixture's
+prompt and its reverse — against each alone on llama3-8b, the first hybrid and ColBERT, values
+and every state.

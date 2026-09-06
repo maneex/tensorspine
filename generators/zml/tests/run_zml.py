@@ -9,8 +9,8 @@ document must equal what `tools/derive.py` put in it.
 
 Then, for whichever checkpoints it is given, the numbers against the reference
 generator's committed fixtures: llama3-8b, colbert-v2, and the two hybrids; and, on
-llama3-8b and the first hybrid, two sessions in one invocation (`--batch=aligned`)
-against each alone (batch-plan B06).
+llama3-8b, the first hybrid and ColBERT (its position embedding on the union), two sessions
+in one invocation (`--batch=aligned`) against each alone (batch-plan B06).
 
 Two directories, both shell variables, neither with a default inside the tree:
 $ZML_HOME is the ZML checkout that is the build root, and $TENSORSPINE_MODEL_ARTIFACTS is the
@@ -637,6 +637,13 @@ def main():
             more, bad = batched(binary, derived_llama, llama, 'llama3-8b', FIXTURE, 'decoder/ffn_r[layer=2].output',
                                 [(f'decoder.attn.kv[layer={i}]', c) for i in range(3) for c in ('k', 'v')],
                                 scratch, os.path.join(dumps_root, 'llama3-8b'))
+            checked += more
+            failed += bad
+        derived_colbert = os.path.join(out_dir, 'colbert-v2.derived.json')
+        if weights(a.model_artifacts, 'colbert-v2') and os.path.isfile(derived_colbert):
+            print()
+            more, bad = batched(binary, derived_colbert, weights(a.model_artifacts, 'colbert-v2'), 'colbert-v2', COLBERT_FIXTURE,
+                                'pooler.output', [], scratch, os.path.join(dumps_root, 'colbert-v2'))
             checked += more
             failed += bad
         for model, fixture_path in HYBRIDS[:1]:

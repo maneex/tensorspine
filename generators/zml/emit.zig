@@ -12,12 +12,13 @@
 //!
 //! Several sessions in one invocation (batch-plan B05, the aligned layout): every value
 //! the walk carries is `[sessions, elements, …]`. An occurrence that reads across positions
-//! or holds a state is evaluated once per session, on that session's slice, positions and
-//! state view — one composite per session, the state buffers flowing from one to the next;
-//! every other occurrence is evaluated once on all the sessions' elements merged into one
-//! element axis, and its outputs are split back. The primitives see rank-2 values either
-//! way and know nothing of the batch — the same split the reference generator's runner
-//! makes on its packed layout.
+//! (D1's `across_positions`), holds a state or reads several streams is evaluated once per
+//! session, on that session's slice, positions and state view — one composite per session,
+//! the state buffers flowing from one to the next; every other occurrence is evaluated once
+//! on all the sessions' elements merged into one element axis — its positions merged the
+//! same way when its primitive takes them — and its outputs are split back. The primitives
+//! see rank-2 values either way and know nothing of the batch — the same split the
+//! reference generator's runner makes on its packed layout (harness guide §8).
 
 const std = @import("std");
 
@@ -216,6 +217,18 @@ pub fn forward(
                 tensors.append(a, src.reshape(merged(src.shape()))) catch @panic("out of memory");
             }
             appendParams(a, step, group, params, handle.group, &operands, &tensors);
+            if (step.prim.needs_positions) {
+                // The positions of every session's elements, one session after the other:
+                // the union's element axis is the sessions' elements concatenated, and so
+                // are their positions (a position embedding on the union).
+                const parts = a.alloc(zml.Tensor, sessions) catch @panic("out of memory");
+                for (parts, 0..) |*t, session| {
+                    const start_s = start.slice(0, .single(@as(i64, @intCast(session))));
+                    t.* = start_s.convert(.i32).broad(elements_shape).add(zml.Tensor.iota(elements_shape, 0));
+                }
+                operands.append(a, .positions) catch @panic("out of memory");
+                tensors.append(a, zml.Tensor.concatenate(parts, 0)) catch @panic("out of memory");
+            }
             for (step.shapes) |shape| shapes.append(a, merged(shape)) catch @panic("out of memory");
             const emitted = zml.ops.composite(step.composite, tensors.items, shapes.items, decompose, Decomposition{
                 .step = step,
