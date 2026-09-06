@@ -50,6 +50,37 @@ held conditions after it. The encoder's sliding-window caches are left out unles
 the committed fixture's 156 positions — since every decode step's four encoder positions
 exercise them; `hook_map` says so.
 
+For a model whose tables are sized by the layer count, whose layers return several residual
+streams and whose caches are shared (Gemma 3n), four options keep the hook map data and name
+nothing: `--truncate-after-load` loads the whole checkpoint on its full config in bf16, keeps the
+first `--layers` decoder layers and casts to `--dtype` (`num_hidden_layers` stays, so the per-layer
+tables keep their slices and a shared-KV reader past the cut still reads its writer as in the whole
+model; `--drop audio_tower,vision_tower` frees the towers first); `--layer-output-layout streams_first`
+records a layer's `[streams, B, T, D]` tensor as `[T, streams, D]`; `--capture METHOD:VALUE` records
+a method's return as a D1 value (`project_per_layer_inputs:embed.auxiliary`); `--states-from-document`
+names each cache layer's state by the D4 identity whose writer sits at that layer — the shared ring
+and the shared cache by their identities, the others by their site.
+
+```sh
+python3 generators/reference/fixtures/dump_hf.py --model "$TENSORSPINE_MODEL_ARTIFACTS/weights/gemma-3n-E2B" \
+  --document gemma3n-kvshare --artifact-id google/gemma-3n-E2B --ids 2,818,5279,529,7001,563 --steps 3 \
+  --layers 4 --truncate-after-load --drop audio_tower,vision_tower --dtype f32 \
+  --layer-output inject --layer-output-layout streams_first --capture project_per_layer_inputs:embed.auxiliary \
+  --states-from-document --out /tmp/gemma3n-kvshare.4layers.hf.safetensors       # and --layers 21 --dtype bf16 for the shared-KV fixture
+```
+
+The two committed Gemma fixtures: four sliding layers in fp32 (the four-stream residual, LAUREL and
+the per-layer inputs at a tight tolerance; the global layer at index 4 left out on purpose) and
+twenty-one layers in bf16, where layer 20 reads the ring layer 18 writes and layer 19's full cache
+stands alone, as in the whole model — the per-layer table alone is 2 B parameters, hence bf16, and
+hence its tolerance: the four residual streams reach a thousand in magnitude and bf16 drift over 21
+layers measured a maximum gap of 19.4 (2% of the rms, growing smoothly with depth), the logits
+within 0.43, so the fixture records `atol 20, rtol 0.02` while the greedy tokens are equal.
+`--checkpoint` on this document reports 855 tensors named by no location: the two towers' 825,
+and the `k_proj`, `v_proj` and `k_norm` the file stores for the ten reader layers although the
+module builds none for them and `transformers` drops them on load — the document has no slot for
+a computation that does not exist, so they stay an advisory (breadth plan, finding 31).
+
 The dumper records cut values, post-prefill state, exposed outputs, generated tokens and the
 non-token inputs the prefill delivered. Its `hook_map` is the only mapping between
 delivery-implementation names and TensorSpine D1/D4 names. Captured tensors are cloned

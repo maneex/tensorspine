@@ -51,6 +51,19 @@ def main(argv=None):
     ap.add_argument('--atol', type=float, help='an f32 conformer\'s absolute tolerance against this fixture (default: the f32 entry of TOLERANCE)')
     ap.add_argument('--rtol', type=float, help='its relative tolerance')
     ap.add_argument('--layers', type=int, help='num_hidden_layers override (the truncated fixture)')
+    ap.add_argument('--truncate-after-load', action='store_true',
+                    help="with --layers: load the whole checkpoint on its full config (bf16), then keep the first --layers decoder layers — for a model whose "
+                         "tables are sized by the layer count (Gemma 3n's per-layer inputs), where a config override cannot load; num_hidden_layers stays")
+    ap.add_argument('--drop', metavar='MODULE[,MODULE]', help="with --truncate-after-load: submodules of the inner model the text delivery never evaluates "
+                    "(audio_tower,vision_tower), freed before the cast to --dtype")
+    ap.add_argument('--layer-output-layout', default='tuple_first', choices=['tuple_first', 'streams_first'],
+                    help="how a decoder layer returns its output: the first item of a tuple (or the tensor) [B, T, D]; or one tensor "
+                         "[streams, B, T, D] recorded as [T, streams, D] (a multi-stream residual)")
+    ap.add_argument('--capture', metavar='METHOD:VALUE', action='append', default=[],
+                    help="a method of the text model whose return (batch 0) is a D1 value — project_per_layer_inputs:embed.auxiliary")
+    ap.add_argument('--states-from-document', action='store_true',
+                    help="name each cache layer's state by the D4 identity whose writer sits at that layer, from the truncated document "
+                         "(shared identities, two attention sites) instead of the --attn-site convention")
     ap.add_argument('--ids', help="the prompt's token ids; on a streaming model the processor's prefill, checked against these when given")
     ap.add_argument('--steps', type=int, default=3)
     ap.add_argument('--dtype', default='f32', choices=['f32', 'bf16'])
@@ -84,10 +97,11 @@ def main(argv=None):
     dtype = {'f32': torch.float32, 'bf16': torch.bfloat16}[args.dtype]
     config = AutoConfig.from_pretrained(args.model)
     text = getattr(config, 'text_config', None) or config
-    if args.layers:
+    if args.layers and not args.truncate_after_load:
         text.num_hidden_layers = args.layers
         if getattr(text, 'layer_types', None):
             text.layer_types = list(text.layer_types)[:args.layers]
+    load_dtype = torch.bfloat16 if args.truncate_after_load else dtype     # the whole checkpoint first, as stored; the cast after the cut
     t0 = time.time()
     # the class the config maps to: causal-LM when transformers lists the type there, else the
     # image-text-to-text wrapper (a multimodal checkpoint run on text; its decoder is `language_model`)
@@ -96,15 +110,39 @@ def main(argv=None):
         cls = AutoModel                                # the base model: the encoder and nothing on top
     else:
         cls = AutoModelForCausalLM if config.model_type in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES else AutoModelForImageTextToText
-    model = cls.from_pretrained(args.model, config=config, dtype=dtype)
+    model = cls.from_pretrained(args.model, config=config, dtype=load_dtype)
     model.eval()
     n_layers = text.num_hidden_layers
+    inner = getattr(model, 'model', model)             # a base model is its own inner model
+    lm = getattr(inner, 'language_model', inner)       # the text model: its layers, its methods
+    if args.truncate_after_load:
+        # the module list cut after loading: the config keeps its layer count, so every table sized by it keeps its
+        # slices and a shared-KV layer past the cut still reads the writer the whole model gives it
+        lm.layers = torch.nn.ModuleList(list(lm.layers)[:args.layers])
+        n_layers = args.layers
+        for name in (args.drop or '').split(','):
+            if name:
+                setattr(inner, name, None)
+        if load_dtype != dtype:
+            model = model.to(dtype)
+        print(f"kept {n_layers} of {text.num_hidden_layers} layers" + (f", dropped {args.drop}" if args.drop else '') + f", cast to {dtype}")
     print(f"loaded {args.model}: {n_layers} layers in {dtype} ({time.time() - t0:.0f}s)")
     ids = [int(x) for x in args.ids.split(',')]
     dump, hooks, hook_map = {}, [], {}
-    inner = getattr(model, 'model', model)             # a base model is its own inner model
     layers = getattr(inner, 'layers', None) or getattr(getattr(inner, 'language_model', None), 'layers', None) \
         or inner.encoder.layer                          # BERT: encoder.layer
+    for spec in args.capture:                          # a method's return is a value: wrapped, recorded at the prefill
+        method, vname = spec.split(':')
+        original = getattr(lm, method)
+        key = f"value/{vname}"
+
+        def wrapped(*a, _original=original, _key=key, **kw):
+            r = _original(*a, **kw)
+            if _key not in dump:
+                dump[_key] = r[0].detach().to(torch.float32).cpu().clone()
+            return r
+        setattr(lm, method, wrapped)
+        hook_map[f"{method}()[0]"] = key
     for i, layer in enumerate(layers):
         key = f"value/{args.composition}/{args.layer_output}[layer={i}].output"
         hook_map[f"model.layers.{i}"] = key
@@ -112,7 +150,10 @@ def main(argv=None):
         def hook(module, inputs, output, key=key):
             out = output[0] if isinstance(output, tuple) else output
             if key not in dump:                     # prefill only
-                dump[key] = out[0].detach().to(torch.float32).cpu().clone()
+                if args.layer_output_layout == 'streams_first':
+                    dump[key] = out[:, 0].permute(1, 0, 2).detach().to(torch.float32).cpu().clone()   # [streams, B, T, D] -> [T, streams, D]
+                else:
+                    dump[key] = out[0].detach().to(torch.float32).cpu().clone()
         hooks.append(layer.register_forward_hook(hook))
     with torch.no_grad():
         x = torch.tensor([ids])
@@ -142,7 +183,19 @@ def main(argv=None):
         logits = out.logits[0].to(torch.float32)
         dump['logits/last'] = logits[-1].cpu().clone()
         dump['logits/argmax'] = logits.argmax(-1).cpu().clone()
-        for i in range(n_layers):
+        state_of = {}                                  # cache layer -> D4 identity, when the document names them
+        if args.states_from_document:
+            import re
+            import tempfile
+            import graph as graph_mod
+            doc_path = os.path.join(graph_mod.ROOT, 'data', 'models', f'{args.document}.json')
+            cut, _ = graph_mod.truncated(doc_path, f'{args.composition}.layer={n_layers}', tempfile.mkdtemp(prefix='dump-hf-'))
+            for ident, st in graph_mod.load(cut).states.items():
+                writer = st.get('writer') or st['members'][0]
+                m = re.search(r'\[layer=(\d+)\]', writer)
+                if m:
+                    state_of[int(m.group(1))] = ident
+        for i in range(min(n_layers, len(cache.layers))):
             layer = cache.layers[i]
             conv = getattr(layer, 'conv_states', None)
             if conv is not None and len(conv) and conv[0] is not None:
@@ -156,9 +209,11 @@ def main(argv=None):
                 k, v = layer.keys, layer.values
             except AttributeError:
                 k, v = cache[i]
-            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/k"] = k[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
-            dump[f"state/{args.composition}.{args.attn_site}.kv[layer={i}]/v"] = v[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
-        hook_map['past_key_values.layers[i].keys[0].permute(1,0,2)'] = f"state/{args.composition}.{args.attn_site}.kv[layer=i]/k"
+            ident = state_of[i] if args.states_from_document else f"{args.composition}.{args.attn_site}.kv[layer={i}]"
+            dump[f"state/{ident}/k"] = k[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+            dump[f"state/{ident}/v"] = v[0].permute(1, 0, 2).to(torch.float32).cpu().clone()
+        hook_map['past_key_values.layers[i].keys[0].permute(1,0,2)'] = ("state/<the D4 identity whose writer sits at layer i>/k" if args.states_from_document
+                                                                    else f"state/{args.composition}.{args.attn_site}.kv[layer=i]/k")
         hook_map['past_key_values.layers[i].conv_states[0][0][:, -history:].T'] = f"state/{args.composition}.{args.gdn_site}.conv[layer=i]/w"
         hook_map['past_key_values.layers[i].recurrent_states[0][0]'] = f"state/{args.composition}.{args.gdn_site}.recurrent[layer=i]/s"
         nxt = int(logits[-1].argmax())
@@ -405,11 +460,11 @@ def dump_streaming(args):
 def metadata(args, n_layers, ids, tokens, hook_map, inputs=None):
     """The fixture's metadata on the language's schema (docs/TENSORSPINE-FIXTURE.md)."""
     tolerance = {k: dict(v) for k, v in TOLERANCE.items()}
-    if args.atol is not None or args.rtol is not None:
-        tolerance['f32'] = {'atol': args.atol if args.atol is not None else TOLERANCE['f32']['atol'],
-                            'rtol': args.rtol if args.rtol is not None else TOLERANCE['f32']['rtol']}
     if args.dtype == 'bf16':
         tolerance['f32'] = dict(TOLERANCE['bf16'])     # an fp32 conformer against a bf16 dump: the dump's rounding
+    if args.atol is not None or args.rtol is not None:     # the measured tolerance, when the default is not this model's
+        tolerance['f32'] = {'atol': args.atol if args.atol is not None else tolerance['f32']['atol'],
+                            'rtol': args.rtol if args.rtol is not None else tolerance['f32']['rtol']}
     artifact = {'name': artifact_name(args.model), **_provenance(args.model)}
     if args.artifact_id:
         artifact['id'] = args.artifact_id

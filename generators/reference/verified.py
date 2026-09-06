@@ -14,6 +14,9 @@ FIXTURES = [   # (fixture, model document, artifact directory under $TENSORSPINE
     ('qwen3.5-35b-a3b.4layers.hf.safetensors', 'qwen3.5-35b-a3b', 'Qwen3.5-35B-A3B', (0.1, 0.02)),   # the attention layer too; transformers in bf16 (4 layers in fp32 exceed the memory here): measured 8.2e-2
     ('whisper-large-v3.3layers.hf.safetensors', 'whisper-large-v3', 'whisper-large-v3'),   # the encoder whole, the decoder at three layers; the audio the fixture carries (in/audio) is delivered with the prompt
     ('voxtral-realtime.3layers.hf.safetensors', 'voxtral-realtime', 'Voxtral-Mini-4B-Realtime-2602'),   # the encoder whole, the decoder at three layers; the token stream joins the audio stream: the prompt with its tokens' frames, then a token and eight frames per step, the prefill also replayed as fragments
+    ('gemma3n-kvshare.4layers.hf.safetensors', 'gemma3n-kvshare', 'gemma-3n-E2B'),   # four sliding layers in fp32: the four-stream residual, LAUREL, the per-layer inputs, no shared state (the global layer at 4 excluded on purpose)
+    ('gemma3n-kvshare.21layers.hf.safetensors', 'gemma3n-kvshare', 'gemma-3n-E2B', (20.0, 0.02)),   # transformers in bf16 (the per-layer table alone is 2 B parameters): layer 20 reads the ring layer 18 writes, layer 19's cache alone;
+                                                                                                    # the four residual streams reach 10³ in magnitude, and bf16 drift over 21 layers measured max |d| 19.4 (2% of the rms), the logits within 0.43 — hence the absolute tolerance; tokens equal
 ]
 FULL = [   # (model document, checkpoint directory, prompt ids, the greedy tokens transformers 5.14 produced in bf16, 29 Aug 2026[, the fixture whose in/ tensors are delivered with the prompt, or the sample the artifact's processor turns into a streaming delivery])
     ('llama3-8b', 'Meta-Llama-3-8B', [128000, 791, 6864, 315, 9822, 374],        # "<|begin_of_text|>The capital of France is"
@@ -47,9 +50,11 @@ FULL = [   # (model document, checkpoint directory, prompt ids, the greedy token
      # 3 Sep 2026: " La cigale et la fourmi. La cigale, ayant chanté tout l'été, se trouva fort dépourvue quand la bise fut venue. …" (274 streaming pads among
      # the 417 tokens, the transcript lagging the audio by the delay); the reference, 4.3 s per step on this CPU, produced every one of them
      'la-cigale-et-la-fourmi.wav'),
+    ('gemma3n-kvshare', 'gemma-3n-E2B', [2, 818, 5279, 529, 7001, 563],          # "<bos>The capital of France is"
+     [496, 3207, 529, 79339, 236761, 1030, 563, 496]),                          # ' a city of contrasts. It is a' — transformers 5.14 in bf16, 6 Sep 2026, the whole multimodal checkpoint run on text
 ]
 CHECKPOINT_IDS = {'Meta-Llama-3-8B': 'NousResearch/Meta-Llama-3-8B', 'Qwen3.5-4B': 'Qwen/Qwen3.5-4B', 'Qwen3.8-27B': 'Qwen/Qwen3.8-27B',
                   'Shieldstral-1.0-3B': 'mistralai/Shieldstral-1.0-3B', 'colbertv2.0': 'colbert-ir/colbertv2.0',
                   'Qwen3.5-35B-A3B': 'Qwen/Qwen3.5-35B-A3B', 'whisper-large-v3': 'openai/whisper-large-v3',
-                  'Voxtral-Mini-4B-Realtime-2602': 'mistralai/Voxtral-Mini-4B-Realtime-2602'}
+                  'Voxtral-Mini-4B-Realtime-2602': 'mistralai/Voxtral-Mini-4B-Realtime-2602', 'gemma-3n-E2B': 'google/gemma-3n-E2B'}
 AGREEMENT = "values, states and logits within atol 1e-3 / rtol 1e-2 of transformers in fp32 (measured max |d| 8e-6); greedy tokens identical"
