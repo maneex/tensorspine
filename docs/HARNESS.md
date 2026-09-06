@@ -68,7 +68,7 @@ must establish equality or lineage before aliasing storage.
 | Logical payload for append or fixed state | `.bytes_per_cached_position`, `.payload[].bytes` | Live positions and allocations | exact |
 | Maximum logical payload for window state | `.bytes_bounded` | Active allocations | bound |
 | Whether a state may be evicted | `.operations` contains `evict` | None | exact |
-| State that survives fragmented input deliveries | `.carried_across_fragments` | Fragment schedule | exact |
+| State that survives fragmented input deliveries | `.carried_across_fragments` | Fragment schedule (delivering each stream's fragments in order, aligned to `d2.streams.*.fragment_alignment`, and a source stream whole before its readers' first fragment) | exact |
 | Bytes in the physical transfer representation | No physical-layout field | Kernel layout, packing and compression | not derivable |
 | Tier, eviction time and prefetch time | No field | Bandwidth, latency, pressure and scheduling policy | not derivable |
 

@@ -227,7 +227,11 @@ nodes without enumerating every expanded occurrence. See
 
 A public input whose elements arrive over several invocations, declared on the input
 (`fragmented`). Together with a contract's carrying condition it decides which states survive
-between fragments. See
+between fragments. Carrying a state (V18) is necessary but not sufficient for a fragmented reading:
+the contract must also look back only, never forward — the sufficient condition, stated by
+invariant (a streaming attention's mask is not `none`, V8). A deployment may fragment any stream
+under two derived obligations: **alignment** (a fragment delivers whole merge groups) and **source
+completeness** (a stream read whole is complete before its readers' first fragment). See
 [Specification §5.3](SPECIFICATION.md#53--indexing-domains-streams-and-fragmentation).
 
 ### Fixture

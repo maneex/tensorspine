@@ -594,6 +594,22 @@ common multiple of the cumulative merge factors of the values on it — that eve
 delivers a multiple of. It is a deployment obligation derived by the language and reported with
 the stream (D2), never declared: a declared alignment would copy that rule (§4.4).
 
+Carrying a state (V18) is necessary for a fragmented reading, not sufficient: a state makes the
+past *available*, but a fragment must also read nothing that has not arrived. The **sufficient
+condition** is the contract's, and the language states it by invariant (V8): on a fragmented
+stream, a contract's reading depends on no element later than the one it produces — it looks back,
+never forward — and a stream it reads whole (cross-attention's source) is complete before its
+readers' first fragment. So `attention.dense` forbids `streaming` with `mask: none`: a bidirectional
+attention reads the whole stream, and split into fragments its first output would differ from the
+whole delivery's (measured: `[0.66976, 0.33024]` whole against `[1, 0]` split). A causal, windowed
+or chunked reading looks back only, so it needs no such exclusion.
+
+Fragmentation stays a free delivery choice under two obligations the language derives, never the
+document declares: **alignment** (above), and **source completeness** — a reader whose source it
+reads whole must not receive a fragment before that source stream is complete. A deployment that
+fragments a stream honours both; a schedule that does not is refused where the runtime delivers
+(HARNESS §on the fragment schedule), not by the document.
+
 ## §6 — Static semantics
 
 A document is valid only if every rule below holds. Failure produces a reasoned rejection, never an
