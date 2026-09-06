@@ -335,14 +335,6 @@ python3 tools/tensorspine --lint                           # advisory hygiene ch
 python3 tools/tensorspine --d1   data/models/llama3-8b.json -o /path/out.d1.json
 python3 tools/tensorspine --derive data/models/llama3-8b.json -o /path/   # D1–D6, one JSON
 python3 tools/tensorspine --view data/models/llama3-8b.json -o /path/out.html
-python3 tests/run_rejections.py                         # §10.2 rejection cases
-python3 tests/run_templates.py                          # template parity, defaults, assignments
-python3 tests/run_states.py                             # derived instance keys, sharing, carrying
-python3 tests/run_expressions.py                        # conditionals, guards, scoped-binding expansion
-python3 tests/run_signatures.py                         # every model still denotes its recorded graph
-python3 tests/run_costs.py                              # D5: operations per element from the inventory
-python3 tests/run_derived.py                            # every derived document on its schema, and its facts
-python3 tests/run_artifact.py                           # V17 against checkpoint headers: the location forms
 python3 tools/tensorspine --validate --checkpoint "$TENSORSPINE_MODEL_ARTIFACTS/weights/Meta-Llama-3-8B" data/models/llama3-8b.json
 python3 tools/tensorspine --document catalog -o /tmp/CATALOG-REFERENCE.md   # the catalog, as Markdown
 
@@ -373,11 +365,48 @@ python3 tools/tensorspine --validate data/models/decoder-causal-yarn/1.0.0.json 
   key, carrying, bytes per cached position and visits (D4); resident bytes, operations per element
   and per cached position with the status the algebra gives them, corrections, sparsity bounds and
   cut payloads (D5); legal cuts, the partitions that apply and the O5.10 information loss (D6).
-- `--view` produces a self-contained HTML inspector. `--site-nav FILE` puts the navigation of
-  the documentation site at the top, as used by `tools/site.sh`.
+- `--view` produces a self-contained HTML inspector: every box of the diagram carries what D3 and
+  D4 say about it — parameter bytes, state bytes per cached position — and D5's share of the
+  operations when the shares add up, and every arrow carries the geometry of the value it holds
+  (axis, extent, dtype, and its count when the value is not one per element of its own stream).
+  The figures are laid out with the diagram, not painted into it: the chips above only choose
+  which of them the gauge bars compare. `--site-nav FILE` puts the navigation of the
+  documentation site at the top, as used by `tools/site.sh`.
 - `--document catalog` renders every unit of the catalog bases — definitions and documentation
   fields — into one Markdown file. Malformed documentation is a refusal (exit 1); a unit without
   documentation is rendered from its definition alone.
+
+### Tests
+
+One command runs everything: `tests/run_all.py` runs the twelve language suites, then the
+generator harnesses the environment can run — the reference harness (the witness inside it) needs
+`torch`, the ONNX harness `onnxruntime`, the ZML harness a checkout at `$ZML_HOME` — every skip
+printed with its reason, exit 1 on any failure. `tests/requirements.txt` pins the environment the
+evidence was produced in (Python 3.11; `python3 -m pip install -r tests/requirements.txt
+--extra-index-url https://download.pytorch.org/whl/cpu`); the language suites need `jsonschema`
+alone. Checkpoints come from `$TENSORSPINE_MODEL_ARTIFACTS/weights/`; unset, every fixture check
+says `skip`. `.github/workflows/tests.yml` runs a language job and a generators job on every push,
+without checkpoints and with the witness's provenance printed rather than required
+([fixture guide](docs/TENSORSPINE-FIXTURE.md) §5).
+
+```sh
+python3 tests/run_all.py [--language-only] [--no-strict-provenance]   # everything the environment can run
+python3 tests/run_rejections.py                         # §10.2 rejection cases, each grammar case also through the derivation
+python3 tests/run_templates.py                          # template parity, defaults, assignments
+python3 tests/run_states.py                             # derived instance keys, sharing, carrying
+python3 tests/run_expressions.py                        # conditionals, guards, scoped-binding expansion
+python3 tests/run_signatures.py                         # every model still denotes its recorded graph
+python3 tests/run_costs.py                              # D5: operations per element from the inventory
+python3 tests/run_derived.py                            # every derived document on its schema, its facts, the grammar before the meaning
+python3 tests/run_artifact.py                           # V17 against checkpoint headers: the location forms
+python3 tests/run_fixtures.py                           # every committed fixture on the fixture schema, its keys on the grammar
+python3 tests/run_capabilities.py                       # the capabilities manifests: schema, catalog, admission
+python3 tests/run_status.py                             # the status page and the branch ledger
+python3 tests/run_harness.py                            # the harness guide's rules against the corpus
+python3 generators/reference/tests/run_reference.py [--compile] [--full] [--no-strict-provenance]   # random weights, the witness, the verdict; fixtures and full models with artifacts
+python3 generators/onnx/tests/run_onnx.py [--target onnx|onnxruntime]   # the ONNX generator as a conformer
+python3 generators/zml/tests/run_zml.py                 # the ZML generator; needs $ZML_HOME
+```
 
 ### Reference generator
 
