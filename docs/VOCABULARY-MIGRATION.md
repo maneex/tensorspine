@@ -1,11 +1,14 @@
 # Canonical vocabulary migration
 
 This is a breaking representation revision from baseline commit
-`9da0897`. Primitive names, semantic versions, model identities, tensor keys,
+`9da0897`. Primitive names, model identities, tensor keys,
 numerical fixture payloads and V/I/O rule identifiers retain their meaning.
 The complete previous corpus is recoverable from that commit. Identity in
-Specification §8.2 is semantic, not a promise of immutable documentation bytes;
-format versions distinguish the new representation without repinning primitives.
+Specification §8.2 includes immutable published files. Every reference primitive
+and the `decoder-causal-yarn` template therefore move from `1.0.0` to `2.0.0`:
+the interface revision is breaking even though computation is unchanged. The
+converter contains the explicit successor map. Previous published files remain
+available at the baseline Git revision; they are never relabelled as current units.
 
 ## Rename manifest
 
