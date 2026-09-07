@@ -30,7 +30,7 @@ validates documents, derives portable logical model facts, and checks compatibil
 | Anyone, once for all serving applications | transcribes a document for a model the lab did not ship, and locates its weights | the same, plus the dumped fixtures and the whole-model comparison at every valid graph split |
 | The language maintainers | maintain the model-document schema, reference primitive library and specification; integrate contributed primitives and reference implementations | `--lint`, `--document primitive library`, the rejection and signature suites; the manifest and conformance tooling |
 | A serving application | implements its supported subset of TensorSpine primitives with optimized kernels, fusions, layouts and partition options; owns a harness over the derived model facts | a capabilities manifest built by TensorSpine tooling from its primitive support; `--capabilities MANIFEST MODEL` (can it run this?); `--coverage` (what that application still lacks); the shared fixtures |
-| An operator | chooses extracts, placement and physical parameters for one deployment | the deployment document; derived state, graph split and payload facts; `--max-ram` as the one-machine instance |
+| An operator | chooses extracts, placement and physical parameters for one deployment, in its own tooling | the derived state, graph split and payload facts and the serving applications' manifests, read in any language; `--max-ram` as the one-machine instance |
 
 <a id="0-tensorspine-in-four-statements"></a>
 
