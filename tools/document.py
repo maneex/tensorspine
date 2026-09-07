@@ -46,7 +46,7 @@ import schema as schema_mod
 from expr import primitive_value
 
 DOC_SCHEMA_ROLE = 'documentation'
-DOC_SCHEMA_ID = 'https://tensorspine.dev/schema/3.0/documentation.json'
+DOC_SCHEMA_ID = 'https://tensorspine.dev/schema/2.0/documentation.json'
 
 # --- grammar: the keys each site may carry -----------------------------------
 # The primitive library schema is the authority; this table lets the generator notice a

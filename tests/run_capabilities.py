@@ -69,13 +69,13 @@ def main():
     ok &= check("reference: witnessed plus unwitnessed is every primitive definition of the primitive_library",
                 sorted(list(manifest['primitives']) + without) == primitives)
     ok &= check("ledger: a primitive without an entry lists every branch of its arguments — patch_embed's bias, both ways",
-                'patch_embed@2.0.0' in branches and {'bias=True', 'bias=False'} <= set(branches['patch_embed@2.0.0']),
-                str(branches.get('patch_embed@2.0.0')))
+                'patch_embed@1.0.0' in branches and {'bias=True', 'bias=False'} <= set(branches['patch_embed@1.0.0']),
+                str(branches.get('patch_embed@1.0.0')))
     ok &= check("ledger: a record argument of a missing primitive lists its presence and its fields' branches",
-                any(g.endswith('=present') for g in branches.get('attention.latent_compressed@2.0.0', [])),
-                str(branches.get('attention.latent_compressed@2.0.0', [])[:6]))
+                any(g.endswith('=present') for g in branches.get('attention.latent_compressed@1.0.0', [])),
+                str(branches.get('attention.latent_compressed@1.0.0', [])[:6]))
     ok &= check("ledger: an entry lists only the branches it does not admit — attention.dense's mask=chunked, not mask=causal",
-                'mask=chunked' in branches.get('attention.dense@2.0.0', []) and 'mask=causal' not in branches.get('attention.dense@2.0.0', []))
+                'mask=chunked' in branches.get('attention.dense@1.0.0', []) and 'mask=causal' not in branches.get('attention.dense@1.0.0', []))
     # the three forms of a combination limit (generators/CAPABILITIES.md), on hand-built entries so
     # the mechanism is tested apart from any one manifest
     flat = {'arguments': {'cross': [True, False], 'mask': ['causal', 'none']}, 'excluding': [{'cross': True, 'mask': 'causal'}]}
@@ -92,7 +92,7 @@ def main():
     gc = primitive_library_mod.load_for(gemma, json.load(open(gemma, encoding='utf-8')))
     gdoc = derive.products(gemma, gc)
     probe = json.loads(json.dumps(manifest))
-    probe['primitives']['attention.dense@2.0.0']['conditions'] = [{
+    probe['primitives']['attention.dense@1.0.0']['conditions'] = [{
         'when': {'all': [{'compare': {'operator': 'equal', 'left': {'argument': 'kv_source'}, 'right': {'literal': 'shared'}}}, {'present': 'window'}]},
         'note': 'one position per invocation once the ring has wrapped (finding 26)'}]
     reported = capabilities.conditions(probe, gdoc, gc)
@@ -102,7 +102,7 @@ def main():
                 str(reported[:1]))
     # names(): a predicate reading an argument the primitive does not declare is refused at load
     bad = json.loads(json.dumps(manifest))
-    bad['primitives']['norm.rms@2.0.0']['excluding'] = [{'when': {'compare': {'operator': 'equal', 'left': {'argument': 'nonexistent'}, 'right': {'literal': 1}}}, 'reason': 'x'}]
+    bad['primitives']['norm.rms@1.0.0']['excluding'] = [{'when': {'compare': {'operator': 'equal', 'left': {'argument': 'nonexistent'}, 'right': {'literal': 1}}}, 'reason': 'x'}]
     errs = capabilities.names(bad, cat)
     ok &= check("names: an excluding predicate on an undeclared argument is refused, naming it",
                 any("undeclared argument 'nonexistent'" in e for e in errs), str(errs[:2]))
@@ -124,7 +124,7 @@ def main():
         problems = capabilities.witness_problems(forged, os.path.dirname(path))
         ok &= check(f"{name}: a witness block in a conformer's manifest is refused", len(problems) == 1 and 'role is conformer' in problems[0], problems[:1])
     forged = json.loads(json.dumps(manifest))
-    forged['primitives']['norm.rms@2.0.0']['witness']['fixtures'] = ['norm.rms@2.0.0/nowhere']
+    forged['primitives']['norm.rms@1.0.0']['witness']['fixtures'] = ['norm.rms@1.0.0/nowhere']
     problems = capabilities.witness_problems(forged, os.path.dirname(REFERENCE))
     ok &= check("reference: a fixture the manifest names and the tree lacks is refused", len(problems) == 1 and 'nowhere' in problems[0], problems[:1])
     print("capabilities: all good" if ok else "capabilities: FAILED")

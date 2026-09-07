@@ -1,4 +1,4 @@
-"""projector.temporal_stack@2.0.0 — `merge_count` consecutive positions concatenated earliest
+"""projector.temporal_stack@1.0.0 — `merge_count` consecutive positions concatenated earliest
 first, `input` projects to `width`, an activation, `output` projects again; no biases. n positions
 make n / merge_count tokens of the same stream (the primitive's `merge`, §5.3).
 
@@ -14,7 +14,7 @@ delivery that breaks it has no token for its remainder.
 import torch.nn.functional as F
 from kernels._common import supports_from, w
 
-PRIMITIVE = ("projector.temporal_stack", "2.0.0")
+PRIMITIVE = ("projector.temporal_stack", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "source_width": "any", "merge_count": "any", "activation": ["gelu"]},

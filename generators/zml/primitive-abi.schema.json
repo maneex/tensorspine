@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/generators/zml/2/primitive-abi.json",
+  "$id": "https://tensorspine.dev/schema/generators/zml/primitive-abi.json",
   "title": "The ZML generator's primitive ABI — request and response",
   "oneOf": [
     { "$ref": "#/$defs/request" },
@@ -19,7 +19,7 @@
       ],
       "properties": {
         "schema": {
-          "const": "tensorspine-primitive-request/2"
+          "const": "tensorspine-primitive-request/1"
         },
         "instance": {
           "type": "string",
@@ -65,7 +65,7 @@
       ],
       "properties": {
         "schema": {
-          "const": "tensorspine-primitive-response/2"
+          "const": "tensorspine-primitive-response/1"
         },
         "mlir": {
           "type": "string",

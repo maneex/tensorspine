@@ -1,10 +1,10 @@
-//! residual.add@2.0.0 — a + b.
+//! residual.add@1.0.0 — a + b.
 
 const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "residual.add",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any"}, "states": []}

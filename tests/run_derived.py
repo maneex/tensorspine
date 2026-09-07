@@ -298,7 +298,7 @@ def main():
     ok &= check("deepseek-v4-pro: 62 latent attentions and the MTP merge read across positions",
                 flagged('deepseek-v4-pro') == {'attention.latent_compressed': 62, 'mtp.merge': 1}, str(flagged('deepseek-v4-pro')))
     ok &= check("decoder-causal-yarn: 26 attentions read across positions under the assignment",
-                flagged('decoder-causal-yarn@2.0.0') == {'attention.dense': 26}, str(flagged('decoder-causal-yarn@2.0.0')))
+                flagged('decoder-causal-yarn@1.0.0') == {'attention.dense': 26}, str(flagged('decoder-causal-yarn@1.0.0')))
     ok &= check("gemma3n: aux_select carries its layer index in D1 — an index-valued argument, evaluated in the site's environment",
                 g['d1']['nodes']['decoder/aux_select[layer=7]']['arguments'].get('layer') == 7,
                 str(g['d1']['nodes']['decoder/aux_select[layer=7]']['arguments']))
@@ -325,7 +325,7 @@ def main():
         source = f.read()
     llama = json.loads(source)
     for label, mutate, expect in (
-            ("a foreign schema tag", lambda d: d.__setitem__('schema', 'not-tensorspine/99'), "schema: 'tensorspine/3.0' was expected"),
+            ("a foreign schema tag", lambda d: d.__setitem__('schema', 'not-tensorspine/99'), "schema: 'tensorspine/2.0' was expected"),
             ("a misspelt instance field", lambda d: d['instances']['embed'].__setitem__('argumants', d['instances']['embed'].pop('arguments')),
              "instances/embed: 'arguments' is a required property")):
         mutated = json.loads(source)
@@ -365,7 +365,7 @@ def main():
                 bad.append(f"{name} {node}: {errs[0].message}")
     ok &= check(f"G: every corpus instance's resolved arguments validate against its primitive's generated schema ({checked} instances)",
                 not bad, str(bad[:3]))
-    att = schemas['attention.dense@2.0.0']
+    att = schemas['attention.dense@1.0.0']
     v = jsonschema.Draft202012Validator(att)
     ok &= check("G: a scalar domain violation is caught by the schema — window.span 0 below minimum, kv_heads 0 below minimum, a fractional span not an integer",
                 bool(list(v.iter_errors({'width': 8, 'heads': 4, 'head_dim': 8, 'mask': 'causal', 'window': {'span': 0}})))
@@ -374,7 +374,7 @@ def main():
     ok &= check("G: a relation between arguments is invisible to JSON Schema — heads not a multiple of kv_heads validates, and is carried in x-tensorspine-invariants",
                 not list(v.iter_errors({'width': 8, 'heads': 32, 'head_dim': 8, 'kv_heads': 3, 'mask': 'causal'}))
                 and any('multiple' in i['description'] for i in att['x-tensorspine-invariants']))
-    moe = schemas['moe@2.0.0']
+    moe = schemas['moe@1.0.0']
     ok &= check("G: top_k above experts validates against the moe schema too — a relation, not a domain",
                 not list(jsonschema.Draft202012Validator(moe).iter_errors({'width': 8, 'experts': 4, 'top_k': 8, 'inner': 8}))
                 and any('experts' in i['description'] for i in moe['x-tensorspine-invariants']))

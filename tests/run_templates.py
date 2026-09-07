@@ -129,10 +129,10 @@ def defaults():
     tmp = tempfile.mkdtemp(prefix='tensorspine-templates-')
     try:
         os.makedirs(os.path.join(tmp, 'decoder-causal-yarn'))
-        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '2.0.0.json'),
-                    os.path.join(tmp, 'decoder-causal-yarn', '2.0.0.json'))
+        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json'),
+                    os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json'))
         shutil.copy(os.path.join(MODELS, 'shieldstral-3b-composite.json'), tmp)
-        path = os.path.join(tmp, 'decoder-causal-yarn', '2.0.0.json')
+        path = os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json')
         with open(path, encoding='utf-8') as f:
             template = json.load(f)
         template['quantities']['eps']['source']['default'] = {"literal": 0.00001}
@@ -162,8 +162,8 @@ def unlocated_instance():
     tmp = tempfile.mkdtemp(prefix='tensorspine-templates-')
     try:
         os.makedirs(os.path.join(tmp, 'decoder-causal-yarn'))
-        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '2.0.0.json'),
-                    os.path.join(tmp, 'decoder-causal-yarn', '2.0.0.json'))
+        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json'),
+                    os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json'))
         path = os.path.join(tmp, 'shieldstral-3b-composite.json')
         with open(os.path.join(MODELS, 'shieldstral-3b-composite.json'), encoding='utf-8') as f:
             composite = json.load(f)
@@ -202,7 +202,7 @@ def unlocated_instance():
 
 
 def assignment(cat):
-    path = os.path.join(MODELS, 'decoder-causal-yarn', '2.0.0.json')
+    path = os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json')
     with open(path, encoding='utf-8') as f:
         template = json.load(f)
     errors = validate.check_assignment(template, ASSIGNMENT)

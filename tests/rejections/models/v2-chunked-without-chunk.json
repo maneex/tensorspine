@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine/3.0",
+  "schema": "tensorspine/2.0",
   "model": "rejection-v2-chunked-without-chunk",
   "primitive_libraries": [
     {
@@ -115,7 +115,7 @@
     "embed": {
       "primitive": {
         "name": "embed",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -133,7 +133,7 @@
     "final_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -150,7 +150,7 @@
     "lm_head": {
       "primitive": {
         "name": "lm_head",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -188,7 +188,7 @@
         "l0_attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -205,7 +205,7 @@
         "l0_attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -267,7 +267,7 @@
         "l0_attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -281,7 +281,7 @@
         "l0_moe_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -298,7 +298,7 @@
         "l0_moe": {
           "primitive": {
             "name": "moe",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -330,7 +330,7 @@
         "l0_moe_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -344,7 +344,7 @@
         "l1_attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -361,7 +361,7 @@
         "l1_attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -430,7 +430,7 @@
         "l1_attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -444,7 +444,7 @@
         "l1_moe_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -461,7 +461,7 @@
         "l1_moe": {
           "primitive": {
             "name": "moe",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -493,7 +493,7 @@
         "l1_moe_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -507,7 +507,7 @@
         "l2_attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -524,7 +524,7 @@
         "l2_attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -593,7 +593,7 @@
         "l2_attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -607,7 +607,7 @@
         "l2_moe_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -624,7 +624,7 @@
         "l2_moe": {
           "primitive": {
             "name": "moe",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -656,7 +656,7 @@
         "l2_moe_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -670,7 +670,7 @@
         "g_attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -687,7 +687,7 @@
         "g_attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -733,7 +733,7 @@
         "g_attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -747,7 +747,7 @@
         "g_moe_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -764,7 +764,7 @@
         "g_moe": {
           "primitive": {
             "name": "moe",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -796,7 +796,7 @@
         "g_moe_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

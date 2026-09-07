@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/generators/2/capabilities.json",
+  "$id": "https://tensorspine.dev/schema/generators/capabilities.json",
   "title": "Capabilities of a generator",
   "type": "object",
   "additionalProperties": false,
@@ -20,7 +20,7 @@
   ],
   "properties": {
     "schema": {
-      "const": "tensorspine-capabilities/2"
+      "const": "tensorspine-capabilities/1"
     },
     "role": {
       "enum": [
@@ -391,7 +391,7 @@
       ],
       "properties": {
         "when": {
-          "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/condition"
+          "$ref": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/condition"
         },
         "reason": {
           "type": "string"
@@ -408,7 +408,7 @@
       ],
       "properties": {
         "when": {
-          "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/condition"
+          "$ref": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/condition"
         },
         "note": {
           "type": "string"

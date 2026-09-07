@@ -1,4 +1,4 @@
-"""attention.dense@2.0.0 for the onnxruntime target — causal attention over an `append` state as one
+"""attention.dense@1.0.0 for the onnxruntime target — causal attention over an `append` state as one
 `GroupQueryAttention` node (com.microsoft): the rotary embedding inside it from cos/sin caches
 (YaRN's frequencies and attention factor folded into the caches, the rotation being linear), the
 cache growing along the sequence, GQA by its `kv_num_heads`. Every branch the fused kernel does

@@ -52,7 +52,7 @@ def collect(paths, default_dir):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog='tensorspine',
-        description='Validate, lint, expand and visualize tensorspine/3.0 model definitions.',
+        description='Validate, lint, expand and visualize tensorspine/2.0 model definitions.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="A validation error is a refusal; a lint finding is advice. "
                "That is why --lint always exits 0.")

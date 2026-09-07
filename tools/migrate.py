@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Explicit conversion of supported pre-v3 TensorSpine representations.
+"""Explicit conversion of the earlier untagged TensorSpine field layout.
 
 This module is the compatibility boundary; current readers never alias old keys.
 """
@@ -9,13 +9,13 @@ from pathlib import Path
 import struct
 
 VERSIONS = {
-    'tensorspine/2.0': 'tensorspine/3.0',
-    'tensorspine-catalog-unit/2.0': 'tensorspine-primitive-library-unit/3.0',
-    'tensorspine-derived/2.1': 'tensorspine-derived/3.0',
-    'tensorspine-capabilities/1': 'tensorspine-capabilities/2',
-    'tensorspine-fixture/1': 'tensorspine-fixture/2',
-    'tensorspine-primitive-request/1': 'tensorspine-primitive-request/2',
-    'tensorspine-primitive-response/1': 'tensorspine-primitive-response/2',
+    'tensorspine/2.0': 'tensorspine/2.0',
+    'tensorspine-catalog-unit/2.0': 'tensorspine-primitive-library-unit/2.0',
+    'tensorspine-derived/2.1': 'tensorspine-derived/2.1',
+    'tensorspine-capabilities/1': 'tensorspine-capabilities/1',
+    'tensorspine-fixture/1': 'tensorspine-fixture/1',
+    'tensorspine-primitive-request/1': 'tensorspine-primitive-request/1',
+    'tensorspine-primitive-response/1': 'tensorspine-primitive-response/1',
 }
 KEYS = {
     'contract': 'primitive', 'contracts': 'primitives',
@@ -33,29 +33,6 @@ NAMED_MAPS = {
 }
 # Values of these fields are user data; never rewrite keys inside records.
 OPAQUE = {'arguments', 'assignment', 'indices', 'hook_map', 'tolerance', 'delivery', 'artifact'}
-SUCCESSORS = {name: ('1.0.0', '2.0.0') for name in (
-    'attention.dense', 'attention.latent_compressed', 'conditioning.layer_select',
-    'conditioning.multiplicative', 'conditioning.scale', 'conv_frontend', 'decoder.causal_yarn',
-    'embed', 'embedding.time', 'embedding.token_auxiliary', 'embedding.token_position',
-    'embedding.token_position_type', 'ffn.dense', 'ffn.gated', 'lm_head', 'mix.collapse',
-    'mix.doubly_stochastic', 'moe', 'mtp.merge', 'norm.layer', 'norm.rms', 'patch_embed',
-    'pooler', 'projector.patch_merge_bottleneck', 'projector.patch_merge_mlp',
-    'projector.temporal_stack', 'residual.add', 'residual.altup_correct',
-    'residual.altup_predict', 'residual.combine', 'residual.laurel',
-    'residual.stream_collapse', 'residual.stream_expand', 'residual.stream_inject',
-    'sequence.gated_delta', 'splice', 'decoder-causal-yarn',
-)}
-
-
-def successor(identity):
-    """Map a published name@version (optionally followed by a fixture case)."""
-    if not isinstance(identity, str):
-        return identity
-    for name, (old, new) in SUCCESSORS.items():
-        prefix = f'{name}@{old}'
-        if identity == prefix or identity.startswith(prefix + '/'):
-            return f'{name}@{new}' + identity[len(prefix):]
-    return identity
 
 
 def pairs(items):
@@ -72,9 +49,9 @@ def rename(value, parent=None):
     if parent in OPAQUE:
         return value
     if isinstance(value, list):
-        return [successor(item) if parent == 'fixtures' else rename(item) for item in value]
+        return [rename(item) for item in value]
     if not isinstance(value, dict):
-        return successor(value) if parent in {'id', 'fixtures'} else value
+        return value
     out = {}
     for key, item in value.items():
         current_key = key in set(KEYS.values()) | {'primitive_libraries', 'primitive_library'}
@@ -83,7 +60,7 @@ def rename(value, parent=None):
         if parent not in NAMED_MAPS and current_key:
             raise ValueError(f'mixed legacy/current vocabulary: {key!r}')
         if parent in NAMED_MAPS:
-            new = successor(key) if parent in {'contracts', 'primitives'} else key
+            new = key
         elif key == 'catalog':
             new = 'primitive_libraries' if isinstance(item, list) else 'primitive_library'
         else:
@@ -92,27 +69,50 @@ def rename(value, parent=None):
             raise ValueError(f'mixed keys or collision: {key!r} and {new!r}')
         if key == 'schema' and isinstance(item, str):
             if item not in VERSIONS:
-                raise ValueError(f'unsupported or current revision: {item!r}')
+                raise ValueError(f'unsupported revision for this field layout: {item!r}')
             out[new] = VERSIONS[item]
-        elif key == 'version' and item == '1.0.0' and value.get('name') in SUCCESSORS and parent in {'contract', 'primitive', 'template'}:
-            out[new] = '2.0.0'
-        elif key == 'version' and value.get('model') == 'decoder_causal_yarn' and item == '1.0.0':
-            out[new] = '2.0.0'
         elif key == 'kind' and item == 'contract':
             out[new] = 'primitive'
         elif key == 'base' and isinstance(item, str):
             out[new] = '/'.join('primitive-library' if p == 'catalog' else p for p in item.split('/'))
         else:
             out[new] = rename(item, key)
-    if value.get('kind') == 'contract' and value.get('name') in SUCCESSORS:
-        if out.get('definition', {}).get('version') == '1.0.0':
-            out['definition']['version'] = '2.0.0'
     return out
 
 
+def vocabulary(value, parent=None):
+    """Classify structural keys, excluding authored identities and data records."""
+    if parent in OPAQUE:
+        return set()
+    if isinstance(value, list):
+        return set().union(*(vocabulary(item) for item in value))
+    if not isinstance(value, dict):
+        return set()
+    found = set()
+    for key, item in value.items():
+        if parent not in NAMED_MAPS:
+            if key in KEYS or key == 'catalog':
+                found.add('legacy')
+            if key in set(KEYS.values()) | {'primitive_libraries', 'primitive_library'}:
+                if not (key == 'instances' and parent == 'd1'):
+                    found.add('current')
+        found.update(vocabulary(item, key))
+    return found
+
+
+def legacy_layout(document):
+    return 'legacy' in vocabulary(document)
+
+
 def convert(document):
-    if not isinstance(document, dict) or document.get('schema') not in VERSIONS:
-        raise ValueError(f'unsupported or current revision: {document.get("schema") if isinstance(document, dict) else None!r}')
+    if not isinstance(document, dict) or document.get('schema') not in set(VERSIONS) | set(VERSIONS.values()):
+        raise ValueError(f'unsupported revision: {document.get("schema") if isinstance(document, dict) else None!r}')
+    layout = vocabulary(document)
+    if layout == {'legacy', 'current'}:
+        raise ValueError('mixed legacy/current vocabulary')
+    if layout == {'current'} or (not layout and document['schema'] not in VERSIONS):
+        import copy
+        return copy.deepcopy(document)
     return rename(document)
 
 

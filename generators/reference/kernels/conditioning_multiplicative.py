@@ -1,4 +1,4 @@
-"""conditioning.multiplicative@2.0.0 — act(input · gateᵀ) ⊙ condition, projected back to `width`
+"""conditioning.multiplicative@1.0.0 — act(input · gateᵀ) ⊙ condition, projected back to `width`
 and RMS-normalized (`norm`, `eps`): Gemma 3n's per-layer input term.
 
 | branch / record        | status      |
@@ -8,7 +8,7 @@ and RMS-normalized (`norm`, `eps`): Gemma 3n's per-layer input term.
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, rms_norm, supports_from, w
 
-PRIMITIVE = ("conditioning.multiplicative", "2.0.0")
+PRIMITIVE = ("conditioning.multiplicative", "1.0.0")
 ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approximate='tanh'),
        'relu2': lambda x: F.relu(x).pow(2)}
 

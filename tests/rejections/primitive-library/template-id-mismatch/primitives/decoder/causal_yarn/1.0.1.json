@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine-primitive-library-unit/3.0",
+  "schema": "tensorspine-primitive-library-unit/2.0",
   "kind": "primitive",
   "name": "decoder.causal_yarn",
   "definition": {
@@ -17,7 +17,7 @@
     "note": "Pre-norm causal decoder with grouped attention, RoPE/YARN and a gated FFN.",
     "template": {
       "name": "decoder-causal-yarn",
-      "version": "2.0.0",
+      "version": "1.0.0",
       "id": "something_else",
       "note": "template: data/models/decoder-causal-yarn.json, resolved against the models base"
     }

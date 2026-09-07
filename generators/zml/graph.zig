@@ -9,7 +9,7 @@
 
 const std = @import("std");
 
-pub const schema_id = "tensorspine-derived/3.0";
+pub const schema_id = "tensorspine-derived/2.1";
 
 pub const Error = error{
     /// The file parsed, but it is not a derived document.

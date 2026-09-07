@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine/3.0",
+  "schema": "tensorspine/2.0",
   "model": "deepseek_v4_pro",
   "primitive_libraries": [
     {
@@ -211,7 +211,7 @@
     "embed": {
       "primitive": {
         "name": "embed",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -229,7 +229,7 @@
     "final_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -246,7 +246,7 @@
     "lm_head": {
       "primitive": {
         "name": "lm_head",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -264,7 +264,7 @@
     "collapse": {
       "primitive": {
         "name": "mix.collapse",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -282,7 +282,7 @@
     "mtp_embed": {
       "primitive": {
         "name": "embed",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -300,7 +300,7 @@
     "mtp_embed_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -318,7 +318,7 @@
     "mtp_hidden_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -336,7 +336,7 @@
     "mtp_merge": {
       "primitive": {
         "name": "mtp.merge",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -350,7 +350,7 @@
     "mtp_attn_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -368,7 +368,7 @@
     "mtp_attn": {
       "primitive": {
         "name": "attention.latent_compressed",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -469,7 +469,7 @@
     "mtp_attn_r": {
       "primitive": {
         "name": "residual.add",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -484,7 +484,7 @@
     "mtp_moe_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -502,7 +502,7 @@
     "mtp_moe": {
       "primitive": {
         "name": "moe",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -548,7 +548,7 @@
     "mtp_moe_r": {
       "primitive": {
         "name": "residual.add",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -563,7 +563,7 @@
     "mtp_final_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -581,7 +581,7 @@
     "mtp_head": {
       "primitive": {
         "name": "lm_head",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -620,7 +620,7 @@
         "attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -637,7 +637,7 @@
         "attn_hca": {
           "primitive": {
             "name": "attention.latent_compressed",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -755,7 +755,7 @@
         "attn_r": {
           "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -778,7 +778,7 @@
         "moe_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -795,7 +795,7 @@
         "moe": {
           "primitive": {
             "name": "moe",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -840,7 +840,7 @@
         "moe_r": {
           "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -863,7 +863,7 @@
         "attn_csa": {
           "primitive": {
             "name": "attention.latent_compressed",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -1616,7 +1616,7 @@
         "hca_attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -1633,7 +1633,7 @@
         "hca_attn": {
           "primitive": {
             "name": "attention.latent_compressed",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -1695,7 +1695,7 @@
         "hca_attn_r": {
           "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -1718,7 +1718,7 @@
         "hca_moe_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -1735,7 +1735,7 @@
         "hca_moe": {
           "primitive": {
             "name": "moe",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -1771,7 +1771,7 @@
         "hca_moe_r": {
           "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -2209,7 +2209,7 @@
         "csa_attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -2226,7 +2226,7 @@
         "csa_attn": {
           "primitive": {
             "name": "attention.latent_compressed",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -2304,7 +2304,7 @@
         "csa_attn_r": {
           "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -2327,7 +2327,7 @@
         "csa_moe_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -2344,7 +2344,7 @@
         "csa_moe": {
           "primitive": {
             "name": "moe",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -2380,7 +2380,7 @@
         "csa_moe_r": {
           "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

@@ -49,8 +49,8 @@ def fixture_metadata(path):
         n = struct.unpack('<Q', f.read(8))[0]
         header = json_mod.loads(f.read(n))
     meta = {k: json_mod.loads(v) for k, v in (header.get('__metadata__') or {}).items()}
-    if meta.get('schema') != 'tensorspine-fixture/2' or meta.get('kind') != 'integration':
-        raise ValueError(f'{path}: not an integration fixture on tensorspine-fixture/2')
+    if meta.get('schema') != 'tensorspine-fixture/1' or meta.get('kind') != 'integration':
+        raise ValueError(f'{path}: not an integration fixture on tensorspine-fixture/1')
     return meta
 
 

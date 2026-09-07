@@ -1,4 +1,4 @@
-"""conv_frontend@2.0.0 — the audio stem: `frames` [n, mels] through the first convolution
+"""conv_frontend@1.0.0 — the audio stem: `frames` [n, mels] through the first convolution
 (`conv1_weight` [width, mels, kernel], the file's own layout, stride one), an activation, the
 second (`conv2_weight` [width, width, kernel]) with stride `stride`, an activation, then the row
 of the learned position table for each output position. n frames make n / stride positions of
@@ -25,7 +25,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import present, supports_from, w
 
-PRIMITIVE = ("conv_frontend", "2.0.0")
+PRIMITIVE = ("conv_frontend", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "mels": "any", "stride": "any", "kernel": "any", "bias": "any", "position": "any",

@@ -1,4 +1,4 @@
-//! embedding.token_position_type@2.0.0 — BERT's embedding.
+//! embedding.token_position_type@1.0.0 — BERT's embedding.
 //!
 //! The token's row of `weight`, the position's row of `position` and the segment type's
 //! row of `token_type`, summed, then a LayerNorm.
@@ -17,7 +17,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "embedding.token_position_type",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .needs_positions = true,
     .capabilities =

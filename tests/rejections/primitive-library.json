@@ -63,7 +63,7 @@
     },
     {
       "base": "primitive-library/template-missing",
-      "match": "template 'decoder-nowhere' 2.0.0 is not at",
+      "match": "template 'decoder-nowhere' 1.0.0 is not at",
       "note": "A primitive naming a template the models base does not hold — the fixture unit is version 1.0.1, a new identity beside the reference's."
     },
     {

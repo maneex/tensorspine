@@ -22,17 +22,15 @@ DTYPES = {'bf16': 'bfloat16', 'f16': 'float16', 'f32': 'float32'}
 def derive_document(model_path, assignment=None):
     """D1–D6 of a model definition, through the language's own tools: the primitive library read against the
     repository's schemas, the document through both stages of `--validate` (`derive.products`)."""
-    with open(model_path, encoding='utf-8') as f:
-        model = json.load(f)
+    model = primitive_library_mod.read_json(model_path)
     cat = primitive_library_mod.load_for(model_path, model, schema_dir=SCHEMAS)
     return derive.products(model_path, cat, assignment, schema_dir=SCHEMAS)
 
 
 def load(path, assignment=None):
     """A `Graph` from a derived document, or from a model definition derived here."""
-    with open(path, encoding='utf-8') as f:
-        doc = json.load(f)
-    if doc.get('schema') == 'tensorspine-derived/3.0':
+    doc = primitive_library_mod.read_json(path)
+    if doc.get('schema') == 'tensorspine-derived/2.1':
         return Graph(doc)
     return Graph(derive_document(path, assignment))
 

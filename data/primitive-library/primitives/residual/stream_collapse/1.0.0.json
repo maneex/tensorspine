@@ -1,0 +1,175 @@
+{
+  "schema": "tensorspine-primitive-library-unit/2.0",
+  "kind": "primitive",
+  "name": "residual.stream_collapse",
+  "definition": {
+    "version": "1.0.0",
+    "summary": "Collapses `streams` residual streams back to one: projects the auxiliary streams and reduces.",
+    "description": "Each of the `streams - 1` auxiliary streams is projected by its own `width × width` matrix and reduced with the active stream into one `width` vector. Each projected stream is rescaled to the active stream's root-mean-square magnitude (floor 1e-5); the result is the mean over all `streams` streams.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2301.13310",
+        "title": "Alternating Updates for Efficient Transformers (Baykal et al., 2023)",
+        "kind": "paper",
+        "description": "Parallel residual streams with one active stream per layer."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of one stream.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "streams": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of parallel residual streams.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 2
+            },
+            "inclusive": true
+          }
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The residual streams."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The single stream."
+        }
+      }
+    },
+    "parameters": {
+      "projection": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "multiplicity": {
+          "op": "subtract",
+          "args": [
+            {
+              "argument": "streams"
+            },
+            {
+              "literal": 1
+            }
+          ]
+        },
+        "description": "Projection of one auxiliary stream, `streams - 1` times: copy c (stored first, the storage axis `multiplicity` of §3.4) projects stream c + 1 — `transformers` applies `altup_unembed_projections[i - 1]` to stream i."
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partition_options": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "communication": "none",
+        "description": "Per feature; features are independent."
+      }
+    ],
+    "note": "Projection of the auxiliary streams, then reduction onto the active stream."
+  }
+}

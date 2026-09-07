@@ -1,4 +1,4 @@
-"""embedding.token_position_type@2.0.0 — BERT's embedding: the token's row of `weight`, the
+"""embedding.token_position_type@1.0.0 — BERT's embedding: the token's row of `weight`, the
 position's row of `position` (the stream position, 0 upwards) and the segment type's row of
 `token_type` summed, then a LayerNorm with `norm`, `norm_bias` and `eps`.
 
@@ -13,7 +13,7 @@ A position at or beyond `positions` has no row and is refused at run time.
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from, w
 
-PRIMITIVE = ("embedding.token_position_type", "2.0.0")
+PRIMITIVE = ("embedding.token_position_type", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "positions": "any", "token_types": "any", "eps": "any"},

@@ -1,4 +1,4 @@
-"""embedding.token_position@2.0.0 — Whisper's decoder embedding: the token's row of `weight`
+"""embedding.token_position@1.0.0 — Whisper's decoder embedding: the token's row of `weight`
 plus the row of `position` for its stream position (0 upwards).
 
 | branch / record          | status      |
@@ -10,7 +10,7 @@ implementation would index out of its table.
 """
 from kernels._common import supports_from
 
-PRIMITIVE = ("embedding.token_position", "2.0.0")
+PRIMITIVE = ("embedding.token_position", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "positions": "any"}, "states": []}

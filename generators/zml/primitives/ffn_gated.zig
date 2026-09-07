@@ -1,4 +1,4 @@
-//! ffn.gated@2.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
+//! ffn.gated@1.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
 //!
 //! | branch                   | status                                  |
 //! |--------------------------|-----------------------------------------|
@@ -17,7 +17,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "ffn.gated",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "inner": "any",

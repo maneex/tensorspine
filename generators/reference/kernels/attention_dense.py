@@ -1,4 +1,4 @@
-"""attention.dense@2.0.0 — dense or grouped-query attention over a KV state; self or cross.
+"""attention.dense@1.0.0 — dense or grouped-query attention over a KV state; self or cross.
 
 | branch / record                 | status                                          |
 |---------------------------------|-------------------------------------------------|
@@ -39,7 +39,7 @@ import torch
 from kernels._common import present, refuse_unknown, rms_norm, supports_from, w
 from state import Refusal
 
-PRIMITIVE = ("attention.dense", "2.0.0")
+PRIMITIVE = ("attention.dense", "1.0.0")
 KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'scale', 'mask', 'window', 'chunk', 'cross', 'streaming', 'kv_source', 'rope',
          'qk_norm', 'temperature', 'q_bias', 'k_bias', 'v_bias', 'out_bias', 'output_gate'}
 

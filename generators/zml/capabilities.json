@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine-capabilities/2",
+  "schema": "tensorspine-capabilities/1",
   "generator": {
     "name": "zml",
     "version": "8ed0fe9",
@@ -39,7 +39,7 @@
     "tensor"
   ],
   "primitives": {
-    "attention.dense@2.0.0": {
+    "attention.dense@1.0.0": {
       "arguments": {
         "width": "any",
         "heads": "any",
@@ -117,14 +117,14 @@
         "mrope for one position stream only: an image would need the sections to differ"
       ]
     },
-    "embed@2.0.0": {
+    "embed@1.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any"
       },
       "states": []
     },
-    "embedding.token_position_type@2.0.0": {
+    "embedding.token_position_type@1.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any",
@@ -137,7 +137,7 @@
         "the segment type is 0 for every token, as the primitive states for this version"
       ]
     },
-    "ffn.dense@2.0.0": {
+    "ffn.dense@1.0.0": {
       "arguments": {
         "width": "any",
         "inner": "any",
@@ -162,7 +162,7 @@
         "activation gelu computes erf by Abramowitz & Stegun 7.1.26 (|e| <= 1.5e-7): neither StableHLO nor ZML binds an erf op"
       ]
     },
-    "ffn.gated@2.0.0": {
+    "ffn.gated@1.0.0": {
       "arguments": {
         "width": "any",
         "inner": "any",
@@ -186,7 +186,7 @@
         "activation gelu (erf) is refused: ZML's gelu is the tanh approximation"
       ]
     },
-    "lm_head@2.0.0": {
+    "lm_head@1.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any",
@@ -194,14 +194,14 @@
       },
       "states": []
     },
-    "norm.layer@2.0.0": {
+    "norm.layer@1.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any"
       },
       "states": []
     },
-    "norm.rms@2.0.0": {
+    "norm.rms@1.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any",
@@ -209,7 +209,7 @@
       },
       "states": []
     },
-    "pooler@2.0.0": {
+    "pooler@1.0.0": {
       "arguments": {
         "width": "any",
         "project_to": "any",
@@ -223,13 +223,13 @@
       },
       "states": []
     },
-    "residual.add@2.0.0": {
+    "residual.add@1.0.0": {
       "arguments": {
         "width": "any"
       },
       "states": []
     },
-    "sequence.gated_delta@2.0.0": {
+    "sequence.gated_delta@1.0.0": {
       "arguments": {
         "width": "any",
         "key_heads": "any",

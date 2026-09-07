@@ -11,7 +11,7 @@ def build(site):
     site = Path(site)
     reference = site / 'primitive-library/index.html'
     text = reference.read_text()
-    text = re.sub(r'(<section id="primitive-([^" ]+)-2\.0\.0")',
+    text = re.sub(r'(<section id="primitive-([^" ]+)-1\.0\.0")',
                   lambda m: f'<a id="contract-{m[2]}-1.0.0"></a>' + m[1], text)
     reference.write_text(text)
     routes = {

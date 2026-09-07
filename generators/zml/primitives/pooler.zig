@@ -1,4 +1,4 @@
-//! pooler@2.0.0 — an embedding rather than logits.
+//! pooler@1.0.0 — an embedding rather than logits.
 //!
 //! `weight` projects to `project_to`; `normalize: l2` divides each vector by its norm;
 //! `reduce: none` keeps one vector per element, which is what makes a late-interaction
@@ -18,7 +18,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "pooler",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "project_to": "any",

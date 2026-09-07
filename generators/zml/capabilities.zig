@@ -60,7 +60,7 @@ pub fn write(
 
     try s.beginObject();
     try s.objectField("schema");
-    try s.write("tensorspine-capabilities/2");
+    try s.write("tensorspine-capabilities/1");
 
     try s.objectField("generator");
     try s.beginObject();

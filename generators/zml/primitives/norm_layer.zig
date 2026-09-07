@@ -1,4 +1,4 @@
-//! norm.layer@2.0.0 — (x − mean) · rsqrt(var + eps) · weight + bias over `width`.
+//! norm.layer@1.0.0 — (x − mean) · rsqrt(var + eps) · weight + bias over `width`.
 //!
 //! The variance is biased, as torch's LayerNorm and BERT compute it — which is what
 //! `zml.nn.normalizeVariance` does too.
@@ -9,7 +9,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "norm.layer",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "eps": "any"}, "states": []}

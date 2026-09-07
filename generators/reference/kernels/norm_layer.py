@@ -1,4 +1,4 @@
-"""norm.layer@2.0.0 — (x − mean) · rsqrt(var + eps) · weight + bias over `width`, the variance
+"""norm.layer@1.0.0 — (x − mean) · rsqrt(var + eps) · weight + bias over `width`, the variance
 biased, as torch's LayerNorm and BERT compute it.
 
 | branch / record | status      |
@@ -8,7 +8,7 @@ biased, as torch's LayerNorm and BERT compute it.
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from, w
 
-PRIMITIVE = ("norm.layer", "2.0.0")
+PRIMITIVE = ("norm.layer", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "eps": "any"}, "states": []}

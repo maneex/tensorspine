@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine/3.0",
+  "schema": "tensorspine/2.0",
   "model": "voxtral_realtime_delay_joins_audio",
   "primitive_libraries": [
     {
@@ -142,7 +142,7 @@
     "conv_frontend": {
       "primitive": {
         "name": "conv_frontend",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -175,7 +175,7 @@
     "embed": {
       "primitive": {
         "name": "embed",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -193,7 +193,7 @@
     "fuse": {
       "primitive": {
         "name": "residual.add",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -208,7 +208,7 @@
     "final_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -225,7 +225,7 @@
     "lm_head": {
       "primitive": {
         "name": "lm_head",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -243,7 +243,7 @@
     "enc_final_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -261,7 +261,7 @@
     "audio_projector": {
       "primitive": {
         "name": "projector.temporal_stack",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -282,7 +282,7 @@
     "time_embed": {
       "primitive": {
         "name": "embedding.time",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -320,7 +320,7 @@
         "attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -337,7 +337,7 @@
         "attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -392,7 +392,7 @@
         "attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -406,7 +406,7 @@
         "ffn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -423,7 +423,7 @@
         "ffn": {
           "primitive": {
             "name": "ffn.gated",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -446,7 +446,7 @@
         "ffn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -767,7 +767,7 @@
         "attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -784,7 +784,7 @@
         "attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -827,7 +827,7 @@
         "attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -841,7 +841,7 @@
         "ffn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -858,7 +858,7 @@
         "time_scale": {
           "primitive": {
             "name": "conditioning.scale",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -881,7 +881,7 @@
         "ffn": {
           "primitive": {
             "name": "ffn.gated",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -901,7 +901,7 @@
         "ffn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

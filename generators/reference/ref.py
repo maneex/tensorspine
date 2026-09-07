@@ -340,7 +340,7 @@ def manifest():
                             'tolerance': {d: dict(t) for d, t in k.TOLERANCE.items()},
                             'fixtures': [f"{name}@{ver}/{case['case']}" for case in getattr(k, 'FIXTURES', [])]}
         primitives[f"{name}@{ver}"] = entry
-    return {'schema': 'tensorspine-capabilities/2',
+    return {'schema': 'tensorspine-capabilities/1',
             'role': 'witness',
             'generator': {'name': 'reference', 'version': version, 'generator': 'generators/reference/ref.py capabilities',
                           'generated': datetime.date.today().isoformat()},

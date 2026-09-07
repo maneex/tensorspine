@@ -413,7 +413,7 @@ def consistency(manifest):
         else:
             admitted += 1
     # the documented structural refusals of the attention primitive are refused by the manifest
-    att = manifest['primitives']['attention.dense@2.0.0']
+    att = manifest['primitives']['attention.dense@1.0.0']
     for combo, label in (({'cross': True, 'mask': 'none'}, 'cross'),
                          ({'mask': 'chunked', 'chunk': {'span': 8}}, 'mask chunked'),
                          ({'mask': 'causal', 'window': {'span': 8}}, 'window'),

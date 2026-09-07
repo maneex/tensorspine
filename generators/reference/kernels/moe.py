@@ -1,4 +1,4 @@
-"""moe@2.0.0 — mixture of experts: `router` scores every token against `experts` experts, the
+"""moe@1.0.0 — mixture of experts: `router` scores every token against `experts` experts, the
 `top_k` best are activated, each a gated FFN read from the fused `in` (gate rows first, then up
 rows, as the reference stores routed experts) and `out`; `shared` experts are applied to every
 token, their sum optionally weighted through a sigmoid of `shared_output_gate`.
@@ -20,7 +20,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from
 
-PRIMITIVE = ("moe", "2.0.0")
+PRIMITIVE = ("moe", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "experts": "any", "top_k": "any", "inner": "any", "shared": "any",

@@ -1,7 +1,7 @@
 {
-  "schema": "tensorspine/3.0",
+  "schema": "tensorspine/2.0",
   "model": "decoder_causal_yarn_variable_without_domain",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "primitive_libraries": [
     {
       "base": "../../../data/primitive-library/"
@@ -198,7 +198,7 @@
         "attn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -215,7 +215,7 @@
         "attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -270,7 +270,7 @@
         "attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -284,7 +284,7 @@
         "ffn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -301,7 +301,7 @@
         "ffn": {
           "primitive": {
             "name": "ffn.gated",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -321,7 +321,7 @@
         "ffn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

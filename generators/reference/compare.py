@@ -19,7 +19,7 @@ SCHEMAS = os.path.join(ROOT, 'schemas')
 if os.path.join(ROOT, 'tools') not in sys.path:
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-SCHEMA_TAG = 'tensorspine-fixture/2'
+SCHEMA_TAG = 'tensorspine-fixture/1'
 
 
 def write_dump(path, tensors, header):

@@ -468,7 +468,7 @@ def metadata(args, n_layers, ids, tokens, hook_map, inputs=None):
     artifact = {'name': artifact_name(args.model), **_provenance(args.model)}
     if args.artifact_id:
         artifact['id'] = args.artifact_id
-    out = {'schema': 'tensorspine-fixture/2', 'kind': 'integration', 'document': args.document,
+    out = {'schema': 'tensorspine-fixture/1', 'kind': 'integration', 'document': args.document,
            'artifact': artifact,
            'delivery': {'implementation': 'transformers', 'program': PROGRAM,
                         'versions': {'torch': torch.__version__, 'transformers': __import__('transformers').__version__}},

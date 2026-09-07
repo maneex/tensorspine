@@ -10,7 +10,7 @@ A unit's path reproduces its identity, dot by dot; a primitive carries its
 version as the file name, so an identity `{name, version}` is one file and
 never changes meaning (§8.2).
 
-    primitives/attention/dense/2.0.0.json     primitive attention.dense 2.0.0
+    primitives/attention/dense/1.0.0.json     primitive attention.dense 1.0.0
     axes/model/width.json                    axis model.width
     precision/norm/scale.json                precision role norm.scale
 
@@ -40,6 +40,7 @@ import json
 import os
 
 import schema as schema_mod
+from migrate import legacy_layout
 
 
 def _pairs(pairs):
@@ -58,10 +59,12 @@ def read_json(path):
     with open(path, encoding='utf-8') as f:
         try:
             document = json.load(f, object_pairs_hook=_pairs)
+            if legacy_layout(document):
+                raise ValueError('legacy field layout; convert it with python3 tools/migrate.py INPUT -o OUTPUT')
             revision = document.get('schema') if isinstance(document, dict) else None
             if revision and revision.startswith('tensorspine') and revision not in {
-                'tensorspine/3.0', 'tensorspine-primitive-library-unit/3.0',
-                'tensorspine-derived/3.0', 'tensorspine-capabilities/2', 'tensorspine-fixture/2',
+                'tensorspine/2.0', 'tensorspine-primitive-library-unit/2.0',
+                'tensorspine-derived/2.1', 'tensorspine-capabilities/1', 'tensorspine-fixture/1',
             }:
                 raise ValueError(f'unsupported revision {revision!r}; convert supported legacy input with '
                                  'python3 tools/migrate.py INPUT -o OUTPUT')
@@ -82,8 +85,8 @@ def bases_of(model_path, model, override=None):
     """The primitive library bases a document resolves from: the command line when it
     names some, else the document's own `primitive library` entries, taken relative to
     the document's directory."""
-    if model.get('schema') != 'tensorspine/3.0':
-        raise PrimitiveLibraryError(f"{model_path}: expected tensorspine/3.0; convert supported legacy input "
+    if model.get('schema') != 'tensorspine/2.0' or legacy_layout(model):
+        raise PrimitiveLibraryError(f"{model_path}: expected tensorspine/2.0; convert supported legacy input "
                                     "with python3 tools/migrate.py INPUT -o OUTPUT")
     if override:
         return [os.path.abspath(b) for b in override]
@@ -107,7 +110,7 @@ def load_for(model_path, model, override=None, schema_dir=None, models_base=None
         _LOADED[key] = load(*bases, schema_dir=schema_dir, models_base=models_base)
     return _LOADED[key]
 
-UNIT_SCHEMA = "tensorspine-primitive-library-unit/3.0"
+UNIT_SCHEMA = "tensorspine-primitive-library-unit/2.0"
 SECTIONS = (('primitives', 'primitive'), ('axes', 'axis'), ('precision', 'precision_role'))
 
 

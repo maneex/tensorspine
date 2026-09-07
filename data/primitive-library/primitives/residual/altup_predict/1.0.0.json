@@ -1,0 +1,274 @@
+{
+  "schema": "tensorspine-primitive-library-unit/2.0",
+  "kind": "primitive",
+  "name": "residual.altup_predict",
+  "definition": {
+    "version": "1.0.0",
+    "summary": "AltUp prediction: mixes the `streams` residual streams and selects the active one.",
+    "description": "The input carries `streams` parallel residual streams. A router (`router`, after `router_norm`) computes mixing coefficients; `prediction` (`streams*streams × streams`) applies them to predict every stream from the current ones; the active stream is emitted separately for the layer to compute on. Computation: the router reads `router_norm(active) · width⁻¹` and its output passes through `tanh`; the `streams·streams` coefficients are reshaped `[streams, streams]` and transposed, applied across the streams, and the input streams are added back (`predictions = coefficients · input + input`); `active` is the predicted active stream.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2301.13310",
+        "title": "Alternating Updates for Efficient Transformers (Baykal et al., 2023)",
+        "kind": "paper",
+        "description": "Parallel residual streams with one active stream per layer."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of one stream.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "streams": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of parallel residual streams.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 2
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "eps": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "structural": false,
+        "description": "Epsilon of the router's normalization (`router_norm`).",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The residual streams."
+        }
+      },
+      "outputs": {
+        "predictions": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Predicted streams."
+        },
+        "active": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The stream the layer computes on."
+        }
+      }
+    },
+    "parameters": {
+      "prediction": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "out",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "op": "multiply",
+                "args": [
+                  {
+                    "argument": "streams"
+                  },
+                  {
+                    "argument": "streams"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "in",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "streams"
+              }
+            }
+          ]
+        },
+        "description": "Prediction coefficients: one `streams × streams` block per stream."
+      },
+      "router": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "residual.stream"
+          ],
+          "note": "one router per layer, read by altup_predict and altup_correct alike"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "altup",
+              "axis": "residual.stream",
+              "nature": "structural",
+              "extent": {
+                "argument": "streams"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Router projection producing the mixing coefficients."
+      },
+      "router_norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "norm.scale"
+          ],
+          "note": "the router's normalization, shared with altup_correct"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Scale of the router's input normalization."
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "predictions",
+        "active"
+      ]
+    },
+    "partition_options": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "communication": "none",
+        "description": "Streams are predicted per feature; features are independent."
+      }
+    ],
+    "note": "AltUp prediction and active-stream selection."
+  }
+}

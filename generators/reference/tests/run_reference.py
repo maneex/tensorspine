@@ -122,12 +122,12 @@ def main(compile_step=False, full=False, strict_provenance=True):
         ok &= check("blocks: a bound below one layer is refused", 'exceeds --max-ram' in str(e))
     # the opaque channel (generators/CAPABILITIES.md): parameters reach the primitive beside its arguments
     from module import physical_for
-    phys = {'attention.dense@2.0.0': {'backend': 'cpu', 'kernel': 'vanilla'}, 'decoder/attn[layer=*]': {'kernel': 'paged'},
+    phys = {'attention.dense@1.0.0': {'backend': 'cpu', 'kernel': 'vanilla'}, 'decoder/attn[layer=*]': {'kernel': 'paged'},
             'decoder/attn[layer=2]': {'block_size': 16}}
     ok &= check("physical parameters resolve primitive < pattern < exact, and other instances get none",
-                physical_for(phys, 'decoder/attn[layer=2]', {'name': 'attention.dense', 'version': '2.0.0'}) == {'backend': 'cpu', 'kernel': 'paged', 'block_size': 16}
-                and physical_for(phys, 'decoder/attn[layer=0]', {'name': 'attention.dense', 'version': '2.0.0'}) == {'backend': 'cpu', 'kernel': 'paged'}
-                and physical_for(phys, 'decoder/ffn[layer=0]', {'name': 'ffn.gated', 'version': '2.0.0'}) is None)
+                physical_for(phys, 'decoder/attn[layer=2]', {'name': 'attention.dense', 'version': '1.0.0'}) == {'backend': 'cpu', 'kernel': 'paged', 'block_size': 16}
+                and physical_for(phys, 'decoder/attn[layer=0]', {'name': 'attention.dense', 'version': '1.0.0'}) == {'backend': 'cpu', 'kernel': 'paged'}
+                and physical_for(phys, 'decoder/ffn[layer=0]', {'name': 'ffn.gated', 'version': '1.0.0'}) is None)
     pmodel = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu', physical=phys)
     pout = Session(pmodel, capacity=32, device='cpu', dtype=torch.float32).prefill([1, 2, 3, 4, 5, 6, 7, 8])
     ok &= check("a primitive ignores opaque keys it does not read: same logits", torch.equal(pout['logits'], out0))
@@ -231,11 +231,11 @@ def compare_case(check, tmp):
             code = ref_cli.main(['compare', *argv])
         return code, out.getvalue()
     ok = True
-    fixture = witness.fixture_path('norm.rms@2.0.0/basic')
+    fixture = witness.fixture_path('norm.rms@1.0.0/basic')
     unrelated = os.path.join(tmp, 'unrelated.safetensors')
     write_dump(unrelated, {'value/nothing': torch.zeros(2)}, {'compute': 'torch.float32'})
     code, text = cli(unrelated, fixture)
-    ok &= check("compare: an unrelated dump against norm.rms@2.0.0/basic exits 1 with 0 keys compared", code == 1 and '0 keys compared' in text, text[-200:])
+    ok &= check("compare: an unrelated dump against norm.rms@1.0.0/basic exits 1 with 0 keys compared", code == 1 and '0 keys compared' in text, text[-200:])
     fid = next(f for f in witness.committed() if any(k.startswith('state/') for k in read_fixture(witness.fixture_path(f))[0]))
     tensors, _ = read_fixture(witness.fixture_path(fid))
     dump = {k: v for k, v in tensors.items() if not k.startswith(('param/', 'in/'))}

@@ -1,7 +1,7 @@
-"""embed@2.0.0 — one `width` vector per token identifier."""
+"""embed@1.0.0 — one `width` vector per token identifier."""
 from kernels._common import refuse_unknown, supports_from
 
-PRIMITIVE = ("embed", "2.0.0")
+PRIMITIVE = ("embed", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any"}, "states": []}

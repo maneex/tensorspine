@@ -1,10 +1,10 @@
-"""norm.rms@2.0.0 — x · rsqrt(mean(x²) + eps) · weight; `zero_centered` adds one to the stored scale.
+"""norm.rms@1.0.0 — x · rsqrt(mean(x²) + eps) · weight; `zero_centered` adds one to the stored scale.
 Standard operators: Mul, ReduceMean, Add, Sqrt, Reciprocal, Mul, Mul."""
 import numpy as np
 
 from primitives._common import rms_norm, supports_from
 
-PRIMITIVE = ("norm.rms", "2.0.0")
+PRIMITIVE = ("norm.rms", "1.0.0")
 CAPABILITIES = {"arguments": {"width": "any", "eps": "any", "zero_centered": "any"}, "states": []}
 
 

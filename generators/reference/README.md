@@ -90,7 +90,7 @@ python3 $R run     $MODEL --checkpoint "$CK" --truncate "$GRAPH_SPLIT" \
 python3 generators/reference/fixtures/dump_hf.py --model "$CK" --document llama3-8b \
                    --layers "$LAYERS" --ids "$IDS" --steps "$STEPS" --out /tmp/theirs.safetensors
 python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors     # at the fixture's own tolerance; --atol/--rtol override
-python3 $R witness attention.dense@2.0.0            # the unit fixtures of a primitive version, regenerated and compared; --record writes them
+python3 $R witness attention.dense@1.0.0            # the unit fixtures of a primitive version, regenerated and compared; --record writes them
 python3 $R witness all --record                       # every case every kernel declares (docs/TENSORSPINE-FIXTURE.md)
 python3 generators/reference/tests/run_reference.py [--compile] [--full] [--no-strict-provenance]
                    # random weights; fixtures and full models when artifacts are present; the witness's provenance strict by default

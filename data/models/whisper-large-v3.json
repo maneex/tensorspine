@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine/3.0",
+  "schema": "tensorspine/2.0",
   "model": "whisper_large_v3",
   "primitive_libraries": [
     {
@@ -117,7 +117,7 @@
     "conv_frontend": {
       "primitive": {
         "name": "conv_frontend",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -147,7 +147,7 @@
     "enc_final_n": {
       "primitive": {
         "name": "norm.layer",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -164,7 +164,7 @@
     "embed": {
       "primitive": {
         "name": "embedding.token_position",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -185,7 +185,7 @@
     "dec_final_n": {
       "primitive": {
         "name": "norm.layer",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -202,7 +202,7 @@
     "lm_head": {
       "primitive": {
         "name": "lm_head",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -240,7 +240,7 @@
         "attn_n": {
           "primitive": {
             "name": "norm.layer",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -257,7 +257,7 @@
         "attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -295,7 +295,7 @@
         "attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -309,7 +309,7 @@
         "ffn_n": {
           "primitive": {
             "name": "norm.layer",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -326,7 +326,7 @@
         "ffn": {
           "primitive": {
             "name": "ffn.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -352,7 +352,7 @@
         "ffn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -820,7 +820,7 @@
         "self_attn_n": {
           "primitive": {
             "name": "norm.layer",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -837,7 +837,7 @@
         "self_attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -875,7 +875,7 @@
         "self_attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -889,7 +889,7 @@
         "cross_attn_n": {
           "primitive": {
             "name": "norm.layer",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -906,7 +906,7 @@
         "cross_attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -947,7 +947,7 @@
         "cross_attn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -961,7 +961,7 @@
         "ffn_n": {
           "primitive": {
             "name": "norm.layer",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -978,7 +978,7 @@
         "ffn": {
           "primitive": {
             "name": "ffn.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -1004,7 +1004,7 @@
         "ffn_r": {
           "primitive": {
             "name": "residual.add",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

@@ -1,4 +1,4 @@
-"""conditioning.scale@2.0.0 — input ⊙ (1 + out · act(in · condition)): the adaptive scale Voxtral
+"""conditioning.scale@1.0.0 — input ⊙ (1 + out · act(in · condition)): the adaptive scale Voxtral
 Realtime applies to the feed-forward's normed input, its condition the time embedding of the delay.
 
 | branch / record            | status                                                      |
@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import supports_from, w
 
-PRIMITIVE = ("conditioning.scale", "2.0.0")
+PRIMITIVE = ("conditioning.scale", "1.0.0")
 ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approximate='tanh'),
        'relu2': lambda x: F.relu(x).pow(2)}
 

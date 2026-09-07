@@ -1,4 +1,4 @@
-"""embedding.time@2.0.0 — the sinusoidal embedding of a count: `[cos(t · f), sin(t · f)]` with
+"""embedding.time@1.0.0 — the sinusoidal embedding of a count: `[cos(t · f), sin(t · f)]` with
 `f_i = theta^(−i / (width / 2))`, the width/2 cosines first, then the sines (Voxtral Realtime's
 time embedding of the number of delay tokens).
 
@@ -13,7 +13,7 @@ element of its stream (a `sequence` stream carries one).
 import torch
 from kernels._common import supports_from
 
-PRIMITIVE = ("embedding.time", "2.0.0")
+PRIMITIVE = ("embedding.time", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "theta": "any"}, "states": []}

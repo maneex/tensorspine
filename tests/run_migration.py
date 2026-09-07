@@ -32,12 +32,11 @@ class Migration(unittest.TestCase):
     def test_revisions_and_collisions(self):
         for old, new in migrate.VERSIONS.items():
             self.assertEqual(migrate.convert({'schema': old}), {'schema': new})
-            with self.assertRaises(ValueError):
-                migrate.convert({'schema': new})
+            self.assertEqual(migrate.convert({'schema': new}), {'schema': new})
         for revision in ['tensorspine/1.0', 'tensorspine/99', None]:
             with self.assertRaises(ValueError):
                 migrate.convert({'schema': revision})
-        for fields in [{'occurrences': {}, 'instances': {}}, {'instances': {}},
+        for fields in [{'occurrences': {}, 'instances': {}},
                        {'contract': {}, 'primitive': {}}, {'law': 'fixed', 'evolution': 'append'},
                        {'catalog': [], 'primitive_libraries': []}]:
             with self.assertRaises(ValueError):
@@ -51,6 +50,8 @@ class Migration(unittest.TestCase):
             'arguments': {'law': {'record': {'contract': {'literal': 'occurrence'}}}}}},
             'quantities': {'law': {'type': {'kind': 'cardinality'}}}}
         result = migrate.convert(old)
+        self.assertEqual(migrate.convert(result), result)
+        self.assertEqual(result['instances']['contract']['primitive']['version'], '1.0.0')
         self.assertEqual(result['instances']['contract']['primitive']['name'], 'contract')
         self.assertEqual(result['instances']['contract']['arguments'], old['occurrences']['contract']['arguments'])
         self.assertEqual(result['quantities'], old['quantities'])
@@ -58,7 +59,7 @@ class Migration(unittest.TestCase):
     def test_corpus_conversion(self):
         for path in sorted((ROOT / 'data/models').rglob('*.json')):
             with self.subTest(path=path.name):
-                old = json.loads(previous(str(path.relative_to(ROOT)).replace('/2.0.0.json', '/1.0.0.json')))
+                old = json.loads(previous(path.relative_to(ROOT)))
                 self.assertEqual(migrate.convert(old), json.loads(path.read_text()))
 
     def test_fixture_payloads(self):
@@ -66,7 +67,7 @@ class Migration(unittest.TestCase):
         self.assertTrue(paths)
         for path in paths:
             with self.subTest(path=path.name):
-                old_path = str(path.relative_to(ROOT)).replace('/primitives/', '/contracts/').replace('@2.0.0/', '@1.0.0/')
+                old_path = str(path.relative_to(ROOT)).replace('/primitives/', '/contracts/')
                 current = path.read_bytes()
                 record = BASELINE['fixtures'][old_path]
                 header = dict(record['header'])

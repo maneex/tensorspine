@@ -1,4 +1,4 @@
-"""ffn.gated@2.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
+"""ffn.gated@1.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
 
 | branch / record        | status                       |
 |------------------------|------------------------------|
@@ -8,7 +8,7 @@
 """
 from primitives._common import activation, linear, supports_from
 
-PRIMITIVE = ("ffn.gated", "2.0.0")
+PRIMITIVE = ("ffn.gated", "1.0.0")
 CAPABILITIES = {"arguments": {"width": "any", "inner": "any", "activation": ["silu", "gelu", "gelu_tanh", "relu2"],
                               "in_bias": "any", "out_bias": "any",
                               "activation_sparsity": {"absent": True, "values": [0, 0.0]}},

@@ -1,4 +1,4 @@
-"""pooler@2.0.0 — an embedding rather than logits: `weight` projects to `project_to`; `normalize`
+"""pooler@1.0.0 — an embedding rather than logits: `weight` projects to `project_to`; `normalize`
 l2 divides each vector by its norm (torch's floor of 1e-12, as ColBERT does); `reduce` none keeps
 one vector per token.
 
@@ -11,7 +11,7 @@ one vector per token.
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from, w
 
-PRIMITIVE = ("pooler", "2.0.0")
+PRIMITIVE = ("pooler", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "project_to": "any", "normalize": ["l2", "none"], "reduce": ["none"]},

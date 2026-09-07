@@ -1,4 +1,4 @@
-//! sequence.gated_delta@2.0.0 — a per-head matrix state updated by the delta rule,
+//! sequence.gated_delta@1.0.0 — a per-head matrix state updated by the delta rule,
 //! behind a short causal convolution (Qwen 3.5's linear-attention layers).
 //!
 //! | branch / record             | status                                        |
@@ -36,7 +36,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "sequence.gated_delta",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "key_heads": "any", "value_heads": "any", "head_dim": "any",

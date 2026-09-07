@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine/3.0",
+  "schema": "tensorspine/2.0",
   "model": "v7-zero-copies",
   "primitive_libraries": [
     {
@@ -153,7 +153,7 @@
     "embed": {
       "primitive": {
         "name": "embedding.token_auxiliary",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -183,7 +183,7 @@
     "expand": {
       "primitive": {
         "name": "residual.stream_expand",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -201,7 +201,7 @@
     "unembed": {
       "primitive": {
         "name": "residual.stream_collapse",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -219,7 +219,7 @@
     "final_n": {
       "primitive": {
         "name": "norm.rms",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -237,7 +237,7 @@
     "lm_head": {
       "primitive": {
         "name": "lm_head",
-        "version": "2.0.0"
+        "version": "1.0.0"
       },
       "arguments": {
         "width": {
@@ -278,7 +278,7 @@
         "predict": {
           "primitive": {
             "name": "residual.altup_predict",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -299,7 +299,7 @@
         "input_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -317,7 +317,7 @@
         "laurel": {
           "primitive": {
             "name": "residual.laurel",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -338,7 +338,7 @@
         "attn": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -437,7 +437,7 @@
         "attn_post_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -455,7 +455,7 @@
         "attn_add": {
           "primitive": {
             "name": "residual.combine",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -476,7 +476,7 @@
         "laurel_add": {
           "primitive": {
             "name": "residual.combine",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -500,7 +500,7 @@
         "pre_ffn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -518,7 +518,7 @@
         "ffn_sparse": {
           "primitive": {
             "name": "ffn.gated",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -554,7 +554,7 @@
         "post_ffn_n": {
           "primitive": {
             "name": "norm.rms",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -572,7 +572,7 @@
         "ffn_add": {
           "primitive": {
             "name": "residual.combine",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -593,7 +593,7 @@
         "correct": {
           "primitive": {
             "name": "residual.altup_correct",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -614,7 +614,7 @@
         "aux_select": {
           "primitive": {
             "name": "conditioning.layer_select",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "layers": {
@@ -635,7 +635,7 @@
         "condition": {
           "primitive": {
             "name": "conditioning.multiplicative",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -659,7 +659,7 @@
         "inject": {
           "primitive": {
             "name": "residual.stream_inject",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -677,7 +677,7 @@
         "attn_full": {
           "primitive": {
             "name": "attention.dense",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {
@@ -784,7 +784,7 @@
         "ffn": {
           "primitive": {
             "name": "ffn.gated",
-            "version": "2.0.0"
+            "version": "1.0.0"
           },
           "arguments": {
             "width": {

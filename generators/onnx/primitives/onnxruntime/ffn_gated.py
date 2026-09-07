@@ -1,4 +1,4 @@
-"""ffn.gated@2.0.0 for the onnxruntime target — the portable projections with the activation as one
+"""ffn.gated@1.0.0 for the onnxruntime target — the portable projections with the activation as one
 fused operator: QuickGelu with alpha 1 (SiLU exactly), Gelu (the erf form), FastGelu (the tanh
 form); relu2 stays composed."""
 from primitives import ffn_gated as portable

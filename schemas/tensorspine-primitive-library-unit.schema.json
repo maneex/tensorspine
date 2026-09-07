@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json",
+  "$id": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json",
   "title": "TensorSpine primitive library unit",
   "description": "One logical vocabulary unit of a primitive library base: a primitive definition, a named axis, a precision role, or the base itself. The file path reproduces the unit's identity; a primitive's file name is its version (§8.2). Every enumeration here is the closed vocabulary a consumer may implement in advance (§4.3, O0.6); a unit outside it is refused at load time, never read with a guess (I7). Documentation fields are defined once, in documentation.json, and referenced from the site they document.",
   "type": "object",
@@ -13,7 +13,7 @@
   ],
   "properties": {
     "schema": {
-      "const": "tensorspine-primitive-library-unit/3.0"
+      "const": "tensorspine-primitive-library-unit/2.0"
     },
     "kind": {
       "enum": [
@@ -24,7 +24,7 @@
       ]
     },
     "name": {
-      "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
     },
     "definition": {
       "type": "object"
@@ -117,7 +117,7 @@
     "expression": {
       "oneOf": [
         {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/literal_expression"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/literal_expression"
         },
         {
           "$ref": "#/$defs/argument_expression"
@@ -369,7 +369,7 @@
             ]
           },
           "then": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/cardinality_type"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/cardinality_type"
           }
         },
         {
@@ -384,7 +384,7 @@
             ]
           },
           "then": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/real_type"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/real_type"
           }
         },
         {
@@ -399,7 +399,7 @@
             ]
           },
           "then": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/physical_type"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/physical_type"
           }
         },
         {
@@ -414,7 +414,7 @@
             ]
           },
           "then": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/boolean_type"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/boolean_type"
           }
         },
         {
@@ -429,7 +429,7 @@
             ]
           },
           "then": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/enum_type"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/enum_type"
           }
         },
         {
@@ -460,7 +460,7 @@
         "fields": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/field_declaration"
@@ -498,16 +498,16 @@
           "$ref": "#/$defs/condition"
         },
         "value_descriptions": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/value_descriptions"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/value_descriptions"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
         },
         "deprecated": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/argument_deprecation"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/argument_deprecation"
         }
       },
       "required": [
@@ -564,16 +564,16 @@
           "$ref": "#/$defs/condition"
         },
         "value_descriptions": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/value_descriptions"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/value_descriptions"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
         },
         "deprecated": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/argument_deprecation"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/argument_deprecation"
         }
       },
       "required": [
@@ -618,10 +618,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
         },
         "axis": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
         "nature": {
           "$ref": "#/$defs/axis_nature"
@@ -630,7 +630,7 @@
           "$ref": "#/$defs/expression"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -648,10 +648,10 @@
       "additionalProperties": false,
       "properties": {
         "name": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
         },
         "axis": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
         "nature": {
           "$ref": "#/$defs/axis_nature"
@@ -667,7 +667,7 @@
           "minItems": 2
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -727,7 +727,7 @@
               "additionalProperties": false,
               "properties": {
                 "port": {
-                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
                 }
               },
               "required": [
@@ -754,13 +754,13 @@
           "$ref": "#/$defs/port_domain"
         },
         "role": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
         "present_when": {
           "$ref": "#/$defs/condition"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -778,7 +778,7 @@
         "inputs": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/port"
@@ -787,7 +787,7 @@
         "outputs": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/port"
@@ -812,7 +812,7 @@
         "roles": {
           "type": "array",
           "items": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
           },
           "minItems": 1
         },
@@ -846,7 +846,7 @@
       "additionalProperties": false,
       "properties": {
         "role": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
         "sharing": {
           "$ref": "#/$defs/sharing_rule"
@@ -861,7 +861,7 @@
           "$ref": "#/$defs/expression"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -878,7 +878,7 @@
       "additionalProperties": false,
       "properties": {
         "role": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
         "shape": {
           "$ref": "#/$defs/shape"
@@ -890,7 +890,7 @@
           "$ref": "#/$defs/expression"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -909,10 +909,10 @@
           "$ref": "#/$defs/shape"
         },
         "role": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -936,7 +936,7 @@
           ]
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -965,7 +965,7 @@
           "additionalProperties": false,
           "properties": {
             "port": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
             }
           },
           "required": [
@@ -1015,7 +1015,7 @@
           "$ref": "#/$defs/expression"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1078,7 +1078,7 @@
         "payload": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/state_component"
@@ -1088,14 +1088,14 @@
         "key_axes": {
           "type": "array",
           "items": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
           },
           "minItems": 1
         },
         "operations": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/state_operation"
@@ -1109,7 +1109,7 @@
           "minItems": 1
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1122,7 +1122,7 @@
               "$ref": "#/$defs/condition"
             },
             "description": {
-              "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+              "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
             },
             "note": {
               "type": "string"
@@ -1149,13 +1149,13 @@
         "reads": {
           "type": "array",
           "items": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           }
         },
         "writes": {
           "type": "array",
           "items": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           }
         },
         "across_positions": {
@@ -1169,7 +1169,7 @@
               "$ref": "#/$defs/condition"
             },
             "description": {
-              "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+              "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
             },
             "note": {
               "type": "string"
@@ -1190,7 +1190,7 @@
           "additionalProperties": false,
           "properties": {
             "argument_axis": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
             }
           },
           "required": [
@@ -1202,7 +1202,7 @@
           "additionalProperties": false,
           "properties": {
             "instance_key_axis": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
             }
           },
           "required": [
@@ -1218,13 +1218,13 @@
               "additionalProperties": false,
               "properties": {
                 "state": {
-                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
                 },
                 "component": {
-                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
                 },
                 "axis": {
-                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
                 }
               },
               "required": [
@@ -1297,7 +1297,7 @@
           "$ref": "#/$defs/condition"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1322,10 +1322,10 @@
       "additionalProperties": false,
       "properties": {
         "from_port": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
         },
         "to_port": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
         },
         "relation": {
           "enum": [
@@ -1338,7 +1338,7 @@
           "$ref": "#/$defs/expression"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1380,12 +1380,12 @@
       "additionalProperties": false,
       "properties": {
         "version": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/semantic_version"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/semantic_version"
         },
         "arguments": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/argument_declaration"
@@ -1397,7 +1397,7 @@
         "parameters": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/parameter"
@@ -1406,7 +1406,7 @@
         "constants": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/constant_slot"
@@ -1415,7 +1415,7 @@
         "state_ports": {
           "type": "object",
           "propertyNames": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
           },
           "additionalProperties": {
             "$ref": "#/$defs/state_port"
@@ -1448,16 +1448,16 @@
           "$ref": "#/$defs/logical_cost"
         },
         "tags": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
         },
         "external_docs": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "summary": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1466,7 +1466,7 @@
           "$ref": "#/$defs/sparsity"
         },
         "deprecated": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1507,22 +1507,22 @@
           ]
         },
         "summary": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
         },
         "external_docs": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "tags": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
         },
         "deprecated": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1536,13 +1536,13 @@
         "admissible": {
           "type": "array",
           "items": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/dtype"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
           },
           "minItems": 1,
           "uniqueItems": true
         },
         "default": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/dtype"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
         },
         "sensitivity": {
           "enum": [
@@ -1552,22 +1552,22 @@
           ]
         },
         "summary": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
         },
         "external_docs": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "tags": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
         },
         "deprecated": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1585,19 +1585,19 @@
           "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(/[A-Za-z0-9_-]+)*$"
         },
         "title": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/title"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/title"
         },
         "external_docs": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "tags": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tag_definitions"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tag_definitions"
         },
         "summary": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1608,10 +1608,10 @@
           "description": "Where the templates of this base's template primitives live, relative to the base: one document `<name>/<version>.json` per template version (§4.6). Required when the base carries a template primitive."
         },
         "contact": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/contact"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/contact"
         },
         "license": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/license"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/license"
         }
       },
       "required": [
@@ -1624,19 +1624,19 @@
       "additionalProperties": false,
       "properties": {
         "version": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/semantic_version"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/semantic_version"
         },
         "tags": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/tags"
         },
         "external_docs": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_docs"
         },
         "summary": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/summary"
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1646,15 +1646,15 @@
           "additionalProperties": false,
           "properties": {
             "name": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier",
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier",
               "description": "File name of the template, without extension, resolved against the models base."
             },
             "version": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/semantic_version",
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/semantic_version",
               "description": "The template version pinned by this primitive; the template document must carry the same one (§4.6)."
             },
             "id": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
             },
             "note": {
               "type": "string"
@@ -1667,7 +1667,7 @@
           ]
         },
         "deprecated": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/deprecation"
         }
       },
       "required": [
@@ -1715,7 +1715,7 @@
           "$ref": "#/$defs/expression"
         },
         "status": {
-          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
+          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
         },
         "per": {
           "enum": [
@@ -1727,7 +1727,7 @@
           "description": "What the expression is counted per: an element of the instance's output domain, a position held in a state, a sequence, or an invocation (§4.1)."
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1762,11 +1762,11 @@
               "type": "array",
               "minItems": 1,
               "items": {
-                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
               }
             },
             "axis": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
             }
           },
           "description": "The activatable unit: the parameter slots that form one unit, and the axis along which units are laid out."
@@ -1793,7 +1793,7 @@
               ],
               "properties": {
                 "port": {
-                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
                 }
               }
             },
@@ -1823,13 +1823,13 @@
               "$ref": "#/$defs/expression"
             },
             "status": {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
             },
             "per": {
               "const": "invocation"
             },
             "description": {
-              "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+              "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
             },
             "note": {
               "type": "string"
@@ -1843,7 +1843,7 @@
           "description": "Upper bound on the union of units an invocation may activate (O6.6)."
         },
         "description": {
-          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+          "$ref": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/description"
         },
         "note": {
           "type": "string"
@@ -1863,7 +1863,7 @@
         "value": {
           "oneOf": [
             {
-              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/literal_expression"
+              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/literal_expression"
             },
             {
               "$ref": "#/$defs/argument_expression"
@@ -1921,7 +1921,7 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {
-            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/scalar_literal"
+            "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal"
           }
         }
       }

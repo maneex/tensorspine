@@ -128,7 +128,7 @@ def document(name, version, arguments, cat, base):
                 carrier = carrier or own
                 if carrier in inputs:
                     inputs[carrier]['fragmented'] = True
-    return {"schema": "tensorspine/3.0", "model": f"unit-{name.replace('.', '_')}-{version.replace('.', '_')}",
+    return {"schema": "tensorspine/2.0", "model": f"unit-{name.replace('.', '_')}-{version.replace('.', '_')}",
             "primitive_libraries": [{"base": base}], "quantities": {}, "constants": {},
             "instances": {"unit": {"primitive": {"name": name, "version": version}, "arguments": given, "families": ["unit"]}},
             "compositions": {},
@@ -266,7 +266,7 @@ def produce(name, version, kernel, case, cat, kernels):
     params = parameters(g, case['seed'])
     tensors = {f"param/{ident}": t.detach().to('cpu', torch.float32).clone() for ident, t in params.items()}
     tensors.update(run(g, kernels, params, case['invocations'], torch.float32, seed=case['seed']))
-    metadata = {'schema': 'tensorspine-fixture/2', 'kind': 'unit', 'id': f"{name}@{version}/{case['case']}",
+    metadata = {'schema': 'tensorspine-fixture/1', 'kind': 'unit', 'id': f"{name}@{version}/{case['case']}",
                 'primitive': {'name': name, 'version': version}, 'arguments': g.nodes['unit']['arguments'],
                 'document': doc, 'invocations': case['invocations'], 'seed': case['seed'],
                 'witness': {'generator': 'reference', 'version': _version(),

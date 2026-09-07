@@ -1,4 +1,4 @@
-"""residual.laurel@2.0.0 — output = input + norm(right(left(input))): a learned low-rank term,
+"""residual.laurel@1.0.0 — output = input + norm(right(left(input))): a learned low-rank term,
 RMS-normalized with `norm` and `eps`, added to the input.
 
 | branch / record | status      |
@@ -7,7 +7,7 @@ RMS-normalized with `norm` and `eps`, added to the input.
 """
 from kernels._common import refuse_unknown, rms_norm, supports_from, w
 
-PRIMITIVE = ("residual.laurel", "2.0.0")
+PRIMITIVE = ("residual.laurel", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "rank": "any", "eps": "any"}, "states": []}

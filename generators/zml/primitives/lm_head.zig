@@ -1,10 +1,10 @@
-//! lm_head@2.0.0 — one logit per vocabulary entry; `softcap` is refused.
+//! lm_head@1.0.0 — one logit per vocabulary entry; `softcap` is refused.
 
 const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "lm_head",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "vocabulary": "any", "softcap": "absent"}, "states": []}

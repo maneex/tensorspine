@@ -28,7 +28,7 @@ import d1                              # noqa: E402
 import validate                        # noqa: E402
 
 ASSIGNMENTS = {
-    'decoder-causal-yarn@2.0.0': {"width": 3072, "layers": 26, "heads": 32, "kv_heads": 8,
+    'decoder-causal-yarn@1.0.0': {"width": 3072, "layers": 26, "heads": 32, "kv_heads": 8,
                                   "head_dim": 128, "inner": 9216, "eps": 0.00001,
                                   "precision": "bf16"},
 }
@@ -43,7 +43,7 @@ def corpus():
 
 
 def name_of(path):
-    """`llama3-8b` for a model, `decoder-causal-yarn@2.0.0` for a template."""
+    """`llama3-8b` for a model, `decoder-causal-yarn@1.0.0` for a template."""
     rel = os.path.relpath(path, MODELS)
     if os.sep in rel:
         directory, version = rel.split(os.sep)

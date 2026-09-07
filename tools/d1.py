@@ -272,7 +272,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     graph = {"nodes": nodes, "edges": edges, "interfaces": interfaces, "topological_order": order}
     if instances:
         graph["instances"] = instances
-    return {"schema": "tensorspine-derived/3.0",
+    return {"schema": "tensorspine-derived/2.1",
             "model": model['model'],
             "primitive_libraries": model['primitive_libraries'],
             "assignment": {k: v for k, v in assignment.items() if k in declared},
@@ -281,7 +281,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
 
 def output_name(model_path, suffix):
     """`llama3-8b.d1.json`; for a template in its versioned directory,
-    `decoder-causal-yarn@2.0.0.d1.json`."""
+    `decoder-causal-yarn@1.0.0.d1.json`."""
     base = os.path.basename(model_path)[:-5]
     if re.fullmatch(r'\d+\.\d+\.\d+', base):
         base = f"{os.path.basename(os.path.dirname(model_path))}@{base}"

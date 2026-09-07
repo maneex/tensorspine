@@ -1,4 +1,4 @@
-//! attention.dense@2.0.0 — dense or grouped-query attention over a KV state.
+//! attention.dense@1.0.0 — dense or grouped-query attention over a KV state.
 //!
 //! | branch                          | status                                     |
 //! |---------------------------------|--------------------------------------------|
@@ -37,7 +37,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "attention.dense",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .needs_positions = true,
     .capabilities =

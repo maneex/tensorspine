@@ -10,8 +10,8 @@ DTYPES = {'bf16': 'bfloat16', 'f16': 'float16', 'f32': 'float32'}
 def load(path):
     with open(path, encoding='utf-8') as f:
         doc = json.load(f)
-    if doc.get('schema') != 'tensorspine-derived/3.0':
-        raise ValueError(f"{path}: expected tensorspine-derived/3.0; derive a current model "
+    if doc.get('schema') != 'tensorspine-derived/2.1':
+        raise ValueError(f"{path}: expected tensorspine-derived/2.1; derive a current model "
                          "(tensorspine --derive MODEL -o DIR), or convert supported legacy input "
                          "with python3 tools/migrate.py INPUT -o OUTPUT")
     return Graph(doc)

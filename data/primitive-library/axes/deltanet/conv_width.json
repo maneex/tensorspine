@@ -1,5 +1,5 @@
 {
-  "schema": "tensorspine-primitive-library-unit/3.0",
+  "schema": "tensorspine-primitive-library-unit/2.0",
   "kind": "axis",
   "name": "deltanet.conv_width",
   "definition": {

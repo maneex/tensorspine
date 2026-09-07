@@ -48,7 +48,7 @@ const Args = struct {
     pub const help =
         \\ Use tspl --derived=<path> [--refusals] [--checkpoint=<dir> --until=<value>]
         \\
-        \\ Run a tensorspine/3.0 model from its derived document (D1–D6).
+        \\ Run a tensorspine/2.0 model from its derived document (D1–D6).
         \\
         \\ Options:
         \\   --derived=<path>      Path to a .derived.json, as `tensorspine --derive` emits it (required)

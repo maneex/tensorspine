@@ -1,4 +1,4 @@
-//! norm.rms@2.0.0 — x · rsqrt(mean(x²) + eps) · weight.
+//! norm.rms@1.0.0 — x · rsqrt(mean(x²) + eps) · weight.
 //!
 //! `zero_centered` stores the scale as an offset from one (Qwen 3.5, Gemma), so the
 //! effective scale is `weight + 1`. ZML's own models spell that convention out per
@@ -10,7 +10,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "norm.rms",
-    .version = "2.0.0",
+    .version = "1.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "eps": "any", "zero_centered": "any"}, "states": []}

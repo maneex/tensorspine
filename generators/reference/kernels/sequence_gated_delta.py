@@ -1,4 +1,4 @@
-"""sequence.gated_delta@2.0.0 — gated DeltaNet: a per-head matrix state updated by the
+"""sequence.gated_delta@1.0.0 — gated DeltaNet: a per-head matrix state updated by the
 delta rule behind a short causal convolution (Qwen 3.5 / Qwen3-Next).
 
 | branch / record            | status                                         |
@@ -22,7 +22,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import present, refuse_unknown, supports_from, w
 
-PRIMITIVE = ("sequence.gated_delta", "2.0.0")
+PRIMITIVE = ("sequence.gated_delta", "1.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "key_heads": "any", "value_heads": "any", "head_dim": "any",

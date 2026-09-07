@@ -253,7 +253,7 @@ def manifest():
             if target != 'onnx' and fused is not p:
                 entry.setdefault('notes', []).extend(f"target {target}: {note}" for note in fused.CAPABILITIES.get('notes', []))
         primitives[f"{name}@{ver}"] = entry
-    return {'schema': 'tensorspine-capabilities/2',
+    return {'schema': 'tensorspine-capabilities/1',
             'generator': {'name': 'onnx', 'version': version, 'generator': 'generators/onnx/tsonnx.py capabilities',
                           'generated': datetime.date.today().isoformat()},
             'compute_dtypes': ['f32'],

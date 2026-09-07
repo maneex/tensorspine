@@ -1,4 +1,4 @@
-"""attention.dense@2.0.0 — dense or grouped-query attention over an `append` KV state, causal.
+"""attention.dense@1.0.0 — dense or grouped-query attention over an `append` KV state, causal.
 
 | branch / record                 | status                                                   |
 |---------------------------------|----------------------------------------------------------|
@@ -22,7 +22,7 @@ from onnx import TensorProto
 
 from primitives._common import linear, supports_from
 
-PRIMITIVE = ("attention.dense", "2.0.0")
+PRIMITIVE = ("attention.dense", "1.0.0")
 CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any", "scale": "absent",
                               "mask": ["causal", "none"], "window": "absent", "chunk": "absent", "cross": [False],
                               "streaming": [False], "kv_source": ["own"], "temperature": "absent",
