@@ -1,14 +1,14 @@
--- Pandoc filter for the TensorSpine catalog rendering (docs/style/catalog.sh).
+-- Pandoc filter for the TensorSpine primitive library rendering (docs/style/primitive-library.sh).
 --
 --   * The generator puts an explicit anchor `<a id="X" name="X"></a>` on the
 --     line before headings it cross-references. Pandoc keeps the anchor and
 --     invents its own id for the heading; here the anchor's id is moved onto
---     the heading (so --section-divs sections and the TOC use the catalog's
+--     the heading (so --section-divs sections and the TOC use the primitive_library's
 --     identities) and the anchor is dropped. A heading without an anchor whose
 --     pandoc id collides with an anchor id is suffixed.
 --   * The "Contents" section is removed: the template's sidebar replaces it.
 --   * Every table is wrapped in <div class="table-wrap"> so wide tables scroll
---     inside the content column; the key/value strip after a contract lede is
+--     inside the content column; the key/value strip after a primitive lede is
 --     tagged class="facts".
 --   * "Tags: …" paragraphs become <p class="tags">.
 

@@ -9,13 +9,15 @@ placement or scheduling.
 
 The tables use three statuses:
 
-- **exact** — determined by the model and its pinned contracts, possibly after the named deployment
+- **exact** — determined by the model and its pinned primitives, possibly after the named deployment
   input is supplied;
 - **bound** — safe for planning, but not an equality;
 - **not derivable** — the derived document lacks a fact required to decide; the harness must supply
   or measure it.
 
 Field paths are rooted at the single [derived document](TENSORSPINE-DERIVED_JSON.md).
+
+<a id="1-admission"></a>
 
 ## 1. Admission
 
@@ -25,28 +27,32 @@ allow-list.
 
 | Decision fact | Product and field | Deployment input | Status |
 |---|---|---|---|
-| Primitive version and argument branch required by every node | `d1.nodes.*.contract`, `d1.nodes.*.arguments` | Generated capabilities manifest | exact |
+| Primitive version and argument branch required by every node | `d1.nodes.*.primitive`, `d1.nodes.*.arguments` | Generated capabilities manifest | exact |
 | Value dtype and input domain required at every edge | `d2.values[].dtype`, `d2.values[].domain` | Generated capabilities manifest | exact |
-| State law, access, sharing and operations required | `d4.states[].law`, `.access`, `.sharing`, `.operations` | Generated capabilities manifest | exact |
+| State evolution, access, sharing and operations required | `d4.states[].evolution`, `.access`, `.sharing`, `.operations` | Generated capabilities manifest | exact |
 | Logical tensor expected from the checkpoint | `d3.tensors[].shape`, `.dtype`, `.location` | Artifact headers and loader support | exact |
 | Whether installed kernels fit memory and meet an SLO | Logical sizes in D2–D5 | Kernel costs, workspace, hardware, workload and SLO | not derivable |
 
 `tensorspine --capabilities MANIFEST MODEL` performs the compatibility check. A successful result
 means that the manifest admits the model's declared branches; it is not a performance promise.
 
+<a id="2-paging"></a>
+
 ## 2. Paging
 
 | Decision fact | Product and field | Deployment input | Status |
 |---|---|---|---|
-| Bytes added for one cached position | `d4.states[].bytes_per_cached_position` where `.law == "append"` | Positions retained per active allocation | exact |
-| Maximum logical bytes of a sliding window | `.span`, `.bytes_bounded` where `.law == "window"` | Active allocation count | bound |
-| Fixed-state bytes per allocation | Sum of `.payload[].bytes` where `.law == "fixed"` | Active allocation count | exact |
+| Bytes added for one cached position | `d4.states[].bytes_per_cached_position` where `.evolution == "append"` | Positions retained per active allocation | exact |
+| Maximum logical bytes of a sliding window | `.span`, `.bytes_bounded` where `.evolution == "window"` | Active allocation count | bound |
+| Fixed-state bytes per allocation | Sum of `.payload[].bytes` where `.evolution == "fixed"` | Active allocation count | exact |
 | Allocation-key dimensions | `.identity`, `.instance_key` | Active values for session and branch axes | exact |
 | Whether semantic eviction is permitted | `"evict" in .operations` | None | exact |
 | Physical page size, allocator metadata and fragmentation | No field | Allocator and device-memory policy | not derivable |
 
 The model supplies byte coefficients and allocation-key structure. Context lengths and the number
 of simultaneously live sessions are workload inputs; page size is an engine choice.
+
+<a id="3-sharing-and-prefix-reuse"></a>
 
 ## 3. Sharing and prefix reuse
 
@@ -60,6 +66,8 @@ of simultaneously live sessions are workload inputs; page size is an engine choi
 
 `sharing` grants a kind of reuse; it never proves that two requests have equal content. The harness
 must establish equality or lineage before aliasing storage.
+
+<a id="4-offload"></a>
 
 ## 4. Offload
 
@@ -75,15 +83,17 @@ must establish equality or lineage before aliasing storage.
 Logical eviction permission is necessary, not sufficient, for offload. Restoring an engine's
 physical representation without changing semantics remains the engine's responsibility.
 
+<a id="5-prefilldecode-handoff"></a>
+
 ## 5. Prefill/decode handoff
 
 | Decision fact | Product and field | Deployment input | Status |
 |---|---|---|---|
 | State indexed by a source and frozen when that source completes | `.indexed_by_source`, `.stream` | Source-completion event | exact |
 | Maximum logical bytes to hand off for window state | `.bytes_bounded` | Active allocations | bound |
-| Logical bytes to hand off for fixed state | Sum of `.payload[].bytes` where `.law == "fixed"` | Active allocations | exact |
+| Logical bytes to hand off for fixed state | Sum of `.payload[].bytes` where `.evolution == "fixed"` | Active allocations | exact |
 | Logical bytes to hand off for append state | `.bytes_per_cached_position` | Retained positions per allocation | exact |
-| Values crossing a selected graph cut | `d2.cuts[].payload`, `.bytes_per_invocation` | Selected cut and invocation input counts | exact |
+| Values crossing a selected graph split | `d2.graph_splits[].payload`, `.bytes_per_invocation` | Selected graph split and invocation input counts | exact |
 | Which state is read in a later serving phase | `.visits` describes the rule but has no structured phase set | Phase schedule and engine execution plan | not derivable |
 | Serialization, transport and destination layout | No field | Primitive implementation, network and receiving allocator | not derivable |
 
@@ -91,23 +101,27 @@ A handoff planner must transfer every live state allocation the destination will
 infer that set from a model name or from `carried_across_fragments`, which answers a different
 question: survival across deliveries of a fragmented public input.
 
+<a id="6-extracts-and-placement"></a>
+
 ## 6. Extracts and placement
 
 | Decision fact | Product and field | Deployment input | Status |
 |---|---|---|---|
-| Structurally legal graph extracts | `d6.cuts[].cut`, `.kind`, `.sizes` | None | exact |
-| Logical payload crossing an extract boundary | Matching `d2.cuts[].payload`, `.bytes_per_invocation` | Invocation input counts | exact |
+| Structurally valid graph extracts | `d6.graph_splits[].graph_split`, `.kind`, `.sizes` | None | exact |
+| Logical payload crossing an extract boundary | Matching `d2.graph_splits[].payload`, `.bytes_per_invocation` | Invocation input counts | exact |
 | Resident parameter bytes and artifact locations | `d3.tensors[].bytes`, `.location`; `d3.totals.bytes` | Artifact availability | exact |
 | Peak live value bytes in topological order | `d2.peak_live` | One-invocation input counts | exact |
 | Append and fixed-state footprint | D4 byte fields and `.instance_key` | Active key values and retained positions | exact |
 | Window-state footprint | `.bytes_bounded`, `.instance_key` | Active key values | bound |
-| Meaning-preserving partition choices per node | `d6.partitions[].node`, `.target`, `.communication`, `.granularity` | None | exact |
+| Meaning-preserving partition choices per node | `d6.partition_options[].node`, `.target`, `.communication`, `.granularity` | None | exact |
 | Supported physical partition, collective and placement | No field in D1–D6 | Implementation capabilities, topology, workload and policy | not derivable |
 
-A D6 partition is local to the named node. Its `communication` lists the patterns the contract
+A D6 partition is local to the named node. Its `communication` lists the patterns the primitive
 admits, one or several; its `granularity` is what a shard keeps whole along the axis, the KV group
 for attention's heads. Axis identities on D1 edges let an engine coordinate choices across nodes;
 TensorSpine does not emit a whole-model sharding plan.
+
+<a id="7-concrete-d4-readers"></a>
 
 ## 7. Concrete D4 readers
 
@@ -142,7 +156,7 @@ def allocation_key(state, key_values):
 
 ```python
 def append_address(state, key_values, logical_position, positions_per_page):
-    if need(state, "law") != "append" or need(state, "access") != "logical_position":
+    if need(state, "evolution") != "append" or need(state, "access") != "logical_position":
         raise ValueError("not a pageable append state")
     if positions_per_page <= 0 or logical_position < 0:
         raise ValueError("invalid physical page geometry")
@@ -158,7 +172,7 @@ and then the beginning of the ring.
 
 ```python
 def ring_addresses(state, key_values, logical_positions, produced_until):
-    if need(state, "law") != "window" or need(state, "access") != "ring":
+    if need(state, "evolution") != "window" or need(state, "access") != "ring":
         raise ValueError("not a window ring")
     span = need(state, "span")
     if (not isinstance(span, (int, float)) or isinstance(span, bool)
@@ -179,7 +193,7 @@ child diverge; D4 does not supply the fork lineage or the copy primitive.
 
 ```python
 def fork_fixed_state(state, parent_key_values, child_key_values, storage, clone):
-    if need(state, "law") != "fixed" or need(state, "sharing") != "at_fork_point":
+    if need(state, "evolution") != "fixed" or need(state, "sharing") != "at_fork_point":
         raise ValueError("not a fork-copyable fixed state")
     if not {"read", "write"}.issubset(set(need(state, "operations"))):
         raise ValueError("state cannot be copied and then updated")
@@ -218,6 +232,8 @@ The key is an equality witness for harness policy, not a prescribed storage key.
 collision-resistant digest, verified token sequence, source object identity or another proof with
 equivalent semantics.
 
+<a id="8-batching"></a>
+
 ## 8. Batching
 
 The language describes one session's invocation. Batching is downstream:
@@ -231,16 +247,16 @@ The language describes one session's invocation. Batching is downstream:
 4. Read `d2.peak_live` for the logical value peak of one invocation. If the field is absent, stop:
    the activation peak is not derivable from the remaining products. Physical batched peak still
    depends on the engine's schedule, fusion, workspace and buffer reuse.
-5. Evaluate an occurrence on several sessions' elements at once only when its
+5. Evaluate an instance on several sessions' elements at once only when its
    `d1.nodes.*.across_positions` is false, it owns no state (`d4.states[].members`: a state is
    per session by its `d4.states[].instance_key`), and every value it reads is on one
    `d2.values[].domain` stream (a value of another stream is a per-session broadcast); everything
    else is per session. A `merge` reads whole groups and every delivery is aligned (§5.3,
-   `d2.streams.*.fragment_alignment`), so it qualifies. The field is the contract's
-   `effects.across_positions` evaluated on the occurrence's arguments (§4.1), the fact V18
+   `d2.streams.*.fragment_alignment`), so it qualifies. The field is the primitive's
+   `effects.across_positions` evaluated on the instance's arguments (§4.1), the fact V18
    rejects on; a runtime that guesses it from the states alone is wrong wherever a stateless
-   occurrence reads across positions — an encoder's attention, a front end's convolution.
+   instance reads across positions — an encoder's attention, a front end's convolution.
 
 TensorSpine therefore supplies the state terms, the single-invocation logical value peak and the
-per-occurrence facts a batching split reads. The harness supplies concurrency, batching strategy
+per-instance facts a batching split reads. The harness supplies concurrency, batching strategy
 and every physical-memory term.

@@ -35,7 +35,7 @@ digraph serving_with_tensorspine {
     fillcolor="#17639A:#27C9C3",
     gradientangle=0,
     fontcolor="#FFFFFF",
-    label=<<FONT POINT-SIZE="11"><B>MODEL LAB</B></FONT><BR/><FONT POINT-SIZE="16"><B>safetensors + TensorSpine model document</B></FONT><BR/><FONT POINT-SIZE="10">contract + reference implementation when semantics change</FONT>>
+    label=<<FONT POINT-SIZE="11"><B>MODEL LAB</B></FONT><BR/><FONT POINT-SIZE="16"><B>safetensors + TensorSpine model definition</B></FONT><BR/><FONT POINT-SIZE="10">primitive + reference implementation when semantics change</FONT>>
   ];
 
   subgraph cluster_tensorspine {
@@ -47,7 +47,7 @@ digraph serving_with_tensorspine {
       margin=20,
       labeljust=l,
       labelloc=t,
-      label=<<FONT COLOR="#176B72" POINT-SIZE="17"><B>TENSORSPINE</B></FONT><BR/><FONT COLOR="#557A80" POINT-SIZE="10">the shared model contract and its tooling</FONT>>
+      label=<<FONT COLOR="#176B72" POINT-SIZE="17"><B>TENSORSPINE</B></FONT><BR/><FONT COLOR="#557A80" POINT-SIZE="10">the shared model primitive and its tooling</FONT>>
     ];
 
     foundation [
@@ -56,7 +56,7 @@ digraph serving_with_tensorspine {
       fillcolor="#17639A:#27C9C3",
       gradientangle=0,
       fontcolor="#FFFFFF",
-      label=<<FONT POINT-SIZE="15"><B>Model-document schema + reference primitive catalog</B></FONT><BR/><FONT POINT-SIZE="10">logical structure and reusable primitive semantics</FONT>>
+      label=<<FONT POINT-SIZE="15"><B>Model-document schema + reference primitive definition library</B></FONT><BR/><FONT POINT-SIZE="10">logical structure and reusable primitive semantics</FONT>>
     ];
 
     derive [
@@ -104,7 +104,7 @@ digraph serving_with_tensorspine {
       width=3.35,
       color="#B8D8DF",
       fillcolor="#EAF5F8",
-      label=<<FONT POINT-SIZE="14"><B>Optimized primitive implementations</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">implements its supported contract subset</FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">custom kernels / fusions / layouts / partitions</FONT>>
+      label=<<FONT POINT-SIZE="14"><B>Optimized primitive implementations</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">implements its supported primitive subset</FONT><BR/><FONT COLOR="#607D89" POINT-SIZE="9">custom kernels / fusions / layouts / partition options</FONT>>
     ];
 
     harness [

@@ -1,8 +1,15 @@
+<a id="tensorspine-derived-document--the-products-as-json"></a>
+
 # TensorSpine derived document — the products, as JSON
 
-> A valid model document and its contracts make six products computable without inference code
+> A valid model definition and its primitives make six products computable without inference code
 > (Specification §7). This document is how the repository writes them down: one JSON per model,
 > one schema, D1 required and D2–D6 optional.
+
+> **Untagged vocabulary update (7 Sep 2026).** Canonical Primitive Library, Primitive Reference,
+> Primitive Instance, state evolution and graph split fields replace the previous
+> spellings. Existing format versions and primitive/template pins are retained. Computational
+> facts remain equivalent through the explicit conversion map in `tools/migrate.py`.
 
 *Companion to `schemas/tensorspine-derived.schema.json` (`$id`
 `https://tensorspine.dev/schema/2.1/derived.json`), emitted by `tensorspine --d1` and
@@ -17,48 +24,52 @@ products *are* (§7) and leaves their encoding open; this is the repository's en
 
 ---
 
+<a id="1--why-a-schema-and-why-one-document"></a>
+
 ## 1 — Why a schema, and why one document
 
 The specification says what D1–D6 contain and refuses to say how they are written: "their
 encoding and the decisions that consume them are outside this specification" (§7). An emitter
 therefore chooses an encoding, and a consumer has to be able to check it. The schema is that
-check — the same role `tensorspine.schema.json` plays for a model document — and the emitters
+check — the same role `tensorspine.schema.json` plays for a model definition — and the emitters
 run it on their own output before writing anything: a document the tool cannot vouch for is not
 written.
 
 The six products are one document, not six, for one reason: every product refers to D1's
 identifiers. A D2 value is `node.port`, a D3 member is `node.slot`, a D4 member is
-`node.state`, a D6 cut is a set of nodes. Split across files, a consumer would have to join by
+`node.state`, a D6 graph split is a set of nodes. Split across files, a consumer would have to join by
 identifier and *trust* that both files came from the same expansion under the same assignment;
 in one document that is a fact. `d1` is therefore required and everything else optional:
 `--d1` writes the graph alone, `--derive` writes all six, and both validate against the same
 schema.
 
 What the document does **not** contain follows from §4.1 and §10.3: no kernel, no executed
-FLOPs, no physical traffic, no placement. A cut's payload is the logical payload of O4.5, a cost
+FLOPs, no physical traffic, no placement. A graph split's payload is the logical payload of O4.5, a cost
 is a logical cost, a partition is a semantic partition; the machine, the workload and the
 implementation are inputs a consumer adds.
+
+<a id="2--head"></a>
 
 ## 2 — Head
 
 | Field | Content |
 |---|---|
 | `schema` | `tensorspine-derived/2.1` |
-| `model` | The model document's identifier. |
-| `catalog` | The bases the document declares (§2). |
+| `model` | The model definition's identifier. |
+| `primitive library` | The bases the document declares (§2). |
 | `assignment` | The values supplied for the external quantities — empty for a concrete model, the call-site or `--assign` values for a template (§4.6). One document is one assignment. |
 | `d1` … `d6` | The products, described below. `d1` is required. |
 
 ### Identifiers
 
 Every product refers to the expanded graph by the identifiers of §5.2 rule 2: a root
-occurrence by its name (`embed`), a generated one as `<composition>/<site>[<index>=<value>,…]`
-(`decoder/attn[layer=3]`), an occurrence inside a template instance prefixed by the instance
+instance by its name (`embed`), a generated one as `<composition>/<site>[<index>=<value>,…]`
+(`decoder/attn[layer=3]`), an instance inside a template instance prefixed by the instance
 (`text/decoder/attn[layer=3]`). A port, slot or state of a node is `node.name`. A parameter or
 state identity instance is the identity's name with its evaluated indices
 (`decoder.attn.q[layer=3]`, `tied_embeddings`, `shared.sliding.kv`), prefixed by its instance
 when it lives inside a template. Identifiers are representation, not meaning (§5.2): two
-documents denote the same graph when they correspond up to occurrence renaming.
+documents denote the same graph when they correspond up to instance renaming.
 
 ### Counts
 
@@ -75,46 +86,58 @@ A value that can be a bound or an estimate carries a `status` — `exact`, `uppe
 `lower_bound`, `estimate` — and the totals of D5 carry the status the algebra of §2.2 gives a
 sum: an estimate absorbs, opposite bounds combine into an estimate, a one-sided bound survives.
 Everything derived from the inventory is exact; a status other than `exact` always comes from a
-contract's declared correction or sparsity bound.
+primitive's declared correction or sparsity bound.
 
-## 3 — D1, the expanded graph
+<a id="d1-the-expanded-graph"></a>
+
+<a id="3--d1-the-expanded-graph"></a><a id="3--d1-derived-computation-graph"></a>
+
+## 3 — D1, Derived Computation Graph
 
 | Field | Content |
 |---|---|
-| `nodes` | One entry per emitted occurrence, keyed by identifier: `contract` `{name, version}`, `arguments` after declared defaults were applied (records as objects), `families` (the site's and its composition's), and `across_positions` — derived: whether the occurrence reads positions of its stream beyond those of the element it produces, the contract's `effects.across_positions` condition (§4.1, O9.5) on those arguments as V18 evaluates it, `false` when the contract declares no such effect. A condition the arguments leave undecidable refuses the derivation; it never answers `false`. With D4's states and D2's streams, what a batching runtime reads to split its sessions (harness guide §8). |
+| `nodes` | One entry per emitted instance, keyed by identifier: `primitive` `{name, version}`, `arguments` after declared defaults were applied (records as objects), `families` (the site's and its composition's), and `across_positions` — derived: whether the instance reads positions of its stream beyond those of the element it produces, the primitive's `effects.across_positions` condition (§4.1, O9.5) on those arguments as V18 evaluates it, `false` when the primitive declares no such effect. A condition the arguments leave undecidable refuses the derivation; it never answers `false`. With D4's states and D2's streams, what a batching runtime reads to split its sessions (harness guide §8). |
 | `edges` | Every value edge: `rule` (the binding, `<composition>.<rule>` for a scoped one), `from` and `to` as `{node, port}`. An edge into a template instance fans out to the template's destinations; an edge out of one starts at the template's source. |
 | `interfaces.inputs` | Per public input: `to` (the ports it feeds, expanded), `kind`, optional `stream` (the stream it joins) and `fragmented`. |
 | `interfaces.outputs` | Per public output: `node`, `port`, `generative`. Its domain is derived (§2.3) and appears in D2. |
 | `topological_order` | One order of the nodes compatible with the edges (V6). |
-| `instances` | Template instances that were expanded: identifier, contract, the assignment their arguments formed and, when the document locates its weights, the evaluated `weights_location_prefix` under which every tensor of the instance is stored (§3.4). Absent when there is none. |
+| `instances` | Template instances that were expanded: identifier, primitive, the assignment their arguments formed and, when the document locates its weights, the evaluated `weights_location_prefix` under which every tensor of the instance is stored (§3.4). Absent when there is none. |
 
 The listing is the canonical one (§5.2 rule 4): nodes by identifier, edges by (source,
-destination). An occurrence absent by its guard is absent, and so is every binding that named
+destination). An instance absent by its guard is absent, and so is every binding that named
 it (rule 3); no guard is repeated on a binding.
 
-## 4 — D2, values and cuts
+<a id="d2-values-and-cuts"></a><a id="d2-values-and-graph-splits"></a>
+
+<a id="4--d2-values-and-cuts"></a><a id="4--d2-derived-value-shapes-and-lifetimes"></a><a id="4--d2-values-and-graph-splits"></a>
+
+## 4 — D2, Derived Value Shapes and Lifetimes
 
 | Field | Content |
 |---|---|
 | `streams` | Every stream a public input introduced: `kind` and its `count` — after transforms, so a merged stream has fewer elements and an inserted-into stream more (§5.3). An input that joins a stream introduces none: its value carries the stream's count at the input's kind (below). For a fragmented stream, `fragment_alignment`: the number of elements every fragment delivers a multiple of, so that every merge on the stream sees whole groups — the least common multiple of the cumulative merge factors of the values on it (Voxtral's audio: a stride of 2, then 4 frames per token, 8) — a deployment obligation derived and reported, never declared (§5.3). |
 | `values` | One entry per value, keyed by its source `node.port`: `to` (every consumer), `shape` (axis identity and evaluated extent, factors when declared), `role`, `dtype` (the role's default: the language selects dtypes on identities, not on activations), `elements`, `bytes_per_element`, `domain` `{kind, stream}`, `count`. A public input is an edge like any other (§5.3): the value it delivers is an entry named by the input (`input`), whose shape is that of the ports it feeds and whose `count` is `{stream: 1.0}` for an input introducing its stream and, for one joining a stream, the stream's count at the input's kind — Voxtral's `tokens` join `audio` at kind `token`, where the projector's merge left `{"audio": 0.125}`: one language-model position per eight frames (§5.3) — with `required_for` — the public outputs not evaluated without it on a first delivery — and `required`, whether that list is empty (§7: an input whose elements are only inserted into another stream may deliver nothing); a value a public output exposes carries `exposed` (the output names) and is listed whether or not an edge consumes it. |
-| `cuts` | One entry per structural legal cut (§7): `cut` (its name), `kind` — `layer` for the ancestor closure of a composition prefix (`decoder[layer<=3]`), `family` for the ancestor closure of a family (`family:encoder`) — `sizes` of the two blocks, `payload` (the distinct values crossing, each with `bytes_per_element` and `count`), `bytes_per_element` (their sum) and `bytes_per_invocation` (the sum weighted by the counts, per public input). |
-| `peak_live` | The peak of live values along `d1.topological_order`: at the `node` where it is reached — its outputs just produced, its inputs still held — the `values` produced or delivered and not yet consumed by every consumer (a value a public output exposes is live to the end), with `bytes_per_element` (their sum) and `bytes_per_invocation` (weighted by the counts, per public input): the activation peak of one invocation, what an admission decision adds to the state bytes. Exact for this one order; another legal order may peak lower, and an engine that reorders or fuses gets a bound no worse than its own liveness analysis. |
+| `graph_splits` | One entry per structural valid graph split (§7): `graph_split` (its name), `kind` — `layer` for the ancestor closure of a composition prefix (`decoder[layer<=3]`), `family` for the ancestor closure of a family (`family:encoder`) — `sizes` of the two blocks, `payload` (the distinct values crossing, each with `bytes_per_element` and `count`), `bytes_per_element` (their sum) and `bytes_per_invocation` (the sum weighted by the counts, per public input). |
+| `peak_live` | The peak of live values along `d1.topological_order`: at the `node` where it is reached — its outputs just produced, its inputs still held — the `values` produced or delivered and not yet consumed by every consumer (a value a public output exposes is live to the end), with `bytes_per_element` (their sum) and `bytes_per_invocation` (weighted by the counts, per public input): the activation peak of one invocation, what an admission decision adds to the state bytes. Exact for this one order; another valid order may peak lower, and an engine that reorders or fuses gets a bound no worse than its own liveness analysis. |
 
-A cut is legal by construction: the ancestor closure of a set of nodes is downward closed, so
-every crossing edge points out of it. A value is counted once per cut however many consumers it
+A graph split is valid by construction: the ancestor closure of a set of nodes is downward closed, so
+every crossing edge points out of it. A value is counted once per graph split however many consumers it
 has across it — the residual carried to two ports of the next layer is one value. Template
 instances are expanded before anything is derived (§5.1): a value inside an instance is listed
-under the instance's prefix (`text/decoder/attn[layer=3].output`, §5.2 rule 2), and a cut inside
+under the instance's prefix (`text/decoder/attn[layer=3].output`, §5.2 rule 2), and a graph split inside
 one (`text/decoder[layer<=3]`) is the ancestor closure over the whole graph, the caller's
-occurrences included — a model written through a template lists the same values and cuts as the
+instances included — a model written through a template lists the same values and graph splits as the
 same model written flat.
 
-The specification defines legality, not an exhaustive cut family. This emitter chooses ancestor
-closures of composition prefixes and declared families. Another emitter may choose other legal
-cuts; every emitted cut must still be downward closed and its payload must follow the same rule.
+The specification defines legality, not an exhaustive graph split family. This emitter chooses ancestor
+closures of composition prefixes and declared families. Another emitter may choose other valid
+graph splits; every emitted graph split must still be downward closed and its payload must follow the same rule.
 
-## 5 — D3, parameter tensors
+<a id="d3-parameter-tensors"></a>
+
+<a id="5--d3-parameter-tensors"></a><a id="5--d3-derived-parameter-tensor-inventory"></a>
+
+## 5 — D3, Derived Parameter Tensor Inventory
 
 One entry per parameter identity instance, a tied tensor once.
 
@@ -122,63 +145,77 @@ One entry per parameter identity instance, a tied tensor once.
 |---|---|
 | `identity` | The identity instance (`decoder.attn.q[layer=3]`). |
 | `members` | The slots it satisfies, `node.slot`; several for a tied tensor. |
-| `contract`, `slot`, `role` | Of the first member; V15 makes the others compatible. |
+| `primitive`, `slot`, `role` | Of the first member; V15 makes the others compatible. |
 | `sensitivity` | The role's quantisation advice (`quantizable`, `reduced`, `full_precision`), carried through as §7 requires. |
 | `dtype` | The dtype the binding selects, else the role's default (V14). |
-| `shape` | Axis identity and evaluated extent, **as stored**: a slot that declares a multiplicity leads with the storage axis `storage.multiplicity` of that extent (§3.4, since 2.1), then its shape axes, with factors when the contract declared them. |
+| `shape` | Axis identity and evaluated extent, **as stored**: a slot that declares a multiplicity leads with the storage axis `storage.multiplicity` of that extent (§3.4, since 2.1), then its shape axes, with factors when the primitive declared them. |
 | `multiplicity`, `elements`, `bytes` | `elements` is the product of the shape's extents — the declared count is in it once, never a further multiplier; `multiplicity` restates that count, descriptive (1 when the slot declares none); `bytes` is elements × the dtype's width. |
 | `tied` | Whether the identity has several members. |
 | `location` | When the document locates its weights: the evaluated location — physical names with indices and coordinates substituted, a `stack` expanded into its parts, a `slice` with its `offset` and `extent`, `dim` the position of the named axis in the shape (the storage axis, when declared, is position 0); a tensor of a template instance carries the instance's prefix, so its name is whole. What a loader reads; what `--checkpoint` checks against the file headers (V17). |
 | `sparsity` | When the slot belongs to a sparsity unit (§4.5): the unit's index and axis, `activated_per_element`, `units` (the axis extent) and `activated_fraction`. A lookup table is `1 / vocabulary`. |
 | `totals` | `tensors`, `elements`, `bytes`, `tied`. |
 
-## 6 — D4, states
+<a id="d4-states"></a>
+
+<a id="6--d4-states"></a><a id="6--d4-derived-state-inventory-and-behavior"></a>
+
+## 6 — D4, Derived State Inventory and Behavior
 
 One entry per state identity instance.
 
 | Field | Content |
 |---|---|
-| `identity`, `members`, `contract`, `state` | As for tensors; `members` are `node.state`. |
+| `identity`, `members`, `primitive`, `state` | As for tensors; `members` are `node.state`. |
 | `writer` | The member that writes the storage — its port's `written_when` holds (V20); the other members read it. A private state's only member. |
-| `law`, `access`, `sharing` | Of the rule that applies to the members' arguments (§4.3): `append`/`window`/`fixed`; `logical_position`/`ring`/`aggregate`/`selected`; `by_position`/`by_source`/`within_span`/`at_fork_point`. The four sharing granularities are defined in [Specification §4.3](SPECIFICATION.md#43--state-derivation): per position, whole by source, the retained span, or a copy at the fork. |
-| `stream` | The stream the state grows along `{kind, stream}` — the occurrence's own, or the stream of the port it is indexed by. |
+| `evolution`, `access`, `sharing` | Of the rule that applies to the members' arguments (§4.3): `append`/`window`/`fixed`; `logical_position`/`ring`/`aggregate`/`selected`; `by_position`/`by_source`/`within_span`/`at_fork_point`. The four sharing granularities are defined in [Specification §4.3](SPECIFICATION.md#43--state-derivation): per position, whole by source, the retained span, or a copy at the fork. |
+| `stream` | The stream the state grows along `{kind, stream}` — the instance's own, or the stream of the port it is indexed by. |
 | `indexed_by_source` | True for a state indexed by an input port's stream (cross-attention, a convolution's history): it is frozen once that stream is complete (§5.3). |
 | `indexed_by_port` | That input port, when `indexed_by_source`; null for a self-indexed state. An `append` state so indexed holds the port's delivered elements in full, so the port may deliver nothing in a later invocation (§7); a `window` holds a suffix and exempts nothing. |
-| `instance_key` | The identity's indices followed by the contract's key axes (O5.5): one allocation per distinct key. |
-| `carried_across_fragments` | Derived: the contract's carrying condition holds and the stream is a fragmented input (§5.3, V16), or the state is indexed by a port whose stream is a fragmented input, which carries it by definition (§5.3). An occurrence reading across positions of a fragmented stream has one such state (V18). |
+| `instance_key` | The identity's indices followed by the primitive's key axes (O5.5): one allocation per distinct key. |
+| `carried_across_fragments` | Derived: the primitive's carrying condition holds and the stream is a fragmented input (§5.3, V16), or the state is indexed by a port whose stream is a fragmented input, which carries it by definition (§5.3). An instance reading across positions of a fragmented stream has one such state (V18). |
 | `span`, `stride` | Evaluated modulators (O5.8), when the rule declares them. |
 | `payload` | Per component: `role`, `dtype` (the binding's selection or the role's default), `shape`, `elements`, `bytes` — one position's for `append` and `window`, the whole state's for `fixed` (§4.3). |
 | `bytes_per_cached_position`, `bytes_bounded` | The payload's bytes; for a `window`, `bytes_bounded = span × bytes_per_cached_position`, the bytes of a full ring whose shape is `[span] + shape`. |
 | `operations` | The effects the state admits (O5.4). |
 | `visits` | The rule of §7 in words: when the state is written and read, per element of its stream or of the source stream. |
-| `totals` | `identities`, `by_law`, `append_bytes_per_cached_position` (the "cache bytes per token" of a decoder), `bounded_bytes`, `fixed_bytes`, `carried`. |
+| `totals` | `identities`, `by_evolution`, `append_bytes_per_cached_position` (the "cache bytes per token" of a decoder), `bounded_bytes`, `fixed_bytes`, `carried`. |
 
-## 7 — D5, logical costs
+<a id="d5-logical-costs"></a>
+
+<a id="7--d5-logical-costs"></a><a id="7--d5-derived-logical-resource-requirements-and-costs"></a>
+
+## 7 — D5, Derived Logical Resource Requirements and Costs
 
 | Field | Content |
 |---|---|
 | `parameters` | Resident `elements` and `bytes` — a tied tensor once — with status `exact`. |
 | `operations` | Per `element`, `cached_position`, `sequence` and `invocation`: the inventory rule of §4.1 (two operations per weight element per element, at the activated fraction of a sparsity unit) plus every applying correction, each as `{value, status}`. |
-| `corrections` | Every correction that applies: `node`, `contract`, `entry`, `value`, `status`, `per`. |
+| `corrections` | Every correction that applies: `node`, `primitive`, `entry`, `value`, `status`, `per`. |
 | `sparsity` | Every sparsity unit in use: `activated_per_element`, `units`, `activated_fraction`, and the `union_per_invocation` bound with its status. |
 | `state` | The D4 totals: append bytes per cached position, bounded bytes, fixed bytes. |
-| `cuts` | The payload of every D2 cut, per element and per invocation. |
+| `graph_splits` | The payload of every D2 graph split, per element and per invocation. |
 
 Never operations actually executed (§4.1). The known approximations are documented in §4.1 of
 the specification and not modelled here.
 
-## 8 — D6, legal cuts and partitions
+<a id="d6-legal-cuts-and-partitions"></a><a id="d6-valid-graph-splits-and-partition-options"></a>
+
+<a id="8--d6-legal-cuts-and-partitions"></a><a id="8--d6-derived-graph-splits-and-partition-options"></a><a id="8--d6-valid-graph-splits-and-partition-options"></a>
+
+## 8 — D6, Derived Graph Splits and Partition Options
 
 | Field | Content |
 |---|---|
-| `cuts` | The D2 cuts by name, with their block sizes and the number of crossing values. |
-| `partitions` | For every node — template instances expanded — every partition its contract declares whose condition holds: `target` (an argument axis, an instance-key axis, a state payload axis, `any_axis`, `none`), the logical `communication` it admits, always a list (`none`, `all_reduce`, `all_gather`, `all_to_all`; `embed` lists two, a gather of the owned rows or a sum of masked partial lookups), and its `granularity`, the number of consecutive coordinates of the axis a shard keeps whole, evaluated (attention's heads: `heads / kv_heads`, the KV group; one elsewhere). A partition is the node's own; consistency across nodes is the engine's (§7, §10.3). |
+| `graph_splits` | The D2 graph splits by name, with their block sizes and the number of crossing values. |
+| `partition_options` | For every node — template instances expanded — every partition its primitive declares whose condition holds: `target` (an argument axis, an instance-key axis, a state payload axis, `any_axis`, `none`), the logical `communication` it admits, always a list (`none`, `all_reduce`, `all_gather`, `all_to_all`; `embed` lists two, a gather of the owned rows or a sum of masked partial lookups), and its `granularity`, the number of consecutive coordinates of the axis a shard keeps whole, evaluated (attention's heads: `heads / kv_heads`, the KV group; one elsewhere). A partition is the node's own; consistency across nodes is the engine's (§7, §10.3). |
 | `information_loss` | Every parameter slot axis whose extent is a product and that declares no factors (O5.10): partitionability along its factors is unknown and is reported as such, never as non-partitionability. |
 
 Each partition entry applies to its named node, not to the whole graph. Axis identities along D1
 edges provide the consistency relation across nodes; selecting a compatible multi-node plan remains
-the engine's decision. Partitions are semantic: an implementation may support fewer, and which cut
+the engine's decision. Partition options are semantic: an implementation may support fewer, and which graph split
 or partition plan is useful depends on the machine's topology and workload (§10.3).
+
+<a id="9--generating"></a>
 
 ## 9 — Generating
 

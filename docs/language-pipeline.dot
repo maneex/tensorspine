@@ -33,13 +33,13 @@ digraph language_pipeline {
 
   model [
     width=3.25,
-    label=<<FONT POINT-SIZE="14"><B>TensorSpine model document</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">graph-specific declarations</FONT>>
+    label=<<FONT POINT-SIZE="14"><B>TensorSpine model definition</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">graph-specific declarations</FONT>>
   ];
-  catalog [
+  primitive library [
     width=3.25,
-    label=<<FONT POINT-SIZE="14"><B>Reference primitive catalog</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">reusable semantic consequences</FONT>>
+    label=<<FONT POINT-SIZE="14"><B>Reference primitive definition library</B></FONT><BR/><FONT COLOR="#4C6876" POINT-SIZE="10">reusable semantic consequences</FONT>>
   ];
-  { rank=same; model; catalog; }
+  { rank=same; model; primitive library; }
 
   subgraph cluster_tensorspine {
     graph [
@@ -128,7 +128,7 @@ digraph language_pipeline {
   ];
 
   model -> grammar;
-  catalog -> validity;
+  primitive library -> validity;
   products -> facts;
   facts -> execution;
   capabilities -> execution;

@@ -18,7 +18,7 @@
 <g id="node1" class="node">
 <title>model</title>
 <path fill="#ffffff" stroke="#bfd3de" stroke-width="1.35" d="M222,-280C222,-280 12,-280 12,-280 6,-280 0,-274 0,-268 0,-268 0,-250 0,-250 0,-244 6,-238 12,-238 12,-238 222,-238 222,-238 228,-238 234,-244 234,-250 234,-250 234,-268 234,-268 234,-274 228,-280 222,-280"/>
-<text text-anchor="start" x="19" y="-260.8" font-family="Arial" font-weight="bold" font-size="14.00" fill="#123348">TensorSpine model document</text>
+<text text-anchor="start" x="19" y="-260.8" font-family="Arial" font-weight="bold" font-size="14.00" fill="#123348">TensorSpine model definition</text>
 <text text-anchor="start" x="58.5" y="-250" font-family="Arial" font-size="10.00" fill="#4c6876">graph&#45;specific declarations</text>
 </g>
 <!-- grammar -->
@@ -34,11 +34,11 @@
 <path fill="none" stroke="#348ca6" stroke-width="1.9" d="M167,-237.74C167,-237.74 167,-212.65 167,-212.65"/>
 <polygon fill="#348ca6" stroke="#348ca6" stroke-width="1.9" points="169.52,-212.65 167,-205.45 164.48,-212.65 169.52,-212.65"/>
 </g>
-<!-- catalog -->
+<!-- primitive library -->
 <g id="node2" class="node">
-<title>catalog</title>
+<title>primitive library</title>
 <path fill="#ffffff" stroke="#bfd3de" stroke-width="1.35" d="M476,-280C476,-280 266,-280 266,-280 260,-280 254,-274 254,-268 254,-268 254,-250 254,-250 254,-244 260,-238 266,-238 266,-238 476,-238 476,-238 482,-238 488,-244 488,-250 488,-250 488,-268 488,-268 488,-274 482,-280 476,-280"/>
-<text text-anchor="start" x="282" y="-260.8" font-family="Arial" font-weight="bold" font-size="14.00" fill="#123348">Reference primitive catalog</text>
+<text text-anchor="start" x="282" y="-260.8" font-family="Arial" font-weight="bold" font-size="14.00" fill="#123348">Reference primitive definition library</text>
 <text text-anchor="start" x="298" y="-250" font-family="Arial" font-size="10.00" fill="#4c6876">reusable semantic consequences</text>
 </g>
 <!-- validity -->
@@ -48,9 +48,9 @@
 <text text-anchor="start" x="272.5" y="-187.4" font-family="Arial" font-weight="bold" font-size="12.00" fill="#123348">Semantic validity</text>
 <text text-anchor="start" x="258.5" y="-177.8" font-family="Arial" font-size="9.00" fill="#4c6876">resolution / bindings / domains</text>
 </g>
-<!-- catalog&#45;&gt;validity -->
+<!-- primitive library&#45;&gt;validity -->
 <g id="edge9" class="edge">
-<title>catalog&#45;&gt;validity</title>
+<title>primitive library&#45;&gt;validity</title>
 <path fill="none" stroke="#348ca6" stroke-width="1.9" d="M324.75,-237.74C324.75,-237.74 324.75,-212.65 324.75,-212.65"/>
 <polygon fill="#348ca6" stroke="#348ca6" stroke-width="1.9" points="327.27,-212.65 324.75,-205.45 322.23,-212.65 327.27,-212.65"/>
 </g>

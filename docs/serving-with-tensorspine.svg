@@ -13,7 +13,7 @@
 <title>cluster_tensorspine</title>
 <path fill="#eaf8f7" stroke="#78bfc1" stroke-width="1.8" d="M20,-142C20,-142 606,-142 606,-142 612,-142 618,-148 618,-154 618,-154 618,-330 618,-330 618,-336 612,-342 606,-342 606,-342 20,-342 20,-342 14,-342 8,-336 8,-330 8,-330 8,-154 8,-154 8,-148 14,-142 20,-142"/>
 <text text-anchor="start" x="44.5" y="-325.4" font-family="Arial" font-weight="bold" font-size="17.00" fill="#176b72">TENSORSPINE</text>
-<text text-anchor="start" x="16" y="-314" font-family="Arial" font-size="10.00" fill="#557a80">the shared model contract and its tooling</text>
+<text text-anchor="start" x="16" y="-314" font-family="Arial" font-size="10.00" fill="#557a80">the shared model primitive and its tooling</text>
 </g>
 <g id="clust3" class="cluster">
 <title>cluster_application</title>
@@ -32,8 +32,8 @@
 </defs>
 <path fill="url(#l_0)" stroke="#218ea5" stroke-width="1.4" d="M455.5,-405C455.5,-405 116.5,-405 116.5,-405 110.5,-405 104.5,-399 104.5,-393 104.5,-393 104.5,-362 104.5,-362 104.5,-356 110.5,-350 116.5,-350 116.5,-350 455.5,-350 455.5,-350 461.5,-350 467.5,-356 467.5,-362 467.5,-362 467.5,-393 467.5,-393 467.5,-399 461.5,-405 455.5,-405"/>
 <text text-anchor="start" x="252.5" y="-388.2" font-family="Arial" font-weight="bold" font-size="11.00" fill="#ffffff">MODEL LAB</text>
-<text text-anchor="start" x="117.5" y="-373.2" font-family="Arial" font-weight="bold" font-size="16.00" fill="#ffffff">safetensors + TensorSpine model document</text>
-<text text-anchor="start" x="153" y="-362" font-family="Arial" font-size="10.00" fill="#ffffff">contract + reference implementation when semantics change</text>
+<text text-anchor="start" x="117.5" y="-373.2" font-family="Arial" font-weight="bold" font-size="16.00" fill="#ffffff">safetensors + TensorSpine model definition</text>
+<text text-anchor="start" x="153" y="-362" font-family="Arial" font-size="10.00" fill="#ffffff">primitive + reference implementation when semantics change</text>
 </g>
 <!-- foundation -->
 <g id="node2" class="node">
@@ -45,7 +45,7 @@
 </linearGradient>
 </defs>
 <path fill="url(#l_1)" stroke="#218ea5" stroke-width="1.4" d="M522.5,-287C522.5,-287 49.5,-287 49.5,-287 43.5,-287 37.5,-281 37.5,-275 37.5,-275 37.5,-256 37.5,-256 37.5,-250 43.5,-244 49.5,-244 49.5,-244 522.5,-244 522.5,-244 528.5,-244 534.5,-250 534.5,-256 534.5,-256 534.5,-275 534.5,-275 534.5,-281 528.5,-287 522.5,-287"/>
-<text text-anchor="start" x="90.5" y="-267" font-family="Arial" font-weight="bold" font-size="15.00" fill="#ffffff">Model&#45;document schema + reference primitive catalog</text>
+<text text-anchor="start" x="90.5" y="-267" font-family="Arial" font-weight="bold" font-size="15.00" fill="#ffffff">Model&#45;document schema + reference primitive definition library</text>
 <text text-anchor="start" x="178" y="-256" font-family="Arial" font-size="10.00" fill="#ffffff">logical structure and reusable primitive semantics</text>
 </g>
 <!-- lab&#45;&gt;foundation -->
@@ -85,8 +85,8 @@
 <title>implementations</title>
 <path fill="#eaf5f8" stroke="#b8d8df" stroke-width="1.4" d="M289.5,-114C289.5,-114 46.5,-114 46.5,-114 40.5,-114 34.5,-108 34.5,-102 34.5,-102 34.5,-75 34.5,-75 34.5,-69 40.5,-63 46.5,-63 46.5,-63 289.5,-63 289.5,-63 295.5,-63 301.5,-69 301.5,-75 301.5,-75 301.5,-102 301.5,-102 301.5,-108 295.5,-114 289.5,-114"/>
 <text text-anchor="start" x="47.5" y="-94.8" font-family="Arial" font-weight="bold" font-size="14.00" fill="#123348">Optimized primitive implementations</text>
-<text text-anchor="start" x="77.5" y="-84" font-family="Arial" font-size="10.00" fill="#4c6876">implements its supported contract subset</text>
-<text text-anchor="start" x="79" y="-74.8" font-family="Arial" font-size="9.00" fill="#607d89">custom kernels / fusions / layouts / partitions</text>
+<text text-anchor="start" x="77.5" y="-84" font-family="Arial" font-size="10.00" fill="#4c6876">implements its supported primitive subset</text>
+<text text-anchor="start" x="79" y="-74.8" font-family="Arial" font-size="9.00" fill="#607d89">custom kernels / fusions / layouts / partition options</text>
 </g>
 <!-- derive&#45;&gt;implementations -->
 <g id="edge9" class="edge">

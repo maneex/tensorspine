@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="pandoc">
-<title>$if(title-prefix)$$title-prefix$ – $endif$$if(pagetitle)$$pagetitle$$else$TensorSpine reference catalog$endif$</title>
+<title>$if(title-prefix)$$title-prefix$ – $endif$$if(pagetitle)$$pagetitle$$else$TensorSpine reference primitive library$endif$</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -66,9 +66,9 @@ $body$
     });
   }
 
-  // --- Right rail: the h5 subsections of the contract (level-4 section) in view.
+  // --- Right rail: the h5 subsections of the primitive (level-4 section) in view.
   var rail = document.getElementById('rail');
-  var contracts = Array.prototype.slice.call(document.querySelectorAll('section.level4'));
+  var primitives = Array.prototype.slice.call(document.querySelectorAll('section.level4'));
   var tocLinks = toc ? Array.prototype.slice.call(toc.querySelectorAll('a[href^="#"]')) : [];
   var current = null;
 
@@ -93,7 +93,7 @@ $body$
   }
 
   function update() {
-    var sec = topmost(contracts);
+    var sec = topmost(primitives);
     if (sec !== current) { current = sec; renderRail(sec); }
     // active subsection
     if (sec && rail) {

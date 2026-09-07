@@ -4,20 +4,22 @@
 
 *Companion to `schemas/tensorspine-fixture.schema.json` (`$id`
 `https://tensorspine.dev/schema/2.0/fixture.json`). Non-normative: the
-[specification](SPECIFICATION.md) declares the witness of a contract version (§4.1, O1.3) and what
+[specification](SPECIFICATION.md) declares the witness of a primitive version (§4.1, O1.3) and what
 a conformer owes it (§4.2); this document is how the evidence is written down.*
 
 ---
+
+<a id="1--why-a-format-and-why-one"></a>
 
 ## 1 — Why a format, and why one
 
 Two kinds of evidence cover different boundaries:
 
-- A **unit fixture** records the reference implementation supplied with one contract version. The
-  reference generator executes it; every optimized implementation of that contract is a conformer
+- A **unit fixture** records the reference implementation supplied with one primitive version. The
+  reference generator executes it; every optimized implementation of that primitive is a conformer
   checked against the result (Specification §4.1–§4.2).
-- An **integration fixture** records a model's delivery implementation at the legal cuts and states
-  of its TensorSpine model document. It checks that the document reproduces the delivered model's
+- An **integration fixture** records a model's delivery implementation at the valid graph splits and states
+  of its TensorSpine model definition. It checks that the document reproduces the delivered model's
   wiring.
 
 The fixture schema is that statement. A fixture is a safetensors file; its `__metadata__` is the
@@ -26,15 +28,19 @@ container matches the model-artifact ecosystem and lets readers inspect metadata
 tensor. TensorSpine's conformance tooling refuses a file whose metadata or tensor names are outside
 the schema.
 
+<a id="2--the-two-kinds"></a>
+
 ## 2 — The two kinds
 
 | Kind | Produced by | What it holds | Who runs it |
 |---|---|---|---|
-| `unit` | Contract reference implementation, on generated parameters and inputs (`ref.py witness NAME@VERSION`) | One-occurrence document, parameters, inputs, positions, states and outputs for each invocation | Every conformer of that contract version, at the tolerance for its compute dtype |
-| `integration` | Model delivery implementation at the document's legal cuts (`fixtures/dump_hf.py`) | Cut values, post-prefill states, exposed outputs, generated tokens, the non-token inputs the prefill delivered, and artifact provenance | Every implementation that runs the document |
+| `unit` | Primitive Definition reference implementation, on generated parameters and inputs (`ref.py witness NAME@VERSION`) | One-instance document, parameters, inputs, positions, states and outputs for each invocation | Every conformer of that primitive version, at the tolerance for its compute dtype |
+| `integration` | Model delivery implementation at the document's valid graph splits (`fixtures/dump_hf.py`) | Graph split values, post-prefill states, exposed outputs, generated tokens, the non-token inputs the prefill delivered, and artifact provenance | Every implementation that runs the document |
 
-Unit fixtures use deliberately small arguments and cover distinct contract branches. An integration
+Unit fixtures use deliberately small arguments and cover distinct primitive branches. An integration
 fixture may truncate a composition; its metadata records that boundary, so no reader guesses it.
+
+<a id="3--the-metadata"></a>
 
 ## 3 — The metadata
 
@@ -52,9 +58,9 @@ fixture may truncate a composition; its metadata records that boundary, so no re
 | Field | Content |
 |---|---|
 | `id` | `<name>@<version>/<case>` — what the witness's manifest lists under `witness.fixtures`. |
-| `contract` | `{name, version}`. |
-| `arguments` | The occurrence's resolved arguments, declared defaults applied: D1's. |
-| `document` | The one-occurrence model document the witness ran: the occurrence under its arguments, one public input per input port (a `token` input for a port that inherits its kind, else the port's kind), one public output per output port, every slot bound to an identity named after it and located at the fixture's own `param/<identity>` key — the fixture is its own checkpoint, so a conformer loads it the way it loads any artifact. Its catalog base is relative to the fixture's own directory. |
+| `primitive` | `{name, version}`. |
+| `arguments` | The instance's resolved arguments, declared defaults applied: D1's. |
+| `document` | The one-instance model definition the witness ran: the instance under its arguments, one public input per input port (a `token` input for a port that inherits its kind, else the port's kind), one public output per output port, every slot bound to an identity named after it and located at the fixture's own `param/<identity>` key — the fixture is its own checkpoint, so a conformer loads it the way it loads any artifact. Its primitive library base is relative to the fixture's own directory. |
 | `invocations` | One entry per invocation, in order: the elements each public input delivers, by name (`[{"input": 5}, {"input": 3}]`: five elements, then three); an input absent from an entry delivers nothing, as an insert transform's source may (§7). States carry over; positions continue per stream. |
 | `seed` | The seed of the parameters and inputs. The witness regenerates the fixture from it, which is how a silent change of the witness is caught (§5). |
 | `witness` | `generator` (`reference`), its `version` (a commit), the `kernel` file, and the library `versions`. |
@@ -83,11 +89,13 @@ Tensor keys: `in/<input>` for every public input the prefill delivered other tha
 for Whisper's `audio`; what `Session.run` checks a delivered input against — for an input whose
 stream the token input joins, every element the prefill and the recorded steps consumed, the
 prompt taking its tokens' share and each step one token's, as D2's count says); `value/<D1
-value>` for the output of every layer (the values crossing D6's layer cuts) and every exposed
+value>` for the output of every layer (the values crossing D6's layer graph_splits) and every exposed
 output; `state/<D4 identity>/<component>` for every state after the prefill — a growing state's
 positions, a `window` state's valid tail (the last `span` positions written, in order, and
 nothing before the first write: what the delivery's cache holds), a fixed state's payload;
 `logits/last` and `logits/argmax` for a generative document.
+
+<a id="4--reading-one"></a>
 
 ## 4 — Reading one
 
@@ -116,8 +124,10 @@ crossing each layer boundary of the truncated composition, every exposed output 
 generative one), and every state the composition writes on its own stream; a state indexed by a
 source stream (a cross-attention cache, a condition cache) is the source's evidence, and a dumper
 that leaves it out says so in `hook_map`. A value the fixture records that the reference routes
-through a family cut instead — Gemma records each layer's `inject` output, which the reference
+through a family graph split instead — Gemma records each layer's `inject` output, which the reference
 carries across the composition boundary — is compared when both sides hold it, never required.
+
+<a id="5--regenerating-one"></a>
 
 ## 5 — Regenerating one
 
@@ -129,9 +139,9 @@ stored tensors with every recorded position, output and state required. The witn
 a conformer is checked against either way, and a drift of the regeneration fails only under
 `--strict-provenance` — on by default in the reference harness, which runs on the box the fixtures
 were recorded on, and off in CI, where another `torch` may draw the seed differently. On the
-recording box a difference means the witness changed. That is refused unless the contract version
+recording box a difference means the witness changed. That is refused unless the primitive version
 changed with it — a change of meaning is a new identity — or the change is a correction of the
-witness toward the contract's declared meaning, which is a patch whose re-recorded fixtures say so
+witness toward the primitive's declared meaning, which is a patch whose re-recorded fixtures say so
 in the version note (Specification §8.2). `ref.py witness NAME@VERSION --record` rewrites the
 files; nothing else does.
 

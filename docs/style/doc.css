@@ -1,4 +1,4 @@
-/* TensorSpine site — additions to catalog.css for the hand-written documents
+/* TensorSpine site — additions to primitive-library.css for the hand-written documents
    (README, specification, guides). Build: tools/site.sh. */
 
 /* Document TOC: h2 entries as sections, h3 nested beneath them. */
@@ -9,7 +9,7 @@
 #TOC ul ul ul a { font-size: 12.5px; color: var(--muted); }
 #TOC ul ul ul ul { display: none; }
 
-/* Heading scale for prose documents (the catalog uses h4 for units). */
+/* Heading scale for prose documents (the primitive library uses h4 for units). */
 h2 { font-size: 30px; }
 h3 { font-size: 22px; }
 h4 { font-size: 18px; font-weight: 600; }
@@ -40,6 +40,6 @@ ul.models li { padding: 10px 0; border-bottom: 1px solid var(--rule); }
 ul.models a { font-family: var(--mono); }
 
 /* A document whose table of contents holds nothing but its own title — the
-   entry catalog.css hides — gets no sidebar at all, rather than a heading over
+   entry primitive-library.css hides — gets no sidebar at all, rather than a heading over
    an empty list. The model index is one. */
 .nav:not(:has(#TOC ul ul)) { display: none; }

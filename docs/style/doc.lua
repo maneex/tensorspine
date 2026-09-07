@@ -1,13 +1,13 @@
 -- Pandoc filter for the TensorSpine site (tools/site.sh): hand-written documents.
 --
 --   * Relative links between repository files are rewritten to their location
---     on the site: docs/*.md become spec/*.html, CATALOG-REFERENCE.md the
---     catalog page, README.md the index, schemas/ and data/ their copies. A
+--     on the site: docs/*.md become spec/*.html, PRIMITIVE-LIBRARY-REFERENCE.md the
+--     primitive library page, README.md the index, schemas/ and data/ their copies. A
 --     relative path with no counterpart on the site links to the file on
 --     GitHub (metadata `repo`). `root` is the page's relative path to the
 --     site root ("" or "../").
 --   * Tables get default column widths and a scrolling wrapper, as in
---     catalog.lua.
+--     primitive_library.lua.
 
 local root, repo, source_dir = '', nil, ''
 
@@ -31,7 +31,7 @@ end
 local function site_target(path)
   local dir, file = path:match('^(.-)([^/]*)$')
   if dir == 'docs/' and file:match('%.md$') then
-    if file == 'CATALOG-REFERENCE.md' then return 'catalog/index.html' end
+    if file == 'PRIMITIVE-LIBRARY-REFERENCE.md' then return 'primitive-library/index.html' end
     return 'spec/' .. file:gsub('%.md$', '.html'):lower()
   end
   if dir == '' and file == 'README.md' then return 'index.html' end

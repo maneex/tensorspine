@@ -6,6 +6,9 @@ __pycache__/
 /_site/
 /docs/PRIMITIVE-LIBRARY-REFERENCE.md
 /docs/PRIMITIVE-LIBRARY-REFERENCE.html
+# Pre-migration generated output may still exist locally.
+/docs/CATALOG-REFERENCE.md
+/docs/CATALOG-REFERENCE.html
 
 # Working notes (plans, reviews) — never part of the tree
 /plans/
