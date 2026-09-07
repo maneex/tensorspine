@@ -62,7 +62,7 @@ def read_json(path):
             if legacy_layout(document):
                 raise ValueError('legacy field layout; convert it with python3 tools/migrate.py INPUT -o OUTPUT')
             revision = document.get('schema') if isinstance(document, dict) else None
-            if revision and revision.startswith('tensorspine') and revision not in {
+            if isinstance(revision, str) and revision.startswith('tensorspine') and revision not in {
                 'tensorspine/2.0', 'tensorspine-primitive-library-unit/2.0',
                 'tensorspine-derived/2.1', 'tensorspine-capabilities/1', 'tensorspine-fixture/1',
             }:
