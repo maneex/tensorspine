@@ -1,7 +1,7 @@
 {
  "nodes": 74,
  "edges": 97,
- "per_contract": {
+ "per_primitive": {
   "attention.dense": 12,
   "embedding.token_position_type": 1,
   "ffn.dense": 12,

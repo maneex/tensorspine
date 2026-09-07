@@ -1,7 +1,7 @@
 {
  "nodes": 455,
  "edges": 634,
- "per_contract": {
+ "per_primitive": {
   "attention.dense": 30,
   "conditioning.layer_select": 30,
   "conditioning.multiplicative": 30,

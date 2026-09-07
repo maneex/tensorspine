@@ -42,7 +42,7 @@ def main():
                 model_condition({"compare": {"operator": "less", "left": {"literal": "a"}, "right": {"literal": 1}}}, q) is UNRESOLVED)
 
     doc = {"compositions": {"C": {"indices": {"i": {"start": {"literal": 0}, "stop": {"literal": 4}, "step": {"literal": 1}}},
-                                  "families": ["c"], "occurrences": {"a": {}, "b": {}},
+                                  "families": ["c"], "instances": {"a": {}, "b": {}},
                                   "bindings": {"values": {"e": {"from": {"site": "a", "port": "o"},
                                                                 "to": {"site": "b", "port": "x", "indices": {"i": {"op": "subtract", "args": [{"index": "i"}, {"literal": 1}]}}},
                                                                 "when": {"compare": {"operator": "greater_or_equal", "left": {"index": "i"}, "right": {"literal": 1}}}}},
@@ -53,9 +53,9 @@ def main():
     ok &= check("scoped value rule hoisted as C.e with the composition's for_each",
                 e.get('for_each') == doc['compositions']['C']['indices'] and 'when' in e)
     ok &= check("site endpoint becomes the generated selector at the current index",
-                e.get('from', {}).get('occurrence') == {"kind": "generated", "composition": "C", "occurrence": "a", "indices": {"i": {"index": "i"}}})
+                e.get('from', {}).get('instance') == {"kind": "generated", "composition": "C", "instance": "a", "indices": {"i": {"index": "i"}}})
     ok &= check("an index override is kept",
-                e.get('to', {}).get('occurrence', {}).get('indices', {}).get('i') == {"op": "subtract", "args": [{"index": "i"}, {"literal": 1}]})
+                e.get('to', {}).get('instance', {}).get('indices', {}).get('i') == {"op": "subtract", "args": [{"index": "i"}, {"literal": 1}]})
     p = n['bindings']['parameters'].get('C.a.w', {})
     ok &= check("scoped parameter rule names its tensor C.a.w indexed by i",
                 p.get('tensor') == {"name": "C.a.w", "indices": {"i": {"index": "i"}}})
@@ -73,7 +73,7 @@ def main():
     r = resolve_quantities(doc)
     ok &= check("derived chain resolves in any declaration order (inner before width before its inputs)",
                 r.get('width') == 4096 and r.get('inner') == 16384)
-    # the contract side: the argument paths a condition reads, for a derived fact that must refuse
+    # the primitive side: the argument paths a condition reads, for a derived fact that must refuse
     # rather than answer false when one of them is unresolved (D1's across_positions)
     ok &= check("argument_references: a compare on a record path through not/any, and a present test",
                 argument_references({"any": [{"not": {"compare": {"operator": "equal", "left": {"argument": "rope.scaling.kind"},

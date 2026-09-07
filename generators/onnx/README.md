@@ -1,10 +1,10 @@
 # ONNX generator
 
 The third generator: it **emits** an ONNX graph from a derived document and a checkpoint, and
-runs it through onnxruntime. Where the reference executes each contract's kernel and ZML traces
+runs it through onnxruntime. Where the reference executes each primitive's kernel and ZML traces
 the graph into MLIR, this generator writes the graph down in the interchange form serving
 engines read. It knows nothing about any model: the derived document (D1–D6, `tensorspine
---derive`) is all it reads, never the model source or the catalog.
+--derive`) is all it reads, never the model source or the primitive_library.
 
 ## What is emitted
 
@@ -20,9 +20,9 @@ One ONNX graph is **one invocation** (Specification §7), for one set of deliver
 - every D3 identity is an initializer at its stored dtype (bf16 stays bf16), cast to the compute
   dtype once where a primitive uses it (the runtime folds the cast); a tied identity is one
   initializer, and an embedding table is gathered before it is cast;
-- every occurrence a delivery evaluates is emitted by its contract's primitive
+- every instance a delivery evaluates is emitted by its primitive's primitive
   (`primitives/<name>.py`), in D1's order, its outputs named `<node>.<port>`; the exposed outputs
-  are graph outputs, and with `--dump` so is every value crossing a D6 layer cut.
+  are graph outputs, and with `--dump` so is every value crossing a D6 layer graph split.
 
 Opset 17, IR 8. The **target** is an argument of the generator (`--target`), the runtime the graph
 is emitted for: `onnx`, the default, composes every primitive from the standard operators and the
@@ -35,15 +35,15 @@ onnxruntime session for each.
 
 The target is one of the **physical parameters** — the opaque arguments the language leaves to a
 generator ([`generators/CAPABILITIES.md`](../CAPABILITIES.md); derivation never sees them) —
-flowing from the generator to its primitives: the `backend` key, set for every occurrence by
-`--target` and overridden per occurrence by `--physical` (a file keyed by exact identifier, by
-site pattern with `*`, or by contract version, the more specific entry winning), so one graph may
+flowing from the generator to its primitives: the `backend` key, set for every instance by
+`--target` and overridden per instance by `--physical` (a file keyed by exact identifier, by
+site pattern with `*`, or by primitive version, the more specific entry winning), so one graph may
 mix targets. Every other key flows the same way and a primitive reads it from its context
 (`ctx.physical`; the fused attention takes `rotary_cache`, the positions its cos/sin caches cover).
 
 The generator dispatches on the target by directory, with a fallback: `primitives/<name>.py` is
-the portable emitter of a contract, `primitives/<target>/<name>.py` the target's own, laid over
-the portable table contract by contract (`registry.load_primitives(target)`); a contract the
+the portable emitter of a primitive, `primitives/<target>/<name>.py` the target's own, laid over
+the portable table primitive by primitive (`registry.load_primitives(target)`); a primitive the
 target has no file for keeps the portable form, and a target's emitter falls back to the portable
 one for the branches its fused operator does not cover. A new target is a directory. The
 `onnxruntime` target today (`com.microsoft`):
@@ -53,8 +53,8 @@ one for the branches its fused operator does not cover. A new target is a direct
   factor folded into the caches); a non-causal mask, a partial or interleaved rope, an output gate
   or a head size that is not a multiple of 16 keeps the portable form;
 - `norm.rms`: `SimplifiedLayerNormalization`, and when its input is the sum a `residual.add`
-  occurrence just produced, the two occurrences as one `SkipSimplifiedLayerNormalization` whose
-  sum output replaces the Add for every consumer — a fusion across occurrences, reasoned from the
+  instance just produced, the two instances as one `SkipSimplifiedLayerNormalization` whose
+  sum output replaces the Add for every consumer — a fusion across instances, reasoned from the
   topology (the value's origin), never from the model's name;
 - `ffn.gated`: the activation as `QuickGelu` with alpha 1 (SiLU exactly), `Gelu` or `FastGelu`.
 
@@ -82,17 +82,17 @@ python3 generators/onnx/tests/run_onnx.py [--target onnxruntime] # the harness (
 ```
 
 `run` prefills the prompt, decodes greedily, and with `--dump` writes the values at every layer
-cut, the states after the prefill and the logits in the reference's dump form, which
+graph split, the states after the prefill and the logits in the reference's dump form, which
 `generators/reference/ref.py compare` reads against a fixture.
 
 ## Evidence
 
 `tests/run_onnx.py`, run from the repository root: every corpus document derives and reads back;
-every unit fixture the manifest admits (`generators/reference/fixtures/contracts/`) is emitted
+every unit fixture the manifest admits (`generators/reference/fixtures/primitives/`) is emitted
 from the fixture's own document with the fixture as its checkpoint and compared, output by output
 and state by state, within the tolerance the fixture states for f32 — this generator as a
 **conformer** (Specification §4.2); every integration fixture whose document the manifest can run
-and whose checkpoint is on disk is compared at every layer cut, on every state after the prefill
+and whose checkpoint is on disk is compared at every layer graph split, on every state after the prefill
 and on the logits, then on the greedy tokens; the manifest regenerates identically and the
 language's reader agrees it can run `llama3-8b`. Absent checkpoints are `skip`, never failures.
 The harness takes `--target`: under `onnxruntime` every check runs through the fused forms and
@@ -103,19 +103,19 @@ composed forms, within the fixtures' tolerance).
 
 `generators/onnx/capabilities.json` (the format is [`generators/CAPABILITIES.md`](../CAPABILITIES.md))
 is generated from the primitives' `CAPABILITIES` tables by `tsonnx.py capabilities` and regenerated
-by the harness; a conformer's manifest, without a `witness` block. Seven contracts today (`embed`,
+by the harness; a conformer's manifest, without a `witness` block. Seven primitives today (`embed`,
 `norm.rms`, `residual.add`, `ffn.gated`, `attention.dense` with `append` states and causal or no
 mask, `lm_head`, `splice` for the text-only path of a multimodal document); `tensorspine
 --capabilities generators/onnx/capabilities.json MODEL…` says which documents it can run. The
 manifest is the portable table — what the generator can run is the same under every target — and
-a target's fused form is a note on the contract it covers (`target onnxruntime: …`). Compute is f32; `window` and `fixed` states, cross attention, non-token
+a target's fused form is a note on the primitive it covers (`target onnxruntime: …`). Compute is f32; `window` and `fixed` states, cross attention, non-token
 inputs and a merged domain's positions are not emitted yet and are refused by the manifest, not
 guessed.
 
 ## Batching
 
 The language describes one session's invocation and leaves batching downstream (harness guide
-§8; the batch size is a load variable, out of the model document, Specification §2.1; every
+§8; the batch size is a load variable, out of the model definition, Specification §2.1; every
 state port is keyed by session through its instance key, §4.4). Like the target, the batch layout
 is an argument of the generator, one per graph, reaching every primitive as `ctx.layout`
 (batch-plan B02): `none`, the default, one session on the element axis as above; `aligned`, a

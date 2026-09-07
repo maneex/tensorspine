@@ -5,8 +5,8 @@
 #
 #   _site/index.html           README
 #   _site/spec/*.html          docs/*.md, hand-written documents
-#   _site/catalog/index.html   catalog reference, generated from data/catalog
-#   _site/status/index.html    generated catalog, corpus and verification state
+#   _site/primitive-library/index.html   primitive library reference, generated from data/primitive-library
+#   _site/status/index.html    generated primitive library, corpus and verification state
 #   _site/branch-ledger/       generated work remaining per model and implementation
 #   _site/models/*.html        one --view page per data/models/*.json
 #   _site/schemas, _site/data  copies, so links to them resolve
@@ -18,12 +18,12 @@ style="$repo_dir/docs/style"
 repo_url=${TENSORSPINE_REPO_URL:-$(git -C "$repo_dir" remote get-url origin 2>/dev/null | sed -E 's#^git@github\.com:#https://github.com/#; s#\.git$##')}
 
 rm -rf "$out"
-mkdir -p "$out/spec" "$out/catalog" "$out/status" "$out/branch-ledger" \
+mkdir -p "$out/spec" "$out/primitive-library" "$out/status" "$out/branch-ledger" \
   "$out/models" "$out/style" "$out/assets"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 touch "$out/.nojekyll"
-cp "$style/catalog.css" "$style/doc.css" "$out/style/"
+cp "$style/primitive-library.css" "$style/doc.css" "$out/style/"
 cp -r "$repo_dir/schemas" "$out/schemas"
 mkdir -p "$out/data" && cp -r "$repo_dir/data/models" "$out/data/models"
 for asset in "$repo_dir"/docs/*.svg; do
@@ -59,7 +59,7 @@ doc "$repo_dir/README.md" "$out/index.html" "" "" index \
 
 for f in "$repo_dir"/docs/*.md; do
   name=$(basename "$f" .md)
-  case "$name" in CATALOG-REFERENCE|PLAN-DOCUMENTATION|TENSORSPINE_MODEL_TSPL) continue ;; esac
+  case "$name" in PRIMITIVE-LIBRARY-REFERENCE|PLAN-DOCUMENTATION|TENSORSPINE_MODEL_TSPL) continue ;; esac
   slug=$(printf %s "$name" | tr '[:upper:]' '[:lower:]')
   title=$(sed -n 's/^# //p' "$f" | head -1)
   doc "$f" "$out/spec/$slug.html" "../" "docs" "$slug" \
@@ -67,15 +67,15 @@ for f in "$repo_dir"/docs/*.md; do
 done
 
 # Generated pages. Their Markdown exists only in the build's temporary directory.
-python3 "$here/tensorspine" --document catalog -o "$work/CATALOG-REFERENCE.md" \
+python3 "$here/tensorspine" --document primitive-library -o "$work/PRIMITIVE-LIBRARY-REFERENCE.md" \
   --link-base "$repo_dir/docs"
-navbar "$work/nav-catalog.html" "../" catalog
-"$style/catalog.sh" "$work/CATALOG-REFERENCE.md" "$out/catalog/index.html" \
-  "$work/nav-catalog.html" >/dev/null
-sed -i -e 's#<link rel="stylesheet" href="[^"]*catalog\.css">#<link rel="stylesheet" href="../style/catalog.css">#' \
-  -e 's#href="\(SPECIFICATION\|TENSORSPINE-MODEL_JSON\|GLOSSARY\|ARCHITECTURE\|CATALOG-DOCUMENTATION\)\.md#href="../spec/\L\1\E.html#g' \
-  "$out/catalog/index.html"
-echo "wrote catalog/index.html"
+navbar "$work/nav-primitive-library.html" "../" primitive-library
+"$style/primitive-library.sh" "$work/PRIMITIVE-LIBRARY-REFERENCE.md" "$out/primitive-library/index.html" \
+  "$work/nav-primitive-library.html" >/dev/null
+sed -i -e 's#<link rel="stylesheet" href="[^"]*primitive library\.css">#<link rel="stylesheet" href="../style/primitive-library.css">#' \
+  -e 's#href="\(SPECIFICATION\|TENSORSPINE-MODEL_JSON\|GLOSSARY\|ARCHITECTURE\|PRIMITIVE-LIBRARY-DOCUMENTATION\)\.md#href="../spec/\L\1\E.html#g' \
+  "$out/primitive-library/index.html"
+echo "wrote primitive-library/index.html"
 
 # every generator's manifest in the tree, the witness first (tools/capabilities.py: never a list kept here)
 manifests=$(python3 -c "import sys; sys.path.insert(0, '$here'); import capabilities; print('\n'.join(capabilities.manifests('$repo_dir')))")
@@ -102,7 +102,7 @@ index="$out/models/index.md"
   echo "# Model views"
   echo
   echo "Each page is the self-contained inspector produced by \`tensorspine --view\` for one model of"
-  echo "\`data/models/\`: its quantities, occurrences, compositions and bindings, with the value graph."
+  echo "\`data/models/\`: its quantities, instances, compositions and bindings, with the value graph."
   echo
   echo '<ul class="models">'
   for m in "$repo_dir"/data/models/*.json; do
@@ -126,6 +126,7 @@ if [ -d "$repo_dir/docs/explainer" ]; then
   fi
 fi
 
+python3 "$here/site_compat.py" "$out"
 python3 "$here/checklinks.py" "$out" --repo "$repo_dir"
 
 echo "site: $out"

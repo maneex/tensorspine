@@ -1,4 +1,4 @@
-"""residual.stream_collapse@1.0.0 — `streams` vectors become one: each auxiliary stream projected
+"""residual.stream_collapse@2.0.0 — `streams` vectors become one: each auxiliary stream projected
 by its own matrix and rescaled to the active stream's root-mean-square magnitude (floor 1e-5 on the
 mean square), then the mean over all streams, as Gemma 3n's AltUp unembedding does.
 
@@ -9,7 +9,7 @@ mean square), then the mean over all streams, as Gemma 3n's AltUp unembedding do
 import torch
 from kernels._common import refuse_unknown, supports_from, w
 
-CONTRACT = ("residual.stream_collapse", "1.0.0")
+PRIMITIVE = ("residual.stream_collapse", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "streams": "any"}, "states": []}

@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "attention.head_dim",
+  "definition": {
+    "space": "value",
+    "summary": "Dimension of one attention head."
+  }
+}

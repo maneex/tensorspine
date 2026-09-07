@@ -1,10 +1,10 @@
-"""ffn.gated@1.0.0 for the onnxruntime target — the portable projections with the activation as one
+"""ffn.gated@2.0.0 for the onnxruntime target — the portable projections with the activation as one
 fused operator: QuickGelu with alpha 1 (SiLU exactly), Gelu (the erf form), FastGelu (the tanh
 form); relu2 stays composed."""
 from primitives import ffn_gated as portable
 from primitives._common import activation
 
-CONTRACT = portable.CONTRACT
+PRIMITIVE = portable.PRIMITIVE
 CAPABILITIES = dict(portable.CAPABILITIES, notes=["the activation as QuickGelu (silu), Gelu or FastGelu"])
 
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Template contracts (§4.6): what must be accepted, and what must come out equal.
+"""Template primitives (§4.6): what must be accepted, and what must come out equal.
 
   1. Parity: a model written flat and the same model written through a template
-     contract derive the same parameter slots, tensors and states — and the same
-     derived products D2–D6, value for value and cut for cut, up to the instance
+     primitive derive the same parameter slots, tensors and states — and the same
+     derived products D2–D6, value for value and graph_split for graph_split, up to the instance
      prefix (§5.1: the expanded graph is authoritative).
   2. Declared defaults: an external quantity with a default makes the argument
      optional at the call site, and the default is applied.
@@ -25,12 +25,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import derive                          # noqa: E402
 import validate                        # noqa: E402
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
-REFERENCE = os.path.join(ROOT, 'data', 'catalog')
+REFERENCE = os.path.join(ROOT, 'data', 'primitive-library')
 MODELS = os.path.join(ROOT, 'data', 'models')
 ASSIGNMENT = {"width": 3072, "layers": 26, "heads": 32, "kv_heads": 8, "head_dim": 128,
               "inner": 9216, "eps": 0.00001, "precision": "bf16"}
@@ -69,17 +69,17 @@ def derived_parity(cat):
                        tuple(v.get('required_for', [])), tuple(v.get('exposed', [])))
                       for v in doc['d2']['values'])
 
-    def cuts(doc):
-        return sorted((strip(c['cut']), c['kind'], tuple(c['sizes']), c['bytes_per_element'],
+    def graph_splits(doc):
+        return sorted((strip(c['graph_split']), c['kind'], tuple(c['sizes']), c['bytes_per_element'],
                        canon(c['bytes_per_invocation']), tuple(sorted(strip(p['value']) for p in c['payload'])))
-                      for c in doc['d2']['cuts'])
+                      for c in doc['d2']['graph_splits'])
 
     def tensors(doc):
         return sorted((strip(t['identity']), t['bytes'], t['dtype'], tuple(strip(m) for m in t['members']))
                       for t in doc['d3']['tensors'])
 
     def states(doc):
-        return sorted((strip(s['identity']), s['law'], s['access'], canon(s['stream']),
+        return sorted((strip(s['identity']), s['evolution'], s['access'], canon(s['stream']),
                        s['bytes_per_cached_position'], s['bytes_bounded'], tuple(strip(m) for m in s['members']))
                       for s in doc['d4']['states'])
 
@@ -87,22 +87,22 @@ def derived_parity(cat):
         d = doc['d5']
         return (canon(d['parameters']), canon(d['operations']), canon(d['state']),
                 sorted((strip(c['node']), c['entry'], c['value']) for c in d['corrections']),
-                sorted((strip(c['cut']), c['bytes_per_element']) for c in d['cuts']))
+                sorted((strip(c['graph_split']), c['bytes_per_element']) for c in d['graph_splits']))
 
     def placement(doc):
         d = doc['d6']
-        return (sorted((strip(c['cut']), c['kind'], c['crossing_values']) for c in d['cuts']),
-                sorted((strip(p['node']), canon(p['target']), canon(p['communication']), p['granularity']) for p in d['partitions']),
+        return (sorted((strip(c['graph_split']), c['kind'], c['crossing_values']) for c in d['graph_splits']),
+                sorted((strip(p['node']), canon(p['target']), canon(p['communication']), p['granularity']) for p in d['partition_options']),
                 sorted((strip(l['node']), l['slot'], l['axis']) for l in d['information_loss']))
 
     ok = True
-    for label, f in (('D2 values', values), ('D2 cuts', cuts), ('D3 tensors', tensors), ('D4 states', states),
-                     ('D5 costs, corrections and cuts', costs), ('D6 cuts, partitions and information loss', placement)):
+    for label, f in (('D2 values', values), ('D2 graph_splits', graph_splits), ('D3 tensors', tensors), ('D4 states', states),
+                     ('D5 costs, corrections and graph_splits', costs), ('D6 graph_splits, partition_options and information loss', placement)):
         a, b = f(flat), f(comp)
         size = f"{len(a)} == {len(b)}" if isinstance(a, list) else ''
         ok &= check(f"derived parity, {label}: composite equals flat up to the instance prefix {size}".rstrip(),
                     a == b, f"first difference: {next((x for x in (a if isinstance(a, list) else [a]) if x not in (b if isinstance(b, list) else [b])), None)}")
-    ok &= check("derived parity: D2 and D6 list the composite's 59 cuts", len(comp['d2']['cuts']) == 59 == len(comp['d6']['cuts']))
+    ok &= check("derived parity: D2 and D6 list the composite's 59 graph_splits", len(comp['d2']['graph_splits']) == 59 == len(comp['d6']['graph_splits']))
     return ok
 
 
@@ -129,10 +129,10 @@ def defaults():
     tmp = tempfile.mkdtemp(prefix='tensorspine-templates-')
     try:
         os.makedirs(os.path.join(tmp, 'decoder-causal-yarn'))
-        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json'),
-                    os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json'))
+        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '2.0.0.json'),
+                    os.path.join(tmp, 'decoder-causal-yarn', '2.0.0.json'))
         shutil.copy(os.path.join(MODELS, 'shieldstral-3b-composite.json'), tmp)
-        path = os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json')
+        path = os.path.join(tmp, 'decoder-causal-yarn', '2.0.0.json')
         with open(path, encoding='utf-8') as f:
             template = json.load(f)
         template['quantities']['eps']['source']['default'] = {"literal": 0.00001}
@@ -141,10 +141,10 @@ def defaults():
         path = os.path.join(tmp, 'shieldstral-3b-composite.json')
         with open(path, encoding='utf-8') as f:
             composite = json.load(f)
-        del composite['occurrences']['text']['arguments']['eps']
+        del composite['instances']['text']['arguments']['eps']
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(composite, f, indent=2)
-        cat = catalog_mod.load(REFERENCE, models_base=tmp)
+        cat = primitive_library_mod.load(REFERENCE, models_base=tmp)
         errors, stats = validate.semantic(path, cat)
         ok = check("declared default: `eps` omitted at the call site, template default applied",
                    not errors, errors[:1] and errors[0])
@@ -162,12 +162,12 @@ def unlocated_instance():
     tmp = tempfile.mkdtemp(prefix='tensorspine-templates-')
     try:
         os.makedirs(os.path.join(tmp, 'decoder-causal-yarn'))
-        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json'),
-                    os.path.join(tmp, 'decoder-causal-yarn', '1.0.0.json'))
+        shutil.copy(os.path.join(MODELS, 'decoder-causal-yarn', '2.0.0.json'),
+                    os.path.join(tmp, 'decoder-causal-yarn', '2.0.0.json'))
         path = os.path.join(tmp, 'shieldstral-3b-composite.json')
         with open(os.path.join(MODELS, 'shieldstral-3b-composite.json'), encoding='utf-8') as f:
             composite = json.load(f)
-        del composite['occurrences']['text']['weights_location_prefix']
+        del composite['instances']['text']['weights_location_prefix']
         removed = 0
 
         def strip(node):
@@ -185,7 +185,7 @@ def unlocated_instance():
         strip(composite['compositions'])
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(composite, f, indent=2)
-        cat = catalog_mod.load(REFERENCE, models_base=tmp)
+        cat = primitive_library_mod.load(REFERENCE, models_base=tmp)
         errors, stats = validate.semantic(path, cat)
         ok = check(f"unlocated instance: the composite without its {removed} locations and prefix is valid and unlocated",
                    removed > 0 and not errors and stats.get('located') == 0,
@@ -202,7 +202,7 @@ def unlocated_instance():
 
 
 def assignment(cat):
-    path = os.path.join(MODELS, 'decoder-causal-yarn', '1.0.0.json')
+    path = os.path.join(MODELS, 'decoder-causal-yarn', '2.0.0.json')
     with open(path, encoding='utf-8') as f:
         template = json.load(f)
     errors = validate.check_assignment(template, ASSIGNMENT)
@@ -219,7 +219,7 @@ def assignment(cat):
 
 
 def main():
-    cat = catalog_mod.load(REFERENCE)
+    cat = primitive_library_mod.load(REFERENCE)
     ok = parity(cat)
     ok &= derived_parity(cat)
     ok &= located_parity(cat)

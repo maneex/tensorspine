@@ -1,8 +1,8 @@
 """The witness at work (Specification §4.1, O1.3): one unit fixture per case a kernel declares
 (docs/TENSORSPINE-FIXTURE.md).
 
-A case is a contract version with arguments at small quantities, a seed and a list of
-invocations. It becomes a one-occurrence model document — the occurrence under its arguments,
+A case is a primitive version with arguments at small quantities, a seed and a list of
+invocations. It becomes a one-instance model definition — the instance under its arguments,
 one public input per input port, one public output per output port, every slot bound to an
 identity named after it and located at the fixture's own `param/<identity>` key — derived and run
 by the language's tools and this generator's own machinery, exactly as a whole model is. What the
@@ -10,23 +10,23 @@ run produced is the fixture: the parameters, and per invocation the inputs, the 
 outputs and every state. A conformer runs the same document from the same file and must agree
 within the tolerance the kernel declares for its compute dtype.
 
-The union (harness guide §8): an occurrence that does not read across positions (D1's
+The union (harness guide §8): an instance that does not read across positions (D1's
 `across_positions`), holds no state and reads one stream may be evaluated on several sessions'
 elements at once. On every unit fixture the rule admits, the fixture's invocations run as sessions
 of one packed invocation — each with its recorded positions, one invocation twice when there is
 only one — must give every session its recorded outputs: a kernel that secretly reads across
-positions, or a contract silent about it, fails here the day its fixture exists.
+positions, or a primitive silent about it, fails here the day its fixture exists.
 
     ref.py witness NAME@VERSION|all             regenerate every case and compare with the committed fixture
     ref.py witness NAME@VERSION|all --record    write the fixtures
-    ref.py witness NAME@VERSION/CASE [--record]  one case of a contract version
+    ref.py witness NAME@VERSION/CASE [--record]  one case of a primitive version
 
 The regeneration is provenance, apart from conformance: the parameters and inputs regenerated
 from the seed are compared exactly with the recorded ones and the line says `regenerated exactly`,
 `within the f32 tolerance` or `DIFFER`; the verdict is the run against the stored tensors, which
 are the evidence, and every recorded position, output and state is required of it. A drift of the
 regeneration fails only under `--strict-provenance` — the rule on the box the fixtures are recorded
-on, where a silent change of the witness is what it catches: refused unless the contract version
+on, where a silent change of the witness is what it catches: refused unless the primitive version
 changes or the correction is a declared patch (§8.2), whose re-recorded fixtures say so. The same
 run at every other dtype the kernel declares a tolerance for is the check that the tolerance table
 holds.
@@ -46,9 +46,9 @@ if os.path.join(ROOT, 'tools') not in sys.path:
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import validate as validate_mod        # noqa: E402
-from expr import contract_condition, static_argument   # noqa: E402
+from expr import primitive_condition, static_argument   # noqa: E402
 import graph as graph_mod              # noqa: E402
 import loader                          # noqa: E402
 import registry                        # noqa: E402
@@ -57,13 +57,13 @@ from module import TensorspineModel, step_batch    # noqa: E402
 from plan import Plan                  # noqa: E402
 from session import Session            # noqa: E402
 
-FIXTURES = os.path.join(HERE, 'fixtures', 'contracts')
-CATALOG = os.path.join(ROOT, 'data', 'catalog')
+FIXTURES = os.path.join(HERE, 'fixtures', 'primitives')
+PRIMITIVE_LIBRARY = os.path.join(ROOT, 'data', 'primitive-library')
 COMPUTE = {'f32': torch.float32, 'bf16': torch.bfloat16, 'f16': torch.float16}
 CAPACITY = 64
 
 
-# --- the one-occurrence document -----------------------------------------------
+# --- the one-instance document -----------------------------------------------
 
 def _expression(v):
     """An argument value as the model grammar writes it: literals, records of literals."""
@@ -73,7 +73,7 @@ def _expression(v):
 
 
 def document(name, version, arguments, cat, base):
-    """The one-occurrence model document of a case; `base` is the catalog base as the document
+    """The one-instance model definition of a case; `base` is the primitive library base as the document
     will write it, relative to where it will be read from."""
     definition = cat['by_id'][(name, version)]
     given = {k: _expression(v) for k, v in arguments.items()}
@@ -82,20 +82,20 @@ def document(name, version, arguments, cat, base):
         raise ValueError(f"{name}@{version}: {problems[0][1]}")
 
     def present(element):
-        return contract_condition(element['present_when'], args) if 'present_when' in element else True
+        return primitive_condition(element['present_when'], args) if 'present_when' in element else True
 
-    root = {"kind": "root", "occurrence": "unit"}
+    root = {"kind": "root", "instance": "unit"}
     inputs, outputs = {}, {}
     transformed = {t['from_port'] for t in definition.get('domain_transforms', [])}
     # a port a state rule indexes (`indexed_by.port`) carries the stream its state grows along: its own,
     # as a transformed port's — the cross-attention source, the front end's frames
     transformed |= {r['indexed_by']['port'] for sp in definition['state_ports'].values() for r in sp.get('rules', [])
                     if 'port' in (r.get('indexed_by') or {})}
-    own = None                      # the occurrence's own domain is one stream (§5.3, V5): the first
+    own = None                      # the instance's own domain is one stream (§5.3, V5): the first
     for pname, port in definition['ports']['inputs'].items():
         if present(port):
             kind = port['domain']['kind']
-            inputs[pname] = {"to": [{"occurrence": root, "port": pname}], "kind": kind if kind != 'inherit' else 'token'}
+            inputs[pname] = {"to": [{"instance": root, "port": pname}], "kind": kind if kind != 'inherit' else 'token'}
             if pname in transformed:
                 continue                # a transformed port carries its own stream
             if own is None:
@@ -104,43 +104,43 @@ def document(name, version, arguments, cat, base):
                 inputs[pname]['stream'] = own
     for pname, port in definition['ports']['outputs'].items():
         if present(port):
-            outputs[pname] = {"from": {"occurrence": root, "port": pname}, "generative": False}
+            outputs[pname] = {"from": {"instance": root, "port": pname}, "generative": False}
     parameters = {}
     for slot, param in definition['parameters'].items():
         if present(param):
             ident = f"unit.{slot}"
-            parameters[ident] = {"members": [{"occurrence": root, "parameter": slot}], "tensor": {"name": ident},
+            parameters[ident] = {"members": [{"instance": root, "parameter": slot}], "tensor": {"name": ident},
                                  "location": {"tensor": [f"param/{ident}"]}}
             if 'f32' in cat['precision'][param['role']]['admissible']:
                 parameters[ident]['dtype'] = 'f32'          # stored exactly: the fixture is its own checkpoint
     states = {}
     for sname, port in definition['state_ports'].items():
-        if contract_condition(port['present_when'], args):
+        if primitive_condition(port['present_when'], args):
             ident = f"unit.{sname}"
-            states[ident] = {"members": [{"occurrence": root, "state": sname}], "identity": {"name": ident}}
+            states[ident] = {"members": [{"instance": root, "state": sname}], "identity": {"name": ident}}
             # a state carried across fragments sits on a fragmented stream (V16): the input carrying
-            # that stream — the port the state is indexed by, else the occurrence's own, its first
+            # that stream — the port the state is indexed by, else the instance's own, its first
             # untransformed input — is delivered in fragments, as the streaming cases run it
             ca = port.get('carried_across')
-            if ca and contract_condition(ca['when'], args):
-                rule = next((r for r in port.get('rules', []) if contract_condition(r['when'], args)), None)
+            if ca and primitive_condition(ca['when'], args):
+                rule = next((r for r in port.get('rules', []) if primitive_condition(r['when'], args)), None)
                 carrier = (rule.get('indexed_by') or {}).get('port') if rule else None
                 carrier = carrier or own
                 if carrier in inputs:
                     inputs[carrier]['fragmented'] = True
-    return {"schema": "tensorspine/2.0", "model": f"unit-{name.replace('.', '_')}-{version.replace('.', '_')}",
-            "catalog": [{"base": base}], "quantities": {}, "constants": {},
-            "occurrences": {"unit": {"contract": {"name": name, "version": version}, "arguments": given, "families": ["unit"]}},
+    return {"schema": "tensorspine/3.0", "model": f"unit-{name.replace('.', '_')}-{version.replace('.', '_')}",
+            "primitive_libraries": [{"base": base}], "quantities": {}, "constants": {},
+            "instances": {"unit": {"primitive": {"name": name, "version": version}, "arguments": given, "families": ["unit"]}},
             "compositions": {},
             "bindings": {"values": {}, "parameters": parameters, "constants": {}, "states": states},
             "interfaces": {"inputs": inputs, "outputs": outputs}}
 
 
 def _materialise(doc, directory):
-    """The document written where the catalog base resolves: beside the fixtures, the base as
+    """The document written where the primitive library base resolves: beside the fixtures, the base as
     written; anywhere else, the base made absolute."""
     doc = json.loads(json.dumps(doc))
-    doc['catalog'] = [{"base": CATALOG + os.sep}]
+    doc['primitive_libraries'] = [{"base": PRIMITIVE_LIBRARY + os.sep}]
     path = os.path.join(directory, doc['model'] + '.json')
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(doc, f, indent=1)
@@ -151,9 +151,9 @@ def fixture_dir(name, version):
     return os.path.join(FIXTURES, f"{name}@{version}")
 
 
-def catalog_base_from(directory):
-    """The catalog base, relative to a directory: what the embedded document writes."""
-    return os.path.relpath(CATALOG, directory) + '/'
+def primitive_library_base_from(directory):
+    """The primitive library base, relative to a directory: what the embedded document writes."""
+    return os.path.relpath(PRIMITIVE_LIBRARY, directory) + '/'
 
 
 # --- random parameters and inputs -------------------------------------------------
@@ -228,17 +228,17 @@ def run(g, kernels, params, invocations, compute, seed=None, given=None):
         for ident, st in session.states.items():
             bufs, length = st.read()
             for c, buf in bufs.items():
-                tensors[f"state/{k}/{ident}/{c}"] = (buf[:length] if st.law == 'append' else buf).detach().to('cpu', torch.float32).clone()
+                tensors[f"state/{k}/{ident}/{c}"] = (buf[:length] if st.evolution == 'append' else buf).detach().to('cpu', torch.float32).clone()
     return tensors
 
 
 def cases(kernels, only=None):
-    """(name, version, kernel, case) for every case the kernels declare, those of one contract
+    """(name, version, kernel, case) for every case the kernels declare, those of one primitive
     version, or one case (`NAME@VERSION/CASE`)."""
-    contract, _, case_name = (only or '').partition('/')
+    primitive, _, case_name = (only or '').partition('/')
     out = []
     for (name, version), k in sorted(kernels.items()):
-        if only and f"{name}@{version}" != contract:
+        if only and f"{name}@{version}" != primitive:
             continue
         for case in getattr(k, 'FIXTURES', []):
             if case_name and case['case'] != case_name:
@@ -257,7 +257,7 @@ def _version():
 def produce(name, version, kernel, case, cat, kernels):
     """(tensors, metadata) of one case, as the witness computes it in f32."""
     directory = fixture_dir(name, version)
-    doc = document(name, version, case['arguments'], cat, catalog_base_from(directory))
+    doc = document(name, version, case['arguments'], cat, primitive_library_base_from(directory))
     tmp = tempfile.mkdtemp(prefix='tensorspine-witness-')
     g = graph_mod.load(_materialise(doc, tmp))
     refused = registry.refusals(g, kernels)
@@ -266,8 +266,8 @@ def produce(name, version, kernel, case, cat, kernels):
     params = parameters(g, case['seed'])
     tensors = {f"param/{ident}": t.detach().to('cpu', torch.float32).clone() for ident, t in params.items()}
     tensors.update(run(g, kernels, params, case['invocations'], torch.float32, seed=case['seed']))
-    metadata = {'schema': 'tensorspine-fixture/1', 'kind': 'unit', 'id': f"{name}@{version}/{case['case']}",
-                'contract': {'name': name, 'version': version}, 'arguments': g.nodes['unit']['arguments'],
+    metadata = {'schema': 'tensorspine-fixture/2', 'kind': 'unit', 'id': f"{name}@{version}/{case['case']}",
+                'primitive': {'name': name, 'version': version}, 'arguments': g.nodes['unit']['arguments'],
                 'document': doc, 'invocations': case['invocations'], 'seed': case['seed'],
                 'witness': {'generator': 'reference', 'version': _version(),
                             'kernel': os.path.relpath(kernel.__file__, HERE), 'versions': {'torch': torch.__version__}},
@@ -295,7 +295,7 @@ def verify(fid, kernels, strict_provenance=False):
     (conformance), and the union. Returns (ok, lines)."""
     path = fixture_path(fid)
     tensors, meta = read_fixture(path)
-    name, version = meta['contract']['name'], meta['contract']['version']
+    name, version = meta['primitive']['name'], meta['primitive']['version']
     kernel = kernels.get((name, version))
     lines = []
     if kernel is None:
@@ -339,7 +339,7 @@ def verify(fid, kernels, strict_provenance=False):
                      f"(max |d| {verdict.worst:.1e})" + (f"  {verdict.detail()}" if not verdict.ok else ''))
     # §5.3's invariance (R17): a fixture whose stream is fragmented and delivered in two or more
     # invocations must give, delivered whole in one, the concatenated recorded outputs and the
-    # recorded final states — the sufficient condition the contract's invariant now guarantees. A
+    # recorded final states — the sufficient condition the primitive's invariant now guarantees. A
     # non-fragmented multi-invocation fixture (a bidirectional pass, cross with a frozen source) is
     # not invariant to concatenation and is not checked; a fixture under a declared conditions entry
     # (finding 26, a shared window reader once its ring has wrapped) is skipped and says so.
@@ -388,13 +388,13 @@ def verify(fid, kernels, strict_provenance=False):
 
 
 def committed(only=None):
-    """The ids of the committed unit fixtures, those of one contract version, or one case."""
-    contract, _, case_name = (only or '').partition('/')
+    """The ids of the committed unit fixtures, those of one primitive version, or one case."""
+    primitive, _, case_name = (only or '').partition('/')
     out = []
     if not os.path.isdir(FIXTURES):
         return out
     for d in sorted(os.listdir(FIXTURES)):
-        if only and d != contract:
+        if only and d != primitive:
             continue
         for f in sorted(os.listdir(os.path.join(FIXTURES, d))):
             if f.endswith('.safetensors') and not (case_name and f != case_name + '.safetensors'):
@@ -404,7 +404,7 @@ def committed(only=None):
 
 def main(target, do_record, strict_provenance=False):
     kernels = registry.load_kernels()
-    cat = catalog_mod.load(CATALOG)
+    cat = primitive_library_mod.load(PRIMITIVE_LIBRARY)
     only = None if target == 'all' else target
     if do_record:
         for name, version, kernel, case in cases(kernels, only):

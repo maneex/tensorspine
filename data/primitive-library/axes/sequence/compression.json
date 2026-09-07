@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "sequence.compression",
+  "definition": {
+    "space": "value",
+    "summary": "Positions folded into one compressed cache entry."
+  }
+}

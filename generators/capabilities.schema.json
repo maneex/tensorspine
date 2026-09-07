@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/generators/capabilities.json",
+  "$id": "https://tensorspine.dev/schema/generators/2/capabilities.json",
   "title": "Capabilities of a generator",
   "type": "object",
   "additionalProperties": false,
@@ -9,25 +9,25 @@
     "generator",
     "compute_dtypes",
     "parameter_dtypes",
-    "state_laws",
+    "state_evolutions",
     "access",
     "sharing",
-    "partitions",
+    "partition_options",
     "domains",
     "sessions_per_invocation",
     "locations",
-    "contracts"
+    "primitives"
   ],
   "properties": {
     "schema": {
-      "const": "tensorspine-capabilities/1"
+      "const": "tensorspine-capabilities/2"
     },
     "role": {
       "enum": [
         "witness",
         "conformer"
       ],
-      "description": "`witness` for the one generator whose kernels are the authority for what each contract version computes (Specification §4.1, O1.3): its entries carry a `witness` block. Absent, `conformer`: an implementation checked against the witness's fixtures, which carries no witness block."
+      "description": "`witness` for the one generator whose kernels are the authority for what each primitive version computes (Specification §4.1, O1.3): its entries carry a `witness` block. Absent, `conformer`: an implementation checked against the witness's fixtures, which carries no witness block."
     },
     "generator": {
       "type": "object",
@@ -65,7 +65,7 @@
         "$ref": "#/$defs/dtype"
       }
     },
-    "state_laws": {
+    "state_evolutions": {
       "type": "array",
       "items": {
         "enum": [
@@ -97,7 +97,7 @@
         ]
       }
     },
-    "partitions": {
+    "partition_options": {
       "type": "array",
       "items": {
         "enum": [
@@ -158,13 +158,13 @@
         ]
       }
     },
-    "contracts": {
+    "primitives": {
       "type": "object",
       "propertyNames": {
         "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*@[0-9]+\\.[0-9]+\\.[0-9]+$"
       },
       "additionalProperties": {
-        "$ref": "#/$defs/contract"
+        "$ref": "#/$defs/primitive"
       }
     }
   },
@@ -248,7 +248,7 @@
         }
       ]
     },
-    "contract": {
+    "primitive": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -302,7 +302,7 @@
               "insert"
             ]
           },
-          "description": "the domain transforms of the contract the kernel realises"
+          "description": "the domain transforms of the primitive the kernel realises"
         },
         "witness": {
           "$ref": "#/$defs/witness"
@@ -327,7 +327,7 @@
       "properties": {
         "kernel": {
           "type": "string",
-          "description": "The kernel that is the authority for this contract version: its file, relative to the manifest's directory."
+          "description": "The kernel that is the authority for this primitive version: its file, relative to the manifest's directory."
         },
         "tolerance": {
           "type": "object",
@@ -365,10 +365,10 @@
             "type": "string",
             "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*@[0-9]+\\.[0-9]+\\.[0-9]+/[a-z0-9][a-z0-9-]*$"
           },
-          "description": "The unit fixtures the kernel produced (docs/TENSORSPINE-FIXTURE.md), by id, each at `fixtures/contracts/<id>.safetensors` beside the manifest."
+          "description": "The unit fixtures the kernel produced (docs/TENSORSPINE-FIXTURE.md), by id, each at `fixtures/primitives/<id>.safetensors` beside the manifest."
         }
       },
-      "description": "The binding of a contract version to its witness (Specification §4.1): the language declares the role, the witness generator's manifest names the kernel, its tolerances and its fixtures, and the reader checks that each exists. Derived from the kernels' own tables, never written by hand."
+      "description": "The binding of a primitive version to its witness (Specification §4.1): the language declares the role, the witness generator's manifest names the kernel, its tolerances and its fixtures, and the reader checks that each exists. Derived from the kernels' own tables, never written by hand."
     },
     "exclusion_flat": {
       "type": "object",
@@ -391,7 +391,7 @@
       ],
       "properties": {
         "when": {
-          "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/condition"
+          "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/condition"
         },
         "reason": {
           "type": "string"
@@ -408,7 +408,7 @@
       ],
       "properties": {
         "when": {
-          "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/condition"
+          "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/condition"
         },
         "note": {
           "type": "string"

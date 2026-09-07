@@ -1,4 +1,4 @@
-"""residual.altup_predict@1.0.0 — AltUp's prediction: the router reads the active stream after an
+"""residual.altup_predict@2.0.0 — AltUp's prediction: the router reads the active stream after an
 RMS norm (`router_norm`, `eps`) scaled by width⁻¹, its output through `tanh` gives `streams`
 modalities; `prediction` maps them to a `streams × streams` mixing matrix applied across the
 streams, and the input streams are added back. `active` is the predicted active stream (index 0).
@@ -10,7 +10,7 @@ streams, and the input streams are added back. `active` is the predicted active 
 import torch
 from kernels._common import refuse_unknown, rms_norm, supports_from, w
 
-CONTRACT = ("residual.altup_predict", "1.0.0")
+PRIMITIVE = ("residual.altup_predict", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "streams": "any", "eps": "any"}, "states": []}

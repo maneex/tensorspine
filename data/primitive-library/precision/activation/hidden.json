@@ -1,0 +1,16 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "activation.hidden",
+  "definition": {
+    "summary": "Hidden activations: the residual stream and the values between primitives.",
+    "admissible": [
+      "bf16",
+      "f16",
+      "f32",
+      "f8e4m3"
+    ],
+    "default": "bf16",
+    "sensitivity": "reduced"
+  }
+}

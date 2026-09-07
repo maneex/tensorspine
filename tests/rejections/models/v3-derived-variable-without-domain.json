@@ -1,10 +1,10 @@
 {
-  "schema": "tensorspine/2.0",
+  "schema": "tensorspine/3.0",
   "model": "decoder_causal_yarn_variable_without_domain",
-  "version": "1.0.0",
-  "catalog": [
+  "version": "2.0.0",
+  "primitive_libraries": [
     {
-      "base": "../../../data/catalog/"
+      "base": "../../../data/primitive-library/"
     }
   ],
   "quantities": {
@@ -175,7 +175,7 @@
     }
   },
   "constants": {},
-  "occurrences": {},
+  "instances": {},
   "compositions": {
     "decoder": {
       "indices": {
@@ -194,11 +194,11 @@
       "families": [
         "decoder"
       ],
-      "occurrences": {
+      "instances": {
         "attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -213,9 +213,9 @@
           ]
         },
         "attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.dense",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -268,9 +268,9 @@
           ]
         },
         "attn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -282,9 +282,9 @@
           ]
         },
         "ffn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -299,9 +299,9 @@
           ]
         },
         "ffn": {
-          "contract": {
+          "primitive": {
             "name": "ffn.gated",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -319,9 +319,9 @@
           ]
         },
         "ffn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -589,10 +589,10 @@
       "hidden": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "attn_n",
+              "instance": "attn_n",
               "indices": {
                 "layer": {
                   "literal": 0
@@ -602,10 +602,10 @@
             "port": "input"
           },
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "decoder",
-              "occurrence": "attn_r",
+              "instance": "attn_r",
               "indices": {
                 "layer": {
                   "literal": 0
@@ -621,10 +621,10 @@
     "outputs": {
       "hidden_out": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "layer": {
                 "op": "subtract",

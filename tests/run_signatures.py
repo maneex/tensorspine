@@ -18,14 +18,14 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 from signature import corpus, name_of, signature   # noqa: E402
 
 STORE = os.path.join(HERE, 'signatures')
 
 
 def main(record=False):
-    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    cat = primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
     failed = 0
     for path in corpus():
         name = name_of(path)

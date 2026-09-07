@@ -1,0 +1,159 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "primitive",
+  "name": "residual.stream_inject",
+  "definition": {
+    "version": "2.0.0",
+    "summary": "Reinjects a modified active stream into the set of residual streams.",
+    "description": "Adds `active` to every stream but the active one, which passes through unchanged: a layer's per-layer term enters the auxiliary streams (Gemma 3n: `streams[1:] += active`). No parameter.",
+    "tags": [
+      "parallel-residual"
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of one stream.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "streams": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of parallel residual streams.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 2
+            },
+            "inclusive": true
+          }
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "streams": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The residual streams."
+        },
+        "active": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The modified active stream."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The streams with the active one replaced."
+        }
+      }
+    },
+    "parameters": {},
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "streams",
+        "active"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partition_options": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "communication": "none",
+        "description": "Elementwise: any axis, no communication."
+      }
+    ],
+    "note": "Reinjection of a modified active stream into the residual stream set."
+  }
+}

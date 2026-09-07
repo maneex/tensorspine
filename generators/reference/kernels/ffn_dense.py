@@ -1,4 +1,4 @@
-"""ffn.dense@1.0.0 — act(x·inᵀ + in_bias) · outᵀ + out_bias: the up projection, the activation,
+"""ffn.dense@2.0.0 — act(x·inᵀ + in_bias) · outᵀ + out_bias: the up projection, the activation,
 the down projection — `ffn.gated` without its gate half.
 
 | branch / record           | status                 |
@@ -13,7 +13,7 @@ the down projection — `ffn.gated` without its gate half.
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from, w
 
-CONTRACT = ("ffn.dense", "1.0.0")
+PRIMITIVE = ("ffn.dense", "2.0.0")
 ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approximate='tanh'),
        'relu2': lambda x: F.relu(x).pow(2)}
 

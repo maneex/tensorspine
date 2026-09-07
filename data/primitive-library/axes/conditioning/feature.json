@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "conditioning.feature",
+  "definition": {
+    "space": "value",
+    "summary": "Width of a conditioning vector: per-layer inputs and their projections."
+  }
+}

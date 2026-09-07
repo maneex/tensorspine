@@ -1,4 +1,4 @@
-//! sequence.gated_delta@1.0.0 — a per-head matrix state updated by the delta rule,
+//! sequence.gated_delta@2.0.0 — a per-head matrix state updated by the delta rule,
 //! behind a short causal convolution (Qwen 3.5's linear-attention layers).
 //!
 //! | branch / record             | status                                        |
@@ -9,7 +9,7 @@
 //! | out_gate none/sigmoid/swish | refused                                       |
 //! | value_heads > key_heads     | implemented: each q/k head serves `value_heads / key_heads` value heads, in order |
 //!
-//! Two states, and they are why this contract is worth having in a second generator:
+//! Two states, and they are why this primitive is worth having in a second generator:
 //! `recurrent` is `fixed`/`aggregate` — read whole, written whole, zero bytes per token —
 //! and `conv` is `window`/`ring`, a three-position history. Neither grows with the
 //! sequence, so a document made of these has no KV cache to page at all.
@@ -17,16 +17,16 @@
 //! The recurrence is written position by position, as the reference generator writes it:
 //! exact, and unrolled by the tracer into one block per element of the invocation. That
 //! is affordable because this generator compiles one arity — a chat feeds its prompt a
-//! token at a time (`chat.zig`) — and it is the form the contract's description states.
+//! token at a time (`chat.zig`) — and it is the form the primitive's description states.
 //! A chunked form would be the same mathematics reassociated, and would have to be
 //! justified against this one rather than assumed.
 //!
-//! Conventions the contract states and this reads out of it: β = σ(b);
+//! Conventions the primitive states and this reads out of it: β = σ(b);
 //! g = −exp(A_log) · softplus(a + dt_bias); q and k are L2-normalised over `head_dim`
 //! (epsilon 1e-6) and q scaled by head_dim^-1/2; the state decays by exp(g), then takes
 //! k ⊗ ((v − Sᵀk) β), and is read as Sᵀq; the read-out is RMS-normalised per head, scaled
 //! by `norm`, and gated by silu(z). The read-out norm's epsilon is the one the reference
-//! implementation uses, 1e-6; the contract does not state it.
+//! implementation uses, 1e-6; the primitive does not state it.
 
 const std = @import("std");
 
@@ -36,7 +36,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "sequence.gated_delta",
-    .version = "1.0.0",
+    .version = "2.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "key_heads": "any", "value_heads": "any", "head_dim": "any",
@@ -62,7 +62,7 @@ fn l2norm(x: zml.Tensor, axis: anytype) zml.Tensor {
 }
 
 /// `.hq` query/key heads spread over `.h` value heads, `rep` value heads to each, in
-/// order — the contract's rule when `value_heads` exceeds `key_heads`.
+/// order — the primitive's rule when `value_heads` exceeds `key_heads`.
 fn spread(x: zml.Tensor, rep: i64) zml.Tensor {
     if (rep == 1) return x.rename(.{ .hq = .h });
     const wide = x.insertAxes(.hd, .{.rep});

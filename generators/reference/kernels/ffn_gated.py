@@ -1,4 +1,4 @@
-"""ffn.gated@1.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
+"""ffn.gated@2.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
 
 | branch / record        | status                       |
 |------------------------|------------------------------|
@@ -13,7 +13,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import present, refuse_unknown, supports_from, w
 
-CONTRACT = ("ffn.gated", "1.0.0")
+PRIMITIVE = ("ffn.gated", "2.0.0")
 ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approximate='tanh'),
        'relu2': lambda x: F.relu(x).pow(2)}
 

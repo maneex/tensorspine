@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "ffn.projection",
+  "definition": {
+    "space": "value",
+    "summary": "Which projection within a fused axis: gate or up; query, key or value."
+  }
+}

@@ -1,11 +1,11 @@
-"""`--view`: a self-contained HTML visualization of an tensorspine/2.0 model.
+"""`--view`: a self-contained HTML visualization of an tensorspine/3.0 model.
 
 Requires Graphviz's `dot` on PATH.
 
-The page carries two documents. The model document is the declaration —
+The page carries two documents. The model definition is the declaration —
 folded: a composition is one box with an index range. The derived document
-(D1-D6, §7) is the same model unfolded — one node per emitted occurrence, one
-entry per tensor, per state, per legal cut. They are two readings of one
+(D1-D6, §7) is the same model unfolded — one node per emitted instance, one
+entry per tensor, per state, per valid graph split. They are two readings of one
 thing, joined by the identifiers of §5.2, and the page reads both: the side
 tree switches between them, the inspector puts a node's derived facts under
 its declaration, a measure is painted on the diagram, and the products tab
@@ -17,8 +17,8 @@ written — and read back; the page embeds what the emitter vouched for. A
 model that cannot be derived (invalid, or a template with no assignment)
 still renders: the page says so and stays on its first reading.
 
-Division of labor: Python reads the model document, builds the top-level
-graph (root occurrences <-> compositions, plus each composition's own local
+Division of labor: Python reads the model definition, builds the top-level
+graph (root instances <-> compositions, plus each composition's own local
 graph) and hands it to Graphviz, which does the actual layout and produces
 SVG — laying out a DAG correctly (independent branches side by side, real
 fan-out/fan-in, no crossing minimization guesswork) is exactly graphviz's
@@ -28,7 +28,7 @@ JSON view — stays client-side in JavaScript, reading the embedded model JSON
 directly; none of that involves layout, so there is nothing graphviz buys it.
 
 The page is a page of the documentation site and looks like one: the sidebar,
-the palette, the type and the hairline rules of docs/style/catalog.css, both
+the palette, the type and the hairline rules of docs/style/primitive-library.css, both
 in the stylesheet (TEMPLATE) and in the diagrams (the colours below). They are
 restated here rather than linked because the page must stand on its own.
 
@@ -65,7 +65,7 @@ import tempfile
 
 # ---------- shared look ----------
 # The diagrams belong to the documentation site, so they take their colours and
-# their type from docs/style/catalog.css: warm neutrals, one petrol-blue accent, and
+# their type from docs/style/primitive-library.css: warm neutrals, one petrol-blue accent, and
 # hairline rules. Graphviz lays the labels out with the metric-compatible
 # fallback faces below; the page's own CSS then swaps them for IBM Plex Mono /
 # IBM Plex Sans, the faces the rest of the site uses (see TEMPLATE).
@@ -83,7 +83,7 @@ NOTE = "#7a5a2e"          # --note-label, index range, carry and derived figures
 
 
 
-# ---------- minimal scalar-expression evaluator (tensorspine/2.0 §2.2) ----------
+# ---------- minimal scalar-expression evaluator (tensorspine/3.0 §2.2) ----------
 # Just enough to print index ranges / instance counts on the diagram labels.
 # The full inspector-side evaluator (with conditionals, calls, domains, ...)
 # stays in the page's JavaScript, where it belongs — this one only needs to
@@ -175,19 +175,19 @@ def comp_instance_count(comp, quantities):
     return total
 
 
-# ---------- top-level graph: root occurrences <-> compositions ----------
+# ---------- top-level graph: root instances <-> compositions ----------
 # Mirrors the inspector's own reading of bindings.values (kept independently
 # in the page's JS, for the detail panel) but this copy only needs enough to
 # hand a node/edge list to Graphviz.
 
 def top_key(sel):
-    return f"root:{sel['occurrence']}" if sel['kind'] == 'root' else f"comp:{sel['composition']}"
+    return f"root:{sel['instance']}" if sel['kind'] == 'root' else f"comp:{sel['composition']}"
 
 
 def build_graph(data):
     nodes = {}
-    for name in data['occurrences']:
-        nodes[f"root:{name}"] = {'type': 'occurrence', 'name': name}
+    for name in data['instances']:
+        nodes[f"root:{name}"] = {'type': 'instance', 'name': name}
     for name in data['compositions']:
         nodes[f"comp:{name}"] = {'type': 'composition', 'name': name}
 
@@ -202,7 +202,7 @@ def build_graph(data):
     internal = {name: [] for name in data['compositions']}
 
     for b in data['bindings']['values'].values():
-        fo, to = b['from']['occurrence'], b['to']['occurrence']
+        fo, to = b['from']['instance'], b['to']['instance']
         fk, tk = top_key(fo), top_key(to)
         if fk == tk and fo['kind'] == 'generated':
             # Same composition: same index on both ends is a real edge WITHIN
@@ -211,7 +211,7 @@ def build_graph(data):
             # single representative block would look like a cycle without
             # being one, so it becomes a badge on the receiving node instead.
             carry = json.dumps(fo.get('indices'), sort_keys=True) != json.dumps(to.get('indices'), sort_keys=True)
-            internal[fo['composition']].append({'from': fo['occurrence'], 'to': to['occurrence'], 'carry': carry})
+            internal[fo['composition']].append({'from': fo['instance'], 'to': to['instance'], 'carry': carry})
         else:
             add_edge(fk, tk)
 
@@ -219,19 +219,19 @@ def build_graph(data):
         k = f"in:{name}"
         nodes[k] = {'type': 'input', 'name': name}
         for endpoint in spec['to']:
-            add_edge(k, top_key(endpoint['occurrence']))
+            add_edge(k, top_key(endpoint['instance']))
     for name, spec in data['interfaces']['outputs'].items():
         k = f"out:{name}"
         nodes[k] = {'type': 'output', 'name': name}
-        add_edge(top_key(spec['from']['occurrence']), k)
+        add_edge(top_key(spec['from']['instance']), k)
 
     return nodes, edges, internal
 
 
 # ---------- the derived figures a diagram carries ----------
 # The labels are laid out with their figures in them, so this side has to read
-# the derived document too: what a box stands for (a root occurrence is
-# itself, a composition every occurrence it generated, a site every instance
+# the derived document too: what a box stands for (a root instance is
+# itself, a composition every instance it generated, a site every instance
 # of that site), what D3 and D4 say about that set, and which value an arrow
 # carries. The maps built here are handed to the page as well, so that the two
 # readings cannot drift -- the inspector reads D5's share from these, and no
@@ -296,8 +296,8 @@ class DiagramFacts:
     # per element, at the activated fraction of a sparsity unit -- over the
     # SLOTS a tensor satisfies, not over the tensors: a tied tensor is
     # resident once but read at each member. The sparsity unit belongs to a
-    # contract (§4.5), and D3 records the unit of its first member only, so
-    # the fraction applies to a member whose node runs that contract and to no
+    # primitive (§4.5), and D3 records the unit of its first member only, so
+    # the fraction applies to a member whose node runs that primitive and to no
     # other: a table tied between an `embed` lookup and an `lm_head`
     # projection is sparse at the lookup and dense at the projection. Element
     # corrections land in the same total. The split is offered only when it
@@ -322,7 +322,7 @@ class DiagramFacts:
             for m in t['members']:
                 node = member_node(m)
                 declared = self.d1['nodes'].get(node)
-                sparse = bool(declared) and declared['contract']['name'] == t['contract']
+                sparse = bool(declared) and declared['primitive']['name'] == t['primitive']
                 v = 2 * t['elements'] * (fraction if sparse else 1)
                 ops[node] = ops.get(node, 0) + v
                 total += v
@@ -467,10 +467,10 @@ def top_node_dot(node_id, node, data, quantities, facts):
         return (f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, shape=ellipse, style="dashed", '
                 f'color="{CHIP}", fontname="{DOT_MONO}", fontsize=11, '
                 f'fontcolor="{MUTED}", label={dot_qid(label)}];')
-    if kind == 'occurrence':
-        o = data['occurrences'][node['name']]
+    if kind == 'instance':
+        o = data['instances'][node['name']]
         rows = [(node['name'], 14, INK, True, True),
-                (f"{o['contract']['name']} \u00b7 {o['contract']['version']}", 10, MUTED, False, False)]
+                (f"{o['primitive']['name']} \u00b7 {o['primitive']['version']}", 10, MUTED, False, False)]
         rows += facts.figure_rows(node_id) if facts else []
         return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="{CHIP}", fillcolor="{BG_RAISED}", label={html_label(rows)}];'
     # composition, collapsed representation: one box, expanded structure is a
@@ -482,10 +482,10 @@ def top_node_dot(node_id, node, data, quantities, facts):
         f"{ix} = {expr_str(comp['indices'][ix]['start'], quantities)}\u2026{expr_str(comp['indices'][ix]['stop'], quantities)}"
         for ix in idx_names)
     badge = range_label + (f' \u00b7 \u00d7{n}' if n is not None else '')
-    sites = list(comp['occurrences'].keys())
+    sites = list(comp['instances'].keys())
     rows = [(node['name'], 14, ACCENT, True, True),
             (badge, 9.5, NOTE, False, False),
-            (f"{len(sites)} occurrence(s) per instance", 8.5, MUTED, False, False)]
+            (f"{len(sites)} instance(s) per instance", 8.5, MUTED, False, False)]
     rows += facts.figure_rows(node_id) if facts else []
     return f'  {dot_qid(node_id)} [id={dot_qid(node_id)}, color="{CHIP}", fillcolor="{BG_TINT}", label={html_label(rows)}];'
 
@@ -510,7 +510,7 @@ def top_level_dot(data, nodes, edges, quantities, facts):
 
 
 def comp_internal_dot(comp_name, comp_def, internal_edges, facts):
-    sites = list(comp_def['occurrences'].keys())
+    sites = list(comp_def['instances'].keys())
     carry_targets = {e['to'] for e in internal_edges if e['carry']}
     seq_edges = [(e['from'], e['to']) for e in internal_edges if not e['carry']]
     lines = [
@@ -524,9 +524,9 @@ def comp_internal_dot(comp_name, comp_def, internal_edges, facts):
     ]
     for site in sites:
         node_id = f"{comp_name}::{site}"
-        so = comp_def['occurrences'][site]
+        so = comp_def['instances'][site]
         rows = [(site, 12, INK, True, True),
-                (f"{so['contract']['name']} \u00b7 {so['contract']['version']}", 9, MUTED, False, False)]
+                (f"{so['primitive']['name']} \u00b7 {so['primitive']['version']}", 9, MUTED, False, False)]
         if site in carry_targets:
             rows.append(('\u21ba carry from previous instance', 8, NOTE, False, False))
         rows += facts.figure_rows(node_id) if facts else []
@@ -564,14 +564,14 @@ def comp_section_html(name, comp_def, internal_edges, quantities, facts):
         f"{ix} = {expr_str(comp_def['indices'][ix]['start'], quantities)}\u2026{expr_str(comp_def['indices'][ix]['stop'], quantities)}"
         for ix in idx_names)
     badge = range_label + (f' \u00b7 \u00d7{n}' if n is not None else '')
-    sites = list(comp_def['occurrences'].keys())
+    sites = list(comp_def['instances'].keys())
     toggle_key = f"canvas-{name}"
     return f'''<div class="comp-section" data-comp="{html.escape(name, quote=True)}">
   <div class="comp-section-head" data-tree-toggle="{html.escape(toggle_key, quote=True)}">
     <span class="chev">\u25b8</span>
     <span class="name">{html.escape(name)}</span>
     <span class="comp-badge">{html.escape(badge)}</span>
-    <span class="comp-sub">{len(sites)} occurrence(s) per instance \u2014 {html.escape(', '.join(sites))}</span>
+    <span class="comp-sub">{len(sites)} instance(s) per instance \u2014 {html.escape(', '.join(sites))}</span>
   </div>
   <div class="comp-section-body" data-group="{html.escape(toggle_key, quote=True)}" style="display:none">{svg}</div>
 </div>'''
@@ -601,7 +601,7 @@ TEMPLATE = r"""<!doctype html>
 <style>
   /* The model view is one page of the documentation site, so it carries the
      same design as the rest of it: the palette, the type and the hairline
-     rules of docs/style/catalog.css, restated here because this page has to
+     rules of docs/style/primitive-library.css, restated here because this page has to
      stay self-contained. Only the webfonts are fetched; every stack falls
      back to a system face when they are not there. */
   :root {
@@ -782,7 +782,7 @@ TEMPLATE = r"""<!doctype html>
   .doc-title b { font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--ink); }
   .doc-title .schema { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-left: 10px; }
   .topbar-right { margin-left: auto; display: flex; align-self: stretch; align-items: center; gap: 22px; }
-  .catalog-tag { font-family: var(--mono); font-size: 11px; color: var(--faint); white-space: nowrap; }
+  .primitive_library-tag { font-family: var(--mono); font-size: 11px; color: var(--faint); white-space: nowrap; }
   .tabs { display: flex; align-self: stretch; gap: 18px; }
   .tab {
     display: flex; align-items: center; margin-bottom: -1px;
@@ -864,14 +864,14 @@ TEMPLATE = r"""<!doctype html>
   .derived-tag.absent i { background: var(--chip); }
 
   /* One row above the diagram: which derived quantity is painted on the
-     nodes, and which legal cut is marked across them. */
+     nodes, and which valid graph split is marked across them. */
   .cutbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; height: 42px; padding: 0 28px 0 32px; border-bottom: 1px solid var(--rule); background: var(--bg-raised); }
   .mlabel { flex-shrink: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
   .mright { margin-left: auto; display: flex; align-items: center; gap: 10px; position: relative; }
-  .cutsel { display: flex; align-items: center; gap: 8px; max-width: 280px; height: 26px; padding: 0 10px; background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); cursor: pointer; user-select: none; }
-  .cutsel .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cutsel .car { flex-shrink: 0; color: var(--faint); }
-  .cutsel.on { border-color: var(--accent); color: var(--accent); }
+  .graphSplitSelector { display: flex; align-items: center; gap: 8px; max-width: 280px; height: 26px; padding: 0 10px; background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); cursor: pointer; user-select: none; }
+  .graphSplitSelector .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .graphSplitSelector .car { flex-shrink: 0; color: var(--faint); }
+  .graphSplitSelector.on { border-color: var(--accent); color: var(--accent); }
   .cutmenu { position: absolute; top: 32px; right: 0; z-index: 6; width: 300px; max-height: 340px; overflow-y: auto; padding: 6px; background: var(--bg-raised); border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 6px 18px rgba(34, 33, 30, 0.10); }
   .cutmenu .h { padding: 5px 8px 7px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); }
   .cutmenu .r { display: flex; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 4px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); cursor: pointer; }
@@ -879,14 +879,14 @@ TEMPLATE = r"""<!doctype html>
   .cutmenu .r:hover { background: var(--bg); }
   .cutmenu .r.on { background: var(--bg-tint); color: var(--accent); }
 
-  /* A cut marked across the diagram: a node whose expanded occurrences are all
+  /* A graph_split marked across the diagram: a node whose expanded instances are all
      on the near side, some of them, or none. */
-  #canvas g.node.cut-in > path, #canvas g.node.cut-in > polygon { stroke: var(--accent); stroke-width: 1.6px; }
-  #canvas g.node.cut-part > path, #canvas g.node.cut-part > polygon { stroke: var(--accent); stroke-width: 1.6px; stroke-dasharray: 5 3; }
-  #canvas g.node.cut-out { opacity: 0.4; }
+  #canvas g.node.graph_split-in > path, #canvas g.node.graph_split-in > polygon { stroke: var(--accent); stroke-width: 1.6px; }
+  #canvas g.node.graph_split-part > path, #canvas g.node.graph_split-part > polygon { stroke: var(--accent); stroke-width: 1.6px; stroke-dasharray: 5 3; }
+  #canvas g.node.graph_split-out { opacity: 0.4; }
 
   /* ---------- inspector ---------- */
-  /* Field rows read like the reference catalog's tables: an uppercase heading
+  /* Field rows read like the reference primitive_library's tables: an uppercase heading
      over a strong rule, then hairline-separated rows. */
   .inspector { width: var(--insp-w); flex-shrink: 0; overflow-y: auto; border-left: 1px solid var(--rule); padding: 30px 26px 48px; }
   .insp-empty { color: var(--faint); font-size: 13px; }
@@ -903,7 +903,7 @@ TEMPLATE = r"""<!doctype html>
   .field { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
   .field .k { min-width: 68px; color: var(--muted); overflow-wrap: break-word; }
   .field .v { min-width: 0; font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); text-align: right; overflow-wrap: anywhere; }
-  .contract-chip {
+  .primitive-chip {
     display: inline-block; margin-bottom: 10px; padding: 3px 9px;
     background: var(--bg-tint); border-radius: 4px;
     font-family: var(--mono); font-size: 12px; color: var(--ink-2);
@@ -964,7 +964,8 @@ TEMPLATE = r"""<!doctype html>
   .prodpane .inspector { width: 304px; padding: 22px 20px 48px; }
   .prodrail { width: 212px; flex-shrink: 0; overflow-y: auto; padding: 22px 10px 24px 24px; border-right: 1px solid var(--rule); }
   .prodrail .lbl { padding: 0 10px 8px; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .prodrail .r { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: 4px; font-size: 12.5px; white-space: nowrap; color: var(--ink-3); cursor: pointer; }
+  .prodrail .r { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: 4px; font-size: 12.5px; color: var(--ink-3); cursor: pointer; }
+  .prodrail .product-name { min-width: 0; line-height: 1.4; }
   .prodrail .r:hover { background: var(--bg-tint); color: var(--ink); }
   .prodrail .r.on { background: var(--bg-tint); color: var(--ink); font-weight: 600; box-shadow: inset 2px 0 0 var(--accent); }
   .prodrail .r.on .dnum { background: var(--bg-raised); }
@@ -1011,7 +1012,7 @@ TEMPLATE = r"""<!doctype html>
   }
 
   /* ---------- status bar ---------- */
-  /* The counts are the facts strip of a contract page: a serif figure under a
+  /* The counts are the facts strip of a primitive page: a serif figure under a
      small uppercase label. */
   .statusbar {
     flex-shrink: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 28px;
@@ -1079,7 +1080,7 @@ __NAVBAR__
     <header class="topbar">
       <div class="doc-title"><b id="model-name"></b><span class="schema" id="model-schema"></span></div>
       <div class="topbar-right">
-        <span class="catalog-tag" id="catalog-tag"></span>
+        <span class="primitive_library-tag" id="primitive_library-tag"></span>
         <span class="derived-tag" id="derived-tag"><i></i><span id="derived-tag-text"></span></span>
         <div class="tabs">
           <div class="tab on" data-tab="graph">Graph</div>
@@ -1091,8 +1092,8 @@ __NAVBAR__
 
     <div class="cutbar" id="cutbar">
       <div class="mright">
-        <span class="mlabel">Cut</span>
-        <div class="cutsel" id="cutsel"><span class="nm">none</span><span class="car">&#9662;</span></div>
+        <span class="mlabel">Graph split</span>
+        <div class="graphSplitSelector" id="graphSplitSelector"><span class="nm">none</span><span class="car">&#9662;</span></div>
         <div class="cutmenu" id="cutmenu" style="display:none"></div>
       </div>
     </div>
@@ -1151,7 +1152,7 @@ function highlightJson(text) {
     });
 }
 
-// ---------- scalar expression rendering (tensorspine/2.0 §2.2) ----------
+// ---------- scalar expression rendering (tensorspine/3.0 §2.2) ----------
 // Used only by the inspector panel below — the diagrams themselves are
 // pre-rendered SVG from Graphviz, generated by this file's Python half.
 function litValue(name) {
@@ -1175,7 +1176,7 @@ function exprStr(e) {
     return a.join(` ${sym[e.op] || e.op} `);
   }
   if ('if' in e) return `if ${condStr(e.if)} then ${exprStr(e.then)} else ${exprStr(e.else)}`;
-  if ('call' in e) return `${e.call.contract.name}@${e.call.contract.version}(\u2026)`;
+  if ('call' in e) return `${e.call.primitive.name}@${e.call.primitive.version}(\u2026)`;
   return JSON.stringify(e);
 }
 
@@ -1242,35 +1243,35 @@ function compInstanceCount(c) {
   return total;
 }
 
-function topKey(sel) { return sel.kind === 'root' ? `root:${sel.occurrence}` : `comp:${sel.composition}`; }
+function topKey(sel) { return sel.kind === 'root' ? `root:${sel.instance}` : `comp:${sel.composition}`; }
 
-// Precise label for one specific occurrence selector (unlike topKey, which
+// Precise label for one specific instance selector (unlike topKey, which
 // collapses every site of a composition to the composition itself — correct
 // for the coarse top-level diagram, wrong for naming a binding member).
 function occSelLabel(sel) {
-  if (sel.kind === 'root') return sel.occurrence;
+  if (sel.kind === 'root') return sel.instance;
   const idx = Object.entries(sel.indices || {}).map(([k, v]) => `${k}=${exprStr(v)}`).join(',');
-  return `${sel.composition}/${sel.occurrence}[${idx}]`;
+  return `${sel.composition}/${sel.instance}[${idx}]`;
 }
 
 function developedCount() {
-  let total = Object.keys(RAW.occurrences).length, exact = true;
+  let total = Object.keys(RAW.instances).length, exact = true;
   for (const c of Object.values(RAW.compositions)) {
-    const n = compInstanceCount(c), sites = Object.keys(c.occurrences).length;
+    const n = compInstanceCount(c), sites = Object.keys(c.instances).length;
     if (n === undefined) { exact = false; continue; }
     total += n * sites;
   }
   return { total, exact };
 }
 
-// ---------- state bindings: lookup by occurrence ----------
+// ---------- state bindings: lookup by instance ----------
 function findStateBindingsFor(matcher) {
   const out = [];
-  for (const [sid, b] of Object.entries(RAW.bindings.states)) if (b.members.some(m => matcher(m.occurrence))) out.push([sid, b]);
+  for (const [sid, b] of Object.entries(RAW.bindings.states)) if (b.members.some(m => matcher(m.instance))) out.push([sid, b]);
   return out;
 }
-const matcherRoot = name => occ => occ.kind === 'root' && occ.occurrence === name;
-const matcherSite = (comp, site) => occ => occ.kind === 'generated' && occ.composition === comp && occ.occurrence === site;
+const matcherRoot = name => occ => occ.kind === 'root' && occ.instance === name;
+const matcherSite = (comp, site) => occ => occ.kind === 'generated' && occ.composition === comp && occ.instance === site;
 
 // ---------- mapping between a diagram node's SVG id and a selection object ----------
 // Ids are assigned by the Python half when it builds the DOT sources:
@@ -1360,7 +1361,7 @@ function nodeOfMember(member) {
 }
 
 // The expanded nodes one thing the model declares stands for: a root
-// occurrence is itself, a composition is every occurrence it generated, a
+// instance is itself, a composition is every instance it generated, a
 // site is every instance of that site.
 function nodesForSelection(sel) {
   if (!HAS) return [];
@@ -1444,10 +1445,10 @@ function correctionsOf(nodes) {
   const set = new Set(nodes);
   return (DERIVED.d5.corrections || []).filter(c => set.has(c.node));
 }
-function partitionsOf(nodes) {
+function partitionOptionsOf(nodes) {
   if (!HAS) return [];
   const set = new Set(nodes);
-  return (DERIVED.d6.partitions || []).filter(x => set.has(x.node));
+  return (DERIVED.d6.partition_options || []).filter(x => set.has(x.node));
 }
 function lossOf(nodes) {
   if (!HAS) return [];
@@ -1471,9 +1472,9 @@ function partitionTarget(t) {
 // is the per-node table the inspector reads for D5's share.
 const measureValues = MEASURES_BY_NODE;   // { name -> {byNode, ok} }
 
-// ---------- legal cuts ----------
-// The block of a cut is the ancestor closure of its seed set (§7): a layer cut
-// seeds on a composition prefix, a family cut on a family. Computed from D1's
+// ---------- valid graph splits ----------
+// The block of a graph split is the ancestor closure of its seed set (§7): a layer graph_split
+// seeds on a composition prefix, a family graph_split on a family. Computed from D1's
 // own edges, and used only when its size is the size D2 reports.
 function cutBlock(name) {
   if (!HAS) return null;
@@ -1508,31 +1509,31 @@ function cutBlock(name) {
   return seen;
 }
 
-let currentCut = null;
+let currentGraphSplit = null;
 
 // D2 counts a template instance as one node at its caller's level (§5.2 rule
-// 2), while D1 lists the occurrences inside it. When that makes this page's
+// 2), while D1 lists the instances inside it. When that makes this page's
 // closure a different set from the one D2 counted, it marks nothing and says
 // so — marking a set nobody counted would be worse than marking none.
 function cutMarkable(name) {
-  const cut = DERIVED.d2.cuts.find(c => c.cut === name);
+  const graph_split = DERIVED.d2.graph_splits.find(c => c.graph_split === name);
   const block = cutBlock(name);
-  if (!cut) return { block: null, why: 'no such cut in D2' };
-  if (!block) return { block: null, why: 'this page cannot read the cut\u2019s seed set from its name' };
-  if (block.size !== cut.sizes[0]) {
+  if (!graph_split) return { block: null, why: 'no such graph split in D2' };
+  if (!block) return { block: null, why: 'this page cannot read the graph split\u2019s seed set from its name' };
+  if (block.size !== graph_split.sizes[0]) {
     return { block: null, why: (D1.instances || []).length
-      ? 'D2 counts each template instance as one node (\u00a75.2 rule 2); D1 lists the occurrences inside it, so the two blocks are different sets'
-      : `the closure of this page is ${block.size} nodes, D2 counted ${cut.sizes[0]}` };
+      ? 'D2 counts each template instance as one node (\u00a75.2 rule 2); D1 lists the instances inside it, so the two blocks are different sets'
+      : `the closure of this page is ${block.size} nodes, D2 counted ${graph_split.sizes[0]}` };
   }
   return { block, why: null };
 }
 
-function markCut(name) {
-  currentCut = name;
-  const sel = document.querySelector('#cutsel .nm');
+function markGraphSplit(name) {
+  currentGraphSplit = name;
+  const sel = document.querySelector('#graphSplitSelector .nm');
   if (sel) sel.textContent = name || 'none';
-  document.getElementById('cutsel').classList.toggle('on', !!name);
-  document.querySelectorAll('#canvas g.node').forEach(g => g.classList.remove('cut-in', 'cut-part', 'cut-out'));
+  document.getElementById('graphSplitSelector').classList.toggle('on', !!name);
+  document.querySelectorAll('#canvas g.node').forEach(g => g.classList.remove('graph_split-in', 'graph_split-part', 'graph_split-out'));
   if (!name) return;
   const { block } = cutMarkable(name);
   if (!block) return;
@@ -1540,17 +1541,17 @@ function markCut(name) {
     const members = diagramMembers(g.getAttribute('id'));
     if (!members.length) return;
     const inside = members.filter(id => block.has(id)).length;
-    g.classList.add(inside === members.length ? 'cut-in' : inside ? 'cut-part' : 'cut-out');
+    g.classList.add(inside === members.length ? 'graph_split-in' : inside ? 'graph_split-part' : 'graph_split-out');
   });
 }
 
-function buildCutMenu() {
+function buildGraphSplitMenu() {
   const menu = document.getElementById('cutmenu');
   if (!HAS) return;
-  const rows = DERIVED.d2.cuts.map(c =>
-    `<div class="r" data-cut="${escAttr(c.cut)}"><span>${esc(c.cut)}</span><span>${esc(fmtBytes(c.bytes_per_element))}</span></div>`).join('');
-  menu.innerHTML = `<div class="h">D6 · ${DERIVED.d2.cuts.length} legal cut(s)</div>` +
-    `<div class="r" data-cut=""><span>none</span><span>—</span></div>${rows}`;
+  const rows = DERIVED.d2.graph_splits.map(c =>
+    `<div class="r" data-graph_split="${escAttr(c.graph_split)}"><span>${esc(c.graph_split)}</span><span>${esc(fmtBytes(c.bytes_per_element))}</span></div>`).join('');
+  menu.innerHTML = `<div class="h">D6 · ${DERIVED.d2.graph_splits.length} valid graph split(s)</div>` +
+    `<div class="r" data-graph_split=""><span>none</span><span>—</span></div>${rows}`;
 }
 
 // ---------- side tree ----------
@@ -1569,16 +1570,16 @@ function buildTree() {
   grp('quantities');
   row(`quantities<span class="count">${Object.keys(RAW.quantities).length}</span>`, { kind: 'quantities' });
 
-  grp('occurrences');
-  const rootNames = Object.keys(RAW.occurrences);
-  row(`<span class="chev" data-tree-toggle="occ">\u25be</span>occurrences<span class="count">${rootNames.length}</span>`);
+  grp('instances');
+  const rootNames = Object.keys(RAW.instances);
+  row(`<span class="chev" data-tree-toggle="occ">\u25be</span>instances<span class="count">${rootNames.length}</span>`);
   rootNames.forEach(n => row(`<span class="swatch sw-occ"></span>${esc(n)}`, { kind: 'root', name: n }, { child: true, group: 'occ' }));
 
   grp('compositions');
   for (const [cname, c] of Object.entries(RAW.compositions)) {
     const n = compInstanceCount(c);
     row(`<span class="chev" data-tree-toggle="comp-${escAttr(cname)}">\u25be</span>${esc(cname)}<span class="count">${n != null ? '\u00d7' + n : 'variable'}</span>`, { kind: 'composition', name: cname });
-    Object.keys(c.occurrences).forEach(site =>
+    Object.keys(c.instances).forEach(site =>
       row(`<span class="swatch sw-occ"></span>${esc(site)}`, { kind: 'site', comp: cname, site }, { child: true, group: `comp-${cname}` }));
   }
 
@@ -1591,9 +1592,9 @@ function buildTree() {
 
   grp('interfaces');
   Object.entries(RAW.interfaces.inputs).forEach(([n, spec]) =>
-    row(`<span class="swatch sw-io"></span>${esc(n)} \u2192 ${esc(spec.to.map(e => occSelLabel(e.occurrence)).join(', '))}`, { kind: 'interface', dir: 'inputs', name: n }));
+    row(`<span class="swatch sw-io"></span>${esc(n)} \u2192 ${esc(spec.to.map(e => occSelLabel(e.instance)).join(', '))}`, { kind: 'interface', dir: 'inputs', name: n }));
   Object.entries(RAW.interfaces.outputs).forEach(([n, spec]) =>
-    row(`<span class="swatch sw-io"></span>${esc(occSelLabel(spec.from.occurrence))} \u2192 ${esc(n)}`, { kind: 'interface', dir: 'outputs', name: n }));
+    row(`<span class="swatch sw-io"></span>${esc(occSelLabel(spec.from.instance))} \u2192 ${esc(n)}`, { kind: 'interface', dir: 'outputs', name: n }));
 
   return L.join('');
 }
@@ -1628,39 +1629,39 @@ function derivedTree() {
   const d2 = DERIVED.d2, d3 = DERIVED.d3, d4 = DERIVED.d4, d5 = DERIVED.d5, d6 = DERIVED.d6;
   grp('products', DERIVED.model + '.derived.json');
 
-  head('d1', 'expanded graph', Object.keys(D1.nodes).length, 'p-d1');
+  head('d1', 'Derived Computation Graph', Object.keys(D1.nodes).length, 'p-d1');
   kid('nodes', Object.keys(D1.nodes).length, { kind: 'product', which: 'd1' }, 'p-d1');
   kid('edges', D1.edges.length, { kind: 'product', which: 'd1' }, 'p-d1');
   kid('interfaces', Object.keys(D1.interfaces.inputs).length + Object.keys(D1.interfaces.outputs).length,
       { kind: 'product', which: 'd1' }, 'p-d1');
 
-  head('d2', 'values & cuts', d2.values.length, 'p-d2');
+  head('d2', 'Derived Value Shapes and Lifetimes', d2.values.length, 'p-d2');
   kid('streams', Object.keys(d2.streams).length, { kind: 'product', which: 'd2' }, 'p-d2');
   kid('values', d2.values.length, { kind: 'product', which: 'd2' }, 'p-d2');
-  kid('cuts', d2.cuts.length, { kind: 'product', which: 'd2' }, 'p-d2');
+  kid('graph splits', d2.graph_splits.length, { kind: 'product', which: 'd2' }, 'p-d2');
 
-  head('d3', 'parameter tensors', d3.totals.tensors, 'p-d3');
+  head('d3', 'Derived Parameter Tensor Inventory', d3.totals.tensors, 'p-d3');
   for (const g of foldGroups(d3.tensors.map(t => t.identity)).slice(0, 8)) {
     const bytes = d3.tensors.filter(t => g.members.includes(t.identity)).reduce((a, t) => a + t.bytes, 0);
     kid(g.label, fmtBytes(bytes), { kind: 'd3', identity: g.members[0] }, 'p-d3');
   }
   kid('resident', fmtBytes(d3.totals.bytes), { kind: 'product', which: 'd3' }, 'p-d3');
 
-  head('d4', 'states', d4.totals.identities, 'p-d4');
+  head('d4', 'Derived State Inventory and Behavior', d4.totals.identities, 'p-d4');
   for (const g of foldGroups(d4.states.map(t => t.identity)).slice(0, 8)) {
     kid(g.label, `×${g.members.length}`, { kind: 'd4', identity: g.members[0] }, 'p-d4');
   }
   kid('per cached position', fmtBytes(d4.totals.append_bytes_per_cached_position),
       { kind: 'product', which: 'd4' }, 'p-d4');
 
-  head('d5', 'logical costs', null, 'p-d5');
+  head('d5', 'Derived Logical Resource Requirements and Costs', null, 'p-d5');
   kid('parameters', fmtBytes(d5.parameters.bytes), { kind: 'product', which: 'd5' }, 'p-d5');
   kid('per element', fmtOps(d5.operations.element.value), { kind: 'product', which: 'd5' }, 'p-d5');
   kid('corrections', (d5.corrections || []).length, { kind: 'product', which: 'd5' }, 'p-d5');
 
-  head('d6', 'cuts & partitions', null, 'p-d6');
-  kid('legal cuts', d6.cuts.length, { kind: 'product', which: 'd6' }, 'p-d6');
-  kid('partitions', (d6.partitions || []).length, { kind: 'product', which: 'd6' }, 'p-d6');
+  head('d6', 'Derived Graph Splits and Partition Options', null, 'p-d6');
+  kid('valid graph splits', d6.graph_splits.length, { kind: 'product', which: 'd6' }, 'p-d6');
+  kid('partition options', (d6.partition_options || []).length, { kind: 'product', which: 'd6' }, 'p-d6');
   kid('information loss', (d6.information_loss || []).length, { kind: 'product', which: 'd6' }, 'p-d6');
 
   return L.join('');
@@ -1752,7 +1753,7 @@ function derivedSections(sel) {
       const st = rows[0];
       L.push(`<div class="drow pick" data-select='${escAttr(JSON.stringify({ kind: 'd4', identity: st.identity }))}'>
         <div class="n">${esc(g.label)}</div>
-        <div class="m"><span>${esc(st.law)} · ${esc(st.access)} · ${esc(st.sharing)}</span><b>${esc(fmtBytes(rows.reduce((a, x) => a + (x.bytes_per_cached_position || 0), 0)))}</b></div>
+        <div class="m"><span>${esc(st.evolution)} · ${esc(st.access)} · ${esc(st.sharing)}</span><b>${esc(fmtBytes(rows.reduce((a, x) => a + (x.bytes_per_cached_position || 0), 0)))}</b></div>
         <div class="m"><span>stream <code>${esc(st.stream.kind)} · ${esc(st.stream.stream)}</code>${st.carried_across_fragments ? ' · carried' : ''}</span></div>
         <div class="m"><span>key <code>${esc((st.instance_key || []).join(', '))}</code></span></div>
       </div>`);
@@ -1775,13 +1776,13 @@ function derivedSections(sel) {
   if (ops == null && !corrections.length) L.push(none('cost attributable to this node'));
 
   // D6
-  const partitions = partitionsOf(nodes);
+  const partition_options = partitionOptionsOf(nodes);
   const seen = new Set(), unique = [];
-  for (const x of partitions) {
+  for (const x of partition_options) {
     const k = `${partitionTarget(x.target)}→${[].concat(x.communication).join(' or ')}`;
     if (!seen.has(k)) { seen.add(k); unique.push(x); }
   }
-  L.push(head('D6', 'partitions', unique.length ? String(unique.length) : null));
+  L.push(head('D6', 'partition options', unique.length ? String(unique.length) : null));
   if (!unique.length) L.push(none('partition declared'));
   for (const x of unique) {
     L.push(`<div class="field"><span class="k">${esc(partitionTarget(x.target))}</span><span class="v">${esc([].concat(x.communication).join(' or '))}${x.granularity > 1 ? ' · groups of ' + esc(String(x.granularity)) : ''}</span></div>`);
@@ -1799,7 +1800,7 @@ function derivedSections(sel) {
 function d3Body(t) {
   const rows = [
     ['members', t.members.join(', ')],
-    ['contract · slot', `${t.contract} · ${t.slot}`],
+    ['primitive · slot', `${t.primitive} · ${t.slot}`],
     ['role', t.role],
     ['sensitivity', t.sensitivity],
     ['dtype', t.dtype],
@@ -1827,8 +1828,8 @@ function d3Body(t) {
 function d4Body(st) {
   let out = `<h4 class="insp"><span class="dnum">D4</span>state identity</h4>` + fields([
     ['members', st.members.join(', ')],
-    ['contract · state', `${st.contract} · ${st.state}`],
-    ['law', st.law],
+    ['primitive · state', `${st.primitive} · ${st.state}`],
+    ['evolution', st.evolution],
     ['access', st.access],
     ['sharing', st.sharing],
     ['stream', `${st.stream.kind} · ${st.stream.stream}`],
@@ -1846,7 +1847,7 @@ function d4Body(st) {
 }
 
 function cutBody(name) {
-  const c = DERIVED.d2.cuts.find(x => x.cut === name);
+  const c = DERIVED.d2.graph_splits.find(x => x.graph_split === name);
   if (!c) return '';
   const payload = c.payload.map(v =>
     `<div class="drow"><div class="n">${esc(v.value)}</div>
@@ -1856,9 +1857,9 @@ function cutBody(name) {
   const nodes = block ? [...block] : [];
   const loss = lossOf(nodes).length;
   const comms = {};
-  for (const x of partitionsOf(nodes)) for (const c of [].concat(x.communication)) comms[c] = (comms[c] || 0) + 1;
+  for (const x of partitionOptionsOf(nodes)) for (const c of [].concat(x.communication)) comms[c] = (comms[c] || 0) + 1;
   if (why) {
-    return `<h4 class="insp"><span class="dnum">D2</span>legal cut</h4>` + fields([
+    return `<h4 class="insp"><span class="dnum">D2</span>valid graph split</h4>` + fields([
         ['kind', c.kind],
         ['blocks', `${fmtInt(c.sizes[0])} | ${fmtInt(c.sizes[1])} nodes`],
         ['crossing values', String(c.payload.length)],
@@ -1868,7 +1869,7 @@ function cutBody(name) {
       `<h4 class="insp"><span class="dnum">D2</span>payload<span class="n">${c.payload.length}</span></h4>${payload}` +
       `<div class="state-box"><b>not marked on the diagram</b> — ${esc(why)}.</div>`;
   }
-  return `<h4 class="insp"><span class="dnum">D2</span>legal cut</h4>` + fields([
+  return `<h4 class="insp"><span class="dnum">D2</span>valid graph split</h4>` + fields([
       ['kind', c.kind === 'layer' ? 'layer — ancestor closure of a composition prefix'
                                   : 'family — ancestor closure of a family'],
       ['blocks', `${fmtInt(c.sizes[0])} | ${fmtInt(c.sizes[1])} nodes`],
@@ -1877,13 +1878,13 @@ function cutBody(name) {
       ['bytes per invocation', Object.entries(c.bytes_per_invocation).map(([k, v]) => `${fmtBytes(v)} × ${k}`).join(', ')],
     ]) +
     `<h4 class="insp"><span class="dnum">D2</span>payload<span class="n">${c.payload.length}</span></h4>${payload}` +
-    `<div class="state-box">Legal by construction — the closure is downward closed, so every crossing edge points out of it. Counts are never numbers (§10.3): a consumer multiplies by the counts it knows.</div>` +
+    `<div class="state-box">Valid by construction — the closure is downward closed, so every crossing edge points out of it. Counts are never numbers (§10.3): a consumer multiplies by the counts it knows.</div>` +
     `<h4 class="insp"><span class="dnum">D6</span>the near block<span class="n">${fmtInt(nodes.length)} nodes</span></h4>` +
     fields([
       ['information loss', `${loss} flattened axes`],
     ].concat(Object.entries(comms).sort((a, b) => b[1] - a[1])
       .map(([k, v]) => [k, `${fmtInt(v)} node(s)`]))) +
-    `<div class="state-box">Which of these cuts is a <b>good</b> one is not decided here: partitions are semantic, and the machine and the workload are inputs a consumer adds (§10.3).</div>`;
+    `<div class="state-box">Which of these graph splits is a <b>good</b> one is not decided here: partition options are semantic, and the machine and the workload are inputs a consumer adds (§10.3).</div>`;
 }
 
 function fields(rows) {
@@ -1892,13 +1893,13 @@ function fields(rows) {
 }
 
 // ---------- inspector panel ----------
-function occurrenceBody(o, families, matcher) {
+function instanceBody(o, families, matcher) {
   const args = Object.entries(o.arguments || {}).map(([k, v]) =>
     `<div class="field"><span class="k">${esc(k)}</span><span class="v">${esc(argValueStr(v))}</span></div>`).join('');
   const famHtml = (families || []).map(f => `<span class="fam-chip">${esc(f)}</span>`).join('');
   const states = findStateBindingsFor(matcher).map(([sid, b]) => stateBody(sid, b, false)).join('');
   return `
-    <span class="contract-chip">${esc(o.contract.name)} \u00b7 ${esc(o.contract.version)}</span>
+    <span class="primitive-chip">${esc(o.primitive.name)} \u00b7 ${esc(o.primitive.version)}</span>
     <div>${famHtml}</div>
     <h4 class="insp">arguments</h4>
     ${args || '<div class="field"><span class="k">\u2014</span></div>'}
@@ -1913,21 +1914,21 @@ function compositionBody(name, c) {
   }).join('');
   const n = compInstanceCount(c);
   const famHtml = (c.families || []).map(f => `<span class="fam-chip">${esc(f)}</span>`).join('');
-  const members = Object.entries(c.occurrences).map(([site, so]) => {
+  const members = Object.entries(c.instances).map(([site, so]) => {
     const sel = escAttr(JSON.stringify({ kind: 'site', comp: name, site }));
-    return `<div class="member-row" data-select='${sel}'><span class="n">${esc(site)}</span><span class="c">${esc(so.contract.name)}@${esc(so.contract.version)}</span></div>`;
+    return `<div class="member-row" data-select='${sel}'><span class="n">${esc(site)}</span><span class="c">${esc(so.primitive.name)}@${esc(so.primitive.version)}</span></div>`;
   }).join('');
   return `
     <div>${famHtml}</div>
     <h4 class="insp">index</h4>
     ${rangeRows}
     <div class="field"><span class="k">instances</span><span class="v">${n != null ? n : 'not statically resolvable'}</span></div>
-    <h4 class="insp">contains \u00b7 ${Object.keys(c.occurrences).length}</h4>
+    <h4 class="insp">contains \u00b7 ${Object.keys(c.instances).length}</h4>
     <div class="members">${members}</div>`;
 }
 
 function stateBody(sid, b, bare) {
-  const membersHtml = bare ? `<div class="field"><span class="k">members</span><span class="v">${esc(b.members.map(m => `${occSelLabel(m.occurrence)}.${m.state}`).join(', '))}</span></div>` : '';
+  const membersHtml = bare ? `<div class="field"><span class="k">members</span><span class="v">${esc(b.members.map(m => `${occSelLabel(m.instance)}.${m.state}`).join(', '))}</span></div>` : '';
   const indices = Object.keys((b.identity && b.identity.indices) || {});
   const key = [...indices, 'session', 'branch'].join(' \u00d7 ');
   const dtype = b.dtype ? (typeof b.dtype === 'string' ? b.dtype : '@' + b.dtype.quantity) : 'role default';
@@ -1945,12 +1946,12 @@ function bindingItemBody(which, id) {
   if (which === 'values') {
     const fe = b.for_each ? Object.entries(b.for_each).map(([k, r]) => `${k}: ${exprStr(r.start)}\u2026${exprStr(r.stop)} step ${exprStr(r.step)}`).join('; ') : null;
     return `
-      <div class="field"><span class="k">from</span><span class="v">${esc(occSelLabel(b.from.occurrence))}.${esc(b.from.port)}</span></div>
-      <div class="field"><span class="k">to</span><span class="v">${esc(occSelLabel(b.to.occurrence))}.${esc(b.to.port)}</span></div>
+      <div class="field"><span class="k">from</span><span class="v">${esc(occSelLabel(b.from.instance))}.${esc(b.from.port)}</span></div>
+      <div class="field"><span class="k">to</span><span class="v">${esc(occSelLabel(b.to.instance))}.${esc(b.to.port)}</span></div>
       ${fe ? `<div class="field"><span class="k">for_each</span><span class="v">${esc(fe)}</span></div>` : ''}`;
   }
   if (which === 'parameters') {
-    const members = b.members.map(m => `${occSelLabel(m.occurrence)}.${m.parameter}`).join(', ');
+    const members = b.members.map(m => `${occSelLabel(m.instance)}.${m.parameter}`).join(', ');
     return `
       <div class="field"><span class="k">tensor</span><span class="v">${esc(b.tensor.name)}</span></div>
       <div class="field"><span class="k">members</span><span class="v">${esc(members)}</span></div>
@@ -1964,10 +1965,10 @@ function bindingItemBody(which, id) {
 
 function interfaceBody(dir, spec) {
   if (dir === 'inputs') return `
-    <div class="field"><span class="k">to</span><span class="v">${esc(spec.to.map(e => `${occSelLabel(e.occurrence)}.${e.port}`).join(', '))}</span></div>
+    <div class="field"><span class="k">to</span><span class="v">${esc(spec.to.map(e => `${occSelLabel(e.instance)}.${e.port}`).join(', '))}</span></div>
     <div class="field"><span class="k">kind</span><span class="v">${esc(spec.kind)}${spec.stream ? ' \u00b7 joins ' + esc(spec.stream) : ''}${spec.fragmented ? ' \u00b7 fragmented' : ''}</span></div>`;
   return `
-    <div class="field"><span class="k">from</span><span class="v">${esc(occSelLabel(spec.from.occurrence))}.${esc(spec.from.port)}</span></div>
+    <div class="field"><span class="k">from</span><span class="v">${esc(occSelLabel(spec.from.instance))}.${esc(spec.from.port)}</span></div>
     <div class="field"><span class="k">domain</span><span class="v">derived from the port (\u00a75.3)</span></div>
     <div class="field"><span class="k">generative</span><span class="v">${spec.generative}</span></div>`;
 }
@@ -2006,7 +2007,7 @@ function selLabel(sel) {
   if (sel.kind === 'product') return sel.which.toUpperCase();
   if (sel.kind === 'd3' || sel.kind === 'd4') return sel.identity;
   if (sel.kind === 'd1node') return sel.id;
-  if (sel.kind === 'cut') return sel.name;
+  if (sel.kind === 'graph_split') return sel.name;
   if (sel.kind === 'composition') return `${sel.name} (composition)`;
   if (sel.kind === 'site') return `${sel.comp}/${sel.site}`;
   if (sel.kind === 'bindingGroup') return sel.which;
@@ -2024,18 +2025,18 @@ function renderInspector(sel) {
   let title, kindLabel, bodyHtml, rawFragment;
 
   if (sel.kind === 'root') {
-    const o = RAW.occurrences[sel.name];
-    title = sel.name; kindLabel = 'occurrence'; rawFragment = o;
-    bodyHtml = occurrenceBody(o, o.families, matcherRoot(sel.name));
+    const o = RAW.instances[sel.name];
+    title = sel.name; kindLabel = 'instance'; rawFragment = o;
+    bodyHtml = instanceBody(o, o.families, matcherRoot(sel.name));
   } else if (sel.kind === 'composition') {
     const c = RAW.compositions[sel.name];
     title = sel.name; kindLabel = 'composition'; rawFragment = c;
     bodyHtml = compositionBody(sel.name, c);
   } else if (sel.kind === 'site') {
-    const so = RAW.compositions[sel.comp].occurrences[sel.site];
+    const so = RAW.compositions[sel.comp].instances[sel.site];
     const compFam = RAW.compositions[sel.comp].families || [];
-    title = `${sel.comp}/${sel.site}`; kindLabel = 'occurrence (composed)'; rawFragment = so;
-    bodyHtml = occurrenceBody(so, [...new Set([...compFam, ...(so.families || [])])], matcherSite(sel.comp, sel.site));
+    title = `${sel.comp}/${sel.site}`; kindLabel = 'instance (composed)'; rawFragment = so;
+    bodyHtml = instanceBody(so, [...new Set([...compFam, ...(so.families || [])])], matcherSite(sel.comp, sel.site));
   } else if (sel.kind === 'bindingGroup') {
     rawFragment = RAW.bindings[sel.which]; title = sel.which; kindLabel = 'bindings';
     const ids = Object.keys(rawFragment);
@@ -2068,17 +2069,17 @@ function renderInspector(sel) {
     bodyHtml = rawFragment ? d4Body(rawFragment) : '';
   } else if (sel.kind === 'd1node') {
     rawFragment = D1.nodes[sel.id];
-    title = sel.id; kindLabel = 'occurrence \u00b7 D1';
+    title = sel.id; kindLabel = 'instance \u00b7 D1';
     bodyHtml = rawFragment
-      ? `<span class="contract-chip">${esc(rawFragment.contract.name)} \u00b7 ${esc(rawFragment.contract.version)}</span>` +
+      ? `<span class="primitive-chip">${esc(rawFragment.primitive.name)} \u00b7 ${esc(rawFragment.primitive.version)}</span>` +
         `<div>${(rawFragment.families || []).map(f => `<span class="fam-chip">${esc(f)}</span>`).join('')}</div>` +
         `<h4 class="insp">arguments</h4>` +
         fields(Object.entries(rawFragment.arguments || {}).map(([k, v]) =>
           [k, typeof v === 'object' ? JSON.stringify(v) : String(v)]))
       : '';
-  } else if (sel.kind === 'cut') {
-    rawFragment = DERIVED.d2.cuts.find(c => c.cut === sel.name);
-    title = sel.name; kindLabel = 'legal cut \u00b7 D2 \u00b7 D6';
+  } else if (sel.kind === 'graph_split') {
+    rawFragment = DERIVED.d2.graph_splits.find(c => c.graph_split === sel.name);
+    title = sel.name; kindLabel = 'valid graph split \u00b7 D2 \u00b7 D6';
     bodyHtml = cutBody(sel.name);
   }
 
@@ -2098,11 +2099,12 @@ function renderInspector(sel) {
 
 // ---------- the products tab ----------
 // A product read whole, which the diagram cannot answer: what is big, what is
-// shared, what is bounded, what crosses a cut. Listings fold along the model's
+// shared, what is bounded, what crosses a graph split. Listings fold along the model's
 // own index — [layer=0…31] is one row that opens into 32.
 const PRODUCTS = [
-  ['d1', 'expanded graph'], ['d2', 'values & cuts'], ['d3', 'parameter tensors'],
-  ['d4', 'states'], ['d5', 'logical costs'], ['d6', 'cuts & partitions'],
+  ['d1', 'Derived Computation Graph'], ['d2', 'Derived Value Shapes and Lifetimes'],
+  ['d3', 'Derived Parameter Tensor Inventory'], ['d4', 'Derived State Inventory and Behavior'],
+  ['d5', 'Derived Logical Resource Requirements and Costs'], ['d6', 'Derived Graph Splits and Partition Options'],
 ];
 let currentProduct = 'd3';
 const openFolds = new Set();
@@ -2114,15 +2116,15 @@ function productCount(which) {
   if (which === 'd3') return DERIVED.d3.totals.tensors;
   if (which === 'd4') return DERIVED.d4.totals.identities;
   if (which === 'd5') return (DERIVED.d5.corrections || []).length;
-  if (which === 'd6') return (DERIVED.d6.partitions || []).length;
+  if (which === 'd6') return (DERIVED.d6.partition_options || []).length;
   return '';
 }
 
 function buildProductRail() {
-  document.getElementById('prodrail').innerHTML = '<div class="lbl">products</div>' +
+  document.getElementById('prodrail').innerHTML = '<div class="lbl">Derived Products</div>' +
     PRODUCTS.map(([which, label]) =>
       `<div class="r${which === currentProduct ? ' on' : ''}" data-product="${which}">` +
-      `<span class="dnum">${which.toUpperCase()}</span>${esc(label)}` +
+      `<span class="dnum">${which.toUpperCase()}</span><span class="product-name">${esc(label)}</span>` +
       `<span class="count">${esc(String(productCount(which)))}</span></div>`).join('');
 }
 
@@ -2182,16 +2184,16 @@ function productBody(which) {
   if (which === 'd1') {
     const rows = foldedRows(Object.entries(D1.nodes).map(([id, n]) => ({ id, ...n })), x => x.id,
       (x, label, n, open) =>
-        `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.contract.name)} · ${esc(x.contract.version)}</td>` +
+        `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.primitive.name)} · ${esc(x.primitive.version)}</td>` +
         `<td>${esc((x.families || []).join(', '))}</td>`,
       x => ({ kind: 'd1node', id: x.id }));
-    return pHead('Expanded graph', 'one entry per emitted occurrence',
+    return pHead('Derived Computation Graph', 'one entry per emitted instance',
         `${Object.keys(D1.nodes).length} nodes · ${D1.edges.length} edges`) +
       pTotals([['nodes', Object.keys(D1.nodes).length], ['edges', D1.edges.length],
                ['inputs', Object.keys(D1.interfaces.inputs).length],
                ['outputs', Object.keys(D1.interfaces.outputs).length],
                ['template instances', (D1.instances || []).length, (D1.instances || []).length ? '' : 'off']]) +
-      pTable([{ label: 'occurrence', w: '44%' }, { label: 'contract', w: '30%' },
+      pTable([{ label: 'instance', w: '44%' }, { label: 'primitive', w: '30%' },
               { label: 'families' }], rows);
   }
 
@@ -2204,29 +2206,29 @@ function productBody(which) {
         `<td class="m">${esc(fmtCounts(v.count))}</td>` +
         `<td class="num">${esc(fmtBytes(v.bytes_per_element))}</td>`,
       () => null);
-    const cuts = d2.cuts.map(c =>
-      `<tr class="pick" data-select='${escAttr(JSON.stringify({ kind: 'cut', name: c.cut }))}'>` +
-      `<td class="id">${esc(c.cut)}</td><td class="m">${esc(c.kind)}</td>` +
+    const graph_splits = d2.graph_splits.map(c =>
+      `<tr class="pick" data-select='${escAttr(JSON.stringify({ kind: 'graph_split', name: c.graph_split }))}'>` +
+      `<td class="id">${esc(c.graph_split)}</td><td class="m">${esc(c.kind)}</td>` +
       `<td class="m">${fmtInt(c.sizes[0])} | ${fmtInt(c.sizes[1])}</td>` +
       `<td class="num">${esc(String(c.payload.length))}</td>` +
       `<td class="num">${esc(fmtBytes(c.bytes_per_element))}</td></tr>`);
     const streams = Object.entries(d2.streams).map(([name, st]) =>
       `<tr><td class="id">${esc(name)}</td><td class="m">${esc(st.kind)}</td><td class="m">${esc(fmtCounts(st.count))}</td></tr>`);
-    return pHead('Values & cuts', 'the value inventory and the payload of every legal cut',
-        `${d2.values.length} values · ${d2.cuts.length} cuts`) +
+    return pHead('Derived Value Shapes and Lifetimes', 'the value inventory and the payload of every valid graph split',
+        `${d2.values.length} values · ${d2.graph_splits.length} graph splits`) +
       pTotals([['streams', Object.keys(d2.streams).length], ['values', d2.values.length],
-               ['legal cuts', d2.cuts.length],
-               ['widest cut', fmtBytes(Math.max(...d2.cuts.map(c => c.bytes_per_element), 0)), 'q']]) +
+               ['valid graph splits', d2.graph_splits.length],
+               ['widest graph split', fmtBytes(Math.max(...d2.graph_splits.map(c => c.bytes_per_element), 0)), 'q']]) +
       `<div class="foldnote" style="margin:16px 0 0">streams</div>` +
       pTable([{ label: 'stream', w: '34%' }, { label: 'kind', w: '22%' }, { label: 'count' }], streams) +
       `<div class="foldnote" style="margin:22px 0 0">values \u2014 the geometry every edge of the graph carries</div>` +
       pTable([{ label: 'value', w: '34%' }, { label: 'shape', w: '20%' }, { label: 'dtype', w: '8%' },
               { label: 'role', w: '16%' }, { label: 'count', w: '12%' },
               { label: 'bytes / element', right: true }], values) +
-      `<div class="foldnote" style="margin:22px 0 0">legal cuts — pick one to mark it on the diagram</div>` +
-      pTable([{ label: 'cut', w: '34%' }, { label: 'kind', w: '11%' }, { label: 'blocks', w: '17%' },
+      `<div class="foldnote" style="margin:22px 0 0">valid graph splits — pick one to mark it on the diagram</div>` +
+      pTable([{ label: 'graph split', w: '34%' }, { label: 'kind', w: '11%' }, { label: 'blocks', w: '17%' },
               { label: 'crossing', w: '14%', right: true },
-              { label: 'payload / element', right: true }], cuts);
+              { label: 'payload / element', right: true }], graph_splits);
   }
 
   if (which === 'd3') {
@@ -2239,7 +2241,7 @@ function productBody(which) {
           `<td class="num">${esc(fmtBytes(group.reduce((a, x) => a + x.bytes, 0)))}</td>`;
       },
       t => ({ kind: 'd3', identity: t.identity }));
-    return pHead('Parameter tensors', 'one entry per identity instance, a tied tensor once',
+    return pHead('Derived Parameter Tensor Inventory', 'one entry per identity instance, a tied tensor once',
         `${d3.totals.tensors} tensors · ${fmtBytes(d3.totals.bytes)}`) +
       pTotals([['tensors', d3.totals.tensors], ['elements', fmtInt(d3.totals.elements)],
                ['resident', fmtBytes(d3.totals.bytes), 'q'],
@@ -2254,22 +2256,22 @@ function productBody(which) {
     const rows = foldedRows(d4.states, st => st.identity,
       (st, label, n, open) => {
         const group = n > 1 ? d4.states.filter(x => foldOf(x.identity).key === foldOf(st.identity).key) : [st];
-        return `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(st.law)}</td>` +
+        return `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(st.evolution)}</td>` +
           `<td class="m">${esc(st.access)}</td><td class="m">${esc(st.sharing)}</td>` +
           `<td class="m">${esc(st.stream.stream)}</td><td class="m">${esc((st.instance_key || []).join(', '))}</td>` +
           `<td class="num">${esc(fmtBytes(group.reduce((a, x) => a + (x.bytes_per_cached_position || 0), 0)))}</td>`;
       },
       st => ({ kind: 'd4', identity: st.identity }));
-    const byLaw = d4.totals.by_law || {};
-    return pHead('Complete state', 'one entry per state identity instance',
+    const byEvolution = d4.totals.by_evolution || {};
+    return pHead('Derived State Inventory and Behavior', 'one entry per state identity instance',
         `${d4.totals.identities} identities · ${fmtBytes(d4.totals.append_bytes_per_cached_position)} / cached position`) +
-      pTotals([['append', byLaw.append || 0, byLaw.append ? '' : 'off'],
-               ['window', byLaw.window || 0, byLaw.window ? '' : 'off'],
-               ['fixed', byLaw.fixed || 0, byLaw.fixed ? '' : 'off'],
+      pTotals([['append', byEvolution.append || 0, byEvolution.append ? '' : 'off'],
+               ['window', byEvolution.window || 0, byEvolution.window ? '' : 'off'],
+               ['fixed', byEvolution.fixed || 0, byEvolution.fixed ? '' : 'off'],
                ['per cached position', fmtBytes(d4.totals.append_bytes_per_cached_position), 'q'],
                ['bounded', fmtBytes(d4.totals.bounded_bytes), d4.totals.bounded_bytes ? '' : 'off'],
                ['carried', (d4.totals.carried || []).length, (d4.totals.carried || []).length ? '' : 'off']]) +
-      pTable([{ label: 'identity', w: '23%' }, { label: 'law', w: '10%' }, { label: 'access', w: '17%' },
+      pTable([{ label: 'identity', w: '23%' }, { label: 'evolution', w: '10%' }, { label: 'access', w: '17%' },
               { label: 'sharing', w: '15%' }, { label: 'stream', w: '9%' },
               { label: 'instance key', w: '15%' }, { label: 'B / pos', w: '11%', right: true }], rows);
   }
@@ -2287,11 +2289,11 @@ function productBody(which) {
         `<td class="num">+${esc(fmtInt(c.value))}</td>`,
       c => ({ kind: 'd1node', id: c.node }));
     const sparsity = (d5.sparsity || []).map(x =>
-      `<tr><td class="id">${esc(x.node)}</td><td class="m">${esc(x.contract)}</td>` +
+      `<tr><td class="id">${esc(x.node)}</td><td class="m">${esc(x.primitive)}</td>` +
       `<td class="num">${esc(x.units != null ? fmtInt(x.units) : '—')}</td>` +
       `<td class="num">${esc(x.activated_fraction != null ? x.activated_fraction.toPrecision(3) : '—')}</td>` +
       `<td class="num">${esc(fmtInt(x.union_per_invocation.value))} <span style="color:var(--faint)">${esc(x.union_per_invocation.status)}</span></td></tr>`);
-    return pHead('Logical costs', 'the inventory rule of §4.1 and every declared correction — never operations executed',
+    return pHead('Derived Logical Resource Requirements and Costs', 'the inventory rule of §4.1 and every declared correction — never operations executed',
         `${fmtOps(op.element.value)} / element`) +
       pTotals([['parameters', fmtBytes(d5.parameters.bytes), 'q'],
                ['per element', fmtOps(op.element.value), 'q'],
@@ -2305,37 +2307,37 @@ function productBody(which) {
         pTable([{ label: 'node', w: '44%' }, { label: 'per', w: '22%' }, { label: 'status', w: '14%' },
                 { label: 'value', right: true }], corr) : '') +
       (sparsity.length ? `<div class="foldnote" style="margin:22px 0 0">sparsity units</div>` +
-        pTable([{ label: 'node', w: '30%' }, { label: 'contract', w: '20%' },
+        pTable([{ label: 'node', w: '30%' }, { label: 'primitive', w: '20%' },
                 { label: 'units', w: '13%', right: true },
                 { label: 'activated fraction', w: '17%', right: true },
                 { label: 'union / invocation', right: true }], sparsity) : '');
   }
 
   // d6
-  const cuts = d6.cuts.map(c =>
-    `<tr class="pick" data-select='${escAttr(JSON.stringify({ kind: 'cut', name: c.cut }))}'>` +
-    `<td class="id">${esc(c.cut)}</td><td class="m">${esc(c.kind)}</td>` +
+  const graph_splits = d6.graph_splits.map(c =>
+    `<tr class="pick" data-select='${escAttr(JSON.stringify({ kind: 'graph_split', name: c.graph_split }))}'>` +
+    `<td class="id">${esc(c.graph_split)}</td><td class="m">${esc(c.kind)}</td>` +
     `<td class="m">${fmtInt(c.sizes[0])} | ${fmtInt(c.sizes[1])}</td>` +
     `<td class="num">${esc(String(c.crossing_values))}</td></tr>`);
-  const parts = foldedRows((d6.partitions || []).map(x => ({ ...x, identity: x.node })), x => x.node,
+  const parts = foldedRows((d6.partition_options || []).map(x => ({ ...x, identity: x.node })), x => x.node,
     (x, label, n, open) =>
-      `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.contract)}</td>` +
+      `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.primitive)}</td>` +
       `<td class="m">${esc(partitionTarget(x.target))}</td><td class="m">${esc([].concat(x.communication).join(' or '))}${x.granularity > 1 ? ' · groups of ' + esc(String(x.granularity)) : ''}</td>`,
     x => ({ kind: 'd1node', id: x.node }));
   const loss = foldedRows((d6.information_loss || []).map(x => ({ ...x, identity: x.node })), x => x.node,
     (x, label, n, open) =>
       `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.slot)}</td><td class="m">${esc(x.axis)}</td>`,
     x => ({ kind: 'd1node', id: x.node }));
-  return pHead('Legal cuts & partitions', 'semantic, not a plan — the machine and the workload are a consumer’s inputs (§10.3)',
-      `${d6.cuts.length} cuts · ${(d6.partitions || []).length} partitions`) +
-    pTotals([['legal cuts', d6.cuts.length], ['partitions', (d6.partitions || []).length],
+  return pHead('Derived Graph Splits and Partition Options', 'semantic, not a plan — the machine and the workload are a consumer’s inputs (§10.3)',
+      `${d6.graph_splits.length} graph splits · ${(d6.partition_options || []).length} partition options`) +
+    pTotals([['valid graph splits', d6.graph_splits.length], ['partition options', (d6.partition_options || []).length],
              ['information loss', (d6.information_loss || []).length,
               (d6.information_loss || []).length ? 'q' : 'off']]) +
-    `<div class="foldnote" style="margin:16px 0 0">legal cuts — pick one to mark it on the diagram</div>` +
-    pTable([{ label: 'cut', w: '42%' }, { label: 'kind', w: '14%' }, { label: 'blocks', w: '22%' },
-            { label: 'crossing values', right: true }], cuts) +
-    `<div class="foldnote" style="margin:22px 0 0">partitions</div>` +
-    pTable([{ label: 'node', w: '34%' }, { label: 'contract', w: '22%' },
+    `<div class="foldnote" style="margin:16px 0 0">valid graph splits — pick one to mark it on the diagram</div>` +
+    pTable([{ label: 'graph split', w: '42%' }, { label: 'kind', w: '14%' }, { label: 'blocks', w: '22%' },
+            { label: 'crossing values', right: true }], graph_splits) +
+    `<div class="foldnote" style="margin:22px 0 0">partition options</div>` +
+    pTable([{ label: 'node', w: '34%' }, { label: 'primitive', w: '22%' },
             { label: 'target', w: '26%' }, { label: 'communication' }], parts) +
     (loss.length ? `<div class="foldnote" style="margin:22px 0 0">information loss — a flattened axis with no declared factors (O5.10)</div>` +
       pTable([{ label: 'node', w: '42%' }, { label: 'slot', w: '22%' }, { label: 'axis' }], loss) : '');
@@ -2372,9 +2374,9 @@ function select(obj) {
   renderInspector(obj);
   document.getElementById('statusbar').innerHTML = buildStatus();
   if (obj.kind === 'product') { currentProduct = obj.which; renderProducts(); switchTab('products'); }
-  else if (['d3', 'd4', 'd1node', 'cut'].includes(obj.kind)) { if (currentTab === 'raw') switchTab('products'); }
+  else if (['d3', 'd4', 'd1node', 'graph_split'].includes(obj.kind)) { if (currentTab === 'raw') switchTab('products'); }
   else switchTab('graph');
-  if (obj.kind === 'cut') markCut(obj.name);
+  if (obj.kind === 'graph_split') markGraphSplit(obj.name);
   if (obj.kind === 'composition') openComposition(obj.name);
 }
 
@@ -2386,16 +2388,16 @@ function buildStatus() {
     // The expansion is a fact now, not an estimate: D1 counted the nodes.
     const t3 = DERIVED.d3.totals, t4 = DERIVED.d4.totals, d5 = DERIVED.d5;
     parts.push(
-      `<span><b>${Object.keys(D1.nodes).length}</b> occurrences developed</span>`,
+      `<span><b>${Object.keys(D1.nodes).length}</b> instances developed</span>`,
       `<span class="derived"><b>${t3.tensors}</b> tensors</span>`,
       `<span class="derived"><b>${fmtBytes(t3.bytes)}</b> parameters</span>`,
       `<span class="derived"><b>${t4.identities}</b> states</span>`,
       `<span class="derived"><b>${fmtBytes(t4.append_bytes_per_cached_position)}</b> / position</span>`,
       `<span class="derived"><b>${fmtOps(d5.operations.element.value)}</b> / element</span>`,
-      `<span class="derived"><b>${DERIVED.d2.cuts.length}</b> legal cuts</span>`);
+      `<span class="derived"><b>${DERIVED.d2.graph_splits.length}</b> valid graph splits</span>`);
   } else {
     parts.push(
-      `<span><b>${dc.total}</b>${dc.exact ? '' : '+'} occurrences developed</span>`,
+      `<span><b>${dc.total}</b>${dc.exact ? '' : '+'} instances developed</span>`,
       `<span><b>${Object.keys(RAW.compositions).length}</b> composition(s)</span>`,
       `<span><b>${Object.keys(RAW.bindings.states).length}</b> state descriptor(s)</span>`,
       `<span><b>${Object.keys(RAW.interfaces.inputs).length + Object.keys(RAW.interfaces.outputs).length}</b> public port(s)</span>`);
@@ -2406,7 +2408,7 @@ function buildStatus() {
 
 // ---------- events ----------
 // A "data-tree-toggle" / "data-group" pair is a plain disclosure widget: it
-// is used both by the tree (occurrences / compositions / bindings groups)
+// is used both by the tree (instances / compositions / bindings groups)
 // and, in the canvas, by each composition's collapsible internal diagram —
 // there is no layout to redo on toggle any more, Graphviz already laid out
 // both diagrams once, at generation time.
@@ -2458,7 +2460,7 @@ function switchTab(name) {
   if (name === 'products') renderProducts();
 }
 
-// ---------- the second reading: mode, measure, cut, products, instance ----
+// ---------- the second reading: mode, measure, graph_split, products, instance ----
 let treeMode = 'declared';
 
 function setTreeMode(mode) {
@@ -2481,17 +2483,17 @@ function onModeClick(ev) {
   if (d && !d.classList.contains('disabled')) setTreeMode(d.dataset.mode);
 }
 
-function onCutBarClick(ev) {
-  const sel = ev.target.closest('#cutsel');
+function onGraphSplitBarClick(ev) {
+  const sel = ev.target.closest('#graphSplitSelector');
   const menu = document.getElementById('cutmenu');
   if (sel) { menu.style.display = menu.style.display === 'none' ? 'block' : 'none'; return; }
   const row = ev.target.closest('#cutmenu .r');
   if (row) {
     menu.style.display = 'none';
     document.querySelectorAll('#cutmenu .r').forEach(r => r.classList.toggle('on', r === row));
-    const name = row.dataset.cut || null;
-    markCut(name);
-    if (name) select({ kind: 'cut', name });
+    const name = row.dataset.graph_split || null;
+    markGraphSplit(name);
+    if (name) select({ kind: 'graph_split', name });
   }
 }
 
@@ -2530,7 +2532,7 @@ function onProductsClick(ev) {
 function init() {
   document.getElementById('model-name').textContent = RAW.model;
   document.getElementById('model-schema').textContent = RAW.schema;
-  document.getElementById('catalog-tag').textContent = 'catalog: ' + RAW.catalog.map(b => b.base).join(' \u00b7 ');
+  document.getElementById('primitive_library-tag').textContent = 'Primitive Library: ' + RAW.primitive_libraries.map(b => b.base).join(' \u00b7 ');
 
   // What the page found beside the model, said plainly.
   const tag = document.getElementById('derived-tag');
@@ -2542,7 +2544,7 @@ function init() {
     document.getElementById('cutbar').style.display = 'none';
     document.querySelector('#modeseg [data-mode="derived"]').classList.add('disabled');
   } else {
-    buildCutMenu();
+    buildGraphSplitMenu();
   }
 
   document.getElementById('tree').innerHTML = buildTree();
@@ -2557,7 +2559,7 @@ function init() {
   document.getElementById('tree').addEventListener('click', onTreeClick);
   document.getElementById('canvas').addEventListener('click', onCanvasClick);
   document.getElementById('modeseg').addEventListener('click', onModeClick);
-  document.getElementById('cutbar').addEventListener('click', onCutBarClick);
+  document.getElementById('cutbar').addEventListener('click', onGraphSplitBarClick);
   document.getElementById('prodpane').addEventListener('click', onProductsClick);
   document.getElementById('inspector').addEventListener('click', onInspectorClick);
   document.getElementById('inspector2').addEventListener('click', onInspectorClick);
@@ -2588,7 +2590,7 @@ def derive_note(log):
     """The emitter's own reason for there being no products, out of the line
     it printed. Its words, not this viewer's."""
     for line in log.splitlines():
-        m = re.search(r'\s(?:failed|skipped|catalog refused): (.*)$', line.rstrip())
+        m = re.search(r'\s(?:failed|skipped|primitive library refused): (.*)$', line.rstrip())
         if m:
             return m.group(1).strip()
     if 'off the derived schema' in log:
@@ -2664,9 +2666,9 @@ def run(model_paths, output=None, site_nav=None, bases=None, assignment=None,
     for path in model_paths:
         src = pathlib.Path(path)
         data = model_mod.normalise(json.loads(src.read_text(encoding='utf-8')))
-        if data.get('schema') != 'tensorspine/2.0':
+        if data.get('schema') != 'tensorspine/3.0':
             print(f"  {src.name}: warning: schema '{data.get('schema')}' "
-                  f"!= 'tensorspine/2.0' \u2014 this viewer assumes that format", file=sys.stderr)
+                  f"!= 'tensorspine/3.0' \u2014 this viewer assumes that format", file=sys.stderr)
 
         derived, note = derive_to_tempfile(path, bases, assignment, schema_dir)
 
@@ -2687,7 +2689,7 @@ def run(model_paths, output=None, site_nav=None, bases=None, assignment=None,
         if derived:
             t3, t4 = derived['d3']['totals'], derived['d4']['totals']
             facts = (f" \u00b7 {t3['tensors']} tensors, {t4['identities']} states, "
-                     f"{len(derived['d2']['cuts'])} cuts")
+                     f"{len(derived['d2']['graph_splits'])} graph_splits")
         else:
             facts = f" \u00b7 no products: {note}"
         print(f"  {src.name:34s} -> {out} ({len(page)} bytes){facts}")

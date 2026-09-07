@@ -1,4 +1,4 @@
-"""residual.stream_expand@1.0.0 — one `width` vector becomes `streams` of them: the input itself,
+"""residual.stream_expand@2.0.0 — one `width` vector becomes `streams` of them: the input itself,
 then `streams - 1` projections of it, each rescaled to the input's root-mean-square magnitude
 (the projected mean square floored at 1e-5 before the root), as Gemma 3n's AltUp does.
 
@@ -9,7 +9,7 @@ then `streams - 1` projections of it, each rescaled to the input's root-mean-squ
 import torch
 from kernels._common import refuse_unknown, supports_from, w
 
-CONTRACT = ("residual.stream_expand", "1.0.0")
+PRIMITIVE = ("residual.stream_expand", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "streams": "any"}, "states": []}

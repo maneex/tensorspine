@@ -13,7 +13,7 @@ def refuse_unknown(arguments, known, reasons):
 
 
 # `physical`: the opaque parameters the serving application passes to a primitive beside its
-# contract arguments (generators/CAPABILITIES.md) — a dict, or None; a kernel reads what it knows
+# primitive arguments (generators/CAPABILITIES.md) — a dict, or None; a kernel reads what it knows
 # and ignores the rest. The targeted backend is one optional key, `backend`.
 
 

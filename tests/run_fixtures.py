@@ -9,7 +9,7 @@ tensor keys are on the grammar of its kind. Nothing is loaded but the headers.
      `in/<input>` names a public input of the document other than the token input, the
      `inputs` provenance has one entry per such key and no other, and an entry that names a
      file names the recording's origin and licence too;
-  3. unit: the embedded document is on the model schema and pins the fixture's contract
+  3. unit: the embedded document is on the model schema and pins the fixture's primitive
      with its arguments; every key is a `param/`, `in/`, `out/`, `positions/` or `state/` key,
      one `in/` per public input and one `out/` per public output for every invocation.
 
@@ -106,9 +106,9 @@ def main(paths=None):
             errors = schema_mod.deepest(schema_mod.check(model_schema, os.path.join(tmp, 'document.json'), reg))
             ok &= check(f"{name}: the embedded document is on the model schema", not errors,
                         errors and schema_mod.format_error(errors[0]))
-            occurrences = document.get('occurrences', {})
-            ok &= check(f"{name}: one occurrence, pinning {meta['contract']['name']}@{meta['contract']['version']}",
-                        len(occurrences) == 1 and next(iter(occurrences.values()))['contract'] == meta['contract'])
+            instances = document.get('instances', {})
+            ok &= check(f"{name}: one instance, pinning {meta['primitive']['name']}@{meta['primitive']['version']}",
+                        len(instances) == 1 and next(iter(instances.values()))['primitive'] == meta['primitive'])
             inputs, outputs = document['interfaces']['inputs'], document['interfaces']['outputs']
             wanted = set()
             for k, delivered in enumerate(meta['invocations']):
@@ -119,8 +119,8 @@ def main(paths=None):
             located = document['bindings']['parameters']
             ok &= check(f"{name}: every parameter identity is located at its own param/ key",
                         all(b.get('location', {}).get('tensor') == [f"param/{b['tensor']['name']}"] for b in located.values()))
-            ok &= check(f"{name}: id {meta['id']} names the contract and the file",
-                        meta['id'].startswith(f"{meta['contract']['name']}@{meta['contract']['version']}/")
+            ok &= check(f"{name}: id {meta['id']} names the primitive and the file",
+                        meta['id'].startswith(f"{meta['primitive']['name']}@{meta['primitive']['version']}/")
                         and os.path.basename(path) == meta['id'].rsplit('/', 1)[1] + '.safetensors')
     print("fixtures: all good" if ok else "fixtures: FAILED")
     return 0 if ok else 1

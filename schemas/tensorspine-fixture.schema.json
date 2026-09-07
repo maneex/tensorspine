@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/2.0/fixture.json",
+  "$id": "https://tensorspine.dev/schema/3.0/fixture.json",
   "title": "TensorSpine fixture",
-  "description": "The metadata of a fixture: a safetensors file whose `__metadata__` is this document, JSON-encoded value by value, and whose tensors are named by the key grammar of its kind. A **unit** fixture is produced by a contract version's witness (Specification §4.1, O1.3) on random parameters and inputs — the one-occurrence document it ran, its parameters, the inputs, states and outputs of each invocation — and is what a conformer of that contract version is checked against, at the tolerance stated for its compute dtype. An **integration** fixture is dumped from the delivery implementation of a whole model at the legal cuts of its document: the values crossing every layer cut, every state after the prefill, the logits and the greedy tokens. One format, read by every generator's harness: a fixture recorded once is run by all of them.",
+  "description": "The metadata of a fixture: a safetensors file whose `__metadata__` is this document, JSON-encoded value by value, and whose tensors are named by the key grammar of its kind. A **unit** fixture is produced by a primitive version's witness (Specification §4.1, O1.3) on random parameters and inputs — the one-instance document it ran, its parameters, the inputs, states and outputs of each invocation — and is what a conformer of that primitive version is checked against, at the tolerance stated for its compute dtype. An **integration** fixture is dumped from the delivery implementation of a whole model at the valid graph splits of its document: the values crossing every layer graph split, every state after the prefill, the logits and the greedy tokens. One format, read by every generator's harness: a fixture recorded once is run by all of them.",
   "type": "object",
   "required": [
     "schema",
@@ -12,7 +12,7 @@
   ],
   "properties": {
     "schema": {
-      "const": "tensorspine-fixture/1"
+      "const": "tensorspine-fixture/2"
     },
     "kind": {
       "enum": [
@@ -111,7 +111,7 @@
         "schema",
         "kind",
         "id",
-        "contract",
+        "primitive",
         "arguments",
         "document",
         "invocations",
@@ -130,19 +130,19 @@
           "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*@[0-9]+\\.[0-9]+\\.[0-9]+/[a-z0-9][a-z0-9-]*$",
           "description": "`<name>@<version>/<case>`: the fixture's identity, as the witness's manifest lists it."
         },
-        "contract": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/contract_reference"
+        "primitive": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/primitive_reference"
         },
         "arguments": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/argument_value"
+            "$ref": "https://tensorspine.dev/schema/3.0/derived.json#/$defs/argument_value"
           },
-          "description": "The occurrence's resolved arguments, declared defaults applied — D1's, for the one occurrence of `document`."
+          "description": "The instance's resolved arguments, declared defaults applied — D1's, for the one instance of `document`."
         },
         "document": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json",
-          "description": "The one-occurrence model document the witness ran: the occurrence under its arguments, one public input per input port, one public output per output port, every slot bound. Its catalog base is relative to the fixture's own directory; a harness writes the document beside the fixture, or rewrites the base, and derives it with the language's tools."
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json",
+          "description": "The one-instance model definition the witness ran: the instance under its arguments, one public input per input port, one public output per output port, every slot bound. Its primitive library base is relative to the fixture's own directory; a harness writes the document beside the fixture, or rewrites the base, and derives it with the language's tools."
         },
         "invocations": {
           "type": "array",
@@ -346,7 +346,7 @@
           "description": "How the delivery implementation's names were mapped onto D1 values and D4 states: data, the only place they meet."
         }
       },
-      "description": "Tensor keys: `in/<input>` for every public input the prefill delivered other than the token input `ids` names — element-major, one row per element, the input value's D2 shape per row (`[3000, 128]` for Whisper's `audio`); `value/<D1 value>` for the output of every layer (the values crossing D6's layer cuts) and every exposed output; `state/<D4 identity>/<component>` for every state after the prefill; `logits/last` and `logits/argmax` for a generative document."
+      "description": "Tensor keys: `in/<input>` for every public input the prefill delivered other than the token input `ids` names — element-major, one row per element, the input value's D2 shape per row (`[3000, 128]` for Whisper's `audio`); `value/<D1 value>` for the output of every layer (the values crossing D6's layer graph splits) and every exposed output; `state/<D4 identity>/<component>` for every state after the prefill; `logits/last` and `logits/argmax` for a generative document."
     }
   }
 }

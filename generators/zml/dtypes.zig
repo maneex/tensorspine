@@ -1,4 +1,4 @@
-//! The catalog's dtype names as ZML's.
+//! The primitive_library's dtype names as ZML's.
 //!
 //! The two vocabularies agree everywhere but one name, so this is a lookup with a
 //! single exception rather than a table — and an unknown name is refused, never

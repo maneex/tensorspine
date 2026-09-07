@@ -2,7 +2,7 @@
 
 There are two evaluators here, and they do not read the same thing:
 
-  * `contract_value` / `contract_condition` evaluate a CONTRACT expression
+  * `primitive_value` / `primitive_condition` evaluate a PRIMITIVE expression
     against resolved arguments. Declared defaults, `present_when` guards and
     shape extents are written in that language.
   * `model_value` / `model_condition` evaluate a MODEL expression against the
@@ -61,10 +61,10 @@ def _apply_raw(op, a):
     return UNRESOLVED
 
 
-# --- contract side: expressions over resolved arguments -------------------
+# --- primitive side: expressions over resolved arguments -------------------
 
-def contract_value(e, args):
-    """Value of a contract expression against resolved arguments."""
+def primitive_value(e, args):
+    """Value of a primitive expression against resolved arguments."""
     if 'literal' in e: return e['literal']
     if 'argument' in e:
         cur = args
@@ -73,21 +73,21 @@ def contract_value(e, args):
             cur = cur[part]
         return cur
     if 'op' in e:
-        a = [contract_value(x, args) for x in e['args']]
+        a = [primitive_value(x, args) for x in e['args']]
         if any(v is None or v is UNRESOLVED for v in a): return UNRESOLVED
         return _apply(e['op'], a)
     if 'if' in e:
-        return contract_value(e['then'] if contract_condition(e['if'], args) else e['else'], args)
+        return primitive_value(e['then'] if primitive_condition(e['if'], args) else e['else'], args)
     return UNRESOLVED
 
 
-def contract_condition(c, args):
-    """Truth of a contract condition. An undecidable comparison is false, not
+def primitive_condition(c, args):
+    """Truth of a primitive condition. An undecidable comparison is false, not
     an exception: the guard it protects simply does not fire."""
     if 'boolean' in c: return c['boolean']
-    if 'not' in c: return not contract_condition(c['not'], args)
-    if 'all' in c: return all(contract_condition(x, args) for x in c['all'])
-    if 'any' in c: return any(contract_condition(x, args) for x in c['any'])
+    if 'not' in c: return not primitive_condition(c['not'], args)
+    if 'all' in c: return all(primitive_condition(x, args) for x in c['all'])
+    if 'any' in c: return any(primitive_condition(x, args) for x in c['any'])
     if 'present' in c:
         cur = args
         for part in c['present'].split('.'):
@@ -95,8 +95,8 @@ def contract_condition(c, args):
             cur = cur[part]
         return True
     cp = c['compare']
-    l = contract_value(cp['left'], args)
-    r = contract_value(cp['right'], args)
+    l = primitive_value(cp['left'], args)
+    r = primitive_value(cp['right'], args)
     if l is UNRESOLVED or r is UNRESOLVED or l is None or r is None: return False
     return _COMPARISONS[cp['operator']](l, r)
 
@@ -118,10 +118,10 @@ def _argument_refs(e):
 
 
 def argument_references(c):
-    """The argument paths a contract condition reads: those of every `compare` (through the
+    """The argument paths a primitive condition reads: those of every `compare` (through the
     expressions compared, the tests of their conditionals included) and of every `present`
     test, through `not`, `all` and `any`. What `condition_references` is for the model side.
-    A derived fact evaluated from a condition needs it: `contract_condition` answers false to
+    A derived fact evaluated from a condition needs it: `primitive_condition` answers false to
     what it cannot decide, which is right for a guard and wrong for a fact, so the emitter
     refuses when any path listed here is unresolved."""
     out = set()
@@ -240,7 +240,7 @@ def model_condition(c, quantities, env=None):
 
 
 def static_argument(v, quantities, env=None):
-    """Static value of an occurrence argument: a literal, a resolved quantity,
+    """Static value of an instance argument: a literal, a resolved quantity,
     or a record of those."""
     if isinstance(v, dict) and 'record' in v:
         return {k: static_argument(x, quantities, env) for k, x in v['record'].items()}

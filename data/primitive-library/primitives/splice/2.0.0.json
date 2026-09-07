@@ -1,0 +1,134 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "primitive",
+  "name": "splice",
+  "definition": {
+    "version": "2.0.0",
+    "summary": "Inserts an already-projected stream into the token sequence.",
+    "description": "Both inputs are in the token domain at `width`: `text` is the embedded token sequence, `source` a stream already projected to `width` (image patches, audio frames). The output is the token sequence with the stream spliced in at its placeholder positions. No parameter, no state.",
+    "tags": [
+      "multimodal"
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of the token stream.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "text": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Embedded token sequence."
+        },
+        "source": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Projected stream to insert."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Token sequence with the stream inserted."
+        }
+      }
+    },
+    "parameters": {},
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "source",
+        "text"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partition_options": [
+      {
+        "target": {
+          "any_axis": true
+        },
+        "communication": "none",
+        "description": "Elementwise placement: any axis, no communication."
+      }
+    ],
+    "domain_transforms": [
+      {
+        "from_port": "source",
+        "to_port": "output",
+        "relation": "insert",
+        "description": "The elements arriving on `source` are inserted into the token stream of `text`, which the output keeps."
+      }
+    ],
+    "note": "Insertion of an already projected stream into the token sequence."
+  }
+}

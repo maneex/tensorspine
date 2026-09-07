@@ -1,13 +1,13 @@
-//! embedding.token_position_type@1.0.0 — BERT's embedding.
+//! embedding.token_position_type@2.0.0 — BERT's embedding.
 //!
 //! The token's row of `weight`, the position's row of `position` and the segment type's
 //! row of `token_type`, summed, then a LayerNorm.
 //!
-//! The segment type is **0 for every token**, as the contract states for this version —
-//! so no second input is needed, which is the question this contract looked like it would
+//! The segment type is **0 for every token**, as the primitive states for this version —
+//! so no second input is needed, which is the question this primitive looked like it would
 //! raise and does not.
 //!
-//! A position at or beyond `positions` has no row. The contract says so; here the table's
+//! A position at or beyond `positions` has no row. The primitive says so; here the table's
 //! own extent says it, and a gather past it is the runtime's business rather than a check
 //! this primitive can make on a traced index.
 
@@ -17,14 +17,14 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "embedding.token_position_type",
-    .version = "1.0.0",
+    .version = "2.0.0",
     .run = run,
     .needs_positions = true,
     .capabilities =
     \\{"arguments": {"width": "any", "vocabulary": "any", "positions": "any",
     \\               "token_types": "any", "eps": "any"},
     \\ "states": [],
-    \\ "notes": ["the segment type is 0 for every token, as the contract states for this version"]}
+    \\ "notes": ["the segment type is 0 for every token, as the primitive states for this version"]}
     ,
 };
 

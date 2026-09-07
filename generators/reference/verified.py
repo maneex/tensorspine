@@ -1,10 +1,10 @@
 """What the reference generator has been verified on: the committed integration fixtures (a
-truncated model against a `transformers` dump at every legal cut and state, on the language's
+truncated model against a `transformers` dump at every valid graph_split and state, on the language's
 fixture schema — docs/TENSORSPINE-FIXTURE.md) and the full-model greedy tokens. Read by the test.
 The fixture's own metadata names its document, its artifact and its tolerance; the table below
 lists the fixtures and what the test checks that metadata against."""
 
-FIXTURES = [   # (fixture, model document, artifact directory under $TENSORSPINE_MODEL_ARTIFACTS/weights[, (atol, rtol) the fixture states for fp32 when not the default])
+FIXTURES = [   # (fixture, model definition, artifact directory under $TENSORSPINE_MODEL_ARTIFACTS/weights[, (atol, rtol) the fixture states for fp32 when not the default])
     ('llama3-8b.3layers.hf.safetensors', 'llama3-8b', 'Meta-Llama-3-8B'),
     ('qwen3.5-4b-text.4layers.hf.safetensors', 'qwen3.5-4b-text', 'Qwen3.5-4B'),
     ('qwen3.8-27b-text.4layers.hf.safetensors', 'qwen3.8-27b-text', 'Qwen3.8-27B'),
@@ -18,7 +18,7 @@ FIXTURES = [   # (fixture, model document, artifact directory under $TENSORSPINE
     ('gemma3n-kvshare.21layers.hf.safetensors', 'gemma3n-kvshare', 'gemma-3n-E2B', (20.0, 0.02)),   # transformers in bf16 (the per-layer table alone is 2 B parameters): layer 20 reads the ring layer 18 writes, layer 19's cache alone;
                                                                                                     # the four residual streams reach 10³ in magnitude, and bf16 drift over 21 layers measured max |d| 19.4 (2% of the rms), the logits within 0.43 — hence the absolute tolerance; tokens equal
 ]
-FULL = [   # (model document, checkpoint directory, prompt ids, the greedy tokens transformers 5.14 produced in bf16, 29 Aug 2026[, the fixture whose in/ tensors are delivered with the prompt, or the sample the artifact's processor turns into a streaming delivery])
+FULL = [   # (model definition, checkpoint directory, prompt ids, the greedy tokens transformers 5.14 produced in bf16, 29 Aug 2026[, the fixture whose in/ tensors are delivered with the prompt, or the sample the artifact's processor turns into a streaming delivery])
     ('llama3-8b', 'Meta-Llama-3-8B', [128000, 791, 6864, 315, 9822, 374],        # "<|begin_of_text|>The capital of France is"
      [12366, 13, 1102, 374, 7559, 304, 279, 10411]),                              # " Paris. It is located in the north"
     ('qwen3.5-4b-text', 'Qwen3.5-4B', [760, 6511, 314, 9338, 369],                # "The capital of France is"

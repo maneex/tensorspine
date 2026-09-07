@@ -1,0 +1,15 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "attention.sink",
+  "definition": {
+    "summary": "Per-head attention sink logits.",
+    "admissible": [
+      "f32",
+      "bf16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision",
+    "note": "one scalar per head; its sensitivity is numerical, not storage"
+  }
+}

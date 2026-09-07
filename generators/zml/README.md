@@ -1,18 +1,20 @@
 # The ZML generator
 
 The ZML generator is a language-review instrument and a conformer: its primitive implementations
-are checked against the contract reference implementations. It traces a derived graph into MLIR through
+are checked against the primitive reference implementations. It traces a derived graph into MLIR through
 [ZML](https://github.com/zml/zml) and compiles it with XLA. It consumes a **derived document**
-(D1–D6) and a model artifact, and nothing else—no model document, catalog or Python. Deriving here
+(D1–D6) and a model artifact, and nothing else—no model definition, primitive library or Python. Deriving here
 would be a second implementation of the language.
 
-The numerical suite uses the shared fixtures, D6 cuts and dumped states. The generated
+The numerical suite uses the shared fixtures, D6 graph splits and dumped states. The generated
 [status page](https://maneex.github.io/tensorspine/status/) reports current manifest admission,
 fixture tolerances and recorded token sequences without copying them into this README.
 
 ## Running a model
 
 Three steps; the first two happen once.
+
+<a id="1-build"></a>
 
 ### 1. Build
 
@@ -32,6 +34,8 @@ cd "$ZML_HOME" && ./bazel.sh build \
 
 The binary lands at `$ZML_HOME/bazel-bin/external/+local_repository+tensorspine/tspl`.
 
+<a id="2-derive-the-document"></a>
+
 ### 2. Derive the document
 
 Offline, once per model, through the language's own tool — the generator never derives:
@@ -42,6 +46,8 @@ mkdir -p "$TENSORSPINE_MODEL_ARTIFACTS/derived"
 
 tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_MODEL_ARTIFACTS/derived"
 ```
+
+<a id="3-run"></a>
 
 ### 3. Run
 
@@ -103,7 +109,7 @@ would compile a few prefill widths and pad to them.
 ### Other things `tspl` does
 
 ```sh
-# which contracts this generator has no primitive for, per document
+# which primitives this generator has no primitive for, per document
 tspl --derived=DOC --refusals
 
 # evaluate one D2 value and write its bytes: the ancestor closure only, loading only the
@@ -168,7 +174,7 @@ It builds the target, derives the corpus and checks the following evidence:
 |---|---|
 | Derived-document reader | Values read by `tspl` equal the output of `tools/derive.py` |
 | Primitive computation | Outputs and states agree with witness-produced unit fixtures |
-| Whole-model wiring | Legal-cut values, states and exposed outputs agree with integration fixtures |
+| Whole-model wiring | Valid-graph split values, states and exposed outputs agree with integration fixtures |
 | Generative behavior | Greedy tokens agree with the fixture when the document is generative |
 | Capability declaration | The regenerated manifest matches the committed one and admits the tested document through TensorSpine's reader |
 
@@ -240,23 +246,23 @@ toolchain selects Zig and Bazel; the harness is the compatibility check.
 | `chat.zig` | a conversation: tokenizer, turns, stopping |
 | `session.zig` | the compiled arities, and one invocation through them |
 | `graph.zig` | the derived document as Zig data |
-| `plan.zig` | what to evaluate, in what order, cut into programs |
+| `plan.zig` | what to evaluate, in what order, graph split into programs |
 | `loader.zig` | parameters, from D3's locations |
-| `state.zig` | D4's laws, once; and the layout the serving application chose |
+| `state.zig` | D4's evolutions, once; and the layout the serving application chose |
 | `emit.zig` | the plan walked once, emitting MLIR |
-| `primitive.zig`, `registry.zig`, `primitives/` | one file per contract version |
+| `primitive.zig`, `registry.zig`, `primitives/` | one file per primitive version |
 | `primitive-abi.schema.json`, `PRIMITIVE-ABI.md` | the boundary a primitive that is *not* linked in would arrive through: JSON request, MLIR response. Specified; nothing is built behind it. |
 
 ## Reading
 
 - `generators/CAPABILITIES.md` — what a generator's manifest states, and the rules its arguments follow
 - `docs/TENSORSPINE-DERIVED_JSON.md` — the document this generator consumes
-- `generators/reference/` — the contract witnesses and integration reference
+- `generators/reference/` — the primitive witnesses and integration reference
 
 ## Batching
 
 The language describes one session's invocation and leaves batching downstream (harness guide
-§8; the batch size is a load variable, out of the model document, Specification §2.1; every state
+§8; the batch size is a load variable, out of the model definition, Specification §2.1; every state
 port is keyed by session through its instance key, §4.4). Like the element count, the batch is an
 argument of the generator: `--batch=aligned` runs the sessions `--ids` names (`a,b,c;d,e,f`,
 separated by `;`, all of one length) in one invocation — a compiled program has static shapes, so
@@ -265,11 +271,11 @@ walk carries is `[sessions, elements, …]`; every state buffer `[members, sessi
 session axis inside the member axis so a dump per D4 identity stays contiguous; `start` is one
 position per session, and the positions follow. The emitter makes the split the reference
 generator's runner makes on its packed layout, read from the derived document (harness guide
-§8): an occurrence that reads across positions of its stream (D1's `across_positions`, the
-contract's condition on the occurrence's arguments; a document without the field is refused),
+§8): an instance that reads across positions of its stream (D1's `across_positions`, the
+primitive's condition on the instance's arguments; a document without the field is refused),
 holds a state or reads values of several streams is evaluated once per session — one composite
 per session, on its slice, its positions and its view of the state buffers, which flow from one
-session's composite to the next — and every other occurrence once, on every session's elements
+session's composite to the next — and every other instance once, on every session's elements
 merged into one element axis, its positions merged the same way when its primitive takes them
 (ColBERT's position embedding), its outputs split back. The primitives see rank-2 values either
 way and know nothing of the batch; a batch of one is today's graph with an axis of one in front,

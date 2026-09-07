@@ -1,4 +1,4 @@
-"""residual.altup_correct@1.0.0 — AltUp's correction: the layer's output on the active stream is
+"""residual.altup_correct@2.0.0 — AltUp's correction: the layer's output on the active stream is
 routed as the input was (`router` after `router_norm`, `altup_predict`'s, tied); `correction` maps
 the modalities to one coefficient per stream, plus one; the innovation `activated − predicted
 active` times each stream's coefficient is added to the predictions. `active` is the corrected
@@ -12,7 +12,7 @@ import torch
 from kernels._common import refuse_unknown, supports_from, w
 from kernels.residual_altup_predict import modalities
 
-CONTRACT = ("residual.altup_correct", "1.0.0")
+PRIMITIVE = ("residual.altup_correct", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "streams": "any", "eps": "any"}, "states": []}

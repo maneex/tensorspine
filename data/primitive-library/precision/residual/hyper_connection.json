@@ -1,0 +1,14 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "residual.hyper_connection",
+  "definition": {
+    "summary": "Mixing coefficients of hyper-connections.",
+    "admissible": [
+      "f32",
+      "bf16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision"
+  }
+}

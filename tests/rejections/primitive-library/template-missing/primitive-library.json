@@ -1,0 +1,10 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "base",
+  "name": "tensorspine.rejection",
+  "definition": {
+    "primitive_library": "tensorspine/rejection",
+    "templates": "../../../../data/models/",
+    "title": "Rejection fixture base"
+  }
+}

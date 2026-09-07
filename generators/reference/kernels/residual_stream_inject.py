@@ -1,4 +1,4 @@
-"""residual.stream_inject@1.0.0 — adds `active` to every stream but the active one (index 0),
+"""residual.stream_inject@2.0.0 — adds `active` to every stream but the active one (index 0),
 which passes through unchanged.
 
 | branch / record | status      |
@@ -7,7 +7,7 @@ which passes through unchanged.
 """
 from kernels._common import refuse_unknown, supports_from
 
-CONTRACT = ("residual.stream_inject", "1.0.0")
+PRIMITIVE = ("residual.stream_inject", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "streams": "any"}, "states": []}

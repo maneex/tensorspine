@@ -1,7 +1,7 @@
 {
  "nodes": 387,
  "edges": 514,
- "per_contract": {
+ "per_primitive": {
   "attention.dense": 16,
   "embed": 1,
   "ffn.gated": 64,

@@ -14,11 +14,11 @@
                                                              the artifact's processor builds the prompt and the delay, the prompt takes
                                                              its tokens' frames, every step a token's, and the end of the audio ends the run
     ref.py chat    MODEL --checkpoint DIR [--max-new-tokens N] [--temperature T --top-p P --seed N]
-    ref.py compare OURS FIXTURE [--atol A --rtol R]          a dump against a fixture, at every cut and state
-    ref.py witness NAME@VERSION|all [--record]               the unit fixtures of a contract version: regenerated and compared, or written
+    ref.py compare OURS FIXTURE [--atol A --rtol R]          a dump against a fixture, at every graph_split and state
+    ref.py witness NAME@VERSION|all [--record]               the unit fixtures of a primitive version: regenerated and compared, or written
 
 Common options: --device cpu|cuda[:i], --compute f32|bf16, --capacity N|STREAM=N,… (positions per append state,
-for every stream or per stream: tokens=64,audio=1500), --truncate decoder.layer=N, --set path=value. MODEL is a model document (derived here) or a derived document. In a chat, an
+for every stream or per stream: tokens=64,audio=1500), --truncate decoder.layer=N, --set path=value. MODEL is a model definition (derived here) or a derived document. In a chat, an
 empty line quits; the session persists across turns. See generators/reference/README.md.
 """
 import argparse
@@ -77,7 +77,7 @@ def audio_frames(path, checkpoint, g, device, dtype):
     the frames the document's audio input takes (the public input whose value has the role
     `activation.audio_frames`), element-major — the delivery's preprocessing, taken from the
     artifact as the tokenizer is, the model class never instantiated. The extractor's window
-    bounds the signal: what lies beyond it is cut, and silence pads a shorter one."""
+    bounds the signal: what lies beyond it is graph_split, and silence pads a shorter one."""
     import wave
     import numpy as np
     from transformers import AutoFeatureExtractor
@@ -92,8 +92,8 @@ def audio_frames(path, checkpoint, g, device, dtype):
         pcm = np.frombuffer(wav.readframes(n), dtype='<i2').astype(np.float32) / 32768.0
     x = extractor(pcm, sampling_rate=rate, return_tensors='pt').input_features[0].T.contiguous()
     window = getattr(extractor, 'n_samples', None)
-    cut = f"; cut to the extractor's {window // rate} s window" if window and n > window else ''
-    print(f"  audio: {os.path.basename(path)}, {n / rate:.1f} s -> {x.shape[0]} frames of {x.shape[1]} on input {name} ({type(extractor).__name__}{cut})")
+    graph_split = f"; graph_split to the extractor's {window // rate} s window" if window and n > window else ''
+    print(f"  audio: {os.path.basename(path)}, {n / rate:.1f} s -> {x.shape[0]} frames of {x.shape[1]} on input {name} ({type(extractor).__name__}{graph_split})")
     return {name: x.to(device, dtype)}
 
 
@@ -151,13 +151,13 @@ def common(p):
     p.add_argument('--device', default='cpu')
     p.add_argument('--compute', default=None, help='f32 (CPU default) | bf16 (CUDA default)')
     p.add_argument('--physical', metavar='FILE', help='opaque parameters for the primitives (generators/CAPABILITIES.md): '
-                   'a JSON object keyed by occurrence, by site pattern with * as the wildcard (decoder/attn[layer=*]) or by contract version')
+                   'a JSON object keyed by instance, by site pattern with * as the wildcard (decoder/attn[layer=*]) or by primitive version')
     p.add_argument('--batch', default='none', choices=['none', 'packed'],
                    help="the layout several sessions share an invocation in: none (one session, default); packed — the sessions' "
-                        "elements concatenated on the element axis, an occurrence reading across positions or holding a state "
+                        "elements concatenated on the element axis, an instance reading across positions or holding a state "
                         "evaluated per session, the others once for all (generators/reference/README.md, Batching)")
     p.add_argument('--max-ram', type=float, default=None, metavar='GIB',
-                   help='run in blocks of layers at legal cuts so that the parameters held at once, the '
+                   help='run in blocks of layers at valid graph_splits so that the parameters held at once, the '
                         'payload crossing into a block, the states and the largest temporary stay under this bound')
 
 
@@ -206,7 +206,7 @@ def make_plan(g, kernels, args, dtype):
 
 def delivery(g, extra=()):
     """The inputs a first invocation delivers: the token input and whatever `--input` names, so
-    that refusals are computed over the occurrences that delivery evaluates (§7)."""
+    that refusals are computed over the instances that delivery evaluates (§7)."""
     return ({g.feedback_input} if g.feedback_input else set(g.interfaces['inputs'])) | set(extra)
 
 
@@ -317,7 +317,7 @@ def cmd_chat(args):
 
 def manifest():
     """The reference generator's capabilities, from its code (generators/CAPABILITIES.md): the
-    witness manifest, each entry binding the contract version to its kernel, the tolerances the
+    witness manifest, each entry binding the primitive version to its kernel, the tolerances the
     kernel declares and the unit fixtures its cases name (docs/TENSORSPINE-FIXTURE.md)."""
     import datetime
     import subprocess
@@ -329,7 +329,7 @@ def manifest():
         version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=HERE, text=True).strip()
     except Exception:  # noqa: BLE001
         version = 'unknown'
-    contracts = {}
+    primitives = {}
     for (name, ver), k in sorted(kernels.items()):
         cap = dict(k.CAPABILITIES)
         entry = {'arguments': cap['arguments'], 'states': list(cap.get('states', []))}
@@ -339,21 +339,21 @@ def manifest():
         entry['witness'] = {'kernel': os.path.relpath(k.__file__, HERE),
                             'tolerance': {d: dict(t) for d, t in k.TOLERANCE.items()},
                             'fixtures': [f"{name}@{ver}/{case['case']}" for case in getattr(k, 'FIXTURES', [])]}
-        contracts[f"{name}@{ver}"] = entry
-    return {'schema': 'tensorspine-capabilities/1',
+        primitives[f"{name}@{ver}"] = entry
+    return {'schema': 'tensorspine-capabilities/2',
             'role': 'witness',
             'generator': {'name': 'reference', 'version': version, 'generator': 'generators/reference/ref.py capabilities',
                           'generated': datetime.date.today().isoformat()},
             'compute_dtypes': ['f32', 'bf16'],
             'parameter_dtypes': sorted(DTYPES),
-            'state_laws': list(state_mod.LAWS), 'access': list(state_mod.ACCESS),
-            'sharing': list(session_mod.SHARING), 'partitions': [],
+            'state_evolutions': list(state_mod.EVOLUTIONS), 'access': list(state_mod.ACCESS),
+            'sharing': list(session_mod.SHARING), 'partition_options': [],
             'domains': {'kinds': ['sequence', 'token', 'position', 'patch'],
                         'transforms': sorted({t for k in kernels.values() for t in k.CAPABILITIES.get('transforms', [])}),
                         'fragmented': True},
             'sessions_per_invocation': session_mod.SESSIONS_PER_INVOCATION,     # the packed layout (B03); what Batch enforces
             'locations': list(loader.FORMS),
-            'contracts': contracts}
+            'primitives': primitives}
 
 
 def cmd_capabilities(args):
@@ -361,7 +361,7 @@ def cmd_capabilities(args):
     with open(args.out, 'w', encoding='utf-8') as f:
         json.dump(m, f, indent=2)
         f.write('\n')
-    print(f"{len(m['contracts'])} contracts -> {args.out}")
+    print(f"{len(m['primitives'])} primitives -> {args.out}")
     if args.check:
         import capabilities
         return capabilities.run(args.out, [])
@@ -370,7 +370,7 @@ def cmd_capabilities(args):
 
 def cmd_witness(args):
     import witness
-    return witness.main(args.contract, args.record, args.strict_provenance)
+    return witness.main(args.primitive, args.record, args.strict_provenance)
 
 
 def cmd_verify(args):
@@ -468,7 +468,7 @@ def cmd_run(args):
                 dump[f"value/{o['node']}.{o['port']}"] = out[oname].detach().to('cpu', torch.float32).clone()
             write_dump(args.dump, dump, {'model': g.model, 'ids': ids, 'tokens': [], 'capacity': args.capacity,
                                          'compute': str(dtype), 'random_seed': args.seed if args.random else None,
-                                         'cuts': [c['cut'] for c in g.layer_cuts()]})
+                                         'graph_splits': [c['graph_split'] for c in g.layer_graph_splits()]})
             print(f"  dumped {len(dump)} tensors -> {args.dump}")
         return 0
     out = session.prefill(ids, dump, inputs=extra)
@@ -477,7 +477,7 @@ def cmd_run(args):
     print(f"  prefill {len(ids)} elements -> next {nxt} ({time.time() - t0:.1f}s)")
     if dump is not None:                          # the states as prefill left them (R07): a window's valid tail
         for ident, st in session.states.items():
-            bufs, length = st.tail() if st.law == 'window' else st.read()
+            bufs, length = st.tail() if st.evolution == 'window' else st.read()
             for c, buf in bufs.items():
                 dump[f"state/{ident}/{c}"] = (buf[:length] if length is not None else buf).detach().to('cpu', torch.float32).clone()
     tokenizer = artifact_tokenizer(args.checkpoint) if args.checkpoint else None
@@ -511,7 +511,7 @@ def cmd_run(args):
         dump['logits/argmax'] = first_logits.argmax(-1).detach().cpu().clone()
         write_dump(args.dump, dump, {'model': g.model, 'ids': ids, 'tokens': tokens, 'capacity': args.capacity,
                                      'compute': str(dtype), 'random_seed': args.seed if args.random else None,
-                                     'cuts': [c['cut'] for c in g.layer_cuts()]})
+                                     'graph_splits': [c['graph_split'] for c in g.layer_graph_splits()]})
         print(f"  dumped {len(dump)} tensors -> {args.dump}")
     return 0
 
@@ -521,7 +521,7 @@ def run_batch(args, g, model, prompts, dtype):
     together — their lengths may differ — then decoded together, greedily, for --steps; an encoder
     runs its one invocation for all. Each session's tokens are printed on its own line."""
     per = sum(model.per_session.values())
-    print(f"  batch: {len(prompts)} sessions, {args.batch} layout — {per} occurrences evaluated per session, "
+    print(f"  batch: {len(prompts)} sessions, {args.batch} layout — {per} instances evaluated per session, "
           f"{len(model.per_session) - per} on the sessions' elements together")
     sessions = [Session(model, args.capacity, args.device, dtype) for _ in prompts]
     batch = Batch(sessions)
@@ -562,11 +562,11 @@ def main(argv=None):
     p.set_defaults(fn=cmd_compare)
     p = sub.add_parser('capabilities')
     p.add_argument('--out', default=os.path.join(HERE, 'capabilities.json'))
-    p.add_argument('--check', action='store_true', help='also validate the manifest against its schema and the catalog')
+    p.add_argument('--check', action='store_true', help='also validate the manifest against its schema and the primitive_library')
     p.set_defaults(fn=cmd_capabilities)
     p = sub.add_parser('witness')
-    p.add_argument('contract', help='NAME@VERSION, NAME@VERSION/CASE, or all')
-    p.add_argument('--record', action='store_true', help='write the fixtures under fixtures/contracts/ (else regenerate and compare)')
+    p.add_argument('primitive', help='NAME@VERSION, NAME@VERSION/CASE, or all')
+    p.add_argument('--record', action='store_true', help='write the fixtures under fixtures/primitives/ (else regenerate and compare)')
     p.add_argument('--strict-provenance', action='store_true',
                    help='fail a fixture whose parameters or inputs do not regenerate exactly from its seed; without it the drift is '
                         'printed and the verdict is conformance against the stored tensors')
@@ -587,7 +587,7 @@ def main(argv=None):
                                                   'on a streaming document the processor\'s prompt and delay come with it, and the frames follow the tokens')
     p.add_argument('--stop', action='store_true', help='end decoding at an end-of-text id of the artifact (generation_config.json, the tokenizer), before --steps')
     p.add_argument('--steps', type=int, default=4)
-    p.add_argument('--dump', help='write the values at every layer cut and the states to this safetensors file')
+    p.add_argument('--dump', help='write the values at every layer graph_split and the states to this safetensors file')
     p.add_argument('--compile', action='store_true', help='torch.compile the decode step (prefill stays eager)')
     p.set_defaults(fn=cmd_run)
     p = sub.add_parser('chat'); common(p)

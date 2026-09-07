@@ -1,7 +1,7 @@
-//! The contract's activations, by the contract's names.
+//! The primitive's activations, by the primitive's names.
 //!
 //! The names matter more than they look. ZML's `Tensor.gelu` is the **tanh
-//! approximation**, which the catalog calls `gelu_tanh` and distinguishes from the exact
+//! approximation**, which the primitive library calls `gelu_tanh` and distinguishes from the exact
 //! `gelu`; mapping either by name would compute the wrong function silently, and a
 //! retriever's embeddings would be quietly wrong rather than loudly absent.
 //!

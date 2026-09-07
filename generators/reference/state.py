@@ -1,4 +1,4 @@
-"""State instances: one per D4 identity for one (session, branch), each law
+"""State instances: one per D4 identity for one (session, branch), each evolution
 implemented once under a declared capacity (R04, R07).
 
     append   buffer [capacity, *shape], a cursor; read() -> (buffers, length)
@@ -12,8 +12,8 @@ eager or compiled.
 import torch
 
 
-LAWS = ('append', 'window', 'fixed')                 # the state laws implemented below
-ACCESS = ('logical_position', 'ring', 'aggregate')    # the access geometries the laws realise
+EVOLUTIONS = ('append', 'window', 'fixed')                 # the state evolution rules implemented below
+ACCESS = ('logical_position', 'ring', 'aggregate')    # the access geometries the evolutions realise
 
 
 class Refusal(Exception):
@@ -41,13 +41,13 @@ def largest_capacity(capacity):
 class StateInstance:
     def __init__(self, entry, capacity, device, dtype):
         self.identity = entry['identity']
-        self.law = entry['law']
+        self.evolution = entry['evolution']
         self.access = entry['access']
         self.span = entry.get('span')
         self.stream = (entry.get('stream') or {}).get('stream')       # the stream the state grows along (D4)
-        self.capacity = capacity_of(capacity, self.stream) if self.law == 'append' else (self.span if self.law == 'window' else None)
-        if self.law not in LAWS:
-            raise Refusal(f"{self.identity}: unknown state law '{self.law}'")
+        self.capacity = capacity_of(capacity, self.stream) if self.evolution == 'append' else (self.span if self.evolution == 'window' else None)
+        if self.evolution not in EVOLUTIONS:
+            raise Refusal(f"{self.identity}: unknown state evolution rule '{self.evolution}'")
         self.components = {}
         for p in entry['payload']:
             # A payload is one position for `append` and `window`, the state for `fixed` (§4.3).
@@ -59,9 +59,9 @@ class StateInstance:
         self.cursor = 0                                            # window: the next write position
 
     def read(self):
-        if self.law == 'fixed':
+        if self.evolution == 'fixed':
             return self.components, None
-        if self.law == 'append':
+        if self.evolution == 'append':
             return self.components, self.length
         n = min(self.length, self.span)
         out = {}
@@ -81,7 +81,7 @@ class StateInstance:
         positions written, no padding — and how many: what a kernel reads before it appends a
         fragment (the ring's entries precede the fragment's positions), and what a dump records
         of a ring (the delivery's cache holds these rows and nothing before the first write)."""
-        if self.law != 'window':
+        if self.evolution != 'window':
             raise Refusal(f"{self.identity}: only a window state has a tail")
         n = min(self.length, self.span)
         out = {}
@@ -91,12 +91,12 @@ class StateInstance:
 
     def append(self, values):
         m = next(iter(values.values())).shape[0]
-        if self.law == 'append':
+        if self.evolution == 'append':
             if self.length + m > self.capacity:
                 raise Refusal(f"{self.identity}: {self.length + m} positions exceed the capacity {self.capacity}")
             for c, x in values.items():
                 self.components[c][self.length:self.length + m] = x.to(self.components[c].dtype)
-        elif self.law == 'window':
+        elif self.evolution == 'window':
             idx = (self.cursor + torch.arange(m, device=next(iter(values.values())).device)) % self.span
             for c, x in values.items():
                 if m >= self.span:
@@ -109,8 +109,8 @@ class StateInstance:
         self.length += m
 
     def write(self, values):
-        if self.law != 'fixed':
-            raise Refusal(f"{self.identity}: write on a {self.law} state")
+        if self.evolution != 'fixed':
+            raise Refusal(f"{self.identity}: write on a {self.evolution} state")
         for c, x in values.items():
             self.components[c] = x.to(self.components[c].dtype)
         self.length = 1
@@ -129,9 +129,9 @@ class StateInstance:
         return other
 
     def truncate(self, at):
-        """An `append` state cut back to its first `at` positions (sharing `by_position`, §4.3):
+        """An `append` state graph_split back to its first `at` positions (sharing `by_position`, §4.3):
         what a session forked at `at` may read of its parent. The tail is zeroed, never read."""
-        if self.law != 'append':
+        if self.evolution != 'append':
             raise Refusal(f"{self.identity}: only an append state holds positions to truncate to")
         if at > self.length:
             raise Refusal(f"{self.identity}: position {at} is beyond the {self.length} held")
@@ -142,7 +142,7 @@ class StateInstance:
 
 def allocate(graph, capacity, device, dtype):
     """One instance per D4 identity, each `append` state sized by the stream it is indexed by —
-    the port's stream for a port-indexed state, the occurrence's own otherwise (D4 `stream`)."""
+    the port's stream for a port-indexed state, the instance's own otherwise (D4 `stream`)."""
     return {ident: StateInstance(entry, capacity, device, dtype) for ident, entry in graph.states.items()}
 
 

@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "audio.mels",
+  "definition": {
+    "space": "value",
+    "summary": "Mel bins of a spectrogram frame."
+  }
+}

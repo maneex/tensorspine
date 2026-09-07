@@ -1,9 +1,9 @@
 # Capabilities of an implementation
 
-*A capabilities manifest declares the subset of TensorSpine contracts and branches one
+*A capabilities manifest declares the subset of TensorSpine primitives and branches one
 implementation supports. A **runtime** uses it with a model's derived products to decide whether
 that implementation can run the requested inputs before loading anything. A **maintainer** uses it
-to see which catalog vocabulary and corpus documents remain unsupported. TensorSpine defines the
+to see which primitive library vocabulary and corpus documents remain unsupported. TensorSpine defines the
 format and vocabulary, and provides the tooling that builds the manifest from the implementation's
 primitive support and reads it. The manifest is generated from code, never maintained as a model
 allow-list.*
@@ -11,7 +11,7 @@ allow-list.*
 The grammar is `generators/capabilities.schema.json`. The
 [harness guide](../docs/HARNESS.md) maps this admission result and D1–D6 to serving decisions. The
 reader is `tensorspine --capabilities MANIFEST MODEL…` (can this candidate run these documents, for the inputs `--inputs` names — by
-default those D2 marks required for the generative output) and `--coverage` (what the catalog and
+default those D2 marks required for the generative output) and `--coverage` (what the primitive library and
 the corpus still need). The reference generator's manifest is `generators/reference/capabilities.json`,
 written by `ref.py capabilities`.
 
@@ -20,15 +20,15 @@ written by `ref.py capabilities`.
 | Section | Content | Vocabulary it draws on |
 |---|---|---|
 | `generator` | implementation name and version, the program that generated the manifest, date | — |
-| `compute_dtypes`, `parameter_dtypes` | dtypes computed in; storage dtypes the loader reads | the catalog's dtype names |
-| `state_laws`, `access`, `sharing` | the state laws, access geometries and cross-session sharing granularities implemented | `state_rule.law`, `.access`, `.sharing` (catalog-unit schema) |
-| `partitions` | the semantic partition communications the implementation can realise (`all_reduce`, …); empty for a single-machine implementation | `partition.communication` |
+| `compute_dtypes`, `parameter_dtypes` | dtypes computed in; storage dtypes the loader reads | the primitive library's dtype names |
+| `state_evolutions`, `access`, `sharing` | the state evolution rules, access geometries and cross-session sharing granularities implemented | `evolution_rule.evolution`, `.access`, `.sharing` (primitive-library-unit schema) |
+| `partition_options` | the semantic partition communications the implementation can realise (`all_reduce`, …); empty for a single-machine implementation | `partition.communication` |
 | `domains` | the indexing-domain kinds and transforms handled; whether fragmented inputs are | `port_domain.kind`, `domain_transform.relation`, `fragmented` |
 | `sessions_per_invocation` | 1 for a sequential runtime; more for a batching one (D4's `instance.session` axis) | §7, D4 instance keys |
 | `locations` | the location forms the loader assembles | §3.4 |
-| `contracts` | per contract version: the argument values implemented, combinations refused, the state ports' laws, the transforms realised, notes | the contract's own arguments and enums |
-| `role` | `witness` for the reference generator, which executes the reference implementations supplied with contracts; absent, or `conformer`, for an implementation checked against their fixtures (Specification §4.1, O1.3) | — |
-| `contracts.*.witness` | In a witness manifest, per contract version: the supplied reference implementation's `kernel` entry point (relative to the manifest), the `tolerance` a conformer must meet per compute dtype, and its unit `fixtures`, each at `fixtures/contracts/<id>.safetensors` beside the manifest. The reader refuses missing files and witness blocks in conformer manifests. | the fixture schema (`docs/TENSORSPINE-FIXTURE.md`) |
+| `primitives` | per primitive version: the argument values implemented, combinations refused, the state ports' evolutions, the transforms realised, notes | the primitive's own arguments and enums |
+| `role` | `witness` for the reference generator, which executes the reference implementations supplied with primitives; absent, or `conformer`, for an implementation checked against their fixtures (Specification §4.1, O1.3) | — |
+| `primitives.*.witness` | In a witness manifest, per primitive version: the supplied reference implementation's `kernel` entry point (relative to the manifest), the `tolerance` a conformer must meet per compute dtype, and its unit `fixtures`, each at `fixtures/primitives/<id>.safetensors` beside the manifest. The reader refuses missing files and witness blocks in conformer manifests. | the fixture schema (`docs/TENSORSPINE-FIXTURE.md`) |
 
 ## The argument rules
 
@@ -48,7 +48,7 @@ manifest by independent values over-approximates, and this is where it says so. 
 | Form | Meaning |
 |---|---|
 | `{arg: value, …}` | the flat form: refused when every named argument holds the given value at once (`{"cross": true, "mask": "causal"}`) |
-| `{"when": condition, "reason": "…"}` | a predicate over the resolved arguments in the catalog-unit condition grammar (`compare`, `present`, `all`/`any`/`not`), with the reason the kernel gives — `all[cross = true, present rope]` |
+| `{"when": condition, "reason": "…"}` | a predicate over the resolved arguments in the primitive-library-unit condition grammar (`compare`, `present`, `all`/`any`/`not`), with the reason the kernel gives — `all[cross = true, present rope]` |
 
 `conditions` is the counterpart for a limit that depends on the *delivery*, not the arguments: an
 entry `{"when": condition, "note": "…"}` says the combination **is** admitted (`can_run` is
@@ -62,9 +62,9 @@ every table pairwise and holds each generator to it.
 `notes` is prose a reader may want and nothing evaluates: a convention, or a limitation the
 arguments already express. It refuses nothing and no runtime honours it.
 
-An argument the table does not name is refused: the manifest is closed, like the contract. Every
+An argument the table does not name is refused: the manifest is closed, like the primitive. Every
 argument, field, value, `excluding` predicate and `conditions` predicate is resolved against the
-catalog when the manifest is read; a name outside the contract is an error.
+primitive library when the manifest is read; a name outside the primitive is an error.
 
 ## The physical parameters, and the backend
 
@@ -72,13 +72,13 @@ Executing an extract mostly depends on the **backend** — the hardware the impl
 cpu, nvidia, neuron, tpu — and on choices that belong to the serving application and its kernels:
 block sizes, kernel selection and layouts. Those *physical parameters* are **opaque** to the
 language and to the manifest. A serving application passes them to a primitive implementation
-*beside* the contract arguments, never merged with them, addressed by occurrence, site pattern or
-contract; derivation never sees them. The targeted `backend` is one optional key among them; an
+*beside* the primitive arguments, never merged with them, addressed by instance, site pattern or
+primitive; derivation never sees them. The targeted `backend` is one optional key among them; an
 implementation that targets one backend needs none.
 
 ## What is not in it
 
-Conformance results and performance. A witness manifest binds each contract to its reference
+Conformance results and performance. A witness manifest binds each primitive to its reference
 implementation, tolerances and fixture ids; whether another implementation reproduces those
 fixtures, and how closely, belongs with its tests. Physical costs — the remaining half of
 Architecture §6's open question — and anything a document cannot ask (throughput, latency, memory
@@ -87,21 +87,21 @@ promise correctness or speed.
 
 ## Reading it
 
-**Can this implementation run this document?** For every occurrence the delivery evaluates (§7): its
-contract version is in `contracts`, its D1 arguments pass the rules, its D4 states' laws and access
+**Can this implementation run this document?** For every instance the delivery evaluates (§7): its
+primitive version is in `primitives`, its D1 arguments pass the rules, its D4 states' evolutions and access
 geometries are in the manifest; every D3 dtype is in `parameter_dtypes`; every location form is in
 `locations`; a fragmented input needs `domains.fragmented`; the streams' kinds and the transforms
-the evaluated occurrences use are in `domains`. The first failure is the answer.
+the evaluated instances use are in `domains`. The first failure is the answer.
 
 ## Branch ledger
 
 `--coverage` produces the **branch ledger**: the to-do list for each model-and-implementation pair.
-It lists every absent contract entry; within present entries, every enum value, boolean, record
+It lists every absent primitive entry; within present entries, every enum value, boolean, record
 field and optional argument not admitted; then every corpus document that
-cannot run and its reasons. The ledger is computed from the catalog, model and manifest, never
-tracked. For a contract without an entry every branch of its arguments is listed, so the to-do list
-per model and implementation is complete. On a witness manifest the report ends with the contract
-versions still without a witness — a catalog is released only when there is none (§10.2) — and
+cannot run and its reasons. The ledger is computed from the primitive library, model and manifest, never
+tracked. For a primitive without an entry every branch of its arguments is listed, so the to-do list
+per model and implementation is complete. On a witness manifest the report ends with the primitive
+versions still without a witness — a primitive library is released only when there is none (§10.2) — and
 `--strict` exits 1 while there is one, for the tag workflow. The documentation build renders the
 reference manifest's ledger at the generated
 [branch-ledger page](https://maneex.github.io/tensorspine/branch-ledger/).

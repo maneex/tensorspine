@@ -1,9 +1,9 @@
 {
-  "schema": "tensorspine/2.0",
+  "schema": "tensorspine/3.0",
   "model": "rejection-v3-template-domain-set",
-  "catalog": [
+  "primitive_libraries": [
     {
-      "base": "../../../data/catalog/"
+      "base": "../../../data/primitive-library/"
     }
   ],
   "quantities": {
@@ -147,11 +147,11 @@
     }
   },
   "constants": {},
-  "occurrences": {
+  "instances": {
     "patch_embed": {
-      "contract": {
+      "primitive": {
         "name": "patch_embed",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -170,9 +170,9 @@
       ]
     },
     "embed": {
-      "contract": {
+      "primitive": {
         "name": "embed",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -188,9 +188,9 @@
       ]
     },
     "splice": {
-      "contract": {
+      "primitive": {
         "name": "splice",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -203,9 +203,9 @@
       ]
     },
     "text": {
-      "contract": {
+      "primitive": {
         "name": "decoder.causal_yarn",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -239,9 +239,9 @@
       ]
     },
     "final_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -256,9 +256,9 @@
       ]
     },
     "lm_head": {
-      "contract": {
+      "primitive": {
         "name": "lm_head",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -274,9 +274,9 @@
       ]
     },
     "vision_pre_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -292,9 +292,9 @@
       ]
     },
     "vision_projector": {
-      "contract": {
+      "primitive": {
         "name": "projector.patch_merge_bottleneck",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -331,11 +331,11 @@
       "families": [
         "vision"
       ],
-      "occurrences": {
+      "instances": {
         "attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -350,9 +350,9 @@
           ]
         },
         "attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.dense",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -386,9 +386,9 @@
           ]
         },
         "attn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -400,9 +400,9 @@
           ]
         },
         "ffn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -417,9 +417,9 @@
           ]
         },
         "ffn": {
-          "contract": {
+          "primitive": {
             "name": "ffn.gated",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -437,9 +437,9 @@
           ]
         },
         "ffn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -457,10 +457,10 @@
     "values": {
       "vision.attn_n.carry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "blk": {
                 "op": "subtract",
@@ -478,10 +478,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_n",
+            "instance": "attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -506,10 +506,10 @@
       },
       "vision.attn_r.a_carry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "blk": {
                 "op": "subtract",
@@ -527,10 +527,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -555,10 +555,10 @@
       },
       "vision.attn.norm_in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_n",
+            "instance": "attn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -568,10 +568,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn",
+            "instance": "attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -596,10 +596,10 @@
       },
       "vision.attn_r.b": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn",
+            "instance": "attn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -609,10 +609,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -637,10 +637,10 @@
       },
       "vision.ffn_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -650,10 +650,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn_n",
+            "instance": "ffn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -678,10 +678,10 @@
       },
       "vision.ffn_r.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -691,10 +691,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -719,10 +719,10 @@
       },
       "vision.ffn.norm_in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn_n",
+            "instance": "ffn_n",
             "indices": {
               "blk": {
                 "index": "i"
@@ -732,10 +732,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn",
+            "instance": "ffn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -760,10 +760,10 @@
       },
       "vision.ffn_r.b": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn",
+            "instance": "ffn",
             "indices": {
               "blk": {
                 "index": "i"
@@ -773,10 +773,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "blk": {
                 "index": "i"
@@ -801,17 +801,17 @@
       },
       "vision.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "vision_pre_n"
+            "instance": "vision_pre_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_n",
+            "instance": "attn_n",
             "indices": {
               "blk": {
                 "literal": 0
@@ -823,17 +823,17 @@
       },
       "vision.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "vision_pre_n"
+            "instance": "vision_pre_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "blk": {
                 "literal": 0
@@ -845,26 +845,26 @@
       },
       "splice.text": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "splice"
+            "instance": "splice"
           },
           "port": "text"
         }
       },
       "splice.source": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "vision",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "blk": {
                 "op": "subtract",
@@ -882,89 +882,89 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "vision_projector"
+            "instance": "vision_projector"
           },
           "port": "input"
         }
       },
       "text.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "splice"
+            "instance": "splice"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "text"
+            "instance": "text"
           },
           "port": "hidden"
         }
       },
       "final_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "text"
+            "instance": "text"
           },
           "port": "hidden_out"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "input"
         }
       },
       "lm_head.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "input"
         }
       },
       "patch_embed.vision_pre_n": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "patch_embed"
+            "instance": "patch_embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "vision_pre_n"
+            "instance": "vision_pre_n"
           },
           "port": "input"
         }
       },
       "vision_projector.splice": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "vision_projector"
+            "instance": "vision_projector"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "splice"
+            "instance": "splice"
           },
           "port": "source"
         }
@@ -977,9 +977,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "patch_embed"
+              "instance": "patch_embed"
             },
             "parameter": "weight"
           }
@@ -994,9 +994,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "final_n"
+              "instance": "final_n"
             },
             "parameter": "weight"
           }
@@ -1011,9 +1011,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "vision_pre_n"
+              "instance": "vision_pre_n"
             },
             "parameter": "weight"
           }
@@ -1028,9 +1028,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "vision_projector"
+              "instance": "vision_projector"
             },
             "parameter": "norm"
           }
@@ -1045,9 +1045,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "vision_projector"
+              "instance": "vision_projector"
             },
             "parameter": "merger"
           }
@@ -1062,9 +1062,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "vision_projector"
+              "instance": "vision_projector"
             },
             "parameter": "linear_in"
           }
@@ -1079,9 +1079,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "vision_projector"
+              "instance": "vision_projector"
             },
             "parameter": "linear_out"
           }
@@ -1101,10 +1101,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "attn_n",
+              "instance": "attn_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1142,10 +1142,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "attn",
+              "instance": "attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1183,10 +1183,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "attn",
+              "instance": "attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1224,10 +1224,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "attn",
+              "instance": "attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1265,10 +1265,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "attn",
+              "instance": "attn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1306,10 +1306,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "ffn_n",
+              "instance": "ffn_n",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1347,10 +1347,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "ffn",
+              "instance": "ffn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1388,10 +1388,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "ffn",
+              "instance": "ffn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1429,10 +1429,10 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "generated",
               "composition": "vision",
-              "occurrence": "ffn",
+              "instance": "ffn",
               "indices": {
                 "blk": {
                   "index": "blk"
@@ -1465,16 +1465,16 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "weight"
           },
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "lm_head"
+              "instance": "lm_head"
             },
             "parameter": "weight"
           }
@@ -1492,9 +1492,9 @@
       "pixels": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "patch_embed"
+              "instance": "patch_embed"
             },
             "port": "pixels"
           }
@@ -1504,9 +1504,9 @@
       "tokens": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "port": "tokens"
           }
@@ -1517,9 +1517,9 @@
     "outputs": {
       "verdict": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "logits"
         },

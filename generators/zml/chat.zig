@@ -142,7 +142,7 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, g: *const graph.Graph, opts
     const interactive = opts.prompt == null;
     if (interactive) {
         try out.print(
-            "\n{s}: {d} occurrences in {d} program(s), capacity {d}, computing in {s}.\n" ++
+            "\n{s}: {d} instances in {d} program(s), capacity {d}, computing in {s}.\n" ++
                 "Type a prompt, or an empty line to leave.\n\n",
             .{ g.model(), step.plan.steps.len, step.plan.groups.len, opts.capacity, @tagName(opts.compute) },
         );

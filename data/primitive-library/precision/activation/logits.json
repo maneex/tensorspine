@@ -1,0 +1,15 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "activation.logits",
+  "definition": {
+    "summary": "Output logits.",
+    "admissible": [
+      "f32",
+      "bf16",
+      "f16"
+    ],
+    "default": "f32",
+    "sensitivity": "reduced"
+  }
+}

@@ -19,7 +19,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import artifact                        # noqa: E402
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import derive                          # noqa: E402
 import validate                        # noqa: E402
 
@@ -48,7 +48,7 @@ def main():
     ok = True
     with open(LLAMA, encoding='utf-8') as f:
         model = json.load(f)
-    cat = catalog_mod.load_for(LLAMA, model)
+    cat = primitive_library_mod.load_for(LLAMA, model)
     d3 = derive.products(LLAMA, cat)['d3']
     ok &= check("llama3-8b: every D3 tensor carries an evaluated location",
                 all('location' in t for t in d3['tensors']) and len(d3['tensors']) == 291)
@@ -107,7 +107,7 @@ def main():
     e, a, s = artifact.check(d3_of({'tensor': 'p.weight'}, [1, 2, 2]), {'p.weight': {'dtype': 'bf16', 'shape': [2, 2], 'file': 'x'}})
     ok &= check("multiplicity: a declared count of one accepts the plain [2, 2] tensor for [1, 2, 2] (unit axes dropped, V17)", not e, e[:1])
     # the resolver: a stack over `multiplicity` expands over the declared count, at dim 0, the coordinate in the names
-    expand = cat['contracts']['residual.stream_expand']['parameters']['projection']
+    expand = cat['primitives']['residual.stream_expand']['parameters']['projection']
     args = {'width': 2048, 'streams': 4}
     loc = {'stack': {'axis': 'multiplicity', 'part': {'tensor': ['model.language_model.altup_projections.', {'coordinate': 'multiplicity'}, '.weight']}}}
     ev, problems = validate.evaluate_location(loc, {}, validate._storage_shape(expand), args, lambda e, env=None: None)
@@ -119,7 +119,7 @@ def main():
                                               validate._storage_shape(expand), args, lambda e, env=None: None)
     ok &= check("resolver: a stack over a shape axis of that slot sits after the storage axis (dim 1)",
                 not problems and ev['stack']['dim'] == 1 and len(ev['stack']['parts']) == 2048, str(problems[:1]))
-    weight = cat['contracts']['norm.rms']['parameters']['weight']
+    weight = cat['primitives']['norm.rms']['parameters']['weight']
     ev, problems = validate.evaluate_location(loc, {}, validate._storage_shape(weight), {'width': 8}, lambda e, env=None: None)
     ok &= check("resolver: a stack over `multiplicity` on a slot that declares none is refused as an unknown axis",
                 ev is None and problems and 'not an axis of the slot' in problems[0], str(problems[:1]))
@@ -129,11 +129,11 @@ def main():
     # the located composite (§3.4): its instance's tensors, prefixed, are the flat document's names
     with open(SHIELD_DOC, encoding='utf-8') as f:
         sh = json.load(f)
-    sh_d3 = derive.products(SHIELD_DOC, catalog_mod.load_for(SHIELD_DOC, sh))['d3']
+    sh_d3 = derive.products(SHIELD_DOC, primitive_library_mod.load_for(SHIELD_DOC, sh))['d3']
     comp_path = os.path.join(ROOT, 'data', 'models', 'shieldstral-3b-composite.json')
     with open(comp_path, encoding='utf-8') as f:
         comp = json.load(f)
-    comp_d3 = derive.products(comp_path, catalog_mod.load_for(comp_path, comp))['d3']
+    comp_d3 = derive.products(comp_path, primitive_library_mod.load_for(comp_path, comp))['d3']
     e, a, s = artifact.check(comp_d3, headers_of(sh_d3))
     ok &= check(f"the composite against the flat document's headers: {s['located']} located, no error, nothing unnamed",
                 not e and not a and s['located'] == 458 and s['unnamed'] == 0, e[:1] or a[:1])
@@ -147,7 +147,7 @@ def main():
     if os.path.isdir(SHIELDSTRAL):
         with open(SHIELD_DOC, encoding='utf-8') as f:
             sh = json.load(f)
-        sh_d3 = derive.products(SHIELD_DOC, catalog_mod.load_for(SHIELD_DOC, sh))['d3']
+        sh_d3 = derive.products(SHIELD_DOC, primitive_library_mod.load_for(SHIELD_DOC, sh))['d3']
         e, a, s = artifact.check(sh_d3, artifact.read_headers(SHIELDSTRAL))
         ok &= check(f"Shieldstral-1.0-3B on disk, one file without an index: {s['located']} located, {s['physical']} physical, "
                     f"{s['unnamed']} unnamed, {len(e)} errors", not e and s['unnamed'] == 0 and s['located'] == 458, e[:2])

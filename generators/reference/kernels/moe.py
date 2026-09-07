@@ -1,4 +1,4 @@
-"""moe@1.0.0 — mixture of experts: `router` scores every token against `experts` experts, the
+"""moe@2.0.0 — mixture of experts: `router` scores every token against `experts` experts, the
 `top_k` best are activated, each a gated FFN read from the fused `in` (gate rows first, then up
 rows, as the reference stores routed experts) and `out`; `shared` experts are applied to every
 token, their sum optionally weighted through a sigmoid of `shared_output_gate`.
@@ -11,7 +11,7 @@ token, their sum optionally weighted through a sigmoid of `shared_output_gate`.
 | scale                             | implemented (absent: 1)                                   |
 | routing hash, scoring sigmoid / sqrtsoftplus, score_bias, swiglu_limit | refused until a document uses them |
 
-Conventions the contract leaves open, as read here: an expert's activation is SiLU (a "gated FFN"
+Conventions the primitive leaves open, as read here: an expert's activation is SiLU (a "gated FFN"
 as Qwen's); the routing weight multiplies the expert's output before the sum over the activated
 experts; the experts are evaluated one activated expert at a time with index gathers — the
 reference measures agreement, not speed.
@@ -20,7 +20,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from
 
-CONTRACT = ("moe", "1.0.0")
+PRIMITIVE = ("moe", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "experts": "any", "top_k": "any", "inner": "any", "shared": "any",

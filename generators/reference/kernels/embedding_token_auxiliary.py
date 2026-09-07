@@ -1,4 +1,4 @@
-"""embedding.token_auxiliary@1.0.0 — Gemma 3n's embedding with per-layer inputs: `output` is the
+"""embedding.token_auxiliary@2.0.0 — Gemma 3n's embedding with per-layer inputs: `output` is the
 token's row of `weight` scaled by √width; `auxiliary` [layers, per_layer_width] per token is the
 sum of the token's per-layer lookup (scaled by √per_layer_width) and the main embedding projected
 by `per_layer_model_projection` (scaled by width⁻½ and RMS-normalized per layer with
@@ -12,7 +12,7 @@ import math
 import torch
 from kernels._common import refuse_unknown, rms_norm, supports_from, w
 
-CONTRACT = ("embedding.token_auxiliary", "1.0.0")
+PRIMITIVE = ("embedding.token_auxiliary", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "layers": "any", "per_layer_width": "any",

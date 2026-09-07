@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The status page (`tensorspine --document status`, generated at site build and never tracked)
 states nothing the tools do not compute: every number on it equals what the suites compute from
-the same tools — the catalog's counts from `catalog.py`, the corpus's from the models directory
+the same tools — the primitive_library's counts from `primitive_library.py`, the corpus's from the models directory
 and the validator, a generator's coverage from `capabilities.coverage()` and its unwitnessed
-contracts from `capabilities.unwitnessed()` (Specification §10.2). The generators are every
+primitives from `capabilities.unwitnessed()` (Specification §10.2). The generators are every
 `generators/*/capabilities.json` in the tree (`capabilities.manifests()`), never a list kept here.
 
 Skips, and says so, when `tools/status.py` is not in the tree.
@@ -66,7 +66,7 @@ def main():
         print("status: nothing to check")
         return 0
     import capabilities
-    import catalog as catalog_mod
+    import primitive_library as primitive_library_mod
     import derive
     import status
     import validate
@@ -79,24 +79,24 @@ def main():
     state = status.facts(corpus, None, SCHEMAS, manifests)
     text = status.render_status(state)
     found = tables(text)
-    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    cat = primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
 
-    # the catalog and the corpus, counted here
+    # the primitive library and the corpus, counted here
     valid = located = 0
     for path in corpus:
         errors, _ = validate.semantic(path, cat)
         valid += not errors
         if not errors:
             located += all('location' in t for t in derive.products(path, cat)['d3']['tensors'])
-    hs, rows = table_with(found, 'Catalog contracts', 'Concrete documents')
-    ok &= check("the page has the catalog-and-corpus table", rows is not None and len(rows) == 1)
+    hs, rows = table_with(found, 'Primitive Library primitives', 'Concrete documents')
+    ok &= check("the page has the primitive_library-and-corpus table", rows is not None and len(rows) == 1)
     if rows:
         row = dict(zip(hs, rows[0]))
-        want = {'Catalog contracts': len(cat['contracts']), 'Axes': len(cat['axes']), 'Precision roles': len(cat['precision']),
+        want = {'Primitive Library primitives': len(cat['primitives']), 'Axes': len(cat['axes']), 'Precision roles': len(cat['precision']),
                 'Concrete documents': len(corpus), 'Valid as written': valid, 'Fully located': located,
                 'Templates': len(cat['templates'])}
         for k, v in want.items():
-            ok &= check(f"catalog and corpus: {k} = {v}", row.get(k) == str(v), f"page says {row.get(k)!r}")
+            ok &= check(f"primitive_library and corpus: {k} = {v}", row.get(k) == str(v), f"page says {row.get(k)!r}")
 
     # every generator's coverage, computed here from the same reader
     for path in manifests:
@@ -108,24 +108,24 @@ def main():
         name = manifest['generator']['name']
         missing, branches, verdicts = capabilities.coverage(manifest, cat, corpus)
         unwitnessed = capabilities.unwitnessed(manifest, cat)
-        hs, rows = table_with(tables(section(text, name)), 'Contract entries')
+        hs, rows = table_with(tables(section(text, name)), 'PrimitiveReference entries')
         ok &= check(f"{name}: the page has its coverage table", rows is not None and len(rows) == 1)
         if not rows:
             continue
         row = dict(zip(hs, rows[0]))
         can_run = sum(1 for good, _ in verdicts.values() if good)
-        want = {'Contract entries': str(len(manifest['contracts'])),
-                'Contracts without an entry': str(len(missing)),
+        want = {'PrimitiveReference entries': str(len(manifest['primitives'])),
+                'Primitives without an entry': str(len(missing)),
                 'Entries with branch gaps': str(len([c for c in branches if c not in missing])),
                 'Corpus documents runnable': f"{can_run}/{len(verdicts)}"}
         for k, v in want.items():
             ok &= check(f"{name}: {k} = {v}", row.get(k) == v, f"page says {row.get(k)!r}")
-        shown = row.get('Contracts without a witness')
+        shown = row.get('Primitives without a witness')
         if unwitnessed is None:
             ok &= check(f"{name}: a conformer's manifest witnesses nothing, and the page states no count",
                         shown is not None and not shown.isdigit(), f"page says {shown!r}")
         else:
-            ok &= check(f"{name}: Contracts without a witness = {len(unwitnessed)}", shown == str(len(unwitnessed)), f"page says {shown!r}")
+            ok &= check(f"{name}: Primitives without a witness = {len(unwitnessed)}", shown == str(len(unwitnessed)), f"page says {shown!r}")
         hs2, rows2 = table_with(tables(section(text, name)), 'Document', 'Verdict')
         ok &= check(f"{name}: the admission table has one row per corpus document with the reader's verdict",
                     rows2 is not None and len(rows2) == len(verdicts)

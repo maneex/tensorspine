@@ -1,0 +1,15 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "deltanet.scalar",
+  "definition": {
+    "summary": "Per-head scalars of a gated-delta layer: decay bias and log rate.",
+    "admissible": [
+      "f32",
+      "bf16",
+      "f16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision"
+  }
+}

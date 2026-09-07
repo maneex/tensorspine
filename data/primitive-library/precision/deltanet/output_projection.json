@@ -1,0 +1,17 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "deltanet.output_projection",
+  "definition": {
+    "summary": "Output projection of a gated-delta layer.",
+    "admissible": [
+      "bf16",
+      "f16",
+      "f32",
+      "f8e4m3",
+      "fp4"
+    ],
+    "default": "bf16",
+    "sensitivity": "quantizable"
+  }
+}

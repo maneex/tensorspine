@@ -36,7 +36,7 @@ MODELS = os.path.join(ROOT, 'data', 'models')
 TARGET = '@tensorspine//:tspl'
 
 COUNTS = re.compile(
-    r'(\d+) occurrences, (\d+) values, (\d+) parameter tensors, '
+    r'(\d+) instances, (\d+) values, (\d+) parameter tensors, '
     r'(\d+) states, (\d+) edges, (\d+) ordered')
 
 
@@ -49,8 +49,8 @@ def fixture_metadata(path):
         n = struct.unpack('<Q', f.read(8))[0]
         header = json_mod.loads(f.read(n))
     meta = {k: json_mod.loads(v) for k, v in (header.get('__metadata__') or {}).items()}
-    if meta.get('schema') != 'tensorspine-fixture/1' or meta.get('kind') != 'integration':
-        raise ValueError(f'{path}: not an integration fixture on tensorspine-fixture/1')
+    if meta.get('schema') != 'tensorspine-fixture/2' or meta.get('kind') != 'integration':
+        raise ValueError(f'{path}: not an integration fixture on tensorspine-fixture/2')
     return meta
 
 
@@ -101,7 +101,7 @@ TOLERANCE = 5e-06
 def evaluate(binary, derived, checkpoint, scratch, dumps):
     """The numbers, against the reference generator's fixture — the oracle.
 
-    The fixture is `transformers` hooked at D6's layer cuts and at every state, on the
+    The fixture is `transformers` hooked at D6's layer graph_splits and at every state, on the
     same six token identifiers, dumped by the reference. Two generators agreeing there
     is the evidence; the embedding and the first norm are checked against arithmetic
     written down here instead, being short enough that the check inherits nobody's
@@ -183,7 +183,7 @@ def evaluate(binary, derived, checkpoint, scratch, dumps):
 
 
 MANIFEST = os.path.join(GENERATOR, 'capabilities.json')
-UNIT_FIXTURES = os.path.join(ROOT, 'generators', 'reference', 'fixtures', 'contracts')
+UNIT_FIXTURES = os.path.join(ROOT, 'generators', 'reference', 'fixtures', 'primitives')
 
 
 def _raw(path, compute, shape):
@@ -201,7 +201,7 @@ def _raw(path, compute, shape):
 
 def unit_fixtures(binary, scratch):
     """This generator as a conformer (Specification §4.2): every unit fixture the reference
-    witness recorded (docs/TENSORSPINE-FIXTURE.md) whose contract and arguments this
+    witness recorded (docs/TENSORSPINE-FIXTURE.md) whose primitive and arguments this
     generator's manifest admits, run by tspl from the fixture's own document with the
     fixture as its checkpoint, at f32 and at bf16, and compared — every output and every
     state after every invocation — within the tolerance the fixture states for that dtype.
@@ -225,8 +225,8 @@ def unit_fixtures(binary, scratch):
     checked = failed = 0
     for fixture in fixtures:
         meta = artifact.read_metadata(fixture)
-        cid = f"{meta['contract']['name']}@{meta['contract']['version']}"
-        entry = manifest['contracts'].get(cid)
+        cid = f"{meta['primitive']['name']}@{meta['primitive']['version']}"
+        entry = manifest['primitives'].get(cid)
         if entry is None:
             print(f"skip {meta['id']}: no entry for {cid} in the manifest")
             continue
@@ -235,7 +235,7 @@ def unit_fixtures(binary, scratch):
             print(f"skip {meta['id']}: the manifest does not admit {reasons[0]}")
             continue
         work = tempfile.mkdtemp(prefix='tspl-unit-', dir=scratch)
-        doc = dict(meta['document'], catalog=[{'base': os.path.join(ROOT, 'data', 'catalog') + os.sep}])
+        doc = dict(meta['document'], primitive_libraries=[{'base': os.path.join(ROOT, 'data', 'primitive-library') + os.sep}])
         model_path = os.path.join(work, doc['model'] + '.json')
         with open(model_path, 'w', encoding='utf-8') as f:
             json.dump(doc, f)
@@ -325,7 +325,7 @@ def manifest(binary):
         print('FAIL manifest: regenerating it from the primitives gives something else; '
               f'run `tspl --capabilities={MANIFEST} --version=… --generated=…`')
         return 1, 1
-    print(f'OK   manifest: {len(json.loads(committed)["contracts"])} contracts, regenerated identically')
+    print(f'OK   manifest: {len(json.loads(committed)["primitives"])} primitives, regenerated identically')
 
     # And the language's own reader agrees it can run what it claims.
     reader = subprocess.run([os.path.join(ROOT, 'tools', 'tensorspine'), '--capabilities',
@@ -340,7 +340,7 @@ def manifest(binary):
 
 def colbert(binary, derived_dir, checkpoint, scratch):
     """The other generator's fixture for a document with no generative output and no
-    state at all — the shape llama3-8b cannot exercise. Its identifiers and its cuts are
+    state at all — the shape llama3-8b cannot exercise. Its identifiers and its graph_splits are
     the reference's; agreeing with them is two generators agreeing, not one agreeing with
     itself."""
     try:
@@ -360,7 +360,7 @@ def colbert(binary, derived_dir, checkpoint, scratch):
     ids = ','.join(map(str, fixture_metadata(fixture)['ids']))      # the fixture's own prompt
 
     checked = failed = 0
-    for value, key in [(f'enc/ffn_n[layer={i}].output', f'value/enc/ffn_n[layer={i}].output') for i in (0, 11)] \
+    for value, key in [(f'enc/ffn_n[layer={i}].output', f'value/enc/ffn_n[layer={i}].output') for i in (0, 11)]\
             + [('pooler.output', 'value/pooler.output')]:
         path = os.path.join(scratch, 'colbert.bin')
         run = subprocess.run([binary, f'--derived={derived}', f'--checkpoint={checkpoint}',
@@ -457,7 +457,7 @@ def weights(artifacts, model):
 def qwen(binary, derived_dir, checkpoint, model, fixture_path, scratch, dumps):
     """A hybrid document: three gated-delta layers and one attention layer.
 
-    Its four kinds of state are the two laws llama3-8b cannot exercise — the recurrent
+    Its four kinds of state are the two evolutions llama3-8b cannot exercise — the recurrent
     matrix is `fixed`, read and written whole, and the convolution history is a `window`
     consumed as a ring — beside the KV cache, which is the one it can. So this is where
     the state machinery is actually decided, and where a layout choice would show: a
@@ -505,8 +505,8 @@ def qwen(binary, derived_dir, checkpoint, model, fixture_path, scratch, dumps):
 
     # every state the deepest run left behind, named by its D4 identity whatever layout
     # held it: three convolution histories, three recurrent matrices, one KV cache
-    states = [(f'decoder.gdn.conv[layer={i}]', 'w') for i in range(3)] \
-        + [(f'decoder.gdn.recurrent[layer={i}]', 's') for i in range(3)] \
+    states = [(f'decoder.gdn.conv[layer={i}]', 'w') for i in range(3)]\
+        + [(f'decoder.gdn.recurrent[layer={i}]', 's') for i in range(3)]\
         + [('decoder.attn.kv[layer=3]', c) for c in ('k', 'v')]
     for identity, component in states:
         path = os.path.join(dumps, f'{identity}.{component}.bin')
@@ -601,7 +601,7 @@ def main():
                 print(f'FAIL {model}: tspl {got} != derive {want}')
                 failed += 1
             else:
-                print(f'OK   {model}: {got[0]} occurrences, {got[2]} tensors, {got[3]} states')
+                print(f'OK   {model}: {got[0]} instances, {got[2]} tensors, {got[3]} states')
         checked = len(names)
         if not a.model_artifacts:
             print('\nskip: no artifacts directory (--artifacts or $TENSORSPINE_MODEL_ARTIFACTS); '

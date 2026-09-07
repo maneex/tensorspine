@@ -48,14 +48,14 @@ const Args = struct {
     pub const help =
         \\ Use tspl --derived=<path> [--refusals] [--checkpoint=<dir> --until=<value>]
         \\
-        \\ Run a tensorspine/2.0 model from its derived document (D1–D6).
+        \\ Run a tensorspine/3.0 model from its derived document (D1–D6).
         \\
         \\ Options:
         \\   --derived=<path>      Path to a .derived.json, as `tensorspine --derive` emits it (required)
         \\   --capabilities=<path> Write this generator's manifest, from the primitives' own tables
         \\   --version=<text>      What the manifest records as this generator's version
         \\   --generated=<date>    What the manifest records as its date
-        \\   --refusals            Report, per contract, the occurrences no primitive implements
+        \\   --refusals            Report, per primitive, the instances no primitive implements
         \\   --checkpoint=<path>   The safetensors repository or file D3's locations name
         \\   --until=<value>       Evaluate the ancestor closure of one D2 value, e.g. embed.output
         \\   --ids=<n,n,...>       The token identifiers to run (default: the llama3-8b fixture's); several
@@ -94,8 +94,8 @@ const Args = struct {
     ;
 };
 
-/// Which contracts the document calls, how often, and whether a primitive answers.
-/// The coarse half of R02: it says a contract is absent, not that an argument of a
+/// Which primitives the document calls, how often, and whether a primitive answers.
+/// The coarse half of R02: it says a primitive is absent, not that an argument of a
 /// present one is unimplemented — the arguments are the manifest's business, and
 /// `tensorspine --capabilities` is their reader.
 fn reportRefusals(allocator: std.mem.Allocator, g: *const graph.Graph) !bool {
@@ -106,7 +106,7 @@ fn reportRefusals(allocator: std.mem.Allocator, g: *const graph.Graph) !bool {
     defer arena.deinit();
 
     for (g.doc().d1.nodes.map.values()) |n| {
-        const key = try std.fmt.allocPrint(arena.allocator(), "{s}@{s}", .{ n.contract.name, n.contract.version });
+        const key = try std.fmt.allocPrint(arena.allocator(), "{s}@{s}", .{ n.primitive.name, n.primitive.version });
         const gop = try counts.getOrPut(allocator, key);
         if (!gop.found_existing) gop.value_ptr.* = 0;
         gop.value_ptr.* += 1;
@@ -118,11 +118,11 @@ fn reportRefusals(allocator: std.mem.Allocator, g: *const graph.Graph) !bool {
         const at = std.mem.indexOfScalar(u8, key, '@').?;
         const known = registry.find(key[0..at], key[at + 1 ..]) != null;
         if (known) served += count else refused += count;
-        log.info("  {s:<34} {d:>4} occurrence(s)  {s}", .{
+        log.info("  {s:<34} {d:>4} instance(s)  {s}", .{
             key, count, if (known) "implemented" else "NO PRIMITIVE",
         });
     }
-    log.info("{s}: {d}/{d} occurrences implemented, {d} refused, over {d} contracts", .{
+    log.info("{s}: {d}/{d} instances implemented, {d} refused, over {d} primitives", .{
         g.model(), served, served + refused, refused, counts.count(),
     });
     return refused == 0;
@@ -207,7 +207,7 @@ fn parseSessions(allocator: std.mem.Allocator, spec: ?[]const u8, layout: []cons
 /// One compiled arity, as one or more programs run in sequence.
 ///
 /// A compiled graph has static shapes, so prefill and decode are two arities; and a
-/// long graph is cut into several programs because XLA's scratch for one program holds
+/// long graph is graph_split into several programs because XLA's scratch for one program holds
 /// an f32 copy of every weight that program's matmuls touch — it upcasts bf16 dots on
 /// CPU — so a whole model in one program needs about three times its own weights.
 /// Cutting bounds that to the largest group, and the numbers do not move.
@@ -231,7 +231,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
 
     // One device. ZML's CPU default is four, and a replicated parameter is copied to
     // each of them — four times the weights resident, before anything is computed.
-    // Sharding is a non-goal here (the manifest declares no partitions), so one device
+    // Sharding is a non-goal here (the manifest declares no partition_options), so one device
     // is both what this generator means and what fits.
     const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
     defer platform.deinit(allocator, io);
@@ -267,7 +267,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
         log.err("the two arities disagree on which parameters they need", .{});
         return error.InconsistentPlan;
     }
-    log.info("{d} occurrences in {d} program(s), {d} parameter tensors, {d} state buffers, capacity {d}", .{
+    log.info("{d} instances in {d} program(s), {d} parameter tensors, {d} state buffers, capacity {d}", .{
         prefill.plan.steps.len, prefill.plan.groups.len, prefill.plan.params_used.len,
         prefill.plan.state_shapes.len, capacity,
     });
@@ -649,7 +649,7 @@ pub fn main(init: std.process.Init) !void {
 
     if (args.capabilities) |path| {
         const n = try capabilities.write(allocator, init.io, path, args.version, args.generated);
-        log.info("{d} contracts -> {s}", .{ n, path });
+        log.info("{d} primitives -> {s}", .{ n, path });
         return;
     }
 
@@ -657,7 +657,7 @@ pub fn main(init: std.process.Init) !void {
     defer g.deinit();
 
     const d = g.doc();
-    log.info("{s}: {d} occurrences, {d} values, {d} parameter tensors, {d} states, {d} edges, {d} ordered", .{
+    log.info("{s}: {d} instances, {d} values, {d} parameter tensors, {d} states, {d} edges, {d} ordered", .{
         g.model(),
         d.d1.nodes.map.count(),
         d.d2.values.len,

@@ -171,16 +171,16 @@ def check(d3, headers):
     return errors, advisories, {'located': located, 'physical': len(headers), 'unnamed': len(unnamed)}
 
 
-def run(model_paths, catalog_bases, checkpoint, assignment=None):
+def run(model_paths, primitive_library_bases, checkpoint, assignment=None):
     """The check over documents; prints a report; returns the number that fail."""
-    import catalog as catalog_mod
+    import primitive_library as primitive_library_mod
     import derive
     headers = read_headers(checkpoint)
     failed = 0
     for path in model_paths:
         with open(path, encoding='utf-8') as f:
             model = json.load(f)
-        cat = catalog_mod.load_for(path, model, catalog_bases)
+        cat = primitive_library_mod.load_for(path, model, primitive_library_bases)
         doc = derive.products(path, cat, assignment)
         errors, advisories, stats = check(doc['d3'], headers)
         name = os.path.basename(path)

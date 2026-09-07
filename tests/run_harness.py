@@ -3,9 +3,9 @@
 decision (docs/HARNESS.md); every field it names must exist in the derived schema, so that
 the argument an engine maintainer reads cannot name a fact the products do not carry.
 
-A field is a backticked path rooted at a product (`d4.states[].law`, `d1.nodes.*.contract`,
+A field is a backticked path rooted at a product (`d4.states[].evolution`, `d1.nodes.*.primitive`,
 `d3.totals.bytes`); a backticked path starting with `.` continues the last rooted path's
-container (`.access` after `d4.states[].law` is `d4.states[].access`) or, when that container
+container (`.access` after `d4.states[].evolution` is `d4.states[].access`) or, when that container
 lacks it, the one container named anywhere in the document that carries it — `.visits` is
 `d4.states[].visits` wherever it is written, and a name no container carries fails; ` == value`
 and the like after a path are dropped. Paths are resolved through the schema's `$ref`s: `[]` steps into

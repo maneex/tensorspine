@@ -1,10 +1,10 @@
 {
-  "schema": "tensorspine-capabilities/1",
+  "schema": "tensorspine-capabilities/2",
   "generator": {
     "name": "onnx",
-    "version": "3fdeadd",
+    "version": "cd4ad30",
     "generator": "generators/onnx/tsonnx.py capabilities",
-    "generated": "2026-09-06"
+    "generated": "2026-09-07"
   },
   "compute_dtypes": [
     "f32"
@@ -14,14 +14,14 @@
     "f16",
     "f32"
   ],
-  "state_laws": [
+  "state_evolutions": [
     "append"
   ],
   "access": [
     "logical_position"
   ],
   "sharing": [],
-  "partitions": [],
+  "partition_options": [],
   "domains": {
     "kinds": [
       "token"
@@ -36,8 +36,8 @@
     "concat",
     "slice"
   ],
-  "contracts": {
-    "attention.dense@1.0.0": {
+  "primitives": {
+    "attention.dense@2.0.0": {
       "arguments": {
         "width": "any",
         "heads": "any",
@@ -102,14 +102,14 @@
         "target onnxruntime: causal attention over an append state with a full-head rope (or none) as one GroupQueryAttention node, rotary inside"
       ]
     },
-    "embed@1.0.0": {
+    "embed@2.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any"
       },
       "states": []
     },
-    "ffn.gated@1.0.0": {
+    "ffn.gated@2.0.0": {
       "arguments": {
         "width": "any",
         "inner": "any",
@@ -134,7 +134,7 @@
         "target onnxruntime: the activation as QuickGelu (silu), Gelu or FastGelu"
       ]
     },
-    "lm_head@1.0.0": {
+    "lm_head@2.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any",
@@ -142,7 +142,7 @@
       },
       "states": []
     },
-    "norm.rms@1.0.0": {
+    "norm.rms@2.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any",
@@ -153,13 +153,13 @@
         "target onnxruntime: SimplifiedLayerNormalization; fused with a preceding residual.add into SkipSimplifiedLayerNormalization"
       ]
     },
-    "residual.add@1.0.0": {
+    "residual.add@2.0.0": {
       "arguments": {
         "width": "any"
       },
       "states": []
     },
-    "splice@1.0.0": {
+    "splice@2.0.0": {
       "arguments": {
         "width": "any"
       },

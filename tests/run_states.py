@@ -5,7 +5,7 @@
   2. gemma3n-kvshare: 20 identities from 30 slots; the two shared identities carry
      no layer index — sharing is several members under one identity, nothing else.
   3. voxtral-realtime: the encoder state is carried across the fragments of `audio` — derived
-     from the contract's carrying condition and the input's fragmentation, declared nowhere —
+     from the primitive's carrying condition and the input's fragmentation, declared nowhere —
      and so are the front end's two convolution histories, indexed by the frames' stream (V18),
      and the decoder's rings, since the token input joins the fragmented stream (§2.3).
 
@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import model as model_mod              # noqa: E402
 import validate                        # noqa: E402
 
@@ -32,7 +32,7 @@ def check(label, ok, detail=''):
 
 
 def main():
-    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    cat = primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
     ok = True
     r = validate.analyse(os.path.join(MODELS, 'llama3-8b.json'), cat)
     keys = r['instance_keys']

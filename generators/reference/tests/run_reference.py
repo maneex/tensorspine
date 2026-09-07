@@ -6,7 +6,7 @@ M0 — random weights, no checkpoint:
   1. a tiny llama document (the corpus document with its quantities shrunk by the generic
      edit helper) derives, builds a module, and runs prefill and decode with every produced
      value checked against D2;
-  2. the dump holds exactly the values D2 lists at every layer cut, and every state;
+  2. the dump holds exactly the values D2 lists at every layer graph_split, and every state;
   3. the masked (compiled-form) attention equals the sliced one;
   4. optionally, the decode step compiles (`--compile`);
   5. the verdict of a comparison (docs/TENSORSPINE-FIXTURE.md §4): an empty comparison and a
@@ -79,10 +79,10 @@ def main(compile_step=False, full=False, strict_provenance=True):
     tmp = tempfile.mkdtemp(prefix='tensorspine-ref-test-')
     path, notes = graph_mod.edited(os.path.join(ROOT, 'data', 'models', 'llama3-8b.json'), TINY, tmp, 'tiny')
     g = graph_mod.load(path)
-    ok &= check("tiny llama derives: 3 layers, 6 contracts", len(g.nodes) == 3 * 6 + 3 and len(g.layer_cuts()) == 2)
+    ok &= check("tiny llama derives: 3 layers, 6 primitives", len(g.nodes) == 3 * 6 + 3 and len(g.layer_graph_splits()) == 2)
     kernels = registry.load_kernels()
     r = registry.refusals(g, kernels)
-    ok &= check("no refusal for the six M1 contracts", not r, '; '.join(r[:3]))
+    ok &= check("no refusal for the six M1 primitives", not r, '; '.join(r[:3]))
     params = loader.random_parameters(g, 'cpu', seed=1)
     ok &= check("every D3 identity has a parameter of its shape",
                 all(list(params[i].shape) == [a['extent'] for a in t['shape']] for i, t in g.tensors.items()))
@@ -97,8 +97,8 @@ def main(compile_step=False, full=False, strict_provenance=True):
     ok &= check("decode: logits [1, vocab]", list(out['logits'].shape) == [1, 256])
     ok &= check("positions consumed per stream: 9", session.consumed == {'tokens': 9})
     ok &= check("append states hold 9 positions", all(s.length == 9 for s in session.states.values()))
-    expected = {f"value/{p['value']}" for c in g.cuts for p in c['payload']}
-    ok &= check("dump keys = the D2 payload of every cut", set(dump) == expected, f"{sorted(set(dump) ^ expected)[:4]}")
+    expected = {f"value/{p['value']}" for c in g.graph_splits for p in c['payload']}
+    ok &= check("dump keys = the D2 payload of every graph_split", set(dump) == expected, f"{sorted(set(dump) ^ expected)[:4]}")
     ok &= check("finite outputs", bool(torch.isfinite(out['logits']).all()))
     # blocks under a bound: the same outputs, bit for bit, from a partitioned run (M4)
     resident = loader.state_bytes(g, 32, torch.float32) + loader.largest_temporary(g, torch.float32)
@@ -110,9 +110,9 @@ def main(compile_step=False, full=False, strict_provenance=True):
     bnxt = greedy(bout, g)
     bout2 = bsession.decode(bnxt)
     lines = blocked.summary(32, resident + total // 2, resident)
-    ok &= check("blocks: the cut summary has one line per block, opening and closing at D6's cuts",
+    ok &= check("blocks: the graph_split summary has one line per block, opening and closing at D6's graph_splits",
                 len(lines) == len(blocked.blocks) + 2 and all('→' in l for l in lines[1:-1]) and 'start →' in lines[1] and '→ end' in lines[-2])
-    ok &= check(f"blocks: {len(blocked.blocks)} blocks at legal cuts give the one-block logits bit for bit",
+    ok &= check(f"blocks: {len(blocked.blocks)} blocks at valid graph_splits give the one-block logits bit for bit",
                 len(blocked.blocks) > 1 and bnxt == nxt and torch.equal(bout2['logits'], out['logits'])
                 and bmodel.loaded_blocks == 2 * len(blocked.blocks))
     try:
@@ -122,12 +122,12 @@ def main(compile_step=False, full=False, strict_provenance=True):
         ok &= check("blocks: a bound below one layer is refused", 'exceeds --max-ram' in str(e))
     # the opaque channel (generators/CAPABILITIES.md): parameters reach the primitive beside its arguments
     from module import physical_for
-    phys = {'attention.dense@1.0.0': {'backend': 'cpu', 'kernel': 'vanilla'}, 'decoder/attn[layer=*]': {'kernel': 'paged'},
+    phys = {'attention.dense@2.0.0': {'backend': 'cpu', 'kernel': 'vanilla'}, 'decoder/attn[layer=*]': {'kernel': 'paged'},
             'decoder/attn[layer=2]': {'block_size': 16}}
-    ok &= check("physical parameters resolve contract < pattern < exact, and other occurrences get none",
-                physical_for(phys, 'decoder/attn[layer=2]', {'name': 'attention.dense', 'version': '1.0.0'}) == {'backend': 'cpu', 'kernel': 'paged', 'block_size': 16}
-                and physical_for(phys, 'decoder/attn[layer=0]', {'name': 'attention.dense', 'version': '1.0.0'}) == {'backend': 'cpu', 'kernel': 'paged'}
-                and physical_for(phys, 'decoder/ffn[layer=0]', {'name': 'ffn.gated', 'version': '1.0.0'}) is None)
+    ok &= check("physical parameters resolve primitive < pattern < exact, and other instances get none",
+                physical_for(phys, 'decoder/attn[layer=2]', {'name': 'attention.dense', 'version': '2.0.0'}) == {'backend': 'cpu', 'kernel': 'paged', 'block_size': 16}
+                and physical_for(phys, 'decoder/attn[layer=0]', {'name': 'attention.dense', 'version': '2.0.0'}) == {'backend': 'cpu', 'kernel': 'paged'}
+                and physical_for(phys, 'decoder/ffn[layer=0]', {'name': 'ffn.gated', 'version': '2.0.0'}) is None)
     pmodel = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu', physical=phys)
     pout = Session(pmodel, capacity=32, device='cpu', dtype=torch.float32).prefill([1, 2, 3, 4, 5, 6, 7, 8])
     ok &= check("a primitive ignores opaque keys it does not read: same logits", torch.equal(pout['logits'], out0))
@@ -231,11 +231,11 @@ def compare_case(check, tmp):
             code = ref_cli.main(['compare', *argv])
         return code, out.getvalue()
     ok = True
-    fixture = witness.fixture_path('norm.rms@1.0.0/basic')
+    fixture = witness.fixture_path('norm.rms@2.0.0/basic')
     unrelated = os.path.join(tmp, 'unrelated.safetensors')
     write_dump(unrelated, {'value/nothing': torch.zeros(2)}, {'compute': 'torch.float32'})
     code, text = cli(unrelated, fixture)
-    ok &= check("compare: an unrelated dump against norm.rms@1.0.0/basic exits 1 with 0 keys compared", code == 1 and '0 keys compared' in text, text[-200:])
+    ok &= check("compare: an unrelated dump against norm.rms@2.0.0/basic exits 1 with 0 keys compared", code == 1 and '0 keys compared' in text, text[-200:])
     fid = next(f for f in witness.committed() if any(k.startswith('state/') for k in read_fixture(witness.fixture_path(f))[0]))
     tensors, _ = read_fixture(witness.fixture_path(fid))
     dump = {k: v for k, v in tensors.items() if not k.startswith(('param/', 'in/'))}
@@ -294,9 +294,9 @@ def consistency_case(check, tmp):
     import json
     import witness
     import capabilities as cap
-    import catalog as catalog_mod
+    import primitive_library as primitive_library_mod
     kernels = registry.load_kernels()
-    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    cat = primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
     manifest, errs = cap.load(os.path.join(REF, 'capabilities.json'))
     if errs:
         return check("consistency: the manifest loads", False, str(errs[:2]))
@@ -304,14 +304,14 @@ def consistency_case(check, tmp):
     tried = admitted = refused_validator = refused_supports = structural = 0
     failures = []
     for (name, version), kernel in sorted(kernels.items()):
-        entry = manifest['contracts'].get(f"{name}@{version}")
+        entry = manifest['primitives'].get(f"{name}@{version}")
         if entry is None:
             continue
         table = entry['arguments']
         # a combination is (arguments, the invocations and seed of the fixture it varies): the
-        # fixture's own delivery is a valid one for the contract's ports — an insert's source
+        # fixture's own delivery is a valid one for the primitive's ports — an insert's source
         # delivering nothing where it must (splice), a merge's groups aligned. `kv_source: shared`
-        # is a topological feature (a writer occurrence a one-occurrence document cannot hold), so
+        # is a topological feature (a writer instance a one-instance document cannot hold), so
         # it is not overridden here; the gemma3n random case exercises it on a real topology.
         combos = []
         seen = set()
@@ -320,7 +320,7 @@ def consistency_case(check, tmp):
             base_ports = {n for inv in c['invocations'] for n in inv}
             variants = [dict(base)]
             for arg, rule in table.items():
-                if arg == 'kv_source':                 # a shared reader needs a writer occurrence
+                if arg == 'kv_source':                 # a shared reader needs a writer instance
                     continue
                 values = rule if isinstance(rule, list) else (rule.get('values') if isinstance(rule, dict) else None)
                 for v in (values or []):
@@ -338,7 +338,7 @@ def consistency_case(check, tmp):
             tried += 1
             base_dir = witness.fixture_dir(name, version)
             try:
-                doc = witness.document(name, version, args, cat, witness.catalog_base_from(base_dir))
+                doc = witness.document(name, version, args, cat, witness.primitive_library_base_from(base_dir))
                 gpath = witness._materialise(doc, tmp)
                 gg = g_mod.load(gpath)
             except (ValueError, KeyError):
@@ -385,8 +385,8 @@ def sharing_case(check, tmp):
     path, _ = graph_mod.truncated(os.path.join(ROOT, 'data', 'models', 'qwen3.5-35b-a3b.json'), 'decoder.layer=4', tmp)
     path, _ = graph_mod.edited(path, TINY_MOE, tmp, 'tiny-fork')
     g = graph_mod.load(path)
-    laws = {s['law'] for s in g.states.values()}
-    ok &= check("sharing: the tiny hybrid carries all three laws", laws == {'append', 'window', 'fixed'}, str(laws))
+    evolutions = {s['evolution'] for s in g.states.values()}
+    ok &= check("sharing: the tiny hybrid carries all three evolutions", evolutions == {'append', 'window', 'fixed'}, str(evolutions))
     params = loader.random_parameters(g, 'cpu', seed=5)
 
     def session():
@@ -451,10 +451,10 @@ def multiplicity_case(check, tmp):
     values in the same copy order — through the language's own resolver and the loader's assembly."""
     from safetensors.torch import save_file
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    import catalog as catalog_mod
+    import primitive_library as primitive_library_mod
     import validate
-    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
-    slot = cat['contracts']['residual.stream_expand']['parameters']['projection']
+    cat = primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
+    slot = cat['primitives']['residual.stream_expand']['parameters']['projection']
     args = {'width': 2, 'streams': 4}
     copies = [torch.arange(4, dtype=torch.float32).reshape(2, 2) + 10 * i for i in range(3)]
     ck = os.path.join(tmp, 'multiplicity')
@@ -490,7 +490,7 @@ def moe_random_case(check, tmp):
     kernels = registry.load_kernels()
     active = Plan(g, kernels).evaluable({g.feedback_input})
     refused = registry.refusals(g, kernels, active)
-    ok &= check("tiny qwen3.5-moe: every contract the text delivery evaluates has a kernel", not refused, refused[:2])
+    ok &= check("tiny qwen3.5-moe: every primitive the text delivery evaluates has a kernel", not refused, refused[:2])
     params = loader.random_parameters(g, 'cpu', seed=3)
     model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
     session = Session(model, capacity=64, device='cpu', dtype=torch.float32)
@@ -535,7 +535,7 @@ def gemma_batch_case(check, tmp):
     params = loader.random_parameters(g, 'cpu', seed=2)
     model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
     per = {n.split('[')[0] for n, v in model.per_session.items() if v}
-    ok &= check(f"batch (tiny gemma3n): the occurrences evaluated per session are the two attention sites, own and readers — {sorted(per)}",
+    ok &= check(f"batch (tiny gemma3n): the instances evaluated per session are the two attention sites, own and readers — {sorted(per)}",
                 per == {'decoder/attn', 'decoder/attn_full'}, str(sorted(per)))
     A, B = [1, 2, 3, 4, 5, 6], [9, 10, 11]
 
@@ -583,7 +583,7 @@ def gemma_random_case(check, tmp):
     g = graph_mod.load(path)
     kernels = registry.load_kernels()
     refused = registry.refusals(g, kernels)
-    ok &= check("tiny gemma3n: every contract has a kernel for its arguments", not refused, refused[:2])
+    ok &= check("tiny gemma3n: every primitive has a kernel for its arguments", not refused, refused[:2])
     ok &= check("tiny gemma3n: the shared ring is written by layer 18 and read by layer 20; the full cache has layer 19 alone",
                 g.states['shared.sliding.kv']['writer'] == 'decoder/attn[layer=18].kv'
                 and 'decoder/attn[layer=20].kv' in g.states['shared.sliding.kv']['members']
@@ -623,7 +623,7 @@ TINY_WHISPER = {'quantities.d.source.value': 64, 'quantities.heads.source.value'
                 'quantities.ffn.source.value': 128, 'quantities.vocab.source.value': 256, 'quantities.mels.source.value': 8,
                 'quantities.enc_layers.source.value': 2, 'compositions.encoder.indices.layer.stop.literal': 2,
                 'quantities.dec_layers.source.value': 2, 'compositions.decoder.indices.layer.stop.literal': 2,
-                'occurrences.conv_frontend.arguments.position.literal': 16, 'occurrences.embed.arguments.positions.literal': 16}
+                'instances.conv_frontend.arguments.position.literal': 16, 'instances.embed.arguments.positions.literal': 16}
 
 
 def whisper_random_case(check, tmp):
@@ -640,9 +640,9 @@ def whisper_random_case(check, tmp):
     plan = Plan(g, kernels)
     active = plan.evaluable(g.required_inputs())
     refused = registry.refusals(g, kernels, active)
-    ok &= check("tiny whisper: the audio and the prompt evaluate every occurrence, each with a kernel for its arguments",
+    ok &= check("tiny whisper: the audio and the prompt evaluate every instance, each with a kernel for its arguments",
                 not refused and len(active) == len(g.nodes), refused[:2])
-    ok &= check("tiny whisper: the prompt alone evaluates five occurrences before any audio is cached (§7)",
+    ok &= check("tiny whisper: the prompt alone evaluates five instances before any audio is cached (§7)",
                 len(plan.evaluable({'tokens'})) == 5, str(sorted(plan.evaluable({'tokens'}))))
     params = loader.random_parameters(g, 'cpu', seed=7)
     model = TensorspineModel(g, plan, params, torch.float32, 'cpu')
@@ -659,7 +659,7 @@ def whisper_random_case(check, tmp):
     selfs = [st for ident, st in session.states.items() if 'self_attn' in ident]
     ok &= check("tiny whisper: the cross caches hold the 12 merged source positions, the self caches the 4 tokens",
                 len(cross) == 2 and len(selfs) == 2 and all(st.length == 12 for st in cross) and all(st.length == 4 for st in selfs))
-    ok &= check("tiny whisper: the encoder runs on 12 positions and its output crosses every decoder cut, dumped once as [12, 64]",
+    ok &= check("tiny whisper: the encoder runs on 12 positions and its output crosses every decoder graph_split, dumped once as [12, 64]",
                 list(dump['value/enc_final_n.output'].shape) == [12, 64] and list(dump['value/encoder/ffn_r[layer=1].output'].shape) == [12, 64])
     tokens = [greedy(out, g)]
     for _ in range(2):
@@ -691,7 +691,7 @@ def whisper_random_case(check, tmp):
     bt = [greedy({g.generative[0]: bl}, g)]
     for _ in range(2):
         bt.append(greedy(bsession.decode(bt[-1]), g))
-    ok &= check(f"tiny whisper: {len(blocked.blocks)} blocks at legal cuts of both compositions give the same logits and tokens",
+    ok &= check(f"tiny whisper: {len(blocked.blocks)} blocks at valid graph_splits of both compositions give the same logits and tokens",
                 len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
     return ok
 
@@ -709,7 +709,7 @@ def recorded_states(session):
     fixed state's payload — what the delivery implementation's caches hold."""
     out = {}
     for ident, st in session.states.items():
-        bufs, length = st.tail() if st.law == 'window' else st.read()
+        bufs, length = st.tail() if st.evolution == 'window' else st.read()
         for c, buf in bufs.items():
             out[f"state/{ident}/{c}"] = (buf[:length] if length is not None else buf).detach().to('cpu', torch.float32).clone()
     return out
@@ -731,7 +731,7 @@ def voxtral_random_case(check, tmp):
     plan = Plan(g, kernels)
     active = plan.evaluable(g.required_inputs())
     refused = registry.refusals(g, kernels, active)
-    ok &= check("tiny voxtral: the tokens, the frames and the delay evaluate every occurrence, each with a kernel for its arguments",
+    ok &= check("tiny voxtral: the tokens, the frames and the delay evaluate every instance, each with a kernel for its arguments",
                 not refused and len(active) == len(g.nodes), refused[:2])
     ok &= check("tiny voxtral: the token input joins the audio stream — the feedback input is `tokens`, eight frames per token (§5.3)",
                 g.feedback_input == 'tokens' and g.input_stream['tokens'] == 'audio' and g.elements_per['tokens'] == 8 and g.elements_per['audio'] == 1
@@ -760,7 +760,7 @@ def voxtral_random_case(check, tmp):
     ok &= check("tiny voxtral: after the prefill the encoder rings hold 12 positions, the decoder rings 3, the histories 2 and 1 frames, the condition caches 1",
                 len(enc) == 2 and all(st.tail()[1] == 12 for st in enc) and len(dec) == 2 and all(st.tail()[1] == 3 for st in dec)
                 and h1.tail()[1] == 2 and h2.tail()[1] == 1 and len(conds) == 2 and all(st.length == 1 for st in conds))
-    ok &= check("tiny voxtral: the values crossing the cuts are dumped once — the encoder's output on 12 positions, the projector's and the fused embedding on 3 tokens, the time embedding on 1",
+    ok &= check("tiny voxtral: the values crossing the graph_splits are dumped once — the encoder's output on 12 positions, the projector's and the fused embedding on 3 tokens, the time embedding on 1",
                 list(dump['value/enc_final_n.output'].shape) == [12, 32] and list(dump['value/audio_projector.output'].shape) == [3, 64]
                 and list(dump['value/fuse.output'].shape) == [3, 64] and list(dump['value/time_embed.embedding'].shape) == [1, 64], str(sorted(dump)))
     # §5.3's invariance: the same prefill delivered as three fragments of eight frames with one token each
@@ -839,7 +839,7 @@ def voxtral_random_case(check, tmp):
     bt = [greedy({g.generative[0]: bl}, g)]
     for i in range(2):
         bt.append(greedy(bsession.decode(bt[-1], inputs={'audio': audio[24 + 8 * i:32 + 8 * i]}), g))
-    ok &= check(f"tiny voxtral: {len(blocked.blocks)} blocks at legal cuts of both compositions give the same logits and tokens",
+    ok &= check(f"tiny voxtral: {len(blocked.blocks)} blocks at valid graph_splits of both compositions give the same logits and tokens",
                 len(blocked.blocks) > 1 and torch.equal(bl, logits) and bt == tokens)
     return ok
 
@@ -867,7 +867,7 @@ def batch_case(check, tmp):
         model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
         active = model.plan.evaluable({g.feedback_input})          # the text delivery (§7): the vision tower stays out
         per = {n.split('[')[0] for n, v in model.per_session.items() if v and n in active}
-        ok &= check(f"batch ({label}): on the text delivery, the occurrences evaluated per session are those reading across positions or holding a state — {sorted(per)}",
+        ok &= check(f"batch ({label}): on the text delivery, the instances evaluated per session are those reading across positions or holding a state — {sorted(per)}",
                     per == per_expected, str(sorted(per)))
 
         def session():
@@ -932,7 +932,7 @@ def voxtral_batch_case(check, tmp):
     params = loader.random_parameters(g, 'cpu', seed=9)
     model = TensorspineModel(g, Plan(g, kernels), params, torch.float32, 'cpu')
     per = {n for n, v in model.per_session.items() if v}
-    want_per = {n for n, e in g.nodes.items() if e['contract']['name'] in ('conv_frontend', 'attention.dense', 'conditioning.scale')}
+    want_per = {n for n, e in g.nodes.items() if e['primitive']['name'] in ('conv_frontend', 'attention.dense', 'conditioning.scale')}
     ok &= check("batch (tiny voxtral): per session — the stem, the attentions and the conditioning scales; on the union — the temporal "
                 "projector (a merge), the time embedding, the fused embedding, the norms, the feed-forwards and the head",
                 per == want_per and not any(model.per_session[n] for n in ('audio_projector', 'time_embed', 'fuse', 'embed', 'lm_head')),
@@ -1059,7 +1059,7 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
     plan = Plan(g, kernels)
     active = plan.evaluable({g.token_input} | set(recorded))      # what the fixture delivers (§7)
     refused = registry.refusals(g, kernels, active)
-    ok &= check(f"{label}: every contract the delivery evaluates has a kernel for its arguments", not refused, refused[:2])
+    ok &= check(f"{label}: every primitive the delivery evaluates has a kernel for its arguments", not refused, refused[:2])
     params = loader.load_parameters(g, checkpoint, 'cpu')
     ok &= check(f"{label}: every loaded parameter has D3's stored shape — the shape random parameters draw (a declared multiplicity leading)",
                 all(list(params[i].shape) == [a['extent'] for a in t['shape']] for i, t in g.tensors.items()))
@@ -1116,7 +1116,7 @@ def fixture_case(check, fixture, document, checkpoint, tolerance=None):
         # B06 on the checkpoint: the fixture's prompt and its first half as one packed batch, decoded
         # together for the fixture's steps — the first session against the fixture's own record, the
         # second against its run alone; both deliver the prefill's other inputs (Whisper's audio, the
-        # cross source of both sessions), since a batch's sessions evaluate the same occurrences (§7)
+        # cross source of both sessions), since a batch's sessions evaluate the same instances (§7)
         half = ids[:max(1, len(ids) // 2)]
         alone = Session(model, capacity=capacity, device='cpu', dtype=torch.float32)
         a_logits = [alone.prefill(half, inputs=prefill_inputs)[g.generative[0]].clone()]
@@ -1180,17 +1180,17 @@ def layer_of(node, composition):
 def expectation(g, composition):
     """What an integration fixture must hold and the reference must produce, read off the truncated
     derived document (the fixture guide §4): the value crossing each layer boundary of the
-    truncated composition (the payload of every `layer`-kind cut of it — the output of every layer
+    truncated composition (the payload of every `layer`-kind graph_split of it — the output of every layer
     but the last, whose value crosses the composition boundary and is compared when both sides hold
     it), every exposed output, `logits/last` and `logits/argmax` for a generative document, and
-    every state an occurrence of the composition writes on its own stream. A state indexed by a
+    every state an instance of the composition writes on its own stream. A state indexed by a
     source stream (a cross-attention cache, a condition cache) is the source's evidence, which a
     dumper may leave out and its `hook_map` then says so; a fixture value the reference routes
-    through a family cut instead (Gemma's per-layer inject) is compared when both hold it, never
+    through a family graph_split instead (Gemma's per-layer inject) is compared when both hold it, never
     required."""
     keys = set()
-    for c in g.layer_cuts():
-        if c['cut'].startswith(composition + '['):
+    for c in g.layer_graph_splits():
+        if c['graph_split'].startswith(composition + '['):
             keys |= {f"value/{p['value']}" for p in c['payload']}
     for name, o in g.interfaces['outputs'].items():
         if g.generative and name == g.generative[0]:

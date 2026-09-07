@@ -1,10 +1,10 @@
-"""norm.rms@1.0.0 for the onnxruntime target — one `SimplifiedLayerNormalization`; when the input
-is the sum a `residual.add` occurrence just produced, the two occurrences become one
+"""norm.rms@2.0.0 for the onnxruntime target — one `SimplifiedLayerNormalization`; when the input
+is the sum a `residual.add` instance just produced, the two instances become one
 `SkipSimplifiedLayerNormalization` whose sum output replaces the Add for every consumer: a fusion
-across occurrences, reasoned from the topology (the value's origin) rather than from the model."""
+across instances, reasoned from the topology (the value's origin) rather than from the model."""
 from primitives import norm_rms as portable
 
-CONTRACT = portable.CONTRACT
+PRIMITIVE = portable.PRIMITIVE
 CAPABILITIES = dict(portable.CAPABILITIES, notes=["SimplifiedLayerNormalization; fused with a preceding residual.add into SkipSimplifiedLayerNormalization"])
 
 

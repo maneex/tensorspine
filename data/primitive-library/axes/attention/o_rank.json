@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "attention.o_rank",
+  "definition": {
+    "space": "value",
+    "summary": "Rank of one output group; flattened as `o_groups * o_rank`."
+  }
+}

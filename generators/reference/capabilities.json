@@ -1,11 +1,11 @@
 {
-  "schema": "tensorspine-capabilities/1",
+  "schema": "tensorspine-capabilities/2",
   "role": "witness",
   "generator": {
     "name": "reference",
-    "version": "3fdeadd",
+    "version": "cd4ad30",
     "generator": "generators/reference/ref.py capabilities",
-    "generated": "2026-09-06"
+    "generated": "2026-09-07"
   },
   "compute_dtypes": [
     "f32",
@@ -16,7 +16,7 @@
     "f16",
     "f32"
   ],
-  "state_laws": [
+  "state_evolutions": [
     "append",
     "window",
     "fixed"
@@ -32,7 +32,7 @@
     "within_span",
     "at_fork_point"
   ],
-  "partitions": [],
+  "partition_options": [],
   "domains": {
     "kinds": [
       "sequence",
@@ -54,8 +54,8 @@
     "concat",
     "slice"
   ],
-  "contracts": {
-    "attention.dense@1.0.0": {
+  "primitives": {
+    "attention.dense@2.0.0": {
       "arguments": {
         "width": "any",
         "heads": "any",
@@ -215,17 +215,17 @@
           }
         },
         "fixtures": [
-          "attention.dense@1.0.0/causal-rope-gqa",
-          "attention.dense@1.0.0/bidirectional-biased",
-          "attention.dense@1.0.0/gated-qknorm-partial-mrope",
-          "attention.dense@1.0.0/yarn",
-          "attention.dense@1.0.0/cross",
-          "attention.dense@1.0.0/window",
-          "attention.dense@1.0.0/window-streaming"
+          "attention.dense@2.0.0/causal-rope-gqa",
+          "attention.dense@2.0.0/bidirectional-biased",
+          "attention.dense@2.0.0/gated-qknorm-partial-mrope",
+          "attention.dense@2.0.0/yarn",
+          "attention.dense@2.0.0/cross",
+          "attention.dense@2.0.0/window",
+          "attention.dense@2.0.0/window-streaming"
         ]
       }
     },
-    "conditioning.layer_select@1.0.0": {
+    "conditioning.layer_select@2.0.0": {
       "arguments": {
         "layers": "any",
         "width": "any",
@@ -245,11 +245,11 @@
           }
         },
         "fixtures": [
-          "conditioning.layer_select@1.0.0/basic"
+          "conditioning.layer_select@2.0.0/basic"
         ]
       }
     },
-    "conditioning.multiplicative@1.0.0": {
+    "conditioning.multiplicative@2.0.0": {
       "arguments": {
         "width": "any",
         "condition_width": "any",
@@ -275,11 +275,11 @@
           }
         },
         "fixtures": [
-          "conditioning.multiplicative@1.0.0/gelu-tanh"
+          "conditioning.multiplicative@2.0.0/gelu-tanh"
         ]
       }
     },
-    "conditioning.scale@1.0.0": {
+    "conditioning.scale@2.0.0": {
       "arguments": {
         "width": "any",
         "condition_width": "any",
@@ -313,11 +313,11 @@
           }
         },
         "fixtures": [
-          "conditioning.scale@1.0.0/basic"
+          "conditioning.scale@2.0.0/basic"
         ]
       }
     },
-    "conv_frontend@1.0.0": {
+    "conv_frontend@2.0.0": {
       "arguments": {
         "width": "any",
         "mels": "any",
@@ -335,7 +335,7 @@
         "merge"
       ],
       "notes": [
-        "the activation after each convolution is the erf GELU, the convention the contract leaves to the witness",
+        "the activation after each convolution is the erf GELU, the convention the primitive leaves to the witness",
         "an even kernel has no symmetric padding and is refused at run time"
       ],
       "witness": {
@@ -351,12 +351,12 @@
           }
         },
         "fixtures": [
-          "conv_frontend@1.0.0/basic",
-          "conv_frontend@1.0.0/causal-streaming"
+          "conv_frontend@2.0.0/basic",
+          "conv_frontend@2.0.0/causal-streaming"
         ]
       }
     },
-    "embed@1.0.0": {
+    "embed@2.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any"
@@ -375,11 +375,11 @@
           }
         },
         "fixtures": [
-          "embed@1.0.0/basic"
+          "embed@2.0.0/basic"
         ]
       }
     },
-    "embedding.time@1.0.0": {
+    "embedding.time@2.0.0": {
       "arguments": {
         "width": "any",
         "theta": "any"
@@ -398,11 +398,11 @@
           }
         },
         "fixtures": [
-          "embedding.time@1.0.0/basic"
+          "embedding.time@2.0.0/basic"
         ]
       }
     },
-    "embedding.token_auxiliary@1.0.0": {
+    "embedding.token_auxiliary@2.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any",
@@ -425,11 +425,11 @@
           }
         },
         "fixtures": [
-          "embedding.token_auxiliary@1.0.0/basic"
+          "embedding.token_auxiliary@2.0.0/basic"
         ]
       }
     },
-    "embedding.token_position@1.0.0": {
+    "embedding.token_position@2.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any",
@@ -449,11 +449,11 @@
           }
         },
         "fixtures": [
-          "embedding.token_position@1.0.0/basic"
+          "embedding.token_position@2.0.0/basic"
         ]
       }
     },
-    "embedding.token_position_type@1.0.0": {
+    "embedding.token_position_type@2.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any",
@@ -463,7 +463,7 @@
       },
       "states": [],
       "notes": [
-        "the segment type is 0 for every token, as the contract states for this version"
+        "the segment type is 0 for every token, as the primitive states for this version"
       ],
       "witness": {
         "kernel": "kernels/embedding_token_position_type.py",
@@ -478,11 +478,11 @@
           }
         },
         "fixtures": [
-          "embedding.token_position_type@1.0.0/basic"
+          "embedding.token_position_type@2.0.0/basic"
         ]
       }
     },
-    "ffn.dense@1.0.0": {
+    "ffn.dense@2.0.0": {
       "arguments": {
         "width": "any",
         "inner": "any",
@@ -516,12 +516,12 @@
           }
         },
         "fixtures": [
-          "ffn.dense@1.0.0/gelu-biased",
-          "ffn.dense@1.0.0/silu"
+          "ffn.dense@2.0.0/gelu-biased",
+          "ffn.dense@2.0.0/silu"
         ]
       }
     },
-    "ffn.gated@1.0.0": {
+    "ffn.gated@2.0.0": {
       "arguments": {
         "width": "any",
         "inner": "any",
@@ -549,13 +549,13 @@
           }
         },
         "fixtures": [
-          "ffn.gated@1.0.0/silu",
-          "ffn.gated@1.0.0/gelu-tanh-biased",
-          "ffn.gated@1.0.0/relu2"
+          "ffn.gated@2.0.0/silu",
+          "ffn.gated@2.0.0/gelu-tanh-biased",
+          "ffn.gated@2.0.0/relu2"
         ]
       }
     },
-    "lm_head@1.0.0": {
+    "lm_head@2.0.0": {
       "arguments": {
         "width": "any",
         "vocabulary": "any",
@@ -575,11 +575,11 @@
           }
         },
         "fixtures": [
-          "lm_head@1.0.0/basic"
+          "lm_head@2.0.0/basic"
         ]
       }
     },
-    "moe@1.0.0": {
+    "moe@2.0.0": {
       "arguments": {
         "width": "any",
         "experts": "any",
@@ -619,12 +619,12 @@
           }
         },
         "fixtures": [
-          "moe@1.0.0/softmax-topk-shared",
-          "moe@1.0.0/plain-scaled"
+          "moe@2.0.0/softmax-topk-shared",
+          "moe@2.0.0/plain-scaled"
         ]
       }
     },
-    "norm.layer@1.0.0": {
+    "norm.layer@2.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any"
@@ -643,11 +643,11 @@
           }
         },
         "fixtures": [
-          "norm.layer@1.0.0/basic"
+          "norm.layer@2.0.0/basic"
         ]
       }
     },
-    "norm.rms@1.0.0": {
+    "norm.rms@2.0.0": {
       "arguments": {
         "width": "any",
         "eps": "any",
@@ -667,12 +667,12 @@
           }
         },
         "fixtures": [
-          "norm.rms@1.0.0/basic",
-          "norm.rms@1.0.0/zero-centered"
+          "norm.rms@2.0.0/basic",
+          "norm.rms@2.0.0/zero-centered"
         ]
       }
     },
-    "pooler@1.0.0": {
+    "pooler@2.0.0": {
       "arguments": {
         "width": "any",
         "project_to": "any",
@@ -698,12 +698,12 @@
           }
         },
         "fixtures": [
-          "pooler@1.0.0/l2",
-          "pooler@1.0.0/plain"
+          "pooler@2.0.0/l2",
+          "pooler@2.0.0/plain"
         ]
       }
     },
-    "projector.temporal_stack@1.0.0": {
+    "projector.temporal_stack@2.0.0": {
       "arguments": {
         "width": "any",
         "source_width": "any",
@@ -729,11 +729,11 @@
           }
         },
         "fixtures": [
-          "projector.temporal_stack@1.0.0/basic"
+          "projector.temporal_stack@2.0.0/basic"
         ]
       }
     },
-    "residual.add@1.0.0": {
+    "residual.add@2.0.0": {
       "arguments": {
         "width": "any"
       },
@@ -751,11 +751,11 @@
           }
         },
         "fixtures": [
-          "residual.add@1.0.0/basic"
+          "residual.add@2.0.0/basic"
         ]
       }
     },
-    "residual.altup_correct@1.0.0": {
+    "residual.altup_correct@2.0.0": {
       "arguments": {
         "width": "any",
         "streams": "any",
@@ -775,11 +775,11 @@
           }
         },
         "fixtures": [
-          "residual.altup_correct@1.0.0/basic"
+          "residual.altup_correct@2.0.0/basic"
         ]
       }
     },
-    "residual.altup_predict@1.0.0": {
+    "residual.altup_predict@2.0.0": {
       "arguments": {
         "width": "any",
         "streams": "any",
@@ -799,11 +799,11 @@
           }
         },
         "fixtures": [
-          "residual.altup_predict@1.0.0/basic"
+          "residual.altup_predict@2.0.0/basic"
         ]
       }
     },
-    "residual.combine@1.0.0": {
+    "residual.combine@2.0.0": {
       "arguments": {
         "width": "any",
         "left_scale": "any",
@@ -824,11 +824,11 @@
           }
         },
         "fixtures": [
-          "residual.combine@1.0.0/basic"
+          "residual.combine@2.0.0/basic"
         ]
       }
     },
-    "residual.laurel@1.0.0": {
+    "residual.laurel@2.0.0": {
       "arguments": {
         "width": "any",
         "rank": "any",
@@ -848,11 +848,11 @@
           }
         },
         "fixtures": [
-          "residual.laurel@1.0.0/basic"
+          "residual.laurel@2.0.0/basic"
         ]
       }
     },
-    "residual.stream_collapse@1.0.0": {
+    "residual.stream_collapse@2.0.0": {
       "arguments": {
         "width": "any",
         "streams": "any"
@@ -871,11 +871,11 @@
           }
         },
         "fixtures": [
-          "residual.stream_collapse@1.0.0/basic"
+          "residual.stream_collapse@2.0.0/basic"
         ]
       }
     },
-    "residual.stream_expand@1.0.0": {
+    "residual.stream_expand@2.0.0": {
       "arguments": {
         "width": "any",
         "streams": "any"
@@ -894,11 +894,11 @@
           }
         },
         "fixtures": [
-          "residual.stream_expand@1.0.0/basic"
+          "residual.stream_expand@2.0.0/basic"
         ]
       }
     },
-    "residual.stream_inject@1.0.0": {
+    "residual.stream_inject@2.0.0": {
       "arguments": {
         "width": "any",
         "streams": "any"
@@ -917,11 +917,11 @@
           }
         },
         "fixtures": [
-          "residual.stream_inject@1.0.0/basic"
+          "residual.stream_inject@2.0.0/basic"
         ]
       }
     },
-    "sequence.gated_delta@1.0.0": {
+    "sequence.gated_delta@2.0.0": {
       "arguments": {
         "width": "any",
         "key_heads": "any",
@@ -959,11 +959,11 @@
           }
         },
         "fixtures": [
-          "sequence.gated_delta@1.0.0/basic"
+          "sequence.gated_delta@2.0.0/basic"
         ]
       }
     },
-    "splice@1.0.0": {
+    "splice@2.0.0": {
       "arguments": {
         "width": "any"
       },
@@ -987,7 +987,7 @@
           }
         },
         "fixtures": [
-          "splice@1.0.0/text-only"
+          "splice@2.0.0/text-only"
         ]
       }
     }

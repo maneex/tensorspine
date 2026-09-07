@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "attention.heads",
+  "definition": {
+    "space": "value",
+    "summary": "Query heads; also the flattened `heads * head_dim` projection width."
+  }
+}

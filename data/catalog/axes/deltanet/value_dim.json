@@ -1,9 +1,0 @@
-{
-  "schema": "tensorspine-catalog-unit/2.0",
-  "kind": "axis",
-  "name": "deltanet.value_dim",
-  "definition": {
-    "space": "value",
-    "summary": "Flattened value width of a gated-delta layer, `value_heads * head_dim`."
-  }
-}

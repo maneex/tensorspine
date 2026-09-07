@@ -1,7 +1,7 @@
 {
  "nodes": 382,
  "edges": 505,
- "per_contract": {
+ "per_primitive": {
   "attention.latent_compressed": 62,
   "embed": 2,
   "lm_head": 2,

@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "moe.experts",
+  "definition": {
+    "space": "value",
+    "summary": "Routed experts of a mixture of experts."
+  }
+}

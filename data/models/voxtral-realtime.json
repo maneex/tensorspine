@@ -1,9 +1,9 @@
 {
-  "schema": "tensorspine/2.0",
+  "schema": "tensorspine/3.0",
   "model": "voxtral_realtime",
-  "catalog": [
+  "primitive_libraries": [
     {
-      "base": "../catalog/"
+      "base": "../primitive-library/"
     }
   ],
   "quantities": {
@@ -147,11 +147,11 @@
     }
   },
   "constants": {},
-  "occurrences": {
+  "instances": {
     "conv_frontend": {
-      "contract": {
+      "primitive": {
         "name": "conv_frontend",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -182,9 +182,9 @@
       ]
     },
     "embed": {
-      "contract": {
+      "primitive": {
         "name": "embed",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -200,9 +200,9 @@
       ]
     },
     "fuse": {
-      "contract": {
+      "primitive": {
         "name": "residual.add",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -215,9 +215,9 @@
       ]
     },
     "final_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -232,9 +232,9 @@
       ]
     },
     "lm_head": {
-      "contract": {
+      "primitive": {
         "name": "lm_head",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -250,9 +250,9 @@
       ]
     },
     "enc_final_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -268,9 +268,9 @@
       ]
     },
     "audio_projector": {
-      "contract": {
+      "primitive": {
         "name": "projector.temporal_stack",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -292,9 +292,9 @@
       ]
     },
     "time_embed": {
-      "contract": {
+      "primitive": {
         "name": "embedding.time",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -328,11 +328,11 @@
       "families": [
         "encoder"
       ],
-      "occurrences": {
+      "instances": {
         "attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -347,9 +347,9 @@
           ]
         },
         "attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.dense",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -402,9 +402,9 @@
           ]
         },
         "attn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -416,9 +416,9 @@
           ]
         },
         "ffn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -433,9 +433,9 @@
           ]
         },
         "ffn": {
-          "contract": {
+          "primitive": {
             "name": "ffn.gated",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -456,9 +456,9 @@
           ]
         },
         "ffn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -892,11 +892,11 @@
       "families": [
         "decoder"
       ],
-      "occurrences": {
+      "instances": {
         "attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -911,9 +911,9 @@
           ]
         },
         "attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.dense",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -954,9 +954,9 @@
           ]
         },
         "attn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -968,9 +968,9 @@
           ]
         },
         "ffn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -985,9 +985,9 @@
           ]
         },
         "time_scale": {
-          "contract": {
+          "primitive": {
             "name": "conditioning.scale",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1008,9 +1008,9 @@
           ]
         },
         "ffn": {
-          "contract": {
+          "primitive": {
             "name": "ffn.gated",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1028,9 +1028,9 @@
           ]
         },
         "ffn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1164,9 +1164,9 @@
           },
           "time_scale.condition": {
             "from": {
-              "occurrence": {
+              "instance": {
                 "kind": "root",
-                "occurrence": "time_embed"
+                "instance": "time_embed"
               },
               "port": "embedding"
             },
@@ -1443,17 +1443,17 @@
     "values": {
       "encoder.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "conv_frontend"
+            "instance": "conv_frontend"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "encoder",
-            "occurrence": "attn_n",
+            "instance": "attn_n",
             "indices": {
               "layer": {
                 "literal": 0
@@ -1465,17 +1465,17 @@
       },
       "encoder.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "conv_frontend"
+            "instance": "conv_frontend"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "encoder",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -1487,26 +1487,26 @@
       },
       "fuse.text": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "fuse"
+            "instance": "fuse"
           },
           "port": "a"
         }
       },
       "enc_final_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "encoder",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "layer": {
                 "op": "subtract",
@@ -1524,26 +1524,26 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "enc_final_n"
+            "instance": "enc_final_n"
           },
           "port": "input"
         }
       },
       "decoder.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "fuse"
+            "instance": "fuse"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "attn_n",
+            "instance": "attn_n",
             "indices": {
               "layer": {
                 "literal": 0
@@ -1555,17 +1555,17 @@
       },
       "decoder.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "fuse"
+            "instance": "fuse"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -1577,10 +1577,10 @@
       },
       "final_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "layer": {
                 "op": "subtract",
@@ -1598,57 +1598,57 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "input"
         }
       },
       "lm_head.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "input"
         }
       },
       "enc_final_n.audio_projector": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "enc_final_n"
+            "instance": "enc_final_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "audio_projector"
+            "instance": "audio_projector"
           },
           "port": "input"
         }
       },
       "fuse.audio": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "audio_projector"
+            "instance": "audio_projector"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "fuse"
+            "instance": "fuse"
           },
           "port": "b"
         }
@@ -1661,9 +1661,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "conv_frontend"
+              "instance": "conv_frontend"
             },
             "parameter": "conv1_weight"
           }
@@ -1683,9 +1683,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "conv_frontend"
+              "instance": "conv_frontend"
             },
             "parameter": "conv1_bias"
           }
@@ -1705,9 +1705,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "conv_frontend"
+              "instance": "conv_frontend"
             },
             "parameter": "conv2_weight"
           }
@@ -1727,9 +1727,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "conv_frontend"
+              "instance": "conv_frontend"
             },
             "parameter": "conv2_bias"
           }
@@ -1749,9 +1749,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "final_n"
+              "instance": "final_n"
             },
             "parameter": "weight"
           }
@@ -1771,9 +1771,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "enc_final_n"
+              "instance": "enc_final_n"
             },
             "parameter": "weight"
           }
@@ -1793,9 +1793,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "audio_projector"
+              "instance": "audio_projector"
             },
             "parameter": "input"
           }
@@ -1815,9 +1815,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "audio_projector"
+              "instance": "audio_projector"
             },
             "parameter": "output"
           }
@@ -1837,16 +1837,16 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "weight"
           },
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "lm_head"
+              "instance": "lm_head"
             },
             "parameter": "weight"
           }
@@ -1866,9 +1866,9 @@
       "conv_frontend.conv1_history": {
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "conv_frontend"
+              "instance": "conv_frontend"
             },
             "state": "conv1_history"
           }
@@ -1880,9 +1880,9 @@
       "conv_frontend.conv2_history": {
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "conv_frontend"
+              "instance": "conv_frontend"
             },
             "state": "conv2_history"
           }
@@ -1898,9 +1898,9 @@
       "audio": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "conv_frontend"
+              "instance": "conv_frontend"
             },
             "port": "frames"
           }
@@ -1911,9 +1911,9 @@
       "tokens": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "port": "tokens"
           }
@@ -1924,9 +1924,9 @@
       "delay": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "time_embed"
+              "instance": "time_embed"
             },
             "port": "steps"
           }
@@ -1937,9 +1937,9 @@
     "outputs": {
       "main": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "logits"
         },

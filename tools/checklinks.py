@@ -30,9 +30,12 @@ class Links(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.targets = []
+        self.ids = set()
 
     def handle_starttag(self, _tag, attrs):
         for name, value in attrs:
+            if name == 'id' and value is not None:
+                self.ids.add(value)
             if name in ('href', 'src') and value is not None:
                 self.targets.append(value)
 
@@ -55,6 +58,7 @@ def _site_target(page, target, site):
 def check_site(site):
     findings = []
     site = os.path.abspath(site)
+    pages = {}
     for page in sorted(_walk(site, '.html')):
         with open(page, encoding='utf-8') as stream:
             text = stream.read()
@@ -62,12 +66,21 @@ def check_site(site):
             findings.append(f"{os.path.relpath(page, site)}: unexpanded '{{{{' template marker")
         parser = Links()
         parser.feed(text)
+        pages[page] = parser
         for target in parser.targets:
             resolved = _site_target(page, target, site)
             if resolved and not os.path.isfile(resolved):
                 findings.append(
                     f"{os.path.relpath(page, site)}: {target!r} -> "
                     f"{os.path.relpath(resolved, site)} does not exist")
+    for page, parser in pages.items():
+        for target in parser.targets:
+            url = urlsplit(target)
+            if url.scheme or url.netloc or not url.fragment:
+                continue
+            resolved = _site_target(page, target, site) if url.path else page
+            if resolved in pages and unquote(url.fragment) not in pages[resolved].ids:
+                findings.append(f"{os.path.relpath(page, site)}: {target!r} names a missing heading or anchor")
     return findings
 
 

@@ -1,9 +1,9 @@
 {
-  "schema": "tensorspine/2.0",
+  "schema": "tensorspine/3.0",
   "model": "deepseek_v4_pro",
-  "catalog": [
+  "primitive_libraries": [
     {
-      "base": "../catalog/"
+      "base": "../primitive-library/"
     }
   ],
   "quantities": {
@@ -207,11 +207,11 @@
     }
   },
   "constants": {},
-  "occurrences": {
+  "instances": {
     "embed": {
-      "contract": {
+      "primitive": {
         "name": "embed",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -227,9 +227,9 @@
       ]
     },
     "final_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -244,9 +244,9 @@
       ]
     },
     "lm_head": {
-      "contract": {
+      "primitive": {
         "name": "lm_head",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -262,9 +262,9 @@
       ]
     },
     "collapse": {
-      "contract": {
+      "primitive": {
         "name": "mix.collapse",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -280,9 +280,9 @@
       ]
     },
     "mtp_embed": {
-      "contract": {
+      "primitive": {
         "name": "embed",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -298,9 +298,9 @@
       ]
     },
     "mtp_embed_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -316,9 +316,9 @@
       ]
     },
     "mtp_hidden_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -334,9 +334,9 @@
       ]
     },
     "mtp_merge": {
-      "contract": {
+      "primitive": {
         "name": "mtp.merge",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -348,9 +348,9 @@
       ]
     },
     "mtp_attn_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -366,9 +366,9 @@
       ]
     },
     "mtp_attn": {
-      "contract": {
+      "primitive": {
         "name": "attention.latent_compressed",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -467,9 +467,9 @@
       ]
     },
     "mtp_attn_r": {
-      "contract": {
+      "primitive": {
         "name": "residual.add",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -482,9 +482,9 @@
       ]
     },
     "mtp_moe_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -500,9 +500,9 @@
       ]
     },
     "mtp_moe": {
-      "contract": {
+      "primitive": {
         "name": "moe",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -546,9 +546,9 @@
       ]
     },
     "mtp_moe_r": {
-      "contract": {
+      "primitive": {
         "name": "residual.add",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -561,9 +561,9 @@
       ]
     },
     "mtp_final_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -579,9 +579,9 @@
       ]
     },
     "mtp_head": {
-      "contract": {
+      "primitive": {
         "name": "lm_head",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -616,11 +616,11 @@
       "families": [
         "decoder"
       ],
-      "occurrences": {
+      "instances": {
         "attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -635,9 +635,9 @@
           ]
         },
         "attn_hca": {
-          "contract": {
+          "primitive": {
             "name": "attention.latent_compressed",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -753,9 +753,9 @@
           }
         },
         "attn_r": {
-          "contract": {
+          "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -776,9 +776,9 @@
           ]
         },
         "moe_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -793,9 +793,9 @@
           ]
         },
         "moe": {
-          "contract": {
+          "primitive": {
             "name": "moe",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -838,9 +838,9 @@
           ]
         },
         "moe_r": {
-          "contract": {
+          "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -861,9 +861,9 @@
           ]
         },
         "attn_csa": {
-          "contract": {
+          "primitive": {
             "name": "attention.latent_compressed",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1612,11 +1612,11 @@
         "decoder",
         "hash_layers"
       ],
-      "occurrences": {
+      "instances": {
         "hca_attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1631,9 +1631,9 @@
           ]
         },
         "hca_attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.latent_compressed",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1693,9 +1693,9 @@
           ]
         },
         "hca_attn_r": {
-          "contract": {
+          "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1716,9 +1716,9 @@
           ]
         },
         "hca_moe_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1733,9 +1733,9 @@
           ]
         },
         "hca_moe": {
-          "contract": {
+          "primitive": {
             "name": "moe",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -1769,9 +1769,9 @@
           ]
         },
         "hca_moe_r": {
-          "contract": {
+          "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -2205,11 +2205,11 @@
         "decoder",
         "hash_layers"
       ],
-      "occurrences": {
+      "instances": {
         "csa_attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -2224,9 +2224,9 @@
           ]
         },
         "csa_attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.latent_compressed",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -2302,9 +2302,9 @@
           ]
         },
         "csa_attn_r": {
-          "contract": {
+          "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -2325,9 +2325,9 @@
           ]
         },
         "csa_moe_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -2342,9 +2342,9 @@
           ]
         },
         "csa_moe": {
-          "contract": {
+          "primitive": {
             "name": "moe",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -2378,9 +2378,9 @@
           ]
         },
         "csa_moe_r": {
-          "contract": {
+          "primitive": {
             "name": "mix.doubly_stochastic",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -2794,17 +2794,17 @@
     "values": {
       "prologue_hca.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_hca",
-            "occurrence": "hca_attn_n",
+            "instance": "hca_attn_n",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2816,17 +2816,17 @@
       },
       "prologue_hca.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_hca",
-            "occurrence": "hca_attn_r",
+            "instance": "hca_attn_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2838,10 +2838,10 @@
       },
       "prologue_csa.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_hca",
-            "occurrence": "hca_moe_r",
+            "instance": "hca_moe_r",
             "indices": {
               "layer": {
                 "literal": 1
@@ -2851,10 +2851,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_csa",
-            "occurrence": "csa_attn_n",
+            "instance": "csa_attn_n",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2866,10 +2866,10 @@
       },
       "prologue_csa.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_hca",
-            "occurrence": "hca_moe_r",
+            "instance": "hca_moe_r",
             "indices": {
               "layer": {
                 "literal": 1
@@ -2879,10 +2879,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_csa",
-            "occurrence": "csa_attn_r",
+            "instance": "csa_attn_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2894,10 +2894,10 @@
       },
       "main.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_csa",
-            "occurrence": "csa_moe_r",
+            "instance": "csa_moe_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2907,10 +2907,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "main",
-            "occurrence": "attn_n",
+            "instance": "attn_n",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2922,10 +2922,10 @@
       },
       "main.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "prologue_csa",
-            "occurrence": "csa_moe_r",
+            "instance": "csa_moe_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2935,10 +2935,10 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "main",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -2950,10 +2950,10 @@
       },
       "final_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "main",
-            "occurrence": "moe_r",
+            "instance": "moe_r",
             "indices": {
               "layer": {
                 "literal": 57
@@ -2963,265 +2963,265 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "collapse"
+            "instance": "collapse"
           },
           "port": "input"
         }
       },
       "lm_head.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "input"
         }
       },
       "collapse.final_n": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "collapse"
+            "instance": "collapse"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "input"
         }
       },
       "mtp.embed_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_embed"
+            "instance": "mtp_embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_embed_n"
+            "instance": "mtp_embed_n"
           },
           "port": "input"
         }
       },
       "mtp.hidden_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "collapse"
+            "instance": "collapse"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_hidden_n"
+            "instance": "mtp_hidden_n"
           },
           "port": "input"
         }
       },
       "mtp.merge.hidden": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_hidden_n"
+            "instance": "mtp_hidden_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_merge"
+            "instance": "mtp_merge"
           },
           "port": "hidden"
         }
       },
       "mtp.merge.next": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_embed_n"
+            "instance": "mtp_embed_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_merge"
+            "instance": "mtp_merge"
           },
           "port": "next_embedding"
         }
       },
       "mtp.attn_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_merge"
+            "instance": "mtp_merge"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn_n"
+            "instance": "mtp_attn_n"
           },
           "port": "input"
         }
       },
       "mtp.attn_r.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_merge"
+            "instance": "mtp_merge"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn_r"
+            "instance": "mtp_attn_r"
           },
           "port": "a"
         }
       },
       "mtp.attn.norm_in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn_n"
+            "instance": "mtp_attn_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn"
+            "instance": "mtp_attn"
           },
           "port": "input"
         }
       },
       "mtp.attn_r.b": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn"
+            "instance": "mtp_attn"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn_r"
+            "instance": "mtp_attn_r"
           },
           "port": "b"
         }
       },
       "mtp.moe_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn_r"
+            "instance": "mtp_attn_r"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_moe_n"
+            "instance": "mtp_moe_n"
           },
           "port": "input"
         }
       },
       "mtp.moe_r.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_attn_r"
+            "instance": "mtp_attn_r"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_moe_r"
+            "instance": "mtp_moe_r"
           },
           "port": "a"
         }
       },
       "mtp.moe.norm_in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_moe_n"
+            "instance": "mtp_moe_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_moe"
+            "instance": "mtp_moe"
           },
           "port": "input"
         }
       },
       "mtp.moe_r.b": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_moe"
+            "instance": "mtp_moe"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_moe_r"
+            "instance": "mtp_moe_r"
           },
           "port": "b"
         }
       },
       "mtp.final_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_moe_r"
+            "instance": "mtp_moe_r"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_final_n"
+            "instance": "mtp_final_n"
           },
           "port": "input"
         }
       },
       "mtp.head.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_final_n"
+            "instance": "mtp_final_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_head"
+            "instance": "mtp_head"
           },
           "port": "input"
         }
@@ -3234,16 +3234,16 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "weight"
           },
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_embed"
+              "instance": "mtp_embed"
             },
             "parameter": "weight"
           }
@@ -3256,9 +3256,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "final_n"
+              "instance": "final_n"
             },
             "parameter": "weight"
           }
@@ -3271,16 +3271,16 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "lm_head"
+              "instance": "lm_head"
             },
             "parameter": "weight"
           },
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_head"
+              "instance": "mtp_head"
             },
             "parameter": "weight"
           }
@@ -3293,9 +3293,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "collapse"
+              "instance": "collapse"
             },
             "parameter": "fn"
           }
@@ -3308,9 +3308,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "collapse"
+              "instance": "collapse"
             },
             "parameter": "base"
           }
@@ -3323,9 +3323,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "collapse"
+              "instance": "collapse"
             },
             "parameter": "scale"
           }
@@ -3338,9 +3338,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_embed_n"
+              "instance": "mtp_embed_n"
             },
             "parameter": "weight"
           }
@@ -3353,9 +3353,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_hidden_n"
+              "instance": "mtp_hidden_n"
             },
             "parameter": "weight"
           }
@@ -3368,9 +3368,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_merge"
+              "instance": "mtp_merge"
             },
             "parameter": "weight"
           }
@@ -3383,9 +3383,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn_n"
+              "instance": "mtp_attn_n"
             },
             "parameter": "weight"
           }
@@ -3398,9 +3398,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "q_a"
           }
@@ -3413,9 +3413,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "kv"
           }
@@ -3428,9 +3428,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "q_a_norm"
           }
@@ -3443,9 +3443,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "q_b"
           }
@@ -3458,9 +3458,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "kv_norm"
           }
@@ -3473,9 +3473,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "o_a"
           }
@@ -3488,9 +3488,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "o_b"
           }
@@ -3503,9 +3503,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "sinks"
           }
@@ -3518,9 +3518,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "compressor_ape"
           }
@@ -3533,9 +3533,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "compressor_kv_gate"
           }
@@ -3548,9 +3548,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "compressor_norm"
           }
@@ -3563,9 +3563,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "index_q"
           }
@@ -3578,9 +3578,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "index_weights"
           }
@@ -3593,9 +3593,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "index_compressor_ape"
           }
@@ -3608,9 +3608,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "index_compressor_kv_gate"
           }
@@ -3623,9 +3623,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "parameter": "index_compressor_norm"
           }
@@ -3638,9 +3638,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe_n"
+              "instance": "mtp_moe_n"
             },
             "parameter": "weight"
           }
@@ -3653,9 +3653,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe"
+              "instance": "mtp_moe"
             },
             "parameter": "router"
           }
@@ -3668,9 +3668,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe"
+              "instance": "mtp_moe"
             },
             "parameter": "in"
           }
@@ -3683,9 +3683,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe"
+              "instance": "mtp_moe"
             },
             "parameter": "out"
           }
@@ -3698,9 +3698,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe"
+              "instance": "mtp_moe"
             },
             "parameter": "shared_gate"
           }
@@ -3713,9 +3713,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe"
+              "instance": "mtp_moe"
             },
             "parameter": "shared_up"
           }
@@ -3728,9 +3728,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe"
+              "instance": "mtp_moe"
             },
             "parameter": "shared_out"
           }
@@ -3743,9 +3743,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_moe"
+              "instance": "mtp_moe"
             },
             "parameter": "score_bias"
           }
@@ -3758,9 +3758,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_final_n"
+              "instance": "mtp_final_n"
             },
             "parameter": "weight"
           }
@@ -3776,9 +3776,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "state": "kv"
           }
@@ -3790,9 +3790,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "state": "sliding"
           }
@@ -3804,9 +3804,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "state": "compressor"
           }
@@ -3818,9 +3818,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "state": "index"
           }
@@ -3832,9 +3832,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_attn"
+              "instance": "mtp_attn"
             },
             "state": "index_compressor"
           }
@@ -3847,9 +3847,9 @@
       "tokens": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "port": "tokens"
           }
@@ -3859,9 +3859,9 @@
       "next_tokens": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "mtp_embed"
+              "instance": "mtp_embed"
             },
             "port": "tokens"
           }
@@ -3873,9 +3873,9 @@
     "outputs": {
       "main": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "logits"
         },
@@ -3883,9 +3883,9 @@
       },
       "next_plus_one": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "mtp_head"
+            "instance": "mtp_head"
           },
           "port": "logits"
         },

@@ -1,4 +1,4 @@
-"""splice@1.0.0 — inserts an already-projected stream into the token sequence.
+"""splice@2.0.0 — inserts an already-projected stream into the token sequence.
 
 | branch                     | status                                                        |
 |----------------------------|---------------------------------------------------------------|
@@ -7,7 +7,7 @@
 """
 from kernels._common import refuse_unknown, supports_from
 
-CONTRACT = ("splice", "1.0.0")
+PRIMITIVE = ("splice", "2.0.0")
 
 
 class Unplaced(Exception):

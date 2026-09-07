@@ -1,9 +1,0 @@
-{
-  "schema": "tensorspine-catalog-unit/2.0",
-  "kind": "axis",
-  "name": "model.vocabulary",
-  "definition": {
-    "space": "value",
-    "summary": "Token identifiers of a vocabulary."
-  }
-}

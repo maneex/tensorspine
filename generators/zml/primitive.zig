@@ -1,6 +1,6 @@
 //! What a primitive is, and everything it is given (Z05).
 //!
-//! One file per contract version, each a pure function from the occurrence's
+//! One file per primitive version, each a pure function from the instance's
 //! arguments, inputs, parameters and states to its outputs. A primitive never
 //! reaches into the graph, the loader or the session: that narrowness is what
 //! makes a linked primitive and one arriving through `PRIMITIVE-ABI.md`
@@ -40,19 +40,19 @@ pub const Bindings = struct {
     }
 };
 
-/// What holds for the whole invocation, not for one occurrence.
+/// What holds for the whole invocation, not for one instance.
 pub const Ctx = struct {
     /// Freed by the emitter after the graph is built; a primitive may allocate its
     /// results here and nothing longer-lived.
     allocator: std.mem.Allocator,
     compute: zml.DataType = .f32,
-    /// The positions of the stream indexing this occurrence's elements, when it has one.
+    /// The positions of the stream indexing this instance's elements, when it has one.
     positions: ?zml.Tensor = null,
 };
 
 pub const Error = error{
-    /// The contract requires an argument the occurrence does not carry, or carries
-    /// with a type the contract does not allow.
+    /// The primitive requires an argument the instance does not carry, or carries
+    /// with a type the primitive does not allow.
     MissingArgument,
     /// A value of an argument this primitive does not implement. Its capability table
     /// says so too; this is the same refusal, reached at emission.
@@ -76,18 +76,18 @@ pub fn linear(x: zml.Tensor, w: zml.Tensor) zml.Tensor {
     return xd.dot(w.withTags(.{ .dout, .d }).convert(xd.dtype()), .d).rename(.{ .dout = .d });
 }
 
-/// One occurrence, as a primitive sees it.
+/// One instance, as a primitive sees it.
 pub const Call = struct {
-    occurrence: []const u8 = "",
-    /// D1's arguments, resolved, defaults applied. The contract owns their grammar.
+    instance: []const u8 = "",
+    /// D1's arguments, resolved, defaults applied. The primitive owns their grammar.
     arguments: std.json.Value = .null,
     inputs: Bindings = .{},
     params: Bindings = .{},
-    /// The states this occurrence holds, by the contract's own state names. A
+    /// The states this instance holds, by the primitive's own state names. A
     /// primitive reads and appends; it never allocates or shapes one — D4 said what
-    /// they are and `state.zig` implements each law once (Z08).
+    /// they are and `state.zig` implements each evolution once (Z08).
     states: []const State = &.{},
-    /// The opaque physical parameters addressed to this occurrence — `backend` among
+    /// The opaque physical parameters addressed to this instance — `backend` among
     /// them. Neither typed nor validated: a primitive reads what it knows and ignores
     /// the rest (generators/CAPABILITIES.md).
     physical: ?std.json.Value = null,
@@ -122,8 +122,8 @@ pub const Call = struct {
         };
     }
 
-    /// An absent boolean is false: D1 applies the contract's defaults, so an argument
-    /// still absent here is one the contract does not carry for this occurrence.
+    /// An absent boolean is false: D1 applies the primitive's defaults, so an argument
+    /// still absent here is one the primitive does not carry for this instance.
     pub fn argBool(self: Call, name: []const u8) bool {
         return switch (self.arg(name) orelse return false) {
             .bool => |b| b,
@@ -154,7 +154,7 @@ pub const Call = struct {
     }
 };
 
-/// One state, named as its contract names it.
+/// One state, named as its primitive names it.
 pub const State = struct {
     name: []const u8,
     handle: state_mod.Handle,

@@ -1,11 +1,11 @@
-//! ffn.gated@1.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
+//! ffn.gated@2.0.0 — act(x·gateᵀ) ⊙ (x·upᵀ) · outᵀ, with optional biases.
 //!
 //! | branch                   | status                                  |
 //! |--------------------------|-----------------------------------------|
 //! | activation silu          | implemented                             |
 //! | activation gelu_tanh     | implemented                             |
 //! | activation relu2         | implemented                             |
-//! | activation gelu (erf)    | refused — ZML's `gelu` is the tanh approximation, which the contract names `gelu_tanh` and distinguishes from the exact one; mapping by name would compute the wrong function silently |
+//! | activation gelu (erf)    | refused — ZML's `gelu` is the tanh approximation, which the primitive names `gelu_tanh` and distinguishes from the exact one; mapping by name would compute the wrong function silently |
 //! | in_bias, out_bias        | implemented                             |
 //! | activation_sparsity      | refused when > 0                        |
 
@@ -17,7 +17,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "ffn.gated",
-    .version = "1.0.0",
+    .version = "2.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "inner": "any",

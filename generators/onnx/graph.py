@@ -1,5 +1,5 @@
 """The derived document as Python — what the emitter needs and nothing else. The generator reads
-D1–D6 (`tensorspine --derive`), never the model source or the catalog: a model document is
+D1–D6 (`tensorspine --derive`), never the model source or the primitive library: a model definition is
 refused with the command that derives it."""
 import json
 from fractions import Fraction
@@ -10,8 +10,10 @@ DTYPES = {'bf16': 'bfloat16', 'f16': 'float16', 'f32': 'float32'}
 def load(path):
     with open(path, encoding='utf-8') as f:
         doc = json.load(f)
-    if doc.get('schema') != 'tensorspine-derived/2.1':
-        raise ValueError(f"{path}: not a derived document; derive it first (tensorspine --derive MODEL -o DIR)")
+    if doc.get('schema') != 'tensorspine-derived/3.0':
+        raise ValueError(f"{path}: expected tensorspine-derived/3.0; derive a current model "
+                         "(tensorspine --derive MODEL -o DIR), or convert supported legacy input "
+                         "with python3 tools/migrate.py INPUT -o OUTPUT")
     return Graph(doc)
 
 
@@ -38,7 +40,7 @@ class Graph:
             node, port = vname.rsplit('.', 1)
             self.outputs_of.setdefault(node, {})[port] = v
         self.streams = doc['d2']['streams']
-        self.cuts = doc['d2']['cuts']
+        self.graph_splits = doc['d2']['graph_splits']
         self.tensors = {t['identity']: t for t in doc['d3']['tensors']}
         self.slots_of = {}
         for t in doc['d3']['tensors']:
@@ -75,8 +77,8 @@ class Graph:
         self.token_input = self.feedback_input or next(
             (n for n, v in self.input_values.items() if v.get('domain', {}).get('kind') == 'token'), None)
 
-    def layer_cuts(self):
-        return [c for c in self.cuts if c['kind'] == 'layer']
+    def layer_graph_splits(self):
+        return [c for c in self.graph_splits if c['kind'] == 'layer']
 
     def required_inputs(self):
         if self.generative is None:
@@ -100,5 +102,5 @@ class Graph:
         return stream, 1.0
 
     def counts(self):
-        """(occurrences, values, tensors, states, edges, ordered): what the harness compares with the language's own count."""
+        """(instances, values, tensors, states, edges, ordered): what the harness compares with the language's own count."""
         return (len(self.nodes), len(self.values), len(self.tensors), len(self.states), len(self.doc['d1']['edges']), len(self.order))

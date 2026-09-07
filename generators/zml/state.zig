@@ -1,14 +1,14 @@
-//! D4's state laws, implemented once (Z08).
+//! D4's state evolution rules, implemented once (Z08).
 //!
-//! Every ZML model today hand-writes its own KV cache. D4 declares the law, the access
-//! geometry and the payload of every state, so the three laws are three implementations
+//! Every ZML model today hand-writes its own KV cache. D4 declares the evolution, the access
+//! geometry and the payload of every state, so the three evolutions are three implementations
 //! for the whole corpus — a primitive never allocates or shapes a state, it reads and
 //! appends.
 //!
 //! In a traced graph a state is functional: buffers arrive as operands and leave as
 //! results.
 //!
-//! | Law | One member's buffer, per session | Written by |
+//! | Evolution | One member's buffer, per session | Written by |
 //! |---|---|---|
 //! | `append` | `[capacity, *payload]` | `append`, at the session's `start` |
 //! | `window` | `[span, *payload]`, chronological | `append`, sliding |
@@ -25,19 +25,19 @@
 //!
 //! | From the document (D4) | From the serving application |
 //! |---|---|
-//! | the law, the access geometry, the span | how many positions (capacity) |
+//! | the evolution, the access geometry, the span | how many positions (capacity) |
 //! | the payload: components, axes, extents, dtype | one buffer per identity, one per family, or pages |
-//! | that there is one identity per layer | which portion of a shared buffer each occurrence consumes |
+//! | that there is one identity per layer | which portion of a shared buffer each instance consumes |
 //!
 //! **Geometry is inferred from the model and nowhere else** — `instanceOf` reads it out
-//! of D4's `payload`, `law` and `span`, and `packableWith` refuses to put two states in
+//! of D4's `payload`, `evolution` and `span`, and `packableWith` refuses to put two states in
 //! one buffer unless the document says their payloads agree. A serving choice may
 //! rearrange states; it may never decide their shape.
 //!
 //! The layout, by contrast, is the serving application's, exactly like a block size or a
-//! kernel selection — so the portion an occurrence consumes reaches its primitive
+//! kernel selection — so the portion an instance consumes reaches its primitive
 //! through the **opaque physical channel** (`generators/CAPABILITIES.md`), never through
-//! the contract's arguments. A primitive asks this handle for its own view and never
+//! the primitive's arguments. A primitive asks this handle for its own view and never
 //! learns how many neighbours share the buffer, nor in what order, nor whether the view
 //! it gets is a slice of one allocation or gathered from pages. That is what lets the
 //! same primitive serve a naive contiguous cache and a paged one.
@@ -49,26 +49,26 @@ const zml = @import("zml");
 const graph = @import("graph.zig");
 
 pub const Error = error{
-    /// A law D4 declares and this generator does not implement. A finding, not a
-    /// workaround: the enum is closed, so a fourth law is a language matter.
-    UnimplementedLaw,
+    /// A evolution D4 declares and this generator does not implement. A finding, not a
+    /// workaround: the enum is closed, so a fourth evolution is a language matter.
+    UnimplementedEvolution,
     UnimplementedAccess,
     /// `window` needs the span D4 gives it.
     MissingSpan,
 };
 
-pub const Law = enum { append, window, fixed };
+pub const Evolution = enum { append, window, fixed };
 pub const Access = enum { logical_position, ring, aggregate, selected };
 
-pub fn lawOf(name: []const u8) Error!Law {
-    return std.meta.stringToEnum(Law, name) orelse Error.UnimplementedLaw;
+pub fn evolutionOf(name: []const u8) Error!Evolution {
+    return std.meta.stringToEnum(Evolution, name) orelse Error.UnimplementedEvolution;
 }
 
 pub fn accessOf(name: []const u8) Error!Access {
     return std.meta.stringToEnum(Access, name) orelse Error.UnimplementedAccess;
 }
 
-/// One payload component's buffer. `[positions, *payload]` for a growing or bounded law
+/// One payload component's buffer. `[positions, *payload]` for a growing or bounded evolution
 /// (§4.3: a payload is per position for append/window, the whole state for fixed), behind
 /// a `[members, sessions]` pair of axes: the family the serving layout packs together, and
 /// the sessions one invocation carries.
@@ -84,21 +84,21 @@ pub const Instance = struct {
     /// these, never by the layout: what the runtime chose to pack is its own business,
     /// and what leaves the generator is what the document declared.
     identities: []const []const u8,
-    law: Law,
+    evolution: Evolution,
     access: Access,
     /// How many D4 identities share these buffers. 1 when each has its own.
     members: usize,
     components: []const Component,
 
-    /// Whether two D4 states can share one buffer: same law, same access, same payload.
+    /// Whether two D4 states can share one buffer: same evolution, same access, same payload.
     /// Identity is not consulted — that they are one family is D4's business, and this
     /// is only asking whether one allocation can hold both.
     pub fn packableWith(self: Instance, s: graph.State, compute: zml.DataType) bool {
-        if (self.law != (lawOf(s.law) catch return false)) return false;
+        if (self.evolution != (evolutionOf(s.evolution) catch return false)) return false;
         if (self.access != (accessOf(s.access) catch return false)) return false;
         if (self.components.len != s.payload.len) return false;
         // The axes ahead of the payload: members, sessions, and a positions axis unless fixed.
-        const leading: i64 = if (self.law == .fixed) 2 else 3;
+        const leading: i64 = if (self.evolution == .fixed) 2 else 3;
         for (self.components, s.payload) |c, p| {
             if (!std.mem.eql(u8, c.name, p.component)) return false;
             if (p.shape.len + @as(usize, @intCast(leading)) != c.shape.rank()) return false;
@@ -121,12 +121,12 @@ pub fn instanceOf(
     batch: i64,
     compute: zml.DataType,
 ) !Instance {
-    const law = try lawOf(s.law);
+    const evolution = try evolutionOf(s.evolution);
     const access = try accessOf(s.access);
 
     // §4.3: a payload is one position for `append` and `window`, the whole state for
     // `fixed` — which is why a fixed state has no positions axis at all.
-    const positions: ?i64 = switch (law) {
+    const positions: ?i64 = switch (evolution) {
         .append => capacity,
         .window => s.span orelse return Error.MissingSpan,
         .fixed => null,
@@ -144,7 +144,7 @@ pub fn instanceOf(
     }
     const identities = try allocator.alloc([]const u8, 1);
     identities[0] = s.identity;
-    return .{ .identities = identities, .law = law, .access = access, .members = 1, .components = components };
+    return .{ .identities = identities, .evolution = evolution, .access = access, .members = 1, .components = components };
 }
 
 /// One more identity joins this layout's buffers.
@@ -165,24 +165,24 @@ pub fn addMember(allocator: std.mem.Allocator, instance: *Instance, identity: []
 /// What a primitive is handed for one state: its buffers, where this invocation's
 /// elements sit in them, and — from the opaque channel — which portion it owns.
 pub const Handle = struct {
-    law: Law,
+    evolution: Evolution,
     access: Access,
     /// The whole buffers, members included. A primitive never indexes these directly.
     buffers: []const zml.Tensor,
     names: []const []const u8,
-    /// The portion of the packed buffers this occurrence consumes. A **physical
+    /// The portion of the packed buffers this instance consumes. A **physical
     /// parameter**: which layer sits where is the serving layout's business, opaque to
-    /// the language and passed beside the contract's arguments, never merged into them.
+    /// the language and passed beside the primitive's arguments, never merged into them.
     member: i64,
     /// Which session of the invocation this call is for (batch-plan B05): the emitter
-    /// evaluates a state-holding occurrence once per session, over the same buffers.
+    /// evaluates a state-holding instance once per session, over the same buffers.
     session: i64,
     /// The logical position of this session's first element.
     start: zml.Tensor,
     /// How many elements this invocation carries.
     elements: i64,
 
-    /// This occurrence's own view of a component — `[positions, *payload]`, with the
+    /// This instance's own view of a component — `[positions, *payload]`, with the
     /// packing gone.
     pub fn get(self: Handle, name: []const u8) ?zml.Tensor {
         for (self.names, self.buffers) |n, b| {
@@ -193,7 +193,7 @@ pub const Handle = struct {
         return null;
     }
 
-    /// This invocation's elements, written into this occurrence's portion.
+    /// This invocation's elements, written into this instance's portion.
     ///
     /// `append` lands them at `start`, contiguously — which is what the reference's
     /// cursor does. `window` slides: the oldest positions fall off the front and the
@@ -212,7 +212,7 @@ pub const Handle = struct {
         const out = try allocator.alloc(zml.Tensor, self.buffers.len);
         for (self.buffers, values, out) |buffer, value, *updated| {
             const v = value.convert(buffer.dtype());
-            updated.* = switch (self.law) {
+            updated.* = switch (self.evolution) {
                 .append => try self.writeAt(allocator, buffer, v, self.start.convert(.i32)),
                 .window => blk: {
                     const span = buffer.dim(2);
@@ -230,7 +230,7 @@ pub const Handle = struct {
                 },
                 // A fixed state is written whole, never appended to: §4.3 gives it no
                 // positions to append at.
-                .fixed => return Error.UnimplementedLaw,
+                .fixed => return Error.UnimplementedEvolution,
             };
         }
         return out;
@@ -241,7 +241,7 @@ pub const Handle = struct {
     /// computed and this writes it into the portion it owns.
     pub fn write(self: Handle, allocator: std.mem.Allocator, values: []const zml.Tensor) ![]zml.Tensor {
         std.debug.assert(values.len == self.buffers.len);
-        if (self.law != .fixed) return Error.UnimplementedLaw;
+        if (self.evolution != .fixed) return Error.UnimplementedEvolution;
 
         const out = try allocator.alloc(zml.Tensor, self.buffers.len);
         for (self.buffers, values, out) |buffer, value, *updated| {
@@ -250,8 +250,8 @@ pub const Handle = struct {
         return out;
     }
 
-    /// One update into this occurrence's portion: `at` positions it along the law's
-    /// positions axis, and is absent for a law that has none.
+    /// One update into this instance's portion: `at` positions it along the evolution's
+    /// positions axis, and is absent for a evolution that has none.
     fn writeAt(
         self: Handle,
         allocator: std.mem.Allocator,
@@ -278,7 +278,7 @@ pub const Handle = struct {
         return next;
     }
 
-    /// How many positions of this occurrence's portion hold written values.
+    /// How many positions of this instance's portion hold written values.
     pub fn length(self: Handle) zml.Tensor {
         return self.start.addConstant(self.elements);
     }

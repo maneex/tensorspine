@@ -3,8 +3,8 @@
 //! `generators/CAPABILITIES.md` is the grammar and the rule: *every generator writes its
 //! manifest from its code — the tables its kernels are written against, never a
 //! hand-maintained list — and commits the result beside a test that regenerates it.*
-//! So every field here is read off something that decides behaviour: the contract
-//! entries are the primitives' own declared tables, the state laws are the ones
+//! So every field here is read off something that decides behaviour: the primitive
+//! entries are the primitives' own declared tables, the state evolution rules are the ones
 //! `state.zig` actually appends under, the locations are the forms `loader.zig`
 //! assembles. Declaring more would be a lie the reader would believe.
 //!
@@ -26,12 +26,12 @@ const compute_dtypes = [_][]const u8{ "f32", "bf16" };
 /// (`fp4`, the f8s, the sub-byte integers) would need unpacking that nothing here does.
 const parameter_dtypes = [_][]const u8{ "bf16", "f16", "f32" };
 
-/// What `state.zig` implements, not what it names. All three laws are written now —
+/// What `state.zig` implements, not what it names. All three evolutions are written now —
 /// `append` at a cursor, `window` as a chronological slide, `fixed` written whole.
 /// `Access` has four values and nothing consumes a `selected` state: attention reads a
 /// KV cache by logical position, gated-delta reads a conv history as a ring and a
 /// recurrent matrix as an aggregate.
-const state_laws = [_][]const u8{ "append", "window", "fixed" };
+const state_evolutions = [_][]const u8{ "append", "window", "fixed" };
 const access = [_][]const u8{ "logical_position", "ring", "aggregate" };
 
 /// What `loader.zig` assembles. D3 also carries `slice`, which it refuses by name.
@@ -60,7 +60,7 @@ pub fn write(
 
     try s.beginObject();
     try s.objectField("schema");
-    try s.write("tensorspine-capabilities/1");
+    try s.write("tensorspine-capabilities/2");
 
     try s.objectField("generator");
     try s.beginObject();
@@ -78,13 +78,13 @@ pub fn write(
     try s.write(compute_dtypes);
     try s.objectField("parameter_dtypes");
     try s.write(parameter_dtypes);
-    try s.objectField("state_laws");
-    try s.write(state_laws);
+    try s.objectField("state_evolutions");
+    try s.write(state_evolutions);
     try s.objectField("access");
     try s.write(access);
     try s.objectField("sharing");
     try s.write([0][]const u8{});          // no cross-session sharing
-    try s.objectField("partitions");
+    try s.objectField("partition_options");
     try s.write([0][]const u8{});          // one machine, one device: nothing to communicate
 
     try s.objectField("domains");
@@ -102,9 +102,9 @@ pub fn write(
     try s.objectField("locations");
     try s.write(locations);
 
-    // The contracts, from the primitives' own tables — parsed here only to prove they
+    // The primitives, from the primitives' own tables — parsed here only to prove they
     // are the grammar the reader expects, and re-emitted as they were written.
-    try s.objectField("contracts");
+    try s.objectField("primitives");
     try s.beginObject();
     for (sorted(a)) |p| {
         const parsed = std.json.parseFromSlice(std.json.Value, a, p.capabilities, .{}) catch |err| {
@@ -131,7 +131,7 @@ pub fn write(
     return registry.all.len;
 }
 
-/// The primitives by contract key, so the manifest does not change when the registry's
+/// The primitives by primitive key, so the manifest does not change when the registry's
 /// import order does.
 fn sorted(a: std.mem.Allocator) []const primitive.Primitive {
     const out = a.alloc(primitive.Primitive, registry.all.len) catch @panic("out of memory");

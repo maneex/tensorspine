@@ -1,4 +1,4 @@
-"""splice@1.0.0 — inserts an already-projected stream into the token sequence; emitted for a source
+"""splice@2.0.0 — inserts an already-projected stream into the token sequence; emitted for a source
 that delivers nothing (the text-only path of a multimodal document, §7): the output is the text.
 
 | branch                     | status                                                        |
@@ -8,7 +8,7 @@ that delivers nothing (the text-only path of a multimodal document, §7): the ou
 """
 from primitives._common import supports_from
 
-CONTRACT = ("splice", "1.0.0")
+PRIMITIVE = ("splice", "2.0.0")
 CAPABILITIES = {"arguments": {"width": "any"}, "states": [], "transforms": ["insert"],
                 "notes": ["source must deliver nothing: the language does not yet say where inserted elements go"]}
 

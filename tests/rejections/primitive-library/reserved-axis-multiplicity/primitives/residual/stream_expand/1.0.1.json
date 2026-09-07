@@ -1,0 +1,157 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "primitive",
+  "name": "residual.stream_expand",
+  "definition": {
+    "version": "1.0.1",
+    "summary": "Expands the active stream into `streams` residual streams, one projection per auxiliary stream.",
+    "description": "The first stream is the input itself; each of the `streams - 1` others is a `width × width` projection of it (`projection`, multiplicity `streams - 1`). Each projected stream is rescaled to the input's root-mean-square magnitude (the ratio of the two RMS values, the projected one floored at 1e-5).",
+    "tags": [
+      "parallel-residual"
+    ],
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/2301.13310",
+        "title": "Alternating Updates for Efficient Transformers (Baykal et al., 2023)",
+        "kind": "paper",
+        "description": "Parallel residual streams with one active stream per layer."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of one stream."
+      },
+      "streams": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of parallel residual streams."
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The single stream."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "stream",
+                "axis": "residual.stream",
+                "nature": "structural",
+                "extent": {
+                  "argument": "streams"
+                }
+              },
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "`streams` streams."
+        }
+      }
+    },
+    "parameters": {
+      "projection": {
+        "role": "residual.stream",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "multiplicity",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "multiplicity": {
+          "op": "subtract",
+          "args": [
+            {
+              "argument": "streams"
+            },
+            {
+              "literal": 1
+            }
+          ]
+        },
+        "description": "Projection producing one auxiliary stream, `streams - 1` times."
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partition_options": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "communication": "none",
+        "description": "Per feature; features are independent."
+      }
+    ],
+    "note": "Expansion of an active stream into several residual streams, with one projection per auxiliary stream."
+  }
+}

@@ -1,4 +1,4 @@
-"""attention.dense@1.0.0 — dense or grouped-query attention over an `append` KV state, causal.
+"""attention.dense@2.0.0 — dense or grouped-query attention over an `append` KV state, causal.
 
 | branch / record                 | status                                                   |
 |---------------------------------|----------------------------------------------------------|
@@ -22,7 +22,7 @@ from onnx import TensorProto
 
 from primitives._common import linear, supports_from
 
-CONTRACT = ("attention.dense", "1.0.0")
+PRIMITIVE = ("attention.dense", "2.0.0")
 CAPABILITIES = {"arguments": {"width": "any", "heads": "any", "head_dim": "any", "kv_heads": "any", "scale": "absent",
                               "mask": ["causal", "none"], "window": "absent", "chunk": "absent", "cross": [False],
                               "streaming": [False], "kv_source": ["own"], "temperature": "absent",
@@ -85,7 +85,7 @@ LOWEST = np.float32(np.finfo(np.float32).min)     # a masked score: the dtype's 
 
 def scatter_positions(ctx, buffer, new, held, hint):
     """`new` [b, n, *payload] written into `buffer` [b, capacity, *payload] at rows held_b … held_b + n − 1
-    of each session: the append law on the aligned layout."""
+    of each session: the append evolution on the aligned layout."""
     b = ctx.b
     n = b.dim(new, 1, hint=f"{hint}.n")
     rows = b.node('Add', [b.node('Unsqueeze', [held, b.i64(-1)], hint=f"{hint}.held2"),

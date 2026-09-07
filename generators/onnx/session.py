@@ -42,7 +42,7 @@ class Session:
         for ident, st in graph.states.items():
             for p in st['payload']:
                 shape = [a['extent'] for a in p['shape']]
-                self.states[f"{ident}/{p['component']}"] = np.zeros(([0] + shape) if st['law'] != 'fixed' else shape, dtype=np.float32)
+                self.states[f"{ident}/{p['component']}"] = np.zeros(([0] + shape) if st['evolution'] != 'fixed' else shape, dtype=np.float32)
         self.consumed = {}
 
     def run(self, inputs):
@@ -120,8 +120,8 @@ class Batch:
         self.graphs, self.models = {}, {}
         self.states = {}
         for ident, st in graph.states.items():
-            if st['law'] != 'append':
-                raise Refusal(f"{ident}: a {st['law']} state is not emitted on the aligned layout")
+            if st['evolution'] != 'append':
+                raise Refusal(f"{ident}: a {st['evolution']} state is not emitted on the aligned layout")
             cap = capacity_of(capacity, st['stream']['stream'])
             for p in st['payload']:
                 shape = [a['extent'] for a in p['shape']]
@@ -165,7 +165,7 @@ class Batch:
         if missing:
             raise Refusal(f"the graph expects inputs the invocation does not deliver: {missing[:4]}")
         n_new = max(advance.values()) if advance else 0
-        if self.b > 1 and n_new > 1 and any(int(h.max()) > 0 for h in self.held.values()) \
+        if self.b > 1 and n_new > 1 and any(int(h.max()) > 0 for h in self.held.values())\
                 and any(node.op_type == 'GroupQueryAttention' for node in model.graph.node):
             raise Refusal("onnxruntime's GroupQueryAttention takes a fresh prefill of several sessions or a one-token decode of several, "
                           "not a multi-token continuation of several (batch-plan finding 3)")

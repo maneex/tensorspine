@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The ONNX generator's command line.
 
-    tsonnx.py info    DERIVED                               counts, and the refusals over the occurrences a delivery evaluates
+    tsonnx.py info    DERIVED                               counts, and the refusals over the instances a delivery evaluates
     tsonnx.py emit    DERIVED --checkpoint DIR --out F.onnx [--dump] [--inputs a,b] [--target onnx|onnxruntime]   the graph of one invocation
     tsonnx.py run     DERIVED --checkpoint DIR --ids 1,2,3 [--steps N] [--dump F] [--target …]                  prefill and greedy decode through onnxruntime
     tsonnx.py run     DERIVED --random [--seed N] …                                  parameters drawn from the D3 shapes
@@ -10,13 +10,13 @@
     tsonnx.py capabilities [--out FILE] [--check]                                    the manifest, from the emitters' tables
 
 DERIVED is a derived document (`tensorspine --derive MODEL -o DIR`): the generator reads D1–D6 and
-the checkpoint, never the model source or the catalog. The batch layout (`--batch`) is an argument
+the checkpoint, never the model source or the primitive_library. The batch layout (`--batch`) is an argument
 too: `none`, one session on the element axis; `aligned`, a batch axis before it (generators/onnx/README.md,
 Batching). The target is the runtime the graph is
 emitted for: `onnx` (standard operators, runs anywhere) or `onnxruntime` (its fused operators
 where a primitive has a fused form: one GroupQueryAttention per attention, SimplifiedLayerNormalization,
 the residual sum and its norm as one SkipSimplifiedLayerNormalization, fused activations); the
-physical parameters (`--physical`) may still name a backend per occurrence. See generators/onnx/README.md.
+physical parameters (`--physical`) may still name a backend per instance. See generators/onnx/README.md.
 """
 import argparse
 import json
@@ -95,7 +95,7 @@ def cmd_info(args):
     em = Emitter(g, None, prims, target=args.target)
     r = em.refusals(em.evaluable(g.required_inputs()))
     o, v, t, s, e, _ = g.counts()
-    print(f"{g.model}: {o} occurrences, {v} values, {t} parameter tensors, {s} states, {e} edges")
+    print(f"{g.model}: {o} instances, {v} values, {t} parameter tensors, {s} states, {e} edges")
     if r:
         print(f"  refusals: {len(r)}")
         for line in r[:20]:
@@ -216,7 +216,7 @@ def load_inputs(specs):
 
 
 def write_dump(path, g, session, prefill_outputs, ids, tokens, extra, compute):
-    """A dump in the reference's form: the values at every layer cut and the states after the prefill."""
+    """A dump in the reference's form: the values at every layer graph_split and the states after the prefill."""
     from safetensors.numpy import save_file
     tensors = {}
     for name, t in prefill_outputs.items():
@@ -241,7 +241,7 @@ def manifest():
         version = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=HERE, text=True).strip()
     except Exception:  # noqa: BLE001
         version = 'unknown'
-    contracts = {}
+    primitives = {}
     for (name, ver), p in sorted(prims.items()):
         cap = dict(p.CAPABILITIES)
         entry = {'arguments': cap['arguments'], 'states': list(cap.get('states', []))}
@@ -252,18 +252,18 @@ def manifest():
             fused = table.get((name, ver))
             if target != 'onnx' and fused is not p:
                 entry.setdefault('notes', []).extend(f"target {target}: {note}" for note in fused.CAPABILITIES.get('notes', []))
-        contracts[f"{name}@{ver}"] = entry
-    return {'schema': 'tensorspine-capabilities/1',
+        primitives[f"{name}@{ver}"] = entry
+    return {'schema': 'tensorspine-capabilities/2',
             'generator': {'name': 'onnx', 'version': version, 'generator': 'generators/onnx/tsonnx.py capabilities',
                           'generated': datetime.date.today().isoformat()},
             'compute_dtypes': ['f32'],
             'parameter_dtypes': ['bf16', 'f16', 'f32'],
-            'state_laws': ['append'], 'access': ['logical_position'],
-            'sharing': [], 'partitions': [],
+            'state_evolutions': ['append'], 'access': ['logical_position'],
+            'sharing': [], 'partition_options': [],
             'domains': {'kinds': ['token'], 'transforms': [], 'fragmented': False},
             'sessions_per_invocation': session_mod.SESSIONS_PER_INVOCATION,     # the aligned layout (B04); what Batch enforces
             'locations': list(loader.FORMS),
-            'contracts': contracts}
+            'primitives': primitives}
 
 
 def cmd_capabilities(args):
@@ -271,7 +271,7 @@ def cmd_capabilities(args):
     with open(args.out, 'w', encoding='utf-8') as f:
         json.dump(m, f, indent=2)
         f.write('\n')
-    print(f"{len(m['contracts'])} contracts -> {args.out}")
+    print(f"{len(m['primitives'])} primitives -> {args.out}")
     if args.check:
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(HERE)), 'tools'))
         import capabilities
@@ -299,14 +299,14 @@ def main(argv=None):
     p = sub.add_parser('info'); common(p); p.set_defaults(fn=cmd_info)
     p = sub.add_parser('emit'); common(p)
     p.add_argument('--checkpoint', metavar='DIR'); p.add_argument('--random', action='store_true'); p.add_argument('--seed', type=int, default=0)
-    p.add_argument('--dump', action='store_true', help='make every value crossing a layer cut a graph output')
+    p.add_argument('--dump', action='store_true', help='make every value crossing a layer graph_split a graph output')
     p.add_argument('--out', required=True); p.set_defaults(fn=cmd_emit)
     p = sub.add_parser('run'); common(p)
     p.add_argument('--checkpoint', metavar='DIR'); p.add_argument('--random', action='store_true'); p.add_argument('--seed', type=int, default=0)
     p.add_argument('--ids', action='append', help='comma-separated token ids of the prompt; repeated, one session per prompt, under --batch aligned')
     p.add_argument('--steps', type=int, default=4)
     p.add_argument('--input', action='append', default=[], metavar='NAME=FILE[:KEY]')
-    p.add_argument('--dump', help='write the values at every layer cut and the logits of the prefill to this safetensors file')
+    p.add_argument('--dump', help='write the values at every layer graph_split and the logits of the prefill to this safetensors file')
     p.add_argument('--out', help='also save the emitted model')
     p.set_defaults(fn=cmd_run)
     p = sub.add_parser('capabilities')

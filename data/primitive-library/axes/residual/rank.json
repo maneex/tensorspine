@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "residual.rank",
+  "definition": {
+    "space": "value",
+    "summary": "Rank of a low-rank residual branch (LAuReL)."
+  }
+}

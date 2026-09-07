@@ -1,4 +1,4 @@
-//! ffn.dense@1.0.0 — act(x·inᵀ + in_bias) · outᵀ + out_bias.
+//! ffn.dense@2.0.0 — act(x·inᵀ + in_bias) · outᵀ + out_bias.
 //!
 //! `ffn.gated` without its gate half: the up projection, the activation, the down
 //! projection.
@@ -17,7 +17,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "ffn.dense",
-    .version = "1.0.0",
+    .version = "2.0.0",
     .run = run,
     .capabilities =
     \\{"arguments": {"width": "any", "inner": "any",

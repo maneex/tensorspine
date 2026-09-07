@@ -4,10 +4,10 @@ what does it still not cover.
     tensorspine --capabilities MANIFEST [MODEL ...] [--inputs a,b] [--coverage [--strict]]
 
 A manifest is validated against `generators/capabilities.schema.json` and its names against the
-catalog before anything is inferred: a claim outside the vocabulary is an error, not a capability.
-A witness manifest (Specification §4.1, O1.3) binds each contract version to the kernel that is
+primitive library before anything is inferred: a claim outside the vocabulary is an error, not a capability.
+A witness manifest (Specification §4.1, O1.3) binds each primitive version to the kernel that is
 the authority for it and to the unit fixtures that kernel produced; the reader checks that both
-exist, `--coverage` lists the contract versions still without a witness — the release rule of
+exist, `--coverage` lists the primitive versions still without a witness — the release rule of
 §10.2 — and `--strict` exits 1 on any, for a tag workflow.
 """
 import glob
@@ -15,10 +15,10 @@ import json
 import os
 
 import artifact as artifact_mod
-import catalog as catalog_mod
+import primitive_library as primitive_library_mod
 import derive
 import schema as schema_mod
-from expr import argument_references, contract_condition
+from expr import argument_references, primitive_condition
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEMA = os.path.join(ROOT, 'generators', 'capabilities.schema.json')
@@ -67,7 +67,7 @@ def supports(entry, arguments):
             reasons.append(f"{name}=absent")
     for combo in entry.get('excluding', []):
         if 'when' in combo:                         # a predicate over the resolved arguments
-            if contract_condition(combo['when'], arguments):
+            if primitive_condition(combo['when'], arguments):
                 reasons.append(combo.get('reason') or "an excluded combination")
         elif all(arguments.get(k) == v for k, v in combo.items()):
             reasons.append("combination " + ", ".join(f"{k}={v}" for k, v in combo.items()))
@@ -97,7 +97,7 @@ def manifests(root=ROOT):
 def load(path):
     with open(path, encoding='utf-8') as f:
         manifest = json.load(f)
-    # the schema $refs the catalog-unit condition grammar for `excluding`/`conditions` predicates;
+    # the schema $refs the primitive-library-unit condition grammar for `excluding`/`conditions` predicates;
     # validate through the tools' registry (indexed by $id) so that reference resolves
     reg = schema_mod.registry(os.path.join(ROOT, 'schemas'))
     errors = [schema_mod.format_error(e) for e in schema_mod.check_document(SCHEMA, manifest, reg)]
@@ -114,7 +114,7 @@ def _enum_values(t):
 
 
 def _rule_names(rule, decl, where, errors):
-    """Every name a rule uses exists in the contract's argument declaration."""
+    """Every name a rule uses exists in the primitive's argument declaration."""
     t = decl.get('type', {})
     if isinstance(rule, dict) and 'fields' in rule:
         if t.get('kind') != 'record':
@@ -137,10 +137,10 @@ def _rule_names(rule, decl, where, errors):
 def witness_problems(manifest, base_dir):
     """Errors of the witness blocks (§4.1): only a witness manifest carries them; the kernel each
     names exists beside the manifest; each fixture it names exists there too, under
-    `fixtures/contracts/<id>.safetensors`, and is a unit fixture of that contract version."""
+    `fixtures/primitives/<id>.safetensors`, and is a unit fixture of that primitive version."""
     errors = []
     role = manifest.get('role', 'conformer')
-    for cid, entry in manifest['contracts'].items():
+    for cid, entry in manifest['primitives'].items():
         w = entry.get('witness')
         if w is None:
             continue
@@ -151,11 +151,11 @@ def witness_problems(manifest, base_dir):
             errors.append(f"{cid}: witness kernel '{w['kernel']}' is not beside the manifest")
         for fid in w['fixtures']:
             if not fid.startswith(cid + '/'):
-                errors.append(f"{cid}: fixture '{fid}' is another contract's")
+                errors.append(f"{cid}: fixture '{fid}' is another primitive's")
                 continue
-            path = os.path.join(base_dir, 'fixtures', 'contracts', fid + '.safetensors')
+            path = os.path.join(base_dir, 'fixtures', 'primitives', fid + '.safetensors')
             if not os.path.isfile(path):
-                errors.append(f"{cid}: fixture '{fid}' is not at fixtures/contracts/ beside the manifest")
+                errors.append(f"{cid}: fixture '{fid}' is not at fixtures/primitives/ beside the manifest")
                 continue
             try:
                 meta = artifact_mod.read_metadata(path)
@@ -163,29 +163,29 @@ def witness_problems(manifest, base_dir):
                 errors.append(f"{cid}: fixture '{fid}' is not readable: {e}")
                 continue
             name, version = cid.rsplit('@', 1)
-            if meta.get('kind') != 'unit' or meta.get('id') != fid or meta.get('contract') != {'name': name, 'version': version}:
-                errors.append(f"{cid}: '{fid}' is not a unit fixture of this contract version")
+            if meta.get('kind') != 'unit' or meta.get('id') != fid or meta.get('primitive') != {'name': name, 'version': version}:
+                errors.append(f"{cid}: '{fid}' is not a unit fixture of this primitive version")
     return errors
 
 
 def names(manifest, cat):
-    """Errors: contract versions, arguments, fields and values the catalog does not know."""
+    """Errors: primitive versions, arguments, fields and values the primitive library does not know."""
     errors = []
-    for cid, entry in manifest['contracts'].items():
+    for cid, entry in manifest['primitives'].items():
         name, version = cid.rsplit('@', 1)
         definition = cat['by_id'].get((name, version))
         if definition is None:
-            errors.append(f"{cid}: not in the catalog")
+            errors.append(f"{cid}: not in the primitive_library")
             continue
         for arg, rule in entry['arguments'].items():
             if arg not in definition['arguments']:
                 errors.append(f"{cid}: no argument '{arg}'")
             else:
                 _rule_names(rule, definition['arguments'][arg], f"{cid}.{arg}", errors)
-        for law in entry.get('states', []):
-            if law not in manifest['state_laws']:
-                errors.append(f"{cid}: state law {law} not in the manifest's state_laws")
-        declared = set(catalog_mod._declared_paths(definition['arguments']))
+        for evolution in entry.get('states', []):
+            if evolution not in manifest['state_evolutions']:
+                errors.append(f"{cid}: state evolution rule {evolution} not in the manifest's state_evolutions")
+        declared = set(primitive_library_mod._declared_paths(definition['arguments']))
         for combo in entry.get('excluding', []):
             if 'when' in combo:
                 for pth in argument_references(combo['when']):
@@ -205,7 +205,7 @@ def names(manifest, cat):
 # --- can it run? -----------------------------------------------------------------
 
 def evaluated(doc, cat, delivered):
-    """The occurrences a delivery evaluates (§7), over the derived document."""
+    """The instances a delivery evaluates (§7), over the derived document."""
     d1 = doc['d1']
     fed = set()
     for name, entry in d1['interfaces']['inputs'].items():
@@ -218,15 +218,15 @@ def evaluated(doc, cat, delivered):
     done = set()
     for node in d1['topological_order']:
         entry = d1['nodes'][node]
-        definition = catalog_mod.contract(cat, entry['contract'])
+        definition = primitive_library_mod.primitive(cat, entry['primitive'])
         inserts = {t['from_port'] for t in definition.get('domain_transforms', []) if t.get('relation') == 'insert'}
-        # a port whose delivered elements an `append` state of the occurrence indexed by it holds in
+        # a port whose delivered elements an `append` state of the instance indexed by it holds in
         # full (§7); a window holds a suffix and exempts nothing
         source_held = {s['indexed_by_port'] for s in doc['d4']['states']
-                       if s.get('indexed_by_port') and s['law'] == 'append' and any(m.rsplit('.', 1)[0] == node for m in s['members'])}
+                       if s.get('indexed_by_port') and s['evolution'] == 'append' and any(m.rsplit('.', 1)[0] == node for m in s['members'])}
         ok = True
         for pname, port in definition['ports']['inputs'].items():
-            present = contract_condition(port['present_when'], entry['arguments']) if 'present_when' in port else True
+            present = primitive_condition(port['present_when'], entry['arguments']) if 'present_when' in port else True
             if not present or pname in inserts or pname in source_held:
                 continue
             if (node, pname) in fed or any(src in done and dp == pname for src, dp in incoming.get(node, [])):
@@ -254,8 +254,8 @@ def can_run(manifest, doc, cat, delivered=None):
         if node not in active:
             continue
         entry = d1['nodes'][node]
-        cid = f"{entry['contract']['name']}@{entry['contract']['version']}"
-        cap = manifest['contracts'].get(cid)
+        cid = f"{entry['primitive']['name']}@{entry['primitive']['version']}"
+        cap = manifest['primitives'].get(cid)
         if cap is None:
             reasons.append(f"{node}: no entry for {cid}")
             continue
@@ -276,8 +276,8 @@ def can_run(manifest, doc, cat, delivered=None):
             break
     for s in d4['states']:
         node = s['members'][0].rsplit('.', 1)[0]
-        if node in active and s['law'] not in manifest['state_laws']:
-            reasons.append(f"{s['identity']}: state law {s['law']} not implemented")
+        if node in active and s['evolution'] not in manifest['state_evolutions']:
+            reasons.append(f"{s['identity']}: state evolution rule {s['evolution']} not implemented")
         if node in active and s['access'] not in manifest['access']:
             reasons.append(f"{s['identity']}: access {s['access']} not implemented")
     for name, entry in d1['interfaces']['inputs'].items():
@@ -291,7 +291,7 @@ def can_run(manifest, doc, cat, delivered=None):
 
 def conditions(manifest, doc, cat, delivered=None):
     """The declared run-time conditions (generators/CAPABILITIES.md) an admitted document runs
-    under: a `{when, note}` of a contract whose `when` holds on an evaluated occurrence's
+    under: a `{when, note}` of a primitive whose `when` holds on an evaluated instance's
     arguments. The combination is admitted (can_run is unchanged); the note says what the kernel
     refuses at run time if the delivery violates it — a shared window reader once its ring has
     wrapped (finding 26). Returns [(node, cid, note)]."""
@@ -306,12 +306,12 @@ def conditions(manifest, doc, cat, delivered=None):
         if node not in active:
             continue
         entry = d1['nodes'][node]
-        cid = f"{entry['contract']['name']}@{entry['contract']['version']}"
-        cap = manifest['contracts'].get(cid)
+        cid = f"{entry['primitive']['name']}@{entry['primitive']['version']}"
+        cap = manifest['primitives'].get(cid)
         if not cap:
             continue
         for c in cap.get('conditions', []):
-            if contract_condition(c['when'], entry['arguments']):
+            if primitive_condition(c['when'], entry['arguments']):
                 out.append((node, cid, c['note']))
     return out
 
@@ -356,20 +356,20 @@ def _branches(decl, prefix=''):
 
 
 def unwitnessed(manifest, cat):
-    """For a witness manifest, the contract versions of the catalog without a witness — no entry,
+    """For a witness manifest, the primitive versions of the primitive library without a witness — no entry,
     or an entry without a witness block; None for a conformer, which witnesses nothing."""
     if manifest.get('role', 'conformer') != 'witness':
         return None
     return sorted(f"{n}@{v}" for (n, v), d in cat['by_id'].items() if 'template' not in d
-                  and not manifest['contracts'].get(f"{n}@{v}", {}).get('witness'))
+                  and not manifest['primitives'].get(f"{n}@{v}", {}).get('witness'))
 
 
 def coverage(manifest, cat, documents):
-    """(contracts without an entry, per contract the branches not admitted — every branch, for
-    a contract without an entry — per document the verdict): the branch ledger, the to-do list
-    of the generator over the catalog and the corpus."""
+    """(primitives without an entry, per primitive the branches not admitted — every branch, for
+    a primitive without an entry — per document the verdict): the branch ledger, the to-do list
+    of the generator over the primitive library and the corpus."""
     missing = sorted(f"{n}@{v}" for (n, v), d in cat['by_id'].items()
-                     if f"{n}@{v}" not in manifest['contracts'] and 'template' not in d)
+                     if f"{n}@{v}" not in manifest['primitives'] and 'template' not in d)
     branches = {}
     for cid in missing:
         name, version = cid.rsplit('@', 1)
@@ -377,7 +377,7 @@ def coverage(manifest, cat, documents):
         for arg, decl in cat['by_id'][(name, version)]['arguments'].items():
             gaps += _branches(decl, arg) or [arg]
         branches[cid] = gaps
-    for cid, entry in manifest['contracts'].items():
+    for cid, entry in manifest['primitives'].items():
         name, version = cid.rsplit('@', 1)
         definition = cat['by_id'][(name, version)]
         gaps = []
@@ -393,7 +393,7 @@ def coverage(manifest, cat, documents):
     for path in documents:
         with open(path, encoding='utf-8') as f:
             model = json.load(f)
-        c = catalog_mod.load_for(path, model)
+        c = primitive_library_mod.load_for(path, model)
         try:
             doc = derive.products(path, c)
         except Exception as e:  # noqa: BLE001
@@ -404,19 +404,19 @@ def coverage(manifest, cat, documents):
 
 
 def condensed(reasons):
-    """Reasons without their occurrence prefix, each once, with how many occurrences share it."""
+    """Reasons without their instance prefix, each once, with how many instances share it."""
     from collections import Counter
     counts = Counter(r.split(': ', 1)[1] if ': ' in r and not r.startswith('output ') else r for r in reasons)
     return [f"{msg} (x{n})" if n > 1 else msg for msg, n in counts.items()]
 
 
-def run(manifest_path, documents, catalog_bases=None, inputs=None, report_coverage=False, corpus=None, strict=False):
+def run(manifest_path, documents, primitive_library_bases=None, inputs=None, report_coverage=False, corpus=None, strict=False):
     manifest, errors = load(manifest_path)
-    cat = catalog_mod.load(*(catalog_bases or [os.path.join(ROOT, 'data', 'catalog')]))
+    cat = primitive_library_mod.load(*(primitive_library_bases or [os.path.join(ROOT, 'data', 'primitive-library')]))
     errors += names(manifest, cat)
     errors += witness_problems(manifest, os.path.dirname(os.path.abspath(manifest_path)))
     role = manifest.get('role', 'conformer')
-    print(f"capabilities  {manifest['generator']['name']} ({manifest['generator']['version']}), {len(manifest['contracts'])} contracts, {role}")
+    print(f"capabilities  {manifest['generator']['name']} ({manifest['generator']['version']}), {len(manifest['primitives'])} primitives, {role}")
     for e in errors[:20]:
         print(f"  [manifest] {e}")
     if errors:
@@ -425,7 +425,7 @@ def run(manifest_path, documents, catalog_bases=None, inputs=None, report_covera
     for path in documents:
         with open(path, encoding='utf-8') as f:
             model = json.load(f)
-        c = catalog_mod.load_for(path, model, catalog_bases)
+        c = primitive_library_mod.load_for(path, model, primitive_library_bases)
         doc = derive.products(path, c)
         delivered = set(inputs) if inputs else None
         ok, reasons = can_run(manifest, doc, c, delivered)
@@ -438,10 +438,10 @@ def run(manifest_path, documents, catalog_bases=None, inputs=None, report_covera
         failed += not ok
     if report_coverage:
         missing, branches, verdicts = coverage(manifest, cat, corpus or [])
-        print(f"coverage  {len(missing)} contract(s) without an entry:")
+        print(f"coverage  {len(missing)} primitive(s) without an entry:")
         for cid in missing:
             print(f"    {cid}")
-        print(f"  branch ledger: branches not admitted in {len(branches)} contract(s), {len(missing)} of them without an entry:")
+        print(f"  branch ledger: branches not admitted in {len(branches)} primitive(s), {len(missing)} of them without an entry:")
         for cid, gaps in branches.items():
             print(f"    {cid}{' (no entry)' if cid in missing else ''}: {', '.join(gaps)}")
         if verdicts:
@@ -453,7 +453,7 @@ def run(manifest_path, documents, catalog_bases=None, inputs=None, report_covera
         if without is None:
             print("  witness: a conformer's manifest witnesses nothing")
         else:
-            print(f"  witness: {len(without)} contract version(s) without a witness (§10.2: a catalog is released fully witnessed)")
+            print(f"  witness: {len(without)} primitive version(s) without a witness (§10.2: a primitive library is released fully witnessed)")
             for cid in without:
                 print(f"    {cid}")
             if without and strict:

@@ -1,31 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tensorspine.dev/schema/2.1/derived.json",
-  "title": "TensorSpine derived document 2.1",
-  "description": "What a valid model document and its contracts make computable (§7), as one document: the expanded graph D1, required, and the products D2–D6, each optional. Every product refers to D1's identifiers, so one document is one snapshot of one model under one assignment. The encoding is the repository's; the specification leaves it open.",
+  "$id": "https://tensorspine.dev/schema/3.0/derived.json",
+  "title": "TensorSpine derived document 3.0",
+  "description": "What a valid model definition and its primitives make computable (§7), as one document: the expanded graph D1, required, and the products D2–D6, each optional. Every product refers to D1's identifiers, so one document is one snapshot of one model under one assignment. The encoding is the repository's; the specification leaves it open.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "schema",
     "model",
-    "catalog",
+    "primitive_libraries",
     "assignment",
     "d1"
   ],
   "properties": {
     "schema": {
-      "const": "tensorspine-derived/2.1"
+      "const": "tensorspine-derived/3.0"
     },
     "model": {
-      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/model_id"
+      "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/model_id"
     },
-    "catalog": {
-      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/catalog_reference"
+    "primitive_libraries": {
+      "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/primitive_library_reference"
     },
     "assignment": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal"
+        "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/scalar_literal"
       }
     },
     "d1": {
@@ -51,7 +51,7 @@
     "node_identifier": {
       "type": "string",
       "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\[[^\\[\\]]+\\])?(/[A-Za-z_][A-Za-z0-9_-]*(\\[[^\\[\\]]+\\])?)*$",
-      "description": "§5.2 rule 2: a root occurrence by name, a generated one as <composition>/<site>[<index>=<value>,…], an occurrence of a template prefixed by its instance."
+      "description": "§5.2 rule 2: a root instance by name, a generated one as <composition>/<site>[<index>=<value>,…], an instance of a template prefixed by its instance."
     },
     "value_reference": {
       "type": "string",
@@ -66,7 +66,7 @@
     "argument_value": {
       "oneOf": [
         {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal"
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/scalar_literal"
         },
         {
           "type": "object",
@@ -84,7 +84,7 @@
           "$ref": "#/$defs/node_identifier"
         },
         "port": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
         }
       },
       "required": [
@@ -97,7 +97,7 @@
       "additionalProperties": false,
       "properties": {
         "axis": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
         },
         "extent": {
           "type": [
@@ -112,7 +112,7 @@
             "additionalProperties": false,
             "properties": {
               "axis": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "extent": {
                 "type": [
@@ -170,11 +170,11 @@
           ]
         },
         "stream": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
         }
       }
     },
-    "cut_id": {
+    "graph_split_id": {
       "type": "string",
       "minLength": 1
     },
@@ -197,8 +197,8 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "contract": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/contract_reference"
+              "primitive": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/primitive_reference"
               },
               "arguments": {
                 "type": "object",
@@ -209,17 +209,17 @@
               "families": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
                 },
                 "minItems": 1
               },
               "across_positions": {
                 "type": "boolean",
-                "description": "Derived: whether the occurrence reads positions of its stream beyond those of the element it produces — the contract's `effects.across_positions` condition (§4.1, O9.5) on the node's resolved arguments, as V18 evaluates it; false when the contract declares no such effect. A condition the arguments leave undecidable refuses the derivation, never answers false. With the states (D4) and the streams (D2), what a batching runtime reads to decide which occurrences it may evaluate on several sessions' elements at once (harness guide §8)."
+                "description": "Derived: whether the instance reads positions of its stream beyond those of the element it produces — the primitive's `effects.across_positions` condition (§4.1, O9.5) on the node's resolved arguments, as V18 evaluates it; false when the primitive declares no such effect. A condition the arguments leave undecidable refuses the derivation, never answers false. With the states (D4) and the streams (D2), what a batching runtime reads to decide which instances it may evaluate on several sessions' elements at once (harness guide §8)."
               }
             },
             "required": [
-              "contract",
+              "primitive",
               "arguments",
               "families",
               "across_positions"
@@ -275,7 +275,7 @@
                     ]
                   },
                   "stream": {
-                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                    "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
                   },
                   "fragmented": {
                     "const": true
@@ -297,7 +297,7 @@
                     "$ref": "#/$defs/node_identifier"
                   },
                   "port": {
-                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                    "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
                   },
                   "generative": {
                     "type": "boolean"
@@ -331,8 +331,8 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "contract": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/contract_reference"
+              "primitive": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/primitive_reference"
               },
               "arguments": {
                 "type": "object",
@@ -346,7 +346,7 @@
               }
             },
             "required": [
-              "contract",
+              "primitive",
               "arguments"
             ]
           }
@@ -360,7 +360,7 @@
       ],
       "description": "The expanded graph (§5): the canonical listing — nodes by identifier, edges by (source, destination)."
     },
-    "cut_payload_entry": {
+    "graph_split_payload_entry": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -428,7 +428,7 @@
                     "$ref": "#/$defs/value_reference"
                   },
                   {
-                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                    "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
                   }
                 ],
                 "description": "The producing `node.port`, or the name of the public input that delivers the value."
@@ -443,10 +443,10 @@
                 "$ref": "#/$defs/shape"
               },
               "role": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "dtype": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/dtype"
               },
               "elements": {
                 "type": [
@@ -467,14 +467,14 @@
                 "$ref": "#/$defs/count"
               },
               "input": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier",
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier",
                 "description": "Present when the value is delivered by this public input; `to` lists the ports it feeds and `shape` is theirs."
               },
               "exposed": {
                 "type": "array",
                 "minItems": 1,
                 "items": {
-                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
                 },
                 "description": "The public outputs that expose this value."
               },
@@ -485,7 +485,7 @@
               "required_for": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
                 },
                 "description": "For a public input's value: the public outputs not evaluated without it on a first delivery (§7)."
               }
@@ -503,14 +503,14 @@
             ]
           }
         },
-        "cuts": {
+        "graph_splits": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "cut": {
-                "$ref": "#/$defs/cut_id"
+              "graph_split": {
+                "$ref": "#/$defs/graph_split_id"
               },
               "kind": {
                 "enum": [
@@ -529,7 +529,7 @@
               "payload": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/$defs/cut_payload_entry"
+                  "$ref": "#/$defs/graph_split_payload_entry"
                 }
               },
               "bytes_per_element": {
@@ -540,7 +540,7 @@
               }
             },
             "required": [
-              "cut",
+              "graph_split",
               "kind",
               "sizes",
               "payload",
@@ -572,7 +572,7 @@
                     "$ref": "#/$defs/value_reference"
                   },
                   {
-                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                    "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
                   }
                 ]
               },
@@ -591,16 +591,16 @@
             "bytes_per_element",
             "bytes_per_invocation"
           ],
-          "description": "The peak of live values along `d1.topological_order` — the activation peak of one invocation, sized like a cut's payload: per element, and per invocation as a combination of the public inputs' counts. Exact for this order; another legal order may peak lower."
+          "description": "The peak of live values along `d1.topological_order` — the activation peak of one invocation, sized like a graph split's payload: per element, and per invocation as a combination of the public inputs' counts. Exact for this order; another valid order may peak lower."
         }
       },
       "required": [
         "streams",
         "values",
-        "cuts",
+        "graph_splits",
         "peak_live"
       ],
-      "description": "Values (§7): every value with its shape, role, dtype and domain; the element count of every stream; the payload of every structural legal cut; the peak of live values along D1's order."
+      "description": "Values (§7): every value with its shape, role, dtype and domain; the element count of every stream; the payload of every structural valid graph split; the peak of live values along D1's order."
     },
     "d3": {
       "type": "object",
@@ -622,20 +622,20 @@
                 },
                 "minItems": 1
               },
-              "contract": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              "primitive": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "slot": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
               },
               "role": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "sensitivity": {
-                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/precision_role_definition/properties/sensitivity"
+                "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/precision_role_definition/properties/sensitivity"
               },
               "dtype": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/dtype"
               },
               "shape": {
                 "$ref": "#/$defs/shape",
@@ -672,7 +672,7 @@
                     "type": "integer"
                   },
                   "axis": {
-                    "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                    "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
                   },
                   "activated_per_element": {
                     "type": [
@@ -708,7 +708,7 @@
             "required": [
               "identity",
               "members",
-              "contract",
+              "primitive",
               "slot",
               "role",
               "sensitivity",
@@ -776,16 +776,16 @@
                 "$ref": "#/$defs/value_reference",
                 "description": "The member that writes the storage (its port's written_when holds); the others read it (V20)."
               },
-              "contract": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              "primitive": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "state": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
               },
-              "law": {
+              "evolution": {
                 "oneOf": [
                   {
-                    "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_rule/properties/law"
+                    "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/evolution_rule/properties/evolution"
                   },
                   {
                     "type": "null"
@@ -795,7 +795,7 @@
               "access": {
                 "oneOf": [
                   {
-                    "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_rule/properties/access"
+                    "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/evolution_rule/properties/access"
                   },
                   {
                     "type": "null"
@@ -805,7 +805,7 @@
               "sharing": {
                 "oneOf": [
                   {
-                    "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_rule/properties/sharing"
+                    "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/evolution_rule/properties/sharing"
                   },
                   {
                     "type": "null"
@@ -828,7 +828,7 @@
               "instance_key": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
                 }
               },
               "carried_across_fragments": {
@@ -853,13 +853,13 @@
                   "additionalProperties": false,
                   "properties": {
                     "component": {
-                      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                      "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
                     },
                     "role": {
-                      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                      "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
                     },
                     "dtype": {
-                      "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype"
+                      "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/dtype"
                     },
                     "shape": {
                       "$ref": "#/$defs/shape"
@@ -899,7 +899,7 @@
               "operations": {
                 "type": "array",
                 "items": {
-                  "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/state_operation/properties/effect"
+                  "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/state_operation/properties/effect"
                 }
               },
               "visits": {
@@ -923,9 +923,9 @@
               "identity",
               "members",
               "writer",
-              "contract",
+              "primitive",
               "state",
-              "law",
+              "evolution",
               "access",
               "sharing",
               "stream",
@@ -950,7 +950,7 @@
             "identities": {
               "type": "integer"
             },
-            "by_law": {
+            "by_evolution": {
               "type": "object",
               "additionalProperties": {
                 "type": "integer"
@@ -974,7 +974,7 @@
           },
           "required": [
             "identities",
-            "by_law",
+            "by_evolution",
             "append_bytes_per_cached_position",
             "bounded_bytes",
             "fixed_bytes",
@@ -999,7 +999,7 @@
           ]
         },
         "status": {
-          "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
         }
       },
       "required": [
@@ -1022,7 +1022,7 @@
               "type": "number"
             },
             "status": {
-              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
             }
           },
           "required": [
@@ -1064,8 +1064,8 @@
               "node": {
                 "$ref": "#/$defs/node_identifier"
               },
-              "contract": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              "primitive": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "entry": {
                 "type": "integer"
@@ -1077,15 +1077,15 @@
                 ]
               },
               "status": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
               },
               "per": {
-                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/cost_entry/properties/per"
+                "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/cost_entry/properties/per"
               }
             },
             "required": [
               "node",
-              "contract",
+              "primitive",
               "entry",
               "value",
               "status",
@@ -1102,8 +1102,8 @@
               "node": {
                 "$ref": "#/$defs/node_identifier"
               },
-              "contract": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              "primitive": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "unit": {
                 "type": "integer"
@@ -1132,7 +1132,7 @@
             },
             "required": [
               "node",
-              "contract",
+              "primitive",
               "unit",
               "activated_per_element",
               "units",
@@ -1155,7 +1155,7 @@
               "type": "number"
             },
             "status": {
-              "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status"
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
             }
           },
           "required": [
@@ -1165,14 +1165,14 @@
             "status"
           ]
         },
-        "cuts": {
+        "graph_splits": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "cut": {
-                "$ref": "#/$defs/cut_id"
+              "graph_split": {
+                "$ref": "#/$defs/graph_split_id"
               },
               "bytes_per_element": {
                 "type": "number"
@@ -1182,7 +1182,7 @@
               }
             },
             "required": [
-              "cut",
+              "graph_split",
               "bytes_per_element",
               "bytes_per_invocation"
             ]
@@ -1195,7 +1195,7 @@
         "corrections",
         "sparsity",
         "state",
-        "cuts"
+        "graph_splits"
       ],
       "description": "Logical costs (§7): totals carry the status the algebra of §2.2 gives them; never operations actually executed."
     },
@@ -1203,14 +1203,14 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "cuts": {
+        "graph_splits": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "cut": {
-                "$ref": "#/$defs/cut_id"
+              "graph_split": {
+                "$ref": "#/$defs/graph_split_id"
               },
               "kind": {
                 "enum": [
@@ -1231,14 +1231,14 @@
               }
             },
             "required": [
-              "cut",
+              "graph_split",
               "kind",
               "sizes",
               "crossing_values"
             ]
           }
         },
-        "partitions": {
+        "partition_options": {
           "type": "array",
           "items": {
             "type": "object",
@@ -1247,31 +1247,31 @@
               "node": {
                 "$ref": "#/$defs/node_identifier"
               },
-              "contract": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+              "primitive": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "target": {
-                "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/partition_target"
+                "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/partition_target"
               },
               "communication": {
                 "type": "array",
                 "minItems": 1,
                 "items": {
-                  "$ref": "https://tensorspine.dev/schema/2.0/catalog-unit.json#/$defs/communication"
+                  "$ref": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json#/$defs/communication"
                 },
-                "description": "The logical communications the partition admits, always a list: one, or the several patterns the contract declares."
+                "description": "The logical communications the partition admits, always a list: one, or the several patterns the primitive declares."
               },
               "granularity": {
                 "type": [
                   "number",
                   "null"
                 ],
-                "description": "The number of consecutive coordinates of the target axis a shard keeps whole, evaluated; one unless the contract declares otherwise (attention's heads: the KV group)."
+                "description": "The number of consecutive coordinates of the target axis a shard keeps whole, evaluated; one unless the primitive declares otherwise (attention's heads: the KV group)."
               }
             },
             "required": [
               "node",
-              "contract",
+              "primitive",
               "target",
               "communication",
               "granularity"
@@ -1288,10 +1288,10 @@
                 "$ref": "#/$defs/node_identifier"
               },
               "slot": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
               },
               "axis": {
-                "$ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/qualified_name"
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
               },
               "reason": {
                 "type": "string"
@@ -1307,11 +1307,11 @@
         }
       },
       "required": [
-        "cuts",
-        "partitions",
+        "graph_splits",
+        "partition_options",
         "information_loss"
       ],
-      "description": "Legal cuts and semantic partition axes (§7); a flattened axis without factors is information loss, never non-partitionability (O5.10)."
+      "description": "Valid graph splits and semantic partition axes (§7); a flattened axis without factors is information loss, never non-partitionability (O5.10)."
     },
     "location": {
       "description": "An evaluated location (§3.4): physical names with indices and coordinates substituted; `dim` is the position of the named axis in the tensor's shape.",

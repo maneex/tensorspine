@@ -1,13 +1,13 @@
-"""`--document catalog`: the catalog, read back as one Markdown document.
+"""`--document primitive-library`: the primitive library, read back as one Markdown document.
 
-A contract is written for a validator: tagged expressions, ordered rules,
+A primitive is written for a validator: tagged expressions, ordered rules,
 conditions over arguments. This command writes it back for a person, and
-adds nothing the catalog does not say. Two sources feed the page:
+adds nothing the primitive library does not say. Two sources feed the page:
 
   * the DEFINITION of every unit — arguments, ports, slots, states, costs,
-    partitions — rendered in full, with expressions printed in infix and
+    partition_options — rendered in full, with expressions printed in infix and
     conditions in words. This is the part that exists today and is never
-    optional: a contract with no prose is still documented by its facts;
+    optional: a primitive with no prose is still documented by its facts;
   * the DOCUMENTATION fields of the units — `summary`, `description`,
     `external_docs`, `tags`, `deprecated`, the `description` of every
     argument, port, slot, state, rule — whose shape is fixed by
@@ -15,20 +15,20 @@ adds nothing the catalog does not say. Two sources feed the page:
     else (§10.2): --validate and --d1 never read them.
 
 A unit's page says what the unit declares, and nothing about who uses it:
-there is no "cited by" index. The template of a template contract is read from
-the models base the catalog was loaded with (catalog.template_path); the PATHs
+there is no "cited by" index. The template of a template primitive is read from
+the models base the primitive library was loaded with (primitive_library.template_path); the PATHs
 of the command line are not read.
 
 The generator never invents prose. A unit without a summary is rendered
 without one and counted in the coverage appendix; it is not summarised from
 its `note`, which is a maintainer's aside (the why), not a description of
 the unit (the what). A malformed documentation field is a refusal with its
-cause (I7) — the command exits 1 and writes nothing. Findings that are legal
+cause (I7) — the command exits 1 and writes nothing. Findings that are valid
 but worth knowing — a grammar key this generator does not know, a condition
 citing an undeclared argument, a tag no base declares — go to the findings
 appendix and never block.
 
-The output is deterministic: the same catalog gives the same bytes at the
+The output is deterministic: the same primitive library gives the same bytes at the
 same logical location. The site build writes it to temporary storage; the
 generated Markdown is never tracked.
 """
@@ -41,20 +41,20 @@ import sys
 
 from jsonschema import Draft202012Validator
 
-import catalog as catalog_mod
+import primitive_library as primitive_library_mod
 import schema as schema_mod
-from expr import contract_value
+from expr import primitive_value
 
 DOC_SCHEMA_ROLE = 'documentation'
-DOC_SCHEMA_ID = 'https://tensorspine.dev/schema/2.0/documentation.json'
+DOC_SCHEMA_ID = 'https://tensorspine.dev/schema/3.0/documentation.json'
 
 # --- grammar: the keys each site may carry -----------------------------------
-# The catalog schema is the authority; this table lets the generator notice a
+# The primitive library schema is the authority; this table lets the generator notice a
 # key it will not render (advisory), and separate documentation from meaning.
 
 GRAMMAR = {
-    'contract': {'version', 'arguments', 'ports', 'parameters', 'constants', 'state_ports',
-                 'effects', 'logical_cost', 'sparsity', 'partitions', 'note',
+    'primitive': {'version', 'arguments', 'ports', 'parameters', 'constants', 'state_ports',
+                 'effects', 'logical_cost', 'sparsity', 'partition_options', 'note',
                  'domain_transforms', 'invariants'},
     'template': {'version', 'template', 'note'},
     'argument': {'type', 'required', 'structural', 'default', 'domain', 'present_when', 'note'},
@@ -64,7 +64,7 @@ GRAMMAR = {
     'state': {'present_when', 'written_when', 'payload', 'rules', 'operations', 'key_axes', 'carried_across', 'note'},
     'carrying': {'when', 'note'},
     'component': {'shape', 'multiplicity', 'note', 'present_when', 'role'},
-    'rule': {'when', 'law', 'access', 'sharing', 'indexed_by', 'span', 'stride', 'note'},
+    'rule': {'when', 'evolution', 'access', 'sharing', 'indexed_by', 'span', 'stride', 'note'},
     'operation': {'effect', 'note'},
     'cost': {'when', 'expression', 'status', 'per', 'note'},
     'sparsity': {'unit', 'policy', 'activated_per_element', 'union_per_invocation', 'note'},
@@ -72,13 +72,13 @@ GRAMMAR = {
     'transform': {'from_port', 'to_port', 'relation', 'factor', 'note'},
     'axis': {'space', 'note'},
     'precision_role': {'admissible', 'default', 'sensitivity', 'note'},
-    'base': {'catalog', 'templates', 'note'},
+    'base': {'primitive_library', 'templates', 'note'},
 }
 
 # Which fragment of the documentation schema governs the documentation of a
 # site, and therefore which keys are documentation there.
 FRAGMENT = {
-    'contract': 'unit_documentation', 'template': 'unit_documentation',
+    'primitive': 'unit_documentation', 'template': 'unit_documentation',
     'axis': 'unit_documentation', 'precision_role': 'unit_documentation',
     'base': 'base_documentation', 'argument': 'argument_documentation',
 }
@@ -138,7 +138,7 @@ class Docs:
 
     def of(self, site_kind, node, where, label=None, primary='description'):
         """The documentation of a site: checked, counted, returned."""
-        counted_as = 'contract' if site_kind == 'template' else site_kind
+        counted_as = 'primitive' if site_kind == 'template' else site_kind
         doc_keys = self.keys(site_kind)
         docs = {k: node[k] for k in doc_keys if k in node}
         for error in sorted(self._validator(FRAGMENT[site_kind]).iter_errors(docs),
@@ -178,7 +178,7 @@ def _paren(e, need):
 
 
 def expr(e):
-    """A contract (or model) expression, in infix."""
+    """A primitive (or model) expression, in infix."""
     if not isinstance(e, dict):
         return json.dumps(e)
     if 'literal' in e:
@@ -196,7 +196,7 @@ def expr(e):
     if 'call' in e:
         c = e['call']
         inner = ', '.join(f"{k}={expr(v)}" for k, v in c.get('arguments', {}).items())
-        return f"{c['contract']}({inner}).{c['result']}"
+        return f"{c['primitive']}({inner}).{c['result']}"
     if 'op' in e:
         op, args = e['op'], e['args']
         if op == 'negate':
@@ -219,7 +219,7 @@ def expr(e):
 
 
 def cond(c):
-    """A contract condition, in words."""
+    """A primitive condition, in words."""
     if 'boolean' in c:
         return 'always' if c['boolean'] else 'never'
     if 'present' in c:
@@ -283,7 +283,7 @@ def domain_str(d):
 
 
 def argument_domain_str(dom):
-    """A primitive argument's domain (§4.6), for the catalog reference: a set as `one of …`, an
+    """A primitive argument's domain (§4.6), for the primitive library reference: a set as `one of …`, an
     interval as a mathematical range whose bounds are literals or `\`argument\``."""
     def bound(b):
         v = b['value']
@@ -383,7 +383,7 @@ def external_docs_lines(docs, rewrite=lambda url: url):
     return lines + [''] if lines else []
 
 
-# --- the catalog, with envelopes -----------------------------------------------
+# --- the primitive library, with envelopes -----------------------------------------------
 
 def load_units(bases):
     """Every unit of the bases with its envelope and path, first base to answer
@@ -395,9 +395,9 @@ def load_units(bases):
             for path in sorted(glob.glob(os.path.join(base, '**', '*.json'), recursive=True)):
                 with open(path, encoding='utf-8') as f:
                     unit = json.load(f)
-                if unit.get('schema') != catalog_mod.UNIT_SCHEMA:
+                if unit.get('schema') != primitive_library_mod.UNIT_SCHEMA:
                     raise ValueError(f"{path}: schema {unit.get('schema')!r}, "
-                                     f"expected {catalog_mod.UNIT_SCHEMA!r}")
+                                     f"expected {primitive_library_mod.UNIT_SCHEMA!r}")
                 kind, name = unit.get('kind'), unit.get('name')
                 definition = unit.get('definition') or {}
                 record = {'kind': kind, 'name': name, 'definition': definition,
@@ -405,19 +405,19 @@ def load_units(bases):
                 if kind == 'base':
                     manifests.append(record)
                     continue
-                version = definition.get('version') if kind == 'contract' else None
+                version = definition.get('version') if kind == 'primitive' else None
                 units.setdefault((kind, name, version), record)
         else:
             with open(base, encoding='utf-8') as f:
                 mono = json.load(f)
-            manifests.append({'kind': 'base', 'name': mono.get('catalog', base),
+            manifests.append({'kind': 'base', 'name': mono.get('primitive_library', base),
                               'definition': {k: v for k, v in mono.items()
-                                             if k not in ('schema', 'contracts', 'axes',
+                                             if k not in ('schema', 'primitives', 'axes',
                                                           'precision')},
                               'path': base, 'base': base})
-            for section, kind in catalog_mod.SECTIONS:
+            for section, kind in primitive_library_mod.SECTIONS:
                 for name, d in mono.get(section, {}).items():
-                    version = d.get('version') if kind == 'contract' else None
+                    version = d.get('version') if kind == 'primitive' else None
                     units.setdefault((kind, name, version),
                                      {'kind': kind, 'name': name, 'definition': d,
                                       'path': base, 'base': base})
@@ -425,9 +425,9 @@ def load_units(bases):
 
 
 def find_template(cat, definition):
-    """The template of a template contract, as the catalog pinned it (§4.6).
+    """The template of a template primitive, as the primitive library pinned it (§4.6).
     Returns (path, model) or None."""
-    path = catalog_mod.template_path(cat, definition)
+    path = primitive_library_mod.template_path(cat, definition)
     if not os.path.isfile(path):
         return None
     with open(path, encoding='utf-8') as f:
@@ -466,8 +466,8 @@ class Renderer:
         self.relative_to = relative_to
         self.output_dir = output_dir
         self.vocab = Vocabulary()
-        self.contracts = sorted((u for u in units.values() if u['kind'] == 'contract'),
-                                key=lambda u: (u['name'], catalog_mod._semver(u['definition']['version'])))
+        self.primitives = sorted((u for u in units.values() if u['kind'] == 'primitive'),
+                                key=lambda u: (u['name'], primitive_library_mod._semver(u['definition']['version'])))
         self.axes = sorted((u for u in units.values() if u['kind'] == 'axis'),
                            key=lambda u: u['name'])
         self.roles = sorted((u for u in units.values() if u['kind'] == 'precision_role'),
@@ -502,12 +502,12 @@ class Renderer:
     def link_role(self, name):
         return link('role', name) if name in self.role_names else f"`{name}`"
 
-    def link_contract(self, name, version=None):
+    def link_primitive(self, name, version=None):
         if version is None:
-            d = self.cat['contracts'].get(name)
+            d = self.cat['primitives'].get(name)
             version = d['version'] if d else None
-        if ('contract', name, version) in self.units:
-            return link('contract', name, version)
+        if ('primitive', name, version) in self.units:
+            return link('primitive', name, version)
         return f"`{name}@{version}`" if version else f"`{name}`"
 
     def shape_symbolic(self, shape):
@@ -553,11 +553,11 @@ class Renderer:
         text = f"> **Deprecated.** {dep['reason'].strip()}"
         sup = dep.get('superseded_by')
         if isinstance(sup, dict):
-            key = ('contract', sup['name'], sup['version'])
+            key = ('primitive', sup['name'], sup['version'])
             if key not in self.units:
                 self.report.find(where, f"superseded_by names '{sup['name']}@{sup['version']}', "
-                                        f"which the catalog does not carry")
-            text += f" Superseded by {self.link_contract(sup['name'], sup['version'])}."
+                                        f"which the primitive library does not carry")
+            text += f" Superseded by {self.link_primitive(sup['name'], sup['version'])}."
         elif isinstance(sup, str):
             text += f" Use `{sup}` instead."
         return [text, '']
@@ -567,7 +567,7 @@ class Renderer:
         out = []
         out += self.head()
         out += self.overview()
-        out += self.contracts_section()
+        out += self.primitives_section()
         out += self.axes_section()
         out += self.roles_section()
         out += self.tags_section()
@@ -581,11 +581,11 @@ class Renderer:
             d = primary['definition']
             where = self.rel(primary['path'])
             docs = self.docs.of('base', d, where, primary='summary')
-            title = docs.get('title') or f"Catalog {d.get('catalog', primary['name'])}"
+            title = docs.get('title') or f"Primitive Library {d.get('primitive_library', primary['name'])}"
             out += heading(1, title)
-            out.append(f"*Catalog `{d.get('catalog', primary['name'])}`, base "
+            out.append(f"*Primitive Library `{d.get('primitive_library', primary['name'])}`, base "
                        f"`{self.rel(primary['base'])}` — generated by "
-                       f"`tensorspine --document catalog`; edit the units, not this file.*")
+                       f"`tensorspine --document primitive-library`; edit the units, not this file.*")
             out.append('')
             if 'summary' in docs:
                 out += [f"**{docs['summary']}**", '']
@@ -612,20 +612,20 @@ class Renderer:
             for extra in self.manifests[1:]:
                 self.docs.of('base', extra['definition'], self.rel(extra['path']), primary='summary')
         else:
-            out += heading(1, 'Catalog')
-            self.report.find('catalog', 'no base manifest (`catalog.json`) in any base')
+            out += heading(1, 'Primitive Library')
+            self.report.find('primitive_library', 'no base manifest (`primitive-library.json`) in any base')
         bases = ', '.join(f"`{self.rel(b)}`" for b in self.bases)
         out.append(f"Bases consulted, in order: {bases}. "
-                   f"{len(self.contracts)} contracts, {len(self.axes)} axes, "
+                   f"{len(self.primitives)} primitives, {len(self.axes)} axes, "
                    f"{len(self.roles)} precision roles.")
         out.append('')
         out += heading(2, 'Contents')
         out += ['- [How to read this document](#how-to-read)',
                 '- [Overview](#overview)',
-                '- [Contracts](#contracts)']
+                '- [Primitives](#primitives)']
         for ns, group in self.groups():
             out.append(f"  - [{ns}](#{anchor('namespace', ns.rstrip('.*'))}): " +
-                       ', '.join(self.link_contract(u['name'], u['definition']['version'])
+                       ', '.join(self.link_primitive(u['name'], u['definition']['version'])
                                  for u in group))
         out += ['- [Axes](#axes)', '- [Precision roles](#precision-roles)']
         if self.declared_tags:
@@ -637,12 +637,12 @@ class Renderer:
         schema_link = self.rewrite_url('schemas/tensorspine-documentation.schema.json')
         out += [
             "Every unit is rendered from its definition first, then from its documentation. "
-            "Facts — types, defaults, shapes, laws — come from the definition and cannot "
+            "Facts — types, defaults, shapes, evolutions — come from the definition and cannot "
             "disagree with it; prose comes from `summary` and `description` fields "
             f"({schema_link}), and a maintainer's `note` is quoted as written. Nothing is "
             "inferred: a unit without a summary has none.",
             '',
-            "- **Expressions** are contract arguments by name; `a.b` is a field of a record "
+            "- **Expressions** are primitive arguments by name; `a.b` is a field of a record "
             "argument. Operators: `+ - * /`, `mod`, `ceil(a / b)`, `floor(a / b)`, `min`, "
             "`max`, `abs`. "
             "Strings are quoted.",
@@ -651,20 +651,20 @@ class Renderer:
             "constant conditions.",
             "- **Shapes** list axes in declaration order as `[local name: extent]`; `= a × b` "
             "spells out the declared factors of a flattened axis (O5.10); `scalar` is rank 0. "
-            "The *Axes* column gives each axis's catalog identity and nature; shapes unify by "
+            "The *Axes* column gives each axis's primitive library identity and nature; shapes unify by "
             "axis identity and extent (V4), never by position alone.",
             "- **Structural** marks an argument with `structural`: it decides which slots, "
             "ports or states exist or what shape they have. A non-structural argument changes "
             "only the computation.",
             "- **State rules** are ordered; the first rule whose condition holds decides the "
-            "law, access geometry, sharing and indexing of the state (§4.3).",
+            "evolution, access geometry, sharing and indexing of the state (§4.3).",
             '',
         ]
         return out
 
     def groups(self):
         groups = collections.OrderedDict()
-        for u in self.contracts:
+        for u in self.primitives:
             ns = u['name'].split('.')[0] + '.*' if '.' in u['name'] else 'unqualified'
             groups.setdefault(ns, []).append(u)
         return sorted(groups.items(), key=lambda kv: (kv[0] == 'unqualified', kv[0]))
@@ -673,7 +673,7 @@ class Renderer:
     def overview(self):
         out = heading(2, 'Overview', 'overview')
         rows = []
-        for u in self.contracts:
+        for u in self.primitives:
             d = u['definition']
             name, version = u['name'], d['version']
             if 'template' in d:
@@ -684,11 +684,11 @@ class Renderer:
                          f"{len(d['ports']['inputs'])}→{len(d['ports']['outputs'])} ports · "
                          f"{len(d.get('parameters', {}))} params"
                          + (f" · state {states}" if states else ''))
-            rows.append([self.link_contract(name, version),
+            rows.append([self.link_primitive(name, version),
                          ('*deprecated* ' if 'deprecated' in d else '') + d.get('summary', ''),
                          shape])
-        out += ['### Contracts', '']
-        out += table(['Contract', 'Summary', 'Shape'], rows)
+        out += ['### Primitives', '']
+        out += table(['PrimitiveReference', 'Summary', 'Shape'], rows)
         out += ['### Axes', '']
         out += table(['Axis', 'Space', 'Summary'],
                      [[link('axis', u['name']), u['definition']['space'],
@@ -704,27 +704,27 @@ class Renderer:
                       for u in self.roles])
         return out
 
-    # -- contracts -----------------------------------------------------------------------
-    def contracts_section(self):
-        out = heading(2, 'Contracts', 'contracts')
-        out += ["Grouped by namespace, then by name and version. A contract is pinned by "
-                "`{name, version}`; two versions of one name are two contracts (§8.2).", '']
+    # -- primitives -----------------------------------------------------------------------
+    def primitives_section(self):
+        out = heading(2, 'Primitives', 'primitives')
+        out += ["Grouped by namespace, then by name and version. A primitive is pinned by "
+                "`{name, version}`; two versions of one name are two primitives (§8.2).", '']
         for ns, group in self.groups():
             out += heading(3, ns, anchor('namespace', ns.rstrip('.*')))
             for u in group:
-                out += self.contract(u)
+                out += self.primitive(u)
         return out
 
-    def contract(self, u):
+    def primitive(self, u):
         d = u['definition']
         name, version = u['name'], d['version']
         where = self.rel(u['path'])
         label = f"{name}@{version}"
         is_template = 'template' in d
-        site = 'template' if is_template else 'contract'
+        site = 'template' if is_template else 'primitive'
         docs = self.docs.of(site, d, where, label, primary='summary')
         out = heading(4, f"`{label}`" + (' — template' if is_template else ''),
-                      anchor('contract', name, version))
+                      anchor('primitive', name, version))
         out.append(f"*{where}*")
         out.append('')
         out += self.deprecated_lines(docs, where)
@@ -749,7 +749,7 @@ class Renderer:
             out += self.effects(d, where, label)
             out += self.cost(d, where, label)
             out += self.sparsity(d, where, label)
-            out += self.partitions(d, where, label)
+            out += self.partition_options(d, where, label)
             out += self.transforms(d, where, label)
             self.check_conditions(d, where)
         return out
@@ -759,18 +759,18 @@ class Renderer:
         structural = sum(1 for a in declared.values() if a.get('structural'))
         required = sum(1 for a in declared.values() if a.get('required'))
         states = d.get('state_ports', {})
-        laws = set()
+        evolutions = set()
         for s in states.values():
             for r in s['rules']:
-                laws.add(r['law'])
+                evolutions.add(r['evolution'])
         cost = f"{len(d.get('logical_cost', []))} correction(s)" if d.get('logical_cost') else '—'
         rows = [[f"{len(declared)} ({required} required, {structural} structural)",
                  str(len(d['ports']['inputs'])), str(len(d['ports']['outputs'])),
                  str(len(d.get('parameters', {}))), str(len(d.get('constants', {}))),
-                 (', '.join(f"`{s}`" for s in states) + (f" ({', '.join(sorted(laws))})" if laws else '')) or 'none',
-                 str(len(d.get('partitions', []))), cost]]
+                 (', '.join(f"`{s}`" for s in states) + (f" ({', '.join(sorted(evolutions))})" if evolutions else '')) or 'none',
+                 str(len(d.get('partition_options', []))), cost]]
         return table(['Arguments', 'Inputs', 'Outputs', 'Parameters', 'Constants', 'State ports',
-                      'Partitions', 'Logical cost'], rows)
+                      'Partition options', 'Logical cost'], rows)
 
     def argument_rows(self, arguments, where, label, prefix='', depth=0):
         rows, enums = [], []
@@ -819,7 +819,7 @@ class Renderer:
     def arguments(self, d, where, label):
         out = ['##### Arguments', '']
         if not d['arguments']:
-            return out + ['This contract takes no argument.', '']
+            return out + ['This primitive takes no argument.', '']
         rows, enums = self.argument_rows(d['arguments'], where, label)
         out += table(['Argument', 'Type', 'Required', 'Default', 'Structural', 'Domain', 'Description'], rows)
         for full, values, descriptions in enums:
@@ -964,7 +964,7 @@ class Renderer:
             for i, r in enumerate(s['rules'], 1):
                 rdocs = self.docs.of('rule', r, f"{where} state {sname} rule {i}",
                                      f"{label}.{sname}#{i}")
-                self.vocab.add('state law', r['law'], who)
+                self.vocab.add('state evolution rule', r['evolution'], who)
                 self.vocab.add('state access', r['access'], who)
                 self.vocab.add('state sharing', r['sharing'], who)
                 extent = []
@@ -972,12 +972,12 @@ class Renderer:
                     extent.append(f"span {expr(r['span'])}")
                 if 'stride' in r:
                     extent.append(f"stride {expr(r['stride'])}")
-                rows.append([str(i), cond(r['when']), r['law'], r['access'], r['sharing'],
+                rows.append([str(i), cond(r['when']), r['evolution'], r['access'], r['sharing'],
                              origin_str(r['indexed_by']), '; '.join(extent) or '—',
                              describe(rdocs, r)])
             out += ['Derivation rules, in order — the first whose condition holds applies; a '
                     'state indexed by a port is frozen once that stream is complete (§5.3):', '']
-            out += table(['#', 'When', 'Law', 'Access', 'Sharing', 'Indexed by', 'Extent',
+            out += table(['#', 'When', 'Evolution', 'Access', 'Sharing', 'Indexed by', 'Extent',
                           'Description'], rows)
         return out
 
@@ -1007,12 +1007,12 @@ class Renderer:
         out += table(['#', 'When', 'Expression', 'Status', 'Per', 'Description'], rows)
         return out
 
-    def partitions(self, d, where, label):
-        out = ['##### Semantic partitions', '']
-        parts = d.get('partitions', [])
+    def partition_options(self, d, where, label):
+        out = ['##### Semantic Partition Options', '']
+        parts = d.get('partition_options', [])
         if not parts:
-            return out + ['No partition is stated — the catalog grammar refuses this; a contract '
-                          'says `none` when no cut preserves meaning.', '']
+            return out + ['No partition is stated — the primitive library grammar refuses this; a primitive '
+                          'says `none` when no graph split preserves meaning.', '']
         rows = []
         who = label.split('@')[0]
         for i, p in enumerate(parts, 1):
@@ -1035,7 +1035,7 @@ class Renderer:
                 target = "any axis (elementwise)"
                 kind = 'any_axis'
             else:
-                target = "none: no cut preserves meaning"
+                target = "none: no graph split preserves meaning"
                 kind = 'none'
             self.vocab.add('partition target', kind, who)
             communications = p['communication'] if isinstance(p['communication'], list) else [p['communication']]
@@ -1092,7 +1092,7 @@ class Renderer:
         return out
 
     def check_conditions(self, d, where):
-        """A condition or expression citing an argument the contract does not
+        """A condition or expression citing an argument the primitive does not
         declare can never fire (present) or resolve (compare): worth knowing."""
         declared = declared_argument_paths(d['arguments'])
         sites = []
@@ -1102,7 +1102,7 @@ class Renderer:
         for section in ('parameters', 'constants', 'state_ports'):
             for sname, s in d.get(section, {}).items():
                 sites.append((f"{section} {sname}", s))
-        for i, p in enumerate(d.get('partitions', []), 1):
+        for i, p in enumerate(d.get('partition_options', []), 1):
             sites.append((f"partition {i}", p))
         for i, c in enumerate(d.get('logical_cost', []), 1):
             sites.append((f"logical_cost {i}", c))
@@ -1114,7 +1114,7 @@ class Renderer:
         for label, node in sites:
             for ref in sorted(arguments_cited(node) - declared):
                 self.report.find(f"{where} {label}",
-                                 f"cites argument '{ref}', which this contract does not "
+                                 f"cites argument '{ref}', which this primitive does not "
                                  f"declare — the condition can never hold")
 
     def template_section(self, u, where):
@@ -1136,7 +1136,7 @@ class Renderer:
         out.append(f"- Resolved to `{self.rel(path)}`"
                    + (f" (declares model id `{declared_id}`)" if declared_id != m['id'] else ''))
         if declared_id != m['id']:
-            self.report.find(where, f"template declares model id '{declared_id}', contract says '{m['id']}'")
+            self.report.find(where, f"template declares model id '{declared_id}', primitive says '{m['id']}'")
         out.append('')
         rows = []
         for qname, q in model.get('quantities', {}).items():
@@ -1154,7 +1154,7 @@ class Renderer:
         for side in ('inputs', 'outputs'):
             for pname, p in model.get('interfaces', {}).get(side, {}).items():
                 if side == 'inputs':
-                    dom = p['kind'] + (f", joins `{p['stream']}`" if 'stream' in p else '') \
+                    dom = p['kind'] + (f", joins `{p['stream']}`" if 'stream' in p else '')\
                         + (', fragmented' if p.get('fragmented') else '')
                 else:
                     dom = 'derived from the port (§5.3)'
@@ -1163,11 +1163,11 @@ class Renderer:
         out += ['Ports — the public interfaces of the template:', '']
         out += table(['Side', 'Port', 'Domain', 'Generative'], rows)
         closure = self.closure(model)
-        out += ['Contracts the template cites, transitively — the capabilities a consumer needs '
+        out += ['Primitives the template cites, transitively — the capabilities a consumer needs '
                 '(§8.1), never the composite itself:', '']
         for name, version in sorted(closure):
-            out.append(f"- {self.link_contract(name, version)}")
-        out += ['', 'Parameter slots, state ports, logical cost and semantic partitions are '
+            out.append(f"- {self.link_primitive(name, version)}")
+        out += ['', 'Parameter slots, state ports, logical cost and semantic partition options are '
                 'derived from the expanded template (§4.6, D3–D6); this document does not '
                 'expand templates.', '']
         return out
@@ -1175,16 +1175,16 @@ class Renderer:
     def closure(self, model, seen=None):
         seen = seen if seen is not None else set()
         refs = set()
-        for o in model.get('occurrences', {}).values():
-            refs.add((o['contract']['name'], o['contract']['version']))
+        for o in model.get('instances', {}).values():
+            refs.add((o['primitive']['name'], o['primitive']['version']))
         for comp in model.get('compositions', {}).values():
-            for o in comp['occurrences'].values():
-                refs.add((o['contract']['name'], o['contract']['version']))
+            for o in comp['instances'].values():
+                refs.add((o['primitive']['name'], o['primitive']['version']))
         for ref in refs:
             if ref in seen:
                 continue
             seen.add(ref)
-            d = self.cat['contracts'].get(ref[0])
+            d = self.cat['primitives'].get(ref[0])
             if d is not None and 'template' in d:
                 found = find_template(self.cat, d)
                 if found is not None:
@@ -1280,7 +1280,7 @@ class Renderer:
         out = heading(2, 'Appendix A — Closed vocabulary in use', 'appendix-a')
         out += ['Every value of every closed enumeration that at least one unit uses, and how '
                 'many units use it. A runtime that implements these values implements the '
-                'whole catalog as it stands.', '']
+                'whole primitive library as it stands.', '']
         out += table(['Field', 'Value', 'Units'],
                      [[f, code(v), str(n)] for f, v, n in self.vocab.rows()])
 
@@ -1293,13 +1293,13 @@ class Renderer:
             rows.append([site_kind, str(done), str(total), pct])
         out += table(['Site', 'Documented', 'Total', 'Coverage'], rows)
         for site_kind, labels in self.report.undocumented.items():
-            if site_kind in ('contract', 'axis', 'precision_role', 'base'):
+            if site_kind in ('primitive', 'axis', 'precision_role', 'base'):
                 out.append(f"- Undocumented {site_kind}s: " + ', '.join(f"`{l}`" for l in labels))
         out.append('')
 
         out += heading(2, 'Appendix C — Findings', 'appendix-c')
         if self.report.findings:
-            out += ['Legal, and worth knowing. None of these blocks generation.', '']
+            out += ['Valid, and worth knowing. None of these blocks generation.', '']
             for f in self.report.findings:
                 out.append(f"- {f}")
             out.append('')
@@ -1310,17 +1310,17 @@ class Renderer:
 
 # --- entry point --------------------------------------------------------------------------
 
-def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None,
+def run(model_paths, primitive_library_bases, schema_dir, output=None, relative_to=None,
         models_base=None, output_dir=None):
-    """Render the catalog of the given bases to Markdown. Returns the exit status:
-    0 written, 1 refused (malformed documentation, unreadable catalog), with the
+    """Render the primitive library of the given bases to Markdown. Returns the exit status:
+    0 written, 1 refused (malformed documentation, unreadable primitive library), with the
     causes on stderr. Templates are resolved where each base declares them."""
     status = sys.stderr if output is None else sys.stdout
     try:
-        cat = catalog_mod.load(*catalog_bases, models_base=models_base)
-        manifests, units = load_units(catalog_bases)
-    except (ValueError, OSError, KeyError, catalog_mod.CatalogError) as e:
-        print(f"  catalog not readable: {e}", file=sys.stderr)
+        cat = primitive_library_mod.load(*primitive_library_bases, models_base=models_base)
+        manifests, units = load_units(primitive_library_bases)
+    except (ValueError, OSError, KeyError, primitive_library_mod.PrimitiveLibraryError) as e:
+        print(f"  primitive library not readable: {e}", file=sys.stderr)
         return 1
     report = Report()
     try:
@@ -1330,10 +1330,10 @@ def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None,
         return 1
     target = None
     if output is not None:
-        target = os.path.join(output, 'catalog.md') if os.path.isdir(output) else output
+        target = os.path.join(output, 'primitive-library.md') if os.path.isdir(output) else output
     output_dir = (os.path.abspath(output_dir) if output_dir else
                   os.path.dirname(os.path.abspath(target)) if target else None)
-    renderer = Renderer(manifests, units, cat, model_paths, docs, report, catalog_bases,
+    renderer = Renderer(manifests, units, cat, model_paths, docs, report, primitive_library_bases,
                         relative_to, output_dir)
     text = renderer.render()
     if report.refusals:
@@ -1347,9 +1347,9 @@ def run(model_paths, catalog_bases, schema_dir, output=None, relative_to=None,
     else:
         with open(target, 'w', encoding='utf-8') as f:
             f.write(text)
-    covered = report.coverage.get('contract', [0, 0])
-    print(f"  {len(renderer.contracts)} contracts, {len(renderer.axes)} axes, "
+    covered = report.coverage.get('primitive', [0, 0])
+    print(f"  {len(renderer.primitives)} primitives, {len(renderer.axes)} axes, "
           f"{len(renderer.roles)} precision roles -> {target}", file=status)
-    print(f"  {covered[0]}/{covered[1]} contracts carry a summary; "
+    print(f"  {covered[0]}/{covered[1]} primitives carry a summary; "
           f"{len(report.findings)} advisory finding(s)", file=status)
     return 0

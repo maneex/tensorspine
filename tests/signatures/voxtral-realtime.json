@@ -1,7 +1,7 @@
 {
  "nodes": 382,
  "edges": 522,
- "per_contract": {
+ "per_primitive": {
   "attention.dense": 58,
   "conditioning.scale": 26,
   "conv_frontend": 1,

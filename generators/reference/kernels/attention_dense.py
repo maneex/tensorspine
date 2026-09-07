@@ -1,4 +1,4 @@
-"""attention.dense@1.0.0 — dense or grouped-query attention over a KV state; self or cross.
+"""attention.dense@2.0.0 — dense or grouped-query attention over a KV state; self or cross.
 
 | branch / record                 | status                                          |
 |---------------------------------|-------------------------------------------------|
@@ -23,7 +23,7 @@
 | q/k/v/out biases                | implemented                                     |
 | output_gate (`q_gated`)         | implemented: per head, query rows then gate rows |
 
-Conventions the contract leaves open, as read here: keys of the current elements are
+Conventions the primitive leaves open, as read here: keys of the current elements are
 appended to the state before the queries attend (a query sees itself; a cross-attention query
 sees every source element delivered so far) — under `window`, read from the ring first and
 appended after, which comes to the same for the queries and lets a fragment longer than the span
@@ -31,7 +31,7 @@ through; the scale is head_dim^-1/2; rope `split` pairs channel i with i + rotar
 channels only, whose base frequencies are computed on the rotated width; `qk_norm` is an RMS
 norm over head_dim applied before RoPE, with the learned scales `qk_norm.scale` declares, zero-centred
 when it says so. These
-readings are now stated by the contract (finding 1, 30 Aug 2026); `mrope.sections` is declared
+readings are now stated by the primitive (finding 1, 30 Aug 2026); `mrope.sections` is declared
 by the document and, for a single position stream, both layouts are plain RoPE.
 """
 import math
@@ -39,7 +39,7 @@ import torch
 from kernels._common import present, refuse_unknown, rms_norm, supports_from, w
 from state import Refusal
 
-CONTRACT = ("attention.dense", "1.0.0")
+PRIMITIVE = ("attention.dense", "2.0.0")
 KNOWN = {'width', 'heads', 'head_dim', 'kv_heads', 'scale', 'mask', 'window', 'chunk', 'cross', 'streaming', 'kv_source', 'rope',
          'qk_norm', 'temperature', 'q_bias', 'k_bias', 'v_bias', 'out_bias', 'output_gate'}
 
@@ -241,12 +241,12 @@ def run(ctx, arguments, inputs, params, states, physical=None):
     span = int(window['span']) if window is not None else None
     score = arguments.get('scale')                       # the document's score scale, else head_dim⁻½
     # a window applies only under a causal mask (window.present_when = mask causal, I11): the
-    # contract refuses window with mask none, so the kernel never sees the combination
+    # primitive refuses window with mask none, so the kernel never sees the combination
     if shared:
         # the identity's writer appended this invocation's positions earlier in the order (the plan checks it):
         # the state holds them, so nothing is appended here and the queries' own positions are among the keys
         st = states['kv']
-        if st.law == 'window':
+        if st.evolution == 'window':
             if n > 1 and st.length > span:
                 raise Refusal(f"a shared window state serves one position at a time once its ring has wrapped: "
                               f"{n} positions asked, {st.length} written, span {span} (finding 26)")

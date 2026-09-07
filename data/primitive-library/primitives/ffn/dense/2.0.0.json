@@ -1,0 +1,307 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "primitive",
+  "name": "ffn.dense",
+  "definition": {
+    "version": "2.0.0",
+    "summary": "Dense feed-forward network: an up projection, a non-linearity, then a down projection.",
+    "description": "`in` projects to `inner`, the activation is applied, `out` projects back to `width`. The same sparsity option as `ffn.gated`, without the gate half; a feed-forward conditioned on a per-sequence signal is this primitive behind `conditioning.scale`.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1706.03762",
+        "title": "Attention Is All You Need (Vaswani et al., 2017)",
+        "kind": "paper",
+        "description": "The position-wise feed-forward network."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of `input` and `output`.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "inner": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Inner width.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "activation": {
+        "type": {
+          "kind": "enum",
+          "values": [
+            "silu",
+            "gelu",
+            "gelu_tanh",
+            "relu2"
+          ]
+        },
+        "required": true,
+        "structural": false,
+        "note": "selects the non-linearity; not structural",
+        "description": "Non-linearity applied after the up projection.",
+        "value_descriptions": {
+          "silu": "SiLU.",
+          "gelu": "Exact GELU.",
+          "gelu_tanh": "Tanh-approximated GELU.",
+          "relu2": "Squared ReLU."
+        }
+      },
+      "in_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "description": "Learned bias on the up projection."
+      },
+      "out_bias": {
+        "type": {
+          "kind": "boolean"
+        },
+        "required": false,
+        "structural": true,
+        "default": {
+          "literal": false
+        },
+        "description": "Learned bias on the down projection."
+      },
+      "activation_sparsity": {
+        "type": {
+          "kind": "real"
+        },
+        "required": false,
+        "structural": false,
+        "description": "Fraction of inner activations zeroed after selection, in [0, 1]; absent or 0, none. The selection is a Gaussian top-k on the gate projection before the activation: per element, `cutoff = mean + std · Φ⁻¹(fraction)` over the inner axis (the standard deviation biased), then `relu(gate − cutoff)`.",
+        "note": "structural fraction of activations zeroed after selection",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": true
+          },
+          "upper": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "Residual-stream activation."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "FFN output."
+        }
+      }
+    },
+    "parameters": {
+      "in": {
+        "role": "ffn.up_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Up projection."
+      },
+      "out": {
+        "role": "ffn.down_projection",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            },
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            }
+          ]
+        },
+        "description": "Down projection."
+      },
+      "in_bias": {
+        "role": "ffn.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "inner",
+              "axis": "ffn.inner",
+              "nature": "feature",
+              "extent": {
+                "argument": "inner"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "in_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the up projection."
+      },
+      "out_bias": {
+        "role": "ffn.projection_bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "present_when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "argument": "out_bias"
+            },
+            "right": {
+              "literal": true
+            }
+          }
+        },
+        "description": "Bias of the down projection."
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partition_options": [
+      {
+        "target": {
+          "argument_axis": "ffn.inner"
+        },
+        "communication": "all_reduce",
+        "description": "Tensor parallelism across the inner width; the down projection needs an all-reduce."
+      }
+    ],
+    "note": "Dense FFN: one up projection and one down projection."
+  }
+}

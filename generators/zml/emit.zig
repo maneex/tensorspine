@@ -1,6 +1,6 @@
 //! The traced function: the plan walked once, emitting MLIR (Z06).
 //!
-//! Every occurrence becomes a `stablehlo.composite` named for its contract, with the
+//! Every instance becomes a `stablehlo.composite` named for its primitive, with the
 //! primitive's output as its decomposition. That seam is in from the first commit
 //! even though every body is local: without it primitives inline into an
 //! undifferentiated blob, and there is nothing for a fetched body or an optimised
@@ -11,10 +11,10 @@
 //! needs: one comptime dispatcher closing over a runtime primitive pointer.
 //!
 //! Several sessions in one invocation (batch-plan B05, the aligned layout): every value
-//! the walk carries is `[sessions, elements, …]`. An occurrence that reads across positions
+//! the walk carries is `[sessions, elements, …]`. An instance that reads across positions
 //! (D1's `across_positions`), holds a state or reads several streams is evaluated once per
 //! session, on that session's slice, positions and state view — one composite per session,
-//! the state buffers flowing from one to the next; every other occurrence is evaluated once
+//! the state buffers flowing from one to the next; every other instance is evaluated once
 //! on all the sessions' elements merged into one element axis — its positions merged the
 //! same way when its primitive takes them — and its outputs are split back. The primitives
 //! see rank-2 values either way and know nothing of the batch — the same split the
@@ -44,7 +44,7 @@ const Decomposition = struct {
     plan: *const plan_mod.Plan,
     ctx: *primitive.Ctx,
     operands: []const Operand,
-    /// The session this composite evaluates, for an occurrence evaluated per session.
+    /// The session this composite evaluates, for an instance evaluated per session.
     session: i64 = 0,
 };
 
@@ -81,7 +81,7 @@ fn decompose(args: []zml.Tensor, c: Decomposition) []zml.Tensor {
         states.append(a, .{
             .name = binding.name,
             .handle = .{
-                .law = instance.law,
+                .evolution = instance.evolution,
                 .access = instance.access,
                 .buffers = buffers.items[at .. at + n],
                 .names = names.items[at .. at + n],
@@ -96,7 +96,7 @@ fn decompose(args: []zml.Tensor, c: Decomposition) []zml.Tensor {
 
     c.ctx.positions = positions;
     const produced = c.step.prim.run(c.ctx, .{
-        .occurrence = c.step.node,
+        .instance = c.step.node,
         .arguments = c.step.arguments,
         .inputs = .{ .items = inputs.items },
         .params = .{ .items = params.items },

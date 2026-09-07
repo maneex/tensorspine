@@ -1,0 +1,17 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "projector.patch_merger",
+  "definition": {
+    "summary": "Patch-mixing matrix of a vision-language projector.",
+    "admissible": [
+      "bf16",
+      "f16",
+      "f32",
+      "f8e4m3",
+      "fp4"
+    ],
+    "default": "bf16",
+    "sensitivity": "quantizable"
+  }
+}

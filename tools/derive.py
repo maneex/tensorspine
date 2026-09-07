@@ -1,29 +1,29 @@
 """`--derive`: emit the derived document (§7) — D1, the expanded graph, and
-D2–D6, the products a valid document and its contracts make computable
+D2–D6, the products a valid document and its primitives make computable
 without inference code — as one file, validated against the derived schema.
 
   D3  parameter tensors: one entry per identity instance — members, role,
       selected dtype, sensitivity, shape, elements, bytes, sparsity unit.
-  D4  states: one entry per identity instance — law, access geometry, sharing,
+  D4  states: one entry per identity instance — evolution, access geometry, sharing,
       stream, instance key, carrying, payload per cached position, visits.
   D5  logical costs: resident parameters, operations per element and per
       cached position (inventory plus every applying correction, with the
       status the algebra of §2.2 gives the total), sparsity bounds, state
-      bytes, and the payload crossing each legal cut.
+      bytes, and the payload crossing each valid graph split.
   D2  values: every value with its shape, role, dtype and domain, the element
       count of every stream as a combination of the inputs' counts (merges
       divide, inserts add, a joining input takes the stream's count at its
-      kind), the payload of every structural cut, and the peak
+      kind), the payload of every structural graph split, and the peak
       of live values along D1's order.
-  D6  legal cuts of the expanded graph, the partitions every occurrence's
-      contract declares where their condition holds — the communications each
+  D6  valid graph splits of the expanded graph, the partition_options every instance's
+      primitive declares where their condition holds — the communications each
       admits and the granularity a shard keeps whole — and the information
       loss of flattened axes without factors (O5.10).
 
 Encodings are outside the specification (§7); this one is the repository's.
 Template instances are expanded before anything is derived (§5.1): every
-product is computed once, over the expanded graph, and an occurrence, tensor,
-state, value or cut inside an instance carries the instance's prefix (§5.2
+product is computed once, over the expanded graph, and an instance, tensor,
+state, value or graph_split inside an instance carries the instance's prefix (§5.2
 rule 2) — as D1 names it.
 """
 import json
@@ -31,17 +31,17 @@ import os
 import math
 from collections import Counter, defaultdict, deque
 
-import catalog as catalog_mod
+import primitive_library as primitive_library_mod
 import d1 as d1_mod
 import validate as validate_mod
-from expr import UNRESOLVED, contract_condition, contract_value, missing_assignment
+from expr import UNRESOLVED, primitive_condition, primitive_value, missing_assignment
 
 BYTES = {'bool': 1, 'u4': 0.5, 'i4': 0.5, 'u8': 1, 'i8': 1, 'i16': 2, 'i32': 4, 'i64': 8,
          'fp4': 0.5, 'f8e4m3': 1, 'f8e4m3fn': 1, 'f8e5m2': 1, 'bf16': 2, 'f16': 2, 'f32': 4, 'f64': 8}
 
 
 def ident(key):
-    """`node` as D1 names it: an occurrence inside a template instance is
+    """`node` as D1 names it: an instance inside a template instance is
     prefixed by the instance (§5.2 rule 2); `_expand` wraps such a key as
     ('sub', prefix, key)."""
     if key[0] == 'sub':
@@ -71,11 +71,11 @@ def _shape(shape, args, multiplicity=None):
     of the computation. `elements` is the product of these extents; the count is in it once."""
     out = []
     if multiplicity is not None:
-        out.append({"axis": "storage.multiplicity", "extent": _num(contract_value(multiplicity, args))})
+        out.append({"axis": "storage.multiplicity", "extent": _num(primitive_value(multiplicity, args))})
     for a in shape['axes']:
-        entry = {"axis": a['axis'], "extent": _num(contract_value(a['extent'], args))}
+        entry = {"axis": a['axis'], "extent": _num(primitive_value(a['extent'], args))}
         if 'factors' in a:
-            entry['factors'] = [{"axis": f['axis'], "extent": _num(contract_value(f['extent'], args))}
+            entry['factors'] = [{"axis": f['axis'], "extent": _num(primitive_value(f['extent'], args))}
                                 for f in a['factors']]
         out.append(entry)
     return out
@@ -84,12 +84,12 @@ def _shape(shape, args, multiplicity=None):
 def _elements(shape, args, multiplicity=None):
     n = 1
     for a in shape['axes']:
-        e = _num(contract_value(a['extent'], args))
+        e = _num(primitive_value(a['extent'], args))
         if e is None:
             return None
         n *= e
     if multiplicity is not None:
-        m = _num(contract_value(multiplicity, args))
+        m = _num(primitive_value(multiplicity, args))
         if m is None:
             return None
         n *= m
@@ -133,11 +133,11 @@ def d3(graph, cat):
         unit = None
         for i, u in enumerate(definition.get('sparsity', [])):
             if pname in u['unit']['parameters']:
-                activated = _num(contract_value(u['activated_per_element'], args))
+                activated = _num(primitive_value(u['activated_per_element'], args))
                 extent = None
                 for a in param['shape']['axes']:
                     if a['axis'] == u['unit']['axis']:
-                        extent = _num(contract_value(a['extent'], args))
+                        extent = _num(primitive_value(a['extent'], args))
                 unit = {"unit": i, "axis": u['unit']['axis'], "activated_per_element": activated,
                         "units": extent,
                         "activated_fraction": (activated / extent) if activated is not None and extent else None}
@@ -145,10 +145,10 @@ def d3(graph, cat):
         n = _elements(param['shape'], args, param.get('multiplicity'))
         entry = {"identity": inst['identity'],
                  "members": [f"{ident(k)}.{p}" for k, p in inst['members']],
-                 "contract": name, "slot": pname, "role": param['role'],
+                 "primitive": name, "slot": pname, "role": param['role'],
                  "sensitivity": cat['precision'][param['role']]['sensitivity'],
                  "dtype": dtype, "shape": _shape(param['shape'], args, param.get('multiplicity')),
-                 "multiplicity": _num(contract_value(param['multiplicity'], args)) if 'multiplicity' in param else 1,
+                 "multiplicity": _num(primitive_value(param['multiplicity'], args)) if 'multiplicity' in param else 1,
                  "elements": _sound(n, 'element count', inst['identity']),
                  "bytes": _sound((n * BYTES[dtype]) if n is not None else None, 'byte size', inst['identity']),
                  "tied": len(inst['members']) > 1}
@@ -166,11 +166,11 @@ def d3(graph, cat):
 
 # --- D4 ---------------------------------------------------------------------
 
-def _visits(rule, source_indexed, law):
+def _visits(rule, source_indexed, evolution):
     if source_indexed:
         return {"write": "once per element of the source stream, until the source is complete",
                 "read": "once per element produced"}
-    if law == 'fixed':
+    if evolution == 'fixed':
         return {"write": "once per element", "read": "once per element"}
     return {"write": "once per new element of its stream", "read": "once per element produced"}
 
@@ -184,13 +184,13 @@ def d4(graph, cat):
         key, sname = inst['members'][0]
         name, definition, args = resolved[key]
         port = definition['state_ports'][sname]
-        rules = [r for r in port['rules'] if contract_condition(r['when'], args)]
+        rules = [r for r in port['rules'] if primitive_condition(r['when'], args)]
         rule = rules[0] if rules else None
         source_indexed = rule is not None and 'port' in rule['indexed_by']
         stream = (own.get(key) if not source_indexed else domains.get((key, rule['indexed_by']['port']))) if rule else None
-        # carried across fragments (§5.3): the contract's carrying condition holds, or the state is
+        # carried across fragments (§5.3): the primitive's carrying condition holds, or the state is
         # indexed by a port whose stream is a fragmented input, which carries it by definition
-        carried = ('carried_across' in port and contract_condition(port['carried_across']['when'], args)) \
+        carried = ('carried_across' in port and primitive_condition(port['carried_across']['when'], args))\
             or (source_indexed and stream is not None and stream[1] in _fragmented_streams(graph))
         payload = []
         for cname, comp in port['payload'].items():
@@ -201,12 +201,12 @@ def d4(graph, cat):
                             "elements": _sound(n, 'state element count', inst['identity']),
                             "bytes": _sound((n * BYTES[dtype]) if n is not None else None, 'state byte size', inst['identity'])})
         per_position = sum(c['bytes'] or 0 for c in payload)
-        span = _sound(_num(contract_value(rule['span'], args)) if rule and 'span' in rule else None, 'state span', inst['identity'])
+        span = _sound(_num(primitive_value(rule['span'], args)) if rule and 'span' in rule else None, 'state span', inst['identity'])
         entry = {"identity": inst['identity'],
                  "members": [f"{ident(k)}.{s}" for k, s in inst['members']],
                  "writer": f"{ident(inst['writer'][0])}.{inst['writer'][1]}" if inst.get('writer') else None,
-                 "contract": name, "state": sname,
-                 "law": rule['law'] if rule else None, "access": rule['access'] if rule else None,
+                 "primitive": name, "state": sname,
+                 "evolution": rule['evolution'] if rule else None, "access": rule['access'] if rule else None,
                  "sharing": rule['sharing'] if rule else None,
                  "stream": {"kind": stream[0], "stream": stream[1]} if stream else None,
                  "indexed_by_source": source_indexed,
@@ -214,17 +214,17 @@ def d4(graph, cat):
                  "instance_key": list(inst['indices']) + list(port['key_axes']),
                  "carried_across_fragments": carried,
                  "span": span,
-                 "stride": _num(contract_value(rule['stride'], args)) if rule and 'stride' in rule else None,
+                 "stride": _num(primitive_value(rule['stride'], args)) if rule and 'stride' in rule else None,
                  "payload": payload, "bytes_per_cached_position": per_position,
                  "bytes_bounded": (per_position * span) if span else None,
                  "operations": sorted({o['effect'] for o in port['operations'].values()}),
-                 "visits": _visits(rule, source_indexed, rule['law'] if rule else None)}
+                 "visits": _visits(rule, source_indexed, rule['evolution'] if rule else None)}
         states.append(entry)
     totals = {"identities": len(states),
-              "by_law": dict(Counter(s['law'] for s in states)),
-              "append_bytes_per_cached_position": sum(s['bytes_per_cached_position'] for s in states if s['law'] == 'append'),
-              "bounded_bytes": sum(s['bytes_bounded'] or 0 for s in states if s['law'] == 'window'),
-              "fixed_bytes": sum(s['bytes_per_cached_position'] for s in states if s['law'] == 'fixed'),
+              "by_evolution": dict(Counter(s['evolution'] for s in states)),
+              "append_bytes_per_cached_position": sum(s['bytes_per_cached_position'] for s in states if s['evolution'] == 'append'),
+              "bounded_bytes": sum(s['bytes_bounded'] or 0 for s in states if s['evolution'] == 'window'),
+              "fixed_bytes": sum(s['bytes_per_cached_position'] for s in states if s['evolution'] == 'fixed'),
               "carried": [s['identity'] for s in states if s['carried_across_fragments']]}
     return {"states": states, "totals": totals}
 
@@ -235,7 +235,7 @@ def _fragmented_streams(graph):
             if decl.get('fragmented')}
 
 
-# --- D2 and the cuts ---------------------------------------------------------
+# --- D2 and the graph_splits ---------------------------------------------------------
 
 # --- expansion --------------------------------------------------------------
 
@@ -259,15 +259,15 @@ def _prefixed(location, prefix):
 
 def _expand(graph, prefix=''):
     """The analysis graph with every template instance expanded in place (§5.1)
-    — on the analysis side, what D1 does on emission. The instance's occurrences
+    — on the analysis side, what D1 does on emission. The instance's instances
     carry its prefix (§5.2 rule 2); the edges into and out of it are rewired to
     the template's own endpoints; the template's streams take the names of the
     caller's streams that feed them; its tensor and state identities join the
     caller's under the prefix. The result has no `sub_results`; `meta` gives
-    every occurrence its families and, for a generated one, its composition
+    every instance its families and, for a generated one, its composition
     (prefixed) and indices; `compositions` lists the prefixed composition names
     in declaration order; `inputs_at` and `outputs_at` resolve the level's
-    public interfaces to occurrence ports."""
+    public interfaces to instance ports."""
     model, subs = graph['model'], graph['sub_results']
     inner = {key: _expand(sub['graph'], prefix + ident(key) + '/') for key, sub in subs.items()}
     for key, sub in subs.items():
@@ -287,9 +287,9 @@ def _expand(graph, prefix=''):
     def source(key, port):
         return inner[key]['outputs_at'][port] if key in inner else (_wrap(prefix, key), port)
 
-    inputs_at = {iname: [t for e in decl['to'] for t in targets(_select(graph, e['occurrence']), e['port'])]
+    inputs_at = {iname: [t for e in decl['to'] for t in targets(_select(graph, e['instance']), e['port'])]
                  for iname, decl in model['interfaces']['inputs'].items()}
-    outputs_at = {oname: source(_select(graph, decl['from']['occurrence']), decl['from']['port'])
+    outputs_at = {oname: source(_select(graph, decl['from']['instance']), decl['from']['port'])
                   for oname, decl in model['interfaces']['outputs'].items()}
     resolved, domains, own, order, meta = {}, {}, {}, [], {}
     for key, entry in graph['resolved'].items():
@@ -299,10 +299,10 @@ def _expand(graph, prefix=''):
         resolved[w] = entry
         own[w] = graph['own'].get(key)
         if key[0] == 'root':
-            fams, comp = set(model['occurrences'][key[1]]['families']), None
+            fams, comp = set(model['instances'][key[1]]['families']), None
         else:
             decl = model['compositions'][key[1]]
-            fams = set(decl['occurrences'][key[2]]['families']) | set(decl['families'])
+            fams = set(decl['instances'][key[2]]['families']) | set(decl['families'])
             comp = (prefix + key[1], dict(key[3]))
         meta[w] = {'families': fams, 'composition': comp}
     for (key, port), d in graph['domains'].items():
@@ -391,7 +391,7 @@ def _counts(graph):
                         continue
                     src = counts.get((node, t['from_port']))
                     if t['relation'] == 'merge' and src is not None:
-                        f = _num(contract_value(t['factor'], args)) or 1
+                        f = _num(primitive_value(t['factor'], args)) or 1
                         c = {k: v / f for k, v in src.items()}
                     elif t['relation'] == 'insert' and src is not None:
                         c = dict(own or {})
@@ -437,7 +437,7 @@ def _counts(graph):
 
 def _present_port(definition, pname, args):
     port = definition['ports']['inputs'][pname]
-    return contract_condition(port['present_when'], args) if 'present_when' in port else True
+    return primitive_condition(port['present_when'], args) if 'present_when' in port else True
 
 
 def graph_value(graph, e):
@@ -447,8 +447,8 @@ def graph_value(graph, e):
 
 def _select(graph, sel):
     if sel['kind'] == 'root':
-        return ('root', sel['occurrence'])
-    return ('gen', sel['composition'], sel['occurrence'],
+        return ('root', sel['instance'])
+    return ('gen', sel['composition'], sel['instance'],
             tuple(sorted((k, graph_value(graph, v)) for k, v in sel['indices'].items())))
 
 
@@ -473,12 +473,12 @@ def _ancestors(nodes, edges):
     return seen
 
 
-def _structural_cuts(graph):
-    """Legal cuts by construction: the ancestor closure of a layer prefix or of
+def _structural_graph_splits(graph):
+    """Valid graph_splits by construction: the ancestor closure of a layer prefix or of
     a family is downward closed, so every crossing edge points out of it."""
     resolved, edges, meta = graph['resolved'], graph['edges'], graph['meta']
-    cuts = []
-    layers = defaultdict(dict)                    # composition -> occurrence -> its indices
+    graph_splits = []
+    layers = defaultdict(dict)                    # composition -> instance -> its indices
     for key in resolved:
         comp = meta[key]['composition']
         if comp and len(comp[1]) == 1:
@@ -490,7 +490,7 @@ def _structural_cuts(graph):
         values = sorted({idx[index] for idx in layers[comp_name].values()})
         for v in values[:-1]:
             block = {k for k, idx in layers[comp_name].items() if idx[index] <= v}
-            cuts.append((f"{comp_name}[{index}<={v}]", "layer", _ancestors(block, edges)))
+            graph_splits.append((f"{comp_name}[{index}<={v}]", "layer", _ancestors(block, edges)))
     families = defaultdict(set)
     for key in resolved:
         for f in meta[key]['families']:
@@ -498,8 +498,8 @@ def _structural_cuts(graph):
     for f in sorted(families):
         block = _ancestors(families[f], edges)
         if len(block) < len(resolved):
-            cuts.append((f"family:{f}", "family", block))
-    return cuts
+            graph_splits.append((f"family:{f}", "family", block))
+    return graph_splits
 
 
 def d2(graph, cat):
@@ -603,8 +603,8 @@ def d2(graph, cat):
             if dom and dom['stream'] == sname and c.get(sname):
                 alignment = math.lcm(alignment, max(1, round(1 / c[sname])))
         streams[sname]['fragment_alignment'] = alignment
-    cuts = []
-    for cid, kind, block in _structural_cuts(graph):
+    graph_splits = []
+    for cid, kind, block in _structural_graph_splits(graph):
         crossing = {}
         for src, sp, dst, dp, bid in edges:
             if src in block and dst not in block:
@@ -614,21 +614,21 @@ def d2(graph, cat):
         for v in crossing.values():
             for inp, mult in (v['count'] or {}).items():
                 per_invocation[inp] += (v['bytes_per_element'] or 0) * mult
-        cuts.append({"cut": cid, "kind": kind, "sizes": [len(block), len(resolved) - len(block)],
+        graph_splits.append({"graph_split": cid, "kind": kind, "sizes": [len(block), len(resolved) - len(block)],
                      "payload": [{"value": k, "bytes_per_element": v['bytes_per_element'], "count": v['count']}
                                  for k, v in sorted(crossing.items())],
                      "bytes_per_element": sum(v['bytes_per_element'] or 0 for v in crossing.values()),
                      "bytes_per_invocation": dict(per_invocation)})
-    return {"streams": streams, "values": list(values.values()), "cuts": cuts,
+    return {"streams": streams, "values": list(values.values()), "graph_splits": graph_splits,
             "peak_live": _peak_live(graph, values)}
 
 
 def _peak_live(graph, values):
     """The peak of live values along D1's topological order: at each node, the values
     produced so far and not yet consumed by every consumer — its own outputs included, its
-    inputs still held while it runs — sized per element and per invocation like a cut's
+    inputs still held while it runs — sized per element and per invocation like a graph split's
     payload. A value a public output exposes is live to the end. The peak is a property of
-    this one order (another legal order may peak lower), stated as such."""
+    this one order (another valid order may peak lower), stated as such."""
     resolved, edges, order = graph['resolved'], graph['edges'], graph['order']
     remaining = Counter()
     for src, sp, dst, dp, bid in edges:
@@ -686,23 +686,23 @@ def d5(graph, cat, products3, products4, products2, stats):
     sparsity = []
     for key, (name, definition, args) in resolved.items():
         for i, entry in enumerate(definition.get('logical_cost', [])):
-            if 'when' in entry and not contract_condition(entry['when'], args):
+            if 'when' in entry and not primitive_condition(entry['when'], args):
                 continue
-            v = _num(contract_value(entry['expression'], args))
-            corrections.append({"node": ident(key), "contract": name, "entry": i, "value": v,
+            v = _num(primitive_value(entry['expression'], args))
+            corrections.append({"node": ident(key), "primitive": name, "entry": i, "value": v,
                                 "status": entry['status'], "per": entry['per']})
         for i, u in enumerate(definition.get('sparsity', [])):
-            activated = _num(contract_value(u['activated_per_element'], args))
+            activated = _num(primitive_value(u['activated_per_element'], args))
             extent = None
             for pname in u['unit']['parameters']:
                 for a in definition['parameters'][pname]['shape']['axes']:
                     if a['axis'] == u['unit']['axis']:
-                        extent = _num(contract_value(a['extent'], args))
+                        extent = _num(primitive_value(a['extent'], args))
             bound = u['union_per_invocation']
-            sparsity.append({"node": ident(key), "contract": name, "unit": i,
+            sparsity.append({"node": ident(key), "primitive": name, "unit": i,
                              "activated_per_element": activated, "units": extent,
                              "activated_fraction": (activated / extent) if activated is not None and extent else None,
-                             "union_per_invocation": {"value": _num(contract_value(bound['expression'], args)),
+                             "union_per_invocation": {"value": _num(primitive_value(bound['expression'], args)),
                                                       "status": bound['status']}})
     by_per = defaultdict(list)
     for c in corrections:
@@ -719,26 +719,26 @@ def d5(graph, cat, products3, products4, products2, stats):
             "state": {"append_bytes_per_cached_position": t4['append_bytes_per_cached_position'],
                       "bounded_bytes": t4['bounded_bytes'], "fixed_bytes": t4['fixed_bytes'],
                       "status": "exact"},
-            "cuts": [{"cut": c['cut'], "bytes_per_element": c['bytes_per_element'],
-                      "bytes_per_invocation": c['bytes_per_invocation']} for c in products2['cuts']]}
+            "graph_splits": [{"graph_split": c['graph_split'], "bytes_per_element": c['bytes_per_element'],
+                      "bytes_per_invocation": c['bytes_per_invocation']} for c in products2['graph_splits']]}
 
 
 # --- D6 ---------------------------------------------------------------------
 
 def d6(graph, cat, products2):
     resolved = graph['resolved']
-    partitions = []
+    partition_options = []
     loss = []
     for key, (name, definition, args) in resolved.items():
-        for p in definition.get('partitions', []):
-            if 'when' in p and not contract_condition(p['when'], args):
+        for p in definition.get('partition_options', []):
+            if 'when' in p and not primitive_condition(p['when'], args):
                 continue
             communication = p['communication'] if isinstance(p['communication'], list) else [p['communication']]
-            granularity = _num(contract_value(p['granularity'], args)) if 'granularity' in p else 1
-            partitions.append({"node": ident(key), "contract": name, "target": p['target'],
+            granularity = _num(primitive_value(p['granularity'], args)) if 'granularity' in p else 1
+            partition_options.append({"node": ident(key), "primitive": name, "target": p['target'],
                                "communication": communication, "granularity": granularity})
         for pname, param in definition['parameters'].items():
-            if 'present_when' in param and not contract_condition(param['present_when'], args):
+            if 'present_when' in param and not primitive_condition(param['present_when'], args):
                 continue
             for a in param['shape']['axes']:
                 flattened = isinstance(a['extent'], dict) and a['extent'].get('op') == 'multiply'
@@ -746,9 +746,9 @@ def d6(graph, cat, products2):
                     loss.append({"node": ident(key), "slot": pname, "axis": a['axis'],
                                  "reason": "flattened axis without declared factors (O5.10): "
                                            "partitionability along its factors is unknown"})
-    return {"cuts": [{"cut": c['cut'], "kind": c['kind'], "sizes": c['sizes'],
-                      "crossing_values": len(c['payload'])} for c in products2['cuts']],
-            "partitions": partitions, "information_loss": loss}
+    return {"graph_splits": [{"graph_split": c['graph_split'], "kind": c['kind'], "sizes": c['sizes'],
+                      "crossing_values": len(c['payload'])} for c in products2['graph_splits']],
+            "partition_options": partition_options, "information_loss": loss}
 
 
 # --- entry points -----------------------------------------------------------
@@ -759,7 +759,7 @@ def products(model_path, cat, assignment=None, schema_dir=None):
     (the schema, V12) before the semantic one — because this is the one entry every derivation
     takes: the command line, the status and artifact tools, the capabilities reader and every
     generator. A document off the schema has no products, whatever asked for them."""
-    problems = validate_mod.structural(model_path, catalog_mod.DEFAULT_SCHEMAS if schema_dir is None else schema_dir)
+    problems = validate_mod.structural(model_path, primitive_library_mod.DEFAULT_SCHEMAS if schema_dir is None else schema_dir)
     if problems:
         raise ValueError(f"not valid, no products: {problems[0]}")
     result = validate_mod.analyse(model_path, cat, assignment)
@@ -796,7 +796,7 @@ def _consistent(nodes, graph):
                              f"{node['arguments'].get(differing[0])!r} against {args.get(differing[0])!r}")
 
 
-def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None,
+def run(model_paths, primitive_library_bases, output=None, assignment=None, models_base=None,
         schema_dir=None):
     """Emit the derived document of each model, D1 to D6. Returns (failed, skipped)."""
     failed = 0
@@ -806,10 +806,10 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
         with open(path, encoding='utf-8') as f:
             document = json.load(f)
         try:
-            cat = catalog_mod.load_for(path, document, catalog_bases, schema_dir, models_base)
-        except catalog_mod.CatalogError as e:
+            cat = primitive_library_mod.load_for(path, document, primitive_library_bases, schema_dir, models_base)
+        except primitive_library_mod.PrimitiveLibraryError as e:
             failed += 1
-            print(f"  {name:34s} catalog refused: {e}")
+            print(f"  {name:34s} primitive library refused: {e}")
             continue
         unset = missing_assignment(document, assignment)
         if unset:
@@ -842,5 +842,5 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
         print(f"  {name:34s} {t3['tensors']} tensors {t3['bytes'] / 2**30:.2f} GiB, "
               f"{t4['identities']} states {t4['append_bytes_per_cached_position'] / 1024:.0f} KiB/position, "
               f"{p5['operations']['element']['value'] / 1e9:.2f} Gop/element, "
-              f"{len(doc['d2']['cuts'])} cuts{where}")
+              f"{len(doc['d2']['graph_splits'])} graph_splits{where}")
     return failed, skipped

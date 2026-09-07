@@ -1,26 +1,26 @@
 # Reference generator
 
 The reference generator is the repository's target generator and the language's review instrument.
-It runs the reference implementation supplied with each contract; once bound to that contract
+It runs the reference implementation supplied with each primitive; once bound to that primitive
 version, the implementation is its witness and the authority for what the primitive computes. The
 TensorSpine conformance tooling checks optimized implementations against the corresponding unit
-fixtures. The reference generator also loads a model document, its derived products and artifact into one `forward`, compares
-integration fixtures from the delivery implementation at legal cuts and states, and provides a
+fixtures. The reference generator also loads a model definition, its derived products and artifact into one `forward`, compares
+integration fixtures from the delivery implementation at valid graph splits and states, and provides a
 small chat. It is not a serving system.
 
-The generated [status page](https://maneex.github.io/tensorspine/status/) lists the contracts and
+The generated [status page](https://maneex.github.io/tensorspine/status/) lists the primitives and
 documents the generator admits, fixture tolerances and provenance, recorded token sequences, and
 whole-model checks. It reads the same manifest, `verified.py` and fixture metadata as the test
 suite, so this README describes the method rather than copying results.
 
 The suite checks conformers against witness-produced unit fixtures. Separately, it compares values
-at every legal cut, persistent state after prefill and exposed outputs against integration fixtures
+at every valid graph split, persistent state after prefill and exposed outputs against integration fixtures
 dumped from `transformers`; generative models also compare greedy tokens. A document without a
 generative output runs once: `run` prints its exposed outputs, the test compares them, and no decode
 loop is entered.
 
 The generator supports session-based chat, greedy or sampled streaming, artifact-owned chat
-templates and optional decode compilation. `--max-ram GIB` runs a model in blocks at D6 legal cuts,
+templates and optional decode compilation. `--max-ram GIB` runs a model in blocks at D6 valid graph splits,
 loading and releasing each block per invocation; the suite checks its outputs against one-block
 execution and the command prints the resulting traffic.
 
@@ -32,16 +32,16 @@ vocabulary, generated from the kernels' `CAPABILITIES` tables — the same table
 computed from, so the manifest cannot drift from the code, and the test regenerates it to prove
 it. Two readers: a runtime asks `tensorspine --capabilities generators/reference/capabilities.json
 MODEL…` whether this generator can run a document for a delivery of inputs, before loading anything;
-a maintainer asks `--coverage` what the catalog and the corpus still need. `ref.py capabilities
-[--check]` regenerates it and validates its names against the catalog.
+a maintainer asks `--coverage` what the primitive library and the corpus still need. `ref.py capabilities
+[--check]` regenerates it and validates its names against the primitive_library.
 
 ## Commands
 
-Every command takes a model document (derived in-process) or a derived document, and the options
+Every command takes a model definition (derived in-process) or a derived document, and the options
 `--device cpu|cuda[:i]` (default `cpu`), `--compute f32|bf16` (default fp32 on CPU, bf16 on CUDA),
 `--capacity N` positions per session (default 1024) — or `--capacity STREAM=N,…` per stream, since
 a state's positions are its stream's and a cross-attention cache holds the source stream's, not the
-tokens' — `--max-ram GIB` (blocks at legal cuts, below), `--truncate decoder.layer=N` (a truncated
+tokens' — `--max-ram GIB` (blocks at valid graph splits, below), `--truncate decoder.layer=N` (a truncated
 document, for smoke tests: the index range and every literal that names its old extent follow) and
 `--set path=value` (any other document edit before deriving).
 
@@ -65,7 +65,7 @@ deployment intent and the hardware, and `SPECIFICATION.md` I9 says *"the describ
 artifact are mutually compatible"*. A **checkpoint** is one concrete safetensors directory — what
 `--checkpoint` is pointed at and what V17 is checked against. So the prose here says *artifact*, and
 *checkpoint* appears only where a flag or V17 does. In the examples below, set `IDS`, `STEPS`,
-`CAPACITY`, `RAM_GIB`, `CUT` and `LAYERS` for the run being exercised.
+`CAPACITY`, `RAM_GIB`, `GRAPH_SPLIT` and `LAYERS` for the run being exercised.
 
 
 ```sh
@@ -84,13 +84,13 @@ python3 $R run     data/models/voxtral-realtime.json --checkpoint "$CK" --audio 
 python3 $R info    $MODEL --capacity "$CAPACITY" --max-ram "$RAM_GIB"
 python3 $R run     $MODEL --checkpoint "$CK" --ids "$IDS" --max-ram "$RAM_GIB"
 python3 $R chat    $MODEL --checkpoint "$CK" --capacity "$CAPACITY" --max-new-tokens "$STEPS"
-# the comparison against transformers, at every legal cut and every state after prefill
-python3 $R run     $MODEL --checkpoint "$CK" --truncate "$CUT" \
+# the comparison against transformers, at every valid graph_split and every state after prefill
+python3 $R run     $MODEL --checkpoint "$CK" --truncate "$GRAPH_SPLIT" \
                    --ids "$IDS" --steps "$STEPS" --dump /tmp/ours.safetensors
 python3 generators/reference/fixtures/dump_hf.py --model "$CK" --document llama3-8b \
                    --layers "$LAYERS" --ids "$IDS" --steps "$STEPS" --out /tmp/theirs.safetensors
 python3 $R compare /tmp/ours.safetensors /tmp/theirs.safetensors     # at the fixture's own tolerance; --atol/--rtol override
-python3 $R witness attention.dense@1.0.0            # the unit fixtures of a contract version, regenerated and compared; --record writes them
+python3 $R witness attention.dense@2.0.0            # the unit fixtures of a primitive version, regenerated and compared; --record writes them
 python3 $R witness all --record                       # every case every kernel declares (docs/TENSORSPINE-FIXTURE.md)
 python3 generators/reference/tests/run_reference.py [--compile] [--full] [--no-strict-provenance]
                    # random weights; fixtures and full models when artifacts are present; the witness's provenance strict by default
@@ -111,7 +111,7 @@ suite passes by default on this box.
 `ref.py chat MODEL --checkpoint DIR` verifies the artifact against the document, prints the
 feasibility line, then prompts `you> `; the reply streams after `bot> `; an empty line quits. The
 session persists across turns — positions accumulate up to `--capacity`, and exceeding it is a
-refusal, not an eviction (eviction is a contract property, `window`, not a runtime policy).
+refusal, not an eviction (eviction is a primitive property, `window`, not a runtime policy).
 
 | Option | Meaning |
 |---|---|
@@ -141,8 +141,8 @@ or the largest block and its payload under `--max-ram`.
 
 ### Blocks under `--max-ram`
 
-`--max-ram GIB` makes the streaming explicit and deterministic. The plan cuts D1's order into
-blocks at D6's `layer` cuts — membership is the ancestor closure of each cut's payload producers,
+`--max-ram GIB` makes the streaming explicit and deterministic. The plan graph splits D1's order into
+blocks at D6's `layer` graph splits — membership is the ancestor closure of each graph split's payload producers,
 so it holds for any document; legality (every crossing edge forward) is D6's — and merges
 consecutive layers greedily while a block's parameters, the payload crossing into it for
 `--capacity` elements, the states and the largest per-operation temporary stay under the bound.
@@ -150,7 +150,7 @@ Every invocation then materialises one block at a time (an owned copy on the dev
 block is what lives on the card), runs it, and releases it; a tied identity used by two blocks is
 held and loaded by both. The outputs are the one-block outputs bit for bit — the test checks random
 weights and integration fixtures — and the cost is printed. Whenever `--max-ram` is set, `info`,
-`run` and `chat` print the cut summary first: one line per block with the legal cut it opens with
+`run` and `chat` print the graph split summary first: one line per block with the valid graph split it opens with
 and the one it closes at (D6's names), its nodes, its parameter bytes and the payload crossing into
 it, then what stays resident and the traffic — the whole model's bytes per decode step. A bound
 below one layer plus the resident part is refused with the computed requirement. This mode exposes
@@ -160,11 +160,11 @@ block, reading directly into its owned buffer and storage selection remain engin
 
 
 What it reads: the derived document only (D1 graph and arguments, D2 shapes, D3 tensors, D4
-states, D6 cuts) — derived in-process from a model document through `tools/derive.py` — never
-the model source or the catalog. What it knows about a model: nothing; `--truncate` and `--set`
+states, D6 graph splits) — derived in-process from a model definition through `tools/derive.py` — never
+the model source or the primitive library. What it knows about a model: nothing; `--truncate` and `--set`
 edit the *document* before deriving and are a test convenience.
 
-An input the document declares may deliver nothing in an invocation (§7): the occurrences it alone
+An input the document declares may deliver nothing in an invocation (§7): the instances it alone
 would reach are not evaluated and need no kernel, `splice` keeps its `text`, and only the inputs D2
 marks `required_for` the output at hand are refused when absent. A public input that is not a token
 stream (Whisper's `audio`: mel frames, kind `position`) is delivered with the prompt in the one
@@ -205,11 +205,11 @@ stream's `fragment_alignment` is refused. **Source completeness**: a stream a re
 a by_source cross-attention cache — must be complete before the reader's first fragment, so the
 runner refuses a schedule that would fragment such a source across the reader's invocations
 (`schedule()`); Whisper delivers its audio whole in the prefill, so nothing in the corpus is
-refused. The invariance itself is the contract's: a streaming attention looks back, so its mask is
+refused. The invariance itself is the primitive's: a streaming attention looks back, so its mask is
 never `none` (V8), and the witness checks every fragmented unit fixture delivered whole gives the
 concatenated fragments' outputs and their final states.
 
-Conventions: a value's tensor has the element axis first, then the port's axes in the contract's
+Conventions: a value's tensor has the element axis first, then the port's axes in the primitive's
 order; one session per invocation unless `--batch packed` puts several on the element axis
 (Batching, below); parameters stay at their D3 dtype and are upcast per
 operation (`--compute f32` on CPU, `bf16` on CUDA); `append` states are buffers of `--capacity`
@@ -218,26 +218,26 @@ scaled by the D2 `count` of the value a node works on (§5.3's merge, applied wh
 needs it): behind a strided front end, n frames make n/stride positions and every encoder node
 receives those, integers because the delivery is aligned — an unaligned delivery is refused, never
 rounded. Each kernel's docstring lists
-the contract's branches it implements or refuses, and the conventions the contract leaves open.
+the primitive's branches it implements or refuses, and the conventions the primitive leaves open.
 
 ## Batching
 
 The language describes one session's invocation and leaves batching downstream (harness guide
-§8; load variables such as the batch size are out of the model document, Specification §2.1;
+§8; load variables such as the batch size are out of the model definition, Specification §2.1;
 every state port is keyed by session through its instance key, §4.4). This generator batches on
 the **packed** layout, an argument of the generator (`--batch packed`, one layout per invocation,
-never per occurrence): the sessions' elements are concatenated on the element axis — the
+never per instance): the sessions' elements are concatenated on the element axis — the
 language's own axis, its positions per element — and the runner decides from the topology which
-occurrences it may evaluate on that union and which it must evaluate per session (harness guide
-§8): an occurrence that reads across positions of its stream (D1's `across_positions`, the
-contract's `effects.across_positions` evaluated on the occurrence's arguments — the kernels
+instances it may evaluate on that union and which it must evaluate per session (harness guide
+§8): an instance that reads across positions of its stream (D1's `across_positions`, the
+primitive's `effects.across_positions` evaluated on the instance's arguments — the kernels
 declare nothing, and a derived document without the field is refused), one that carries a state
 (per session by its instance key), or one that reads values of several streams (a broadcast from
-a per-session value) runs on each session's own elements and states; every other occurrence —
+a per-session value) runs on each session's own elements and states; every other instance —
 embeddings, norms, feed-forwards, the head, the residual sums, the mixture's per-element routing,
 a merge such as the temporal projector, whose groups every aligned delivery keeps inside a session
 — runs once for all the sessions and its rows are split back, each session's by its elements
-through the value's count. The kernels are untouched: they stay the contracts' per-element
+through the value's count. The kernels are untouched: they stay the primitives' per-element
 implementations. The witness checks the rule on every unit fixture it admits to the union: the
 fixture's invocations run as sessions of one packed invocation give each session its recorded
 outputs.

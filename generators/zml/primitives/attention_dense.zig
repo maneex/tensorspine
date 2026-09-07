@@ -1,4 +1,4 @@
-//! attention.dense@1.0.0 — dense or grouped-query attention over a KV state.
+//! attention.dense@2.0.0 — dense or grouped-query attention over a KV state.
 //!
 //! | branch                          | status                                     |
 //! |---------------------------------|--------------------------------------------|
@@ -20,13 +20,13 @@
 //! | output_gate                     | implemented: per head, query rows then gate rows of `q_gated` |
 //! | q/k/v/out biases                | implemented                                |
 //!
-//! Conventions, as the contract now states them: the keys of the current elements are
+//! Conventions, as the primitive now states them: the keys of the current elements are
 //! appended to the state before the queries attend, so a query sees itself; the scale
 //! is head_dim^-1/2; `split` pairs channel i with i + rotary/2 (rotate-half) over the
 //! rotated channels only, whose base frequencies are computed on the rotated width.
 //!
 //! ZML's `real_im_pass` RoPE layout is that same pairing — its own documentation says
-//! HF models do not use `interleaved` — so the contract's `split` maps to it and to
+//! HF models do not use `interleaved` — so the primitive's `split` maps to it and to
 //! nothing else.
 
 const std = @import("std");
@@ -37,7 +37,7 @@ const p = @import("../primitive.zig");
 
 pub const primitive: p.Primitive = .{
     .name = "attention.dense",
-    .version = "1.0.0",
+    .version = "2.0.0",
     .run = run,
     .needs_positions = true,
     .capabilities =
@@ -63,7 +63,7 @@ fn project(x: zml.Tensor, w: zml.Tensor, heads: i64) zml.Tensor {
     return p.linear(x, w).splitAxis(.d, .{ .h = heads, .hd = .auto });
 }
 
-/// A `[heads · head_dim]` bias, added per head. The contract declares it flat and the
+/// A `[heads · head_dim]` bias, added per head. The primitive declares it flat and the
 /// factors it names are `heads` and `head_dim`, so it is the same addition whether the
 /// query rows came from `q` or from `q_gated`.
 fn bias(x: zml.Tensor, b: zml.Tensor) zml.Tensor {
@@ -71,8 +71,8 @@ fn bias(x: zml.Tensor, b: zml.Tensor) zml.Tensor {
     return x.add(per_head.convert(x.dtype()).broad(x.shape()));
 }
 
-/// The RMS norm the contract puts on queries and keys, over head_dim, before RoPE.
-/// `qk_norm.scale` present means the occurrence declares `q_norm` and `k_norm`;
+/// The RMS norm the primitive puts on queries and keys, over head_dim, before RoPE.
+/// `qk_norm.scale` present means the instance declares `q_norm` and `k_norm`;
 /// `zero_centered` stores them as an offset from one, as `norm.rms` does.
 fn qkNorm(x: zml.Tensor, weight: ?zml.Tensor, eps: f32, zero_centered: bool) zml.Tensor {
     const y = zml.nn.rmsNorm(x, .hd, eps);
@@ -86,7 +86,7 @@ fn qkNorm(x: zml.Tensor, weight: ?zml.Tensor, eps: f32, zero_centered: bool) zml
 ///
 /// The split is made here rather than left to ZML because ZML carries a partial factor
 /// only on its `yarn` and `proportional` scalings, and `proportional` computes the base
-/// frequencies on the *full* head. The contract's are computed on the rotated width — so
+/// frequencies on the *full* head. The primitive's are computed on the rotated width — so
 /// handing ZML a whole, narrower head is what makes `.default` compute the frequencies
 /// the document asks for.
 fn rotate(x: zml.Tensor, positions: zml.Tensor, theta: f32, rotary: i64) zml.Tensor {
@@ -140,7 +140,7 @@ fn run(ctx: *p.Ctx, call: p.Call) ![]const p.Binding {
     const positions = ctx.positions orelse return p.Error.MissingArgument;
 
     // The queries, and the per-head gate when the projection carries its rows: the
-    // contract puts them in `q_gated`, per head, query rows then gate rows.
+    // primitive puts them in `q_gated`, per head, query rows then gate rows.
     var gate: ?zml.Tensor = null;
     var q = q: {
         if (!call.argBool("output_gate")) break :q project(x, call.params.must("q"), heads);
@@ -180,7 +180,7 @@ fn run(ctx: *p.Ctx, call: p.Call) ![]const p.Binding {
         if (rope.get("scaling") != null) return p.Error.Unimplemented;
         const theta: f32 = @floatCast(try float(rope.get("theta") orelse return p.Error.MissingArgument));
 
-        // `mrope` indexes one occurrence by several position streams. This generator
+        // `mrope` indexes one instance by several position streams. This generator
         // has one — the manifest says so, `domains.kinds` naming `token` alone — and
         // with one stream every section is rotated by the same position, which is plain
         // RoPE whatever `sections` says. An image would tell the two layouts apart; a
@@ -197,7 +197,7 @@ fn run(ctx: *p.Ctx, call: p.Call) ![]const p.Binding {
     if (!causal and !std.mem.eql(u8, call.argStr("mask").?, "none")) return p.Error.Unimplemented;
 
     // With a state, the keys and values of this invocation join it before the queries
-    // attend, so a query sees itself — the convention the contract states. Without one —
+    // attend, so a query sees itself — the convention the primitive states. Without one —
     // a stateless encoder, which D4 gives no state at all — they attend over this
     // invocation's own elements and nothing else.
     var k_view = k.rename(.{ .s = .k });

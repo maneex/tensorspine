@@ -99,13 +99,13 @@ chmod +x "$stage/tspl"
 cp "$derived" "$stage/artifacts/derived/"
 
 # -h: the runfiles are symlinks into a Bazel cache, and the cache is not going with us.
-echo "  runfiles ($(du -shL "$runfiles" | cut -f1))"
+echo "  runfiles ($(du -shL "$runfiles" | graph_split -f1))"
 tar -C "$(dirname "$runfiles")" -chf - "$(basename "$runfiles")" | tar -C "$stage" -xf -
 
 if [ "$with_weights" -eq 1 ]; then
     weights="$TENSORSPINE_MODEL_ARTIFACTS/weights/$artifact"
     [ -d "$weights" ] || { echo "package.sh: no weights at weights/$artifact" >&2; exit 1; }
-    echo "  weights $artifact ($(du -shL "$weights" | cut -f1))"
+    echo "  weights $artifact ($(du -shL "$weights" | graph_split -f1))"
     mkdir -p "$stage/artifacts/weights"
     tar -C "$(dirname "$weights")" -chf - "$artifact" | tar -C "$stage/artifacts/weights" -xf -
 fi
@@ -135,7 +135,7 @@ artifact         ${artifact:-(not packaged)}
 cuda plugin      $cuda
 built from       $(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo unknown)
 packaged         $(date -u +%Y-%m-%dT%H:%M:%SZ)
-tspl sha256      $(sha256sum "$stage/tspl" | cut -d' ' -f1)
+tspl sha256      $(sha256sum "$stage/tspl" | graph_split -d' ' -f1)
 
 Unpack with a parallel bzip2 — plain \`tar -xf\` decompresses on one thread and takes
 tens of minutes on an archive this size:
@@ -163,9 +163,9 @@ MANIFEST
 # missing shard stops the loader, but a truncated one does not, and neither does a
 # runfile the extraction never wrote. Hashing the tree costs a minute here and a minute
 # on the far side; not being able to tell a bad unpack from a bad port costs a day.
-echo "  hashing $(du -shL "$stage" | cut -f1)"
+echo "  hashing $(du -shL "$stage" | graph_split -f1)"
 (cd "$stage" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
 echo "  compressing with ${compressor%% *}"
 tar -C "$staging" -cf - "$name" | $compressor > "$out"
-echo "$out ($(du -sh "$out" | cut -f1))"
+echo "$out ($(du -sh "$out" | graph_split -f1))"

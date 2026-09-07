@@ -16,19 +16,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import derive                          # noqa: E402
 import validate                        # noqa: E402
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
-REFERENCE = os.path.join(ROOT, 'data', 'catalog')
+REFERENCE = os.path.join(ROOT, 'data', 'primitive-library')
 CASES = os.path.join(HERE, 'rejections')
 
 
 def model_cases():
     with open(os.path.join(CASES, 'models.json'), encoding='utf-8') as f:
         manifest = json.load(f)
-    cat = catalog_mod.load(REFERENCE)
+    cat = primitive_library_mod.load(REFERENCE)
     for case in manifest['cases']:
         path = os.path.join(CASES, case['document'])
         if case['expect'] == 'schema':
@@ -52,15 +52,15 @@ def model_cases():
                        str(e) == f"not valid, no products: {lines[0]}", [str(e)])
 
 
-def catalog_cases():
-    with open(os.path.join(CASES, 'catalog.json'), encoding='utf-8') as f:
+def primitive_library_cases():
+    with open(os.path.join(CASES, 'primitive-library.json'), encoding='utf-8') as f:
         manifest = json.load(f)
     for case in manifest['cases']:
         base = os.path.join(CASES, case['base'])
         try:
-            catalog_mod.load(base, REFERENCE)
+            primitive_library_mod.load(base, REFERENCE)
             yield case['base'], False, ["accepted"]
-        except catalog_mod.CatalogError as e:
+        except primitive_library_mod.PrimitiveLibraryError as e:
             text = str(e)
             yield case['base'], case['match'] in text, text.splitlines()[:3]
 
@@ -68,7 +68,7 @@ def catalog_cases():
 def main():
     failed = 0
     total = 0
-    for name, ok, lines in list(model_cases()) + list(catalog_cases()):
+    for name, ok, lines in list(model_cases()) + list(primitive_library_cases()):
         total += 1
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
         if not ok:

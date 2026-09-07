@@ -123,9 +123,9 @@ def chat(model, graph, checkpoint, capacity, device, dtype, max_new_tokens=256, 
                 break
             generated.append(nxt)
             text = tokenizer.decode(generated, clean_up_tokenization_spaces=False)
-            cut = turn_marker(text) if mode == 'plain' else None
-            if cut is not None:                     # a base model started the next turn itself
-                text_so_far = text[:cut]
+            graph_split = turn_marker(text) if mode == 'plain' else None
+            if graph_split is not None:                     # a base model started the next turn itself
+                text_so_far = text[:graph_split]
                 break
             text_so_far = text
             safe = len(text) - held_back(text) if mode == 'plain' else len(text)

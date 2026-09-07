@@ -1,9 +1,9 @@
 {
- "schema": "tensorspine/2.0",
+ "schema": "tensorspine/3.0",
  "model": "v8-top-k-above-experts",
- "catalog": [
+ "primitive_libraries": [
   {
-   "base": "../../../data/catalog/"
+   "base": "../../../data/primitive-library/"
   }
  ],
  "quantities": {
@@ -111,11 +111,11 @@
   }
  },
  "constants": {},
- "occurrences": {
+ "instances": {
   "embed": {
-   "contract": {
+   "primitive": {
     "name": "embed",
-    "version": "1.0.0"
+    "version": "2.0.0"
    },
    "arguments": {
     "width": {
@@ -131,9 +131,9 @@
    ]
   },
   "final_n": {
-   "contract": {
+   "primitive": {
     "name": "norm.rms",
-    "version": "1.0.0"
+    "version": "2.0.0"
    },
    "arguments": {
     "width": {
@@ -148,9 +148,9 @@
    ]
   },
   "lm_head": {
-   "contract": {
+   "primitive": {
     "name": "lm_head",
-    "version": "1.0.0"
+    "version": "2.0.0"
    },
    "arguments": {
     "width": {
@@ -184,11 +184,11 @@
    "families": [
     "decoder"
    ],
-   "occurrences": {
+   "instances": {
     "l0_attn_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -203,9 +203,9 @@
      ]
     },
     "l0_attn": {
-     "contract": {
+     "primitive": {
       "name": "attention.dense",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -272,9 +272,9 @@
      ]
     },
     "l0_attn_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -286,9 +286,9 @@
      ]
     },
     "l0_moe_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -303,9 +303,9 @@
      ]
     },
     "l0_moe": {
-     "contract": {
+     "primitive": {
       "name": "moe",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -335,9 +335,9 @@
      ]
     },
     "l0_moe_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -349,9 +349,9 @@
      ]
     },
     "l1_attn_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -366,9 +366,9 @@
      ]
     },
     "l1_attn": {
-     "contract": {
+     "primitive": {
       "name": "attention.dense",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -435,9 +435,9 @@
      ]
     },
     "l1_attn_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -449,9 +449,9 @@
      ]
     },
     "l1_moe_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -466,9 +466,9 @@
      ]
     },
     "l1_moe": {
-     "contract": {
+     "primitive": {
       "name": "moe",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -498,9 +498,9 @@
      ]
     },
     "l1_moe_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -512,9 +512,9 @@
      ]
     },
     "l2_attn_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -529,9 +529,9 @@
      ]
     },
     "l2_attn": {
-     "contract": {
+     "primitive": {
       "name": "attention.dense",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -598,9 +598,9 @@
      ]
     },
     "l2_attn_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -612,9 +612,9 @@
      ]
     },
     "l2_moe_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -629,9 +629,9 @@
      ]
     },
     "l2_moe": {
-     "contract": {
+     "primitive": {
       "name": "moe",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -661,9 +661,9 @@
      ]
     },
     "l2_moe_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -675,9 +675,9 @@
      ]
     },
     "g_attn_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -692,9 +692,9 @@
      ]
     },
     "g_attn": {
-     "contract": {
+     "primitive": {
       "name": "attention.dense",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -738,9 +738,9 @@
      ]
     },
     "g_attn_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -752,9 +752,9 @@
      ]
     },
     "g_moe_n": {
-     "contract": {
+     "primitive": {
       "name": "norm.rms",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -769,9 +769,9 @@
      ]
     },
     "g_moe": {
-     "contract": {
+     "primitive": {
       "name": "moe",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -801,9 +801,9 @@
      ]
     },
     "g_moe_r": {
-     "contract": {
+     "primitive": {
       "name": "residual.add",
-      "version": "1.0.0"
+      "version": "2.0.0"
      },
      "arguments": {
       "width": {
@@ -821,10 +821,10 @@
   "values": {
    "decoder.l0_attn_n.carry": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe_r",
+      "instance": "g_moe_r",
       "indices": {
        "blk": {
         "op": "subtract",
@@ -842,10 +842,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_n",
+      "instance": "l0_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -870,10 +870,10 @@
    },
    "decoder.l0_attn_r.a_carry": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe_r",
+      "instance": "g_moe_r",
       "indices": {
        "blk": {
         "op": "subtract",
@@ -891,10 +891,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_r",
+      "instance": "l0_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -919,10 +919,10 @@
    },
    "decoder.l0_attn.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_n",
+      "instance": "l0_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -932,10 +932,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn",
+      "instance": "l0_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -960,10 +960,10 @@
    },
    "decoder.l0_attn_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn",
+      "instance": "l0_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -973,10 +973,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_r",
+      "instance": "l0_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1001,10 +1001,10 @@
    },
    "decoder.l0_moe_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_r",
+      "instance": "l0_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1014,10 +1014,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe_n",
+      "instance": "l0_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1042,10 +1042,10 @@
    },
    "decoder.l0_moe_r.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_r",
+      "instance": "l0_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1055,10 +1055,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe_r",
+      "instance": "l0_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1083,10 +1083,10 @@
    },
    "decoder.l0_moe.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe_n",
+      "instance": "l0_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1096,10 +1096,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe",
+      "instance": "l0_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -1124,10 +1124,10 @@
    },
    "decoder.l0_moe_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe",
+      "instance": "l0_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -1137,10 +1137,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe_r",
+      "instance": "l0_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1165,10 +1165,10 @@
    },
    "decoder.l1_attn_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe_r",
+      "instance": "l0_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1178,10 +1178,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn_n",
+      "instance": "l1_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1206,10 +1206,10 @@
    },
    "decoder.l1_attn_r.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_moe_r",
+      "instance": "l0_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1219,10 +1219,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn_r",
+      "instance": "l1_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1247,10 +1247,10 @@
    },
    "decoder.l1_attn.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn_n",
+      "instance": "l1_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1260,10 +1260,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn",
+      "instance": "l1_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -1288,10 +1288,10 @@
    },
    "decoder.l1_attn_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn",
+      "instance": "l1_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -1301,10 +1301,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn_r",
+      "instance": "l1_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1329,10 +1329,10 @@
    },
    "decoder.l1_moe_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn_r",
+      "instance": "l1_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1342,10 +1342,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe_n",
+      "instance": "l1_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1370,10 +1370,10 @@
    },
    "decoder.l1_moe_r.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_attn_r",
+      "instance": "l1_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1383,10 +1383,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe_r",
+      "instance": "l1_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1411,10 +1411,10 @@
    },
    "decoder.l1_moe.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe_n",
+      "instance": "l1_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1424,10 +1424,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe",
+      "instance": "l1_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -1452,10 +1452,10 @@
    },
    "decoder.l1_moe_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe",
+      "instance": "l1_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -1465,10 +1465,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe_r",
+      "instance": "l1_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1493,10 +1493,10 @@
    },
    "decoder.l2_attn_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe_r",
+      "instance": "l1_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1506,10 +1506,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn_n",
+      "instance": "l2_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1534,10 +1534,10 @@
    },
    "decoder.l2_attn_r.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l1_moe_r",
+      "instance": "l1_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1547,10 +1547,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn_r",
+      "instance": "l2_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1575,10 +1575,10 @@
    },
    "decoder.l2_attn.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn_n",
+      "instance": "l2_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1588,10 +1588,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn",
+      "instance": "l2_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -1616,10 +1616,10 @@
    },
    "decoder.l2_attn_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn",
+      "instance": "l2_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -1629,10 +1629,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn_r",
+      "instance": "l2_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1657,10 +1657,10 @@
    },
    "decoder.l2_moe_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn_r",
+      "instance": "l2_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1670,10 +1670,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe_n",
+      "instance": "l2_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1698,10 +1698,10 @@
    },
    "decoder.l2_moe_r.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_attn_r",
+      "instance": "l2_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1711,10 +1711,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe_r",
+      "instance": "l2_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1739,10 +1739,10 @@
    },
    "decoder.l2_moe.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe_n",
+      "instance": "l2_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1752,10 +1752,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe",
+      "instance": "l2_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -1780,10 +1780,10 @@
    },
    "decoder.l2_moe_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe",
+      "instance": "l2_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -1793,10 +1793,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe_r",
+      "instance": "l2_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1821,10 +1821,10 @@
    },
    "decoder.g_attn_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe_r",
+      "instance": "l2_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1834,10 +1834,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn_n",
+      "instance": "g_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1862,10 +1862,10 @@
    },
    "decoder.g_attn_r.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l2_moe_r",
+      "instance": "l2_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1875,10 +1875,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn_r",
+      "instance": "g_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1903,10 +1903,10 @@
    },
    "decoder.g_attn.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn_n",
+      "instance": "g_attn_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -1916,10 +1916,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn",
+      "instance": "g_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -1944,10 +1944,10 @@
    },
    "decoder.g_attn_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn",
+      "instance": "g_attn",
       "indices": {
        "blk": {
         "index": "i"
@@ -1957,10 +1957,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn_r",
+      "instance": "g_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1985,10 +1985,10 @@
    },
    "decoder.g_moe_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn_r",
+      "instance": "g_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -1998,10 +1998,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe_n",
+      "instance": "g_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -2026,10 +2026,10 @@
    },
    "decoder.g_moe_r.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_attn_r",
+      "instance": "g_attn_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -2039,10 +2039,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe_r",
+      "instance": "g_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -2067,10 +2067,10 @@
    },
    "decoder.g_moe.norm_in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe_n",
+      "instance": "g_moe_n",
       "indices": {
        "blk": {
         "index": "i"
@@ -2080,10 +2080,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe",
+      "instance": "g_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -2108,10 +2108,10 @@
    },
    "decoder.g_moe_r.b": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe",
+      "instance": "g_moe",
       "indices": {
        "blk": {
         "index": "i"
@@ -2121,10 +2121,10 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe_r",
+      "instance": "g_moe_r",
       "indices": {
        "blk": {
         "index": "i"
@@ -2149,17 +2149,17 @@
    },
    "decoder.entry": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "root",
-      "occurrence": "embed"
+      "instance": "embed"
      },
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_n",
+      "instance": "l0_attn_n",
       "indices": {
        "blk": {
         "literal": 0
@@ -2171,17 +2171,17 @@
    },
    "decoder.entry.a": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "root",
-      "occurrence": "embed"
+      "instance": "embed"
      },
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "l0_attn_r",
+      "instance": "l0_attn_r",
       "indices": {
        "blk": {
         "literal": 0
@@ -2193,10 +2193,10 @@
    },
    "final_n.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "generated",
       "composition": "decoder",
-      "occurrence": "g_moe_r",
+      "instance": "g_moe_r",
       "indices": {
        "blk": {
         "op": "subtract",
@@ -2214,25 +2214,25 @@
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "root",
-      "occurrence": "final_n"
+      "instance": "final_n"
      },
      "port": "input"
     }
    },
    "lm_head.in": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "root",
-      "occurrence": "final_n"
+      "instance": "final_n"
      },
      "port": "output"
     },
     "to": {
-     "occurrence": {
+     "instance": {
       "kind": "root",
-      "occurrence": "lm_head"
+      "instance": "lm_head"
      },
      "port": "input"
     }
@@ -2245,9 +2245,9 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "root",
-       "occurrence": "embed"
+       "instance": "embed"
       },
       "parameter": "weight"
      }
@@ -2262,9 +2262,9 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "root",
-       "occurrence": "final_n"
+       "instance": "final_n"
       },
       "parameter": "weight"
      }
@@ -2279,9 +2279,9 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "root",
-       "occurrence": "lm_head"
+       "instance": "lm_head"
       },
       "parameter": "weight"
      }
@@ -2301,10 +2301,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_attn_n",
+       "instance": "l0_attn_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2342,10 +2342,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_attn",
+       "instance": "l0_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2383,10 +2383,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_attn",
+       "instance": "l0_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2424,10 +2424,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_attn",
+       "instance": "l0_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2465,10 +2465,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_attn",
+       "instance": "l0_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2506,10 +2506,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_moe_n",
+       "instance": "l0_moe_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2547,10 +2547,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_moe",
+       "instance": "l0_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2588,10 +2588,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_moe",
+       "instance": "l0_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2629,10 +2629,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_moe",
+       "instance": "l0_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2670,10 +2670,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_moe",
+       "instance": "l0_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2711,10 +2711,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_moe",
+       "instance": "l0_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2752,10 +2752,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_moe",
+       "instance": "l0_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2793,10 +2793,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_attn_n",
+       "instance": "l1_attn_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2834,10 +2834,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_attn",
+       "instance": "l1_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2875,10 +2875,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_attn",
+       "instance": "l1_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2916,10 +2916,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_attn",
+       "instance": "l1_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2957,10 +2957,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_attn",
+       "instance": "l1_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -2998,10 +2998,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_moe_n",
+       "instance": "l1_moe_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3039,10 +3039,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_moe",
+       "instance": "l1_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3080,10 +3080,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_moe",
+       "instance": "l1_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3121,10 +3121,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_moe",
+       "instance": "l1_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3162,10 +3162,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_moe",
+       "instance": "l1_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3203,10 +3203,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_moe",
+       "instance": "l1_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3244,10 +3244,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_moe",
+       "instance": "l1_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3285,10 +3285,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_attn_n",
+       "instance": "l2_attn_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3326,10 +3326,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_attn",
+       "instance": "l2_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3367,10 +3367,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_attn",
+       "instance": "l2_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3408,10 +3408,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_attn",
+       "instance": "l2_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3449,10 +3449,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_attn",
+       "instance": "l2_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3490,10 +3490,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_moe_n",
+       "instance": "l2_moe_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3531,10 +3531,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_moe",
+       "instance": "l2_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3572,10 +3572,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_moe",
+       "instance": "l2_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3613,10 +3613,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_moe",
+       "instance": "l2_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3654,10 +3654,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_moe",
+       "instance": "l2_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3695,10 +3695,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_moe",
+       "instance": "l2_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3736,10 +3736,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_moe",
+       "instance": "l2_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3777,10 +3777,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_attn_n",
+       "instance": "g_attn_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3818,10 +3818,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_attn",
+       "instance": "g_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3859,10 +3859,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_attn",
+       "instance": "g_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3900,10 +3900,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_attn",
+       "instance": "g_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3941,10 +3941,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_attn",
+       "instance": "g_attn",
        "indices": {
         "blk": {
          "index": "blk"
@@ -3982,10 +3982,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_moe_n",
+       "instance": "g_moe_n",
        "indices": {
         "blk": {
          "index": "blk"
@@ -4023,10 +4023,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_moe",
+       "instance": "g_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -4064,10 +4064,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_moe",
+       "instance": "g_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -4105,10 +4105,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_moe",
+       "instance": "g_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -4146,10 +4146,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_moe",
+       "instance": "g_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -4187,10 +4187,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_moe",
+       "instance": "g_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -4228,10 +4228,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_moe",
+       "instance": "g_moe",
        "indices": {
         "blk": {
          "index": "blk"
@@ -4272,10 +4272,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "g_attn",
+       "instance": "g_attn",
        "indices": {
         "blk": {
          "index": "i"
@@ -4310,10 +4310,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l0_attn",
+       "instance": "l0_attn",
        "indices": {
         "blk": {
          "index": "i"
@@ -4348,10 +4348,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l1_attn",
+       "instance": "l1_attn",
        "indices": {
         "blk": {
          "index": "i"
@@ -4386,10 +4386,10 @@
     },
     "members": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "generated",
        "composition": "decoder",
-       "occurrence": "l2_attn",
+       "instance": "l2_attn",
        "indices": {
         "blk": {
          "index": "i"
@@ -4420,9 +4420,9 @@
    "tokens": {
     "to": [
      {
-      "occurrence": {
+      "instance": {
        "kind": "root",
-       "occurrence": "embed"
+       "instance": "embed"
       },
       "port": "tokens"
      }
@@ -4433,9 +4433,9 @@
   "outputs": {
    "main": {
     "from": {
-     "occurrence": {
+     "instance": {
       "kind": "root",
-      "occurrence": "lm_head"
+      "instance": "lm_head"
      },
      "port": "logits"
     },

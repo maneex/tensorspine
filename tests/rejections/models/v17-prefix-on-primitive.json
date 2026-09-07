@@ -1,9 +1,9 @@
 {
-  "schema": "tensorspine/2.0",
+  "schema": "tensorspine/3.0",
   "model": "llama3_8b_prefix_on_embed",
-  "catalog": [
+  "primitive_libraries": [
     {
-      "base": "../../../data/catalog/"
+      "base": "../../../data/primitive-library/"
     }
   ],
   "quantities": {
@@ -104,11 +104,11 @@
     }
   },
   "constants": {},
-  "occurrences": {
+  "instances": {
     "embed": {
-      "contract": {
+      "primitive": {
         "name": "embed",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -127,9 +127,9 @@
       ]
     },
     "final_n": {
-      "contract": {
+      "primitive": {
         "name": "norm.rms",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -144,9 +144,9 @@
       ]
     },
     "lm_head": {
-      "contract": {
+      "primitive": {
         "name": "lm_head",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -180,11 +180,11 @@
       "families": [
         "decoder"
       ],
-      "occurrences": {
+      "instances": {
         "attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -199,9 +199,9 @@
           ]
         },
         "attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.dense",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -235,9 +235,9 @@
           ]
         },
         "attn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -249,9 +249,9 @@
           ]
         },
         "ffn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.rms",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -266,9 +266,9 @@
           ]
         },
         "ffn": {
-          "contract": {
+          "primitive": {
             "name": "ffn.gated",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -286,9 +286,9 @@
           ]
         },
         "ffn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -630,17 +630,17 @@
     "values": {
       "decoder.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "attn_n",
+            "instance": "attn_n",
             "indices": {
               "layer": {
                 "literal": 0
@@ -652,17 +652,17 @@
       },
       "decoder.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -674,10 +674,10 @@
       },
       "final_n.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "decoder",
-            "occurrence": "ffn_r",
+            "instance": "ffn_r",
             "indices": {
               "layer": {
                 "op": "subtract",
@@ -695,25 +695,25 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "input"
         }
       },
       "lm_head.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "final_n"
+            "instance": "final_n"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "input"
         }
@@ -726,9 +726,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "weight"
           }
@@ -748,9 +748,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "final_n"
+              "instance": "final_n"
             },
             "parameter": "weight"
           }
@@ -770,9 +770,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "lm_head"
+              "instance": "lm_head"
             },
             "parameter": "weight"
           }
@@ -795,9 +795,9 @@
       "tokens": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "port": "tokens"
           }
@@ -808,9 +808,9 @@
     "outputs": {
       "logits": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "lm_head"
+            "instance": "lm_head"
           },
           "port": "logits"
         },

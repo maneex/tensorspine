@@ -1,0 +1,363 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "primitive",
+  "name": "embedding.token_position_type",
+  "definition": {
+    "version": "2.0.0",
+    "summary": "BERT-style embedding: token, position and segment-type tables summed, then a LayerNorm.",
+    "description": "Three lookups are summed — the token in `weight`, its position in `position`, its segment type in `token_type` — and the sum is normalized by a LayerNorm with scale and bias (variance plus `eps`). The segment type is 0 for every token in this version: the primitive has no `types` input, and the table is read at index 0, as BERT does when no segment identifiers are given; a `types` input is a later version.",
+    "external_docs": [
+      {
+        "url": "https://arxiv.org/abs/1810.04805",
+        "title": "BERT (Devlin et al., 2018)",
+        "kind": "paper",
+        "description": "Token, position and segment embeddings."
+      }
+    ],
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of the embedding.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "vocabulary": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of token identifiers.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "positions": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of positions the table covers.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "token_types": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Number of segment types.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "eps": {
+        "type": {
+          "kind": "real"
+        },
+        "required": true,
+        "structural": false,
+        "description": "Epsilon of the LayerNorm over the summed lookups (variance plus `eps`).",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 0
+            },
+            "inclusive": false
+          }
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "tokens": {
+          "shape": {
+            "axes": []
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "note": "token identifier: rank-zero scalar",
+          "role": "activation.token_index",
+          "description": "Token identifier: a rank-zero integer per token."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "token",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The normalized embedding."
+        }
+      }
+    },
+    "parameters": {
+      "weight": {
+        "role": "embedding.table",
+        "sharing": {
+          "kind": "shareable",
+          "roles": [
+            "embedding.table"
+          ],
+          "note": "sharing allowed between embedding table and output head: same axis identities in the same order, no view required"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "vocabulary",
+              "axis": "model.vocabulary",
+              "nature": "structural",
+              "extent": {
+                "argument": "vocabulary"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Token table."
+      },
+      "position": {
+        "role": "embedding.position",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "position",
+              "axis": "sequence.position",
+              "nature": "structural",
+              "extent": {
+                "argument": "positions"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Position table."
+      },
+      "token_type": {
+        "role": "embedding.token_type",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "type",
+              "axis": "token.type",
+              "nature": "structural",
+              "extent": {
+                "argument": "token_types"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Segment-type table, read at index 0 in this version (no `types` input)."
+      },
+      "norm": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Scale of the LayerNorm."
+      },
+      "norm_bias": {
+        "role": "norm.bias",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Bias of the LayerNorm."
+      }
+    },
+    "constants": {},
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "tokens"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "partition_options": [
+      {
+        "target": {
+          "argument_axis": "model.vocabulary"
+        },
+        "communication": "all_gather",
+        "description": "Vocabulary parallelism: each shard holds a slice of the token table; the looked-up rows are gathered."
+      }
+    ],
+    "sparsity": [
+      {
+        "unit": {
+          "parameters": [
+            "weight"
+          ],
+          "axis": "model.vocabulary"
+        },
+        "policy": {
+          "port": "tokens"
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "vocabulary"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates one row of the table, selected by the token id on `tokens`."
+      },
+      {
+        "unit": {
+          "parameters": [
+            "position"
+          ],
+          "axis": "sequence.position"
+        },
+        "policy": {
+          "element": true
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "positions"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates the row of its own position."
+      },
+      {
+        "unit": {
+          "parameters": [
+            "token_type"
+          ],
+          "axis": "token.type"
+        },
+        "policy": {
+          "element": true
+        },
+        "activated_per_element": {
+          "literal": 1
+        },
+        "union_per_invocation": {
+          "expression": {
+            "argument": "token_types"
+          },
+          "status": "upper_bound",
+          "per": "invocation",
+          "description": "An invocation may touch every row; the worst-case union is the whole table."
+        },
+        "description": "A lookup: each token activates the row of its own type."
+      }
+    ],
+    "note": "Word + position + segment type sum, followed by a LayerNorm."
+  }
+}

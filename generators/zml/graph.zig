@@ -1,7 +1,7 @@
 //! The derived document as Zig data — and nothing else (Z01).
 //!
 //! A `Graph` is built from a `.derived.json`. The generator never reads the model
-//! document, the catalog, or the language's tools: everything it needs must be in
+//! document, the primitive library, or the language's tools: everything it needs must be in
 //! D1–D6. Deriving here would be a second implementation of the language.
 //!
 //! Nothing in this file imports `zml`: the document is data, and a `zml.Tensor`
@@ -9,7 +9,7 @@
 
 const std = @import("std");
 
-pub const schema_id = "tensorspine-derived/2.1";
+pub const schema_id = "tensorspine-derived/3.0";
 
 pub const Error = error{
     /// The file parsed, but it is not a derived document.
@@ -18,22 +18,22 @@ pub const Error = error{
 
 // --- D1: the expanded graph -------------------------------------------------
 
-pub const Contract = struct {
+pub const PrimitiveReference = struct {
     name: []const u8,
     version: []const u8,
 
-    pub fn is(self: Contract, name: []const u8, version: []const u8) bool {
+    pub fn is(self: PrimitiveReference, name: []const u8, version: []const u8) bool {
         return std.mem.eql(u8, self.name, name) and std.mem.eql(u8, self.version, version);
     }
 };
 
-/// One occurrence. `arguments` stays a `std.json.Value`: the contract owns their
+/// One instance. `arguments` stays a `std.json.Value`: the primitive owns their
 /// grammar, and a primitive reads the ones it knows.
 pub const Node = struct {
-    contract: Contract,
+    primitive: PrimitiveReference,
     arguments: std.json.Value = .null,
-    /// Derived (D1): whether the occurrence reads positions of its stream beyond those of
-    /// the element it produces — the contract's `effects.across_positions` on the node's
+    /// Derived (D1): whether the instance reads positions of its stream beyond those of
+    /// the element it produces — the primitive's `effects.across_positions` on the node's
     /// arguments (§4.1). Null on a document that predates the field; the plan refuses it
     /// rather than guess the split from the states.
     across_positions: ?bool = null,
@@ -121,7 +121,7 @@ pub const Location = struct {
 
 pub const Tensor = struct {
     identity: []const u8,
-    /// `node.slot`, one per occurrence sharing this identity. A tied identity has
+    /// `node.slot`, one per instance sharing this identity. A tied identity has
     /// several; it is loaded once, which is why `params` is one element per identity (Z03).
     members: []const []const u8 = &.{},
     slot: []const u8 = "",
@@ -149,7 +149,7 @@ pub const State = struct {
     /// `node.state`, as D3's members are `node.slot`.
     members: []const []const u8 = &.{},
     state: []const u8 = "",
-    law: []const u8,
+    evolution: []const u8,
     access: []const u8,
     sharing: []const u8 = "",
     span: ?i64 = null,

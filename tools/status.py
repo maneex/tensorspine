@@ -1,6 +1,6 @@
 """Generated project state for ``tensorspine --document``.
 
-The status page and branch ledger contain only facts read from the catalog,
+The status page and branch ledger contain only facts read from the primitive library,
 model corpus, implementation manifests, validation/derivation tools, and verification
 records.  They are site-build products, not tracked documentation.
 """
@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 import capabilities as capabilities_mod
-import catalog as catalog_mod
+import primitive_library as primitive_library_mod
 import derive
 import validate
 from expr import missing_assignment
@@ -76,11 +76,11 @@ def _metadata(path):
     return out
 
 
-def _catalog(catalog_bases):
-    return catalog_mod.load(*(catalog_bases or [os.path.join(ROOT, 'data', 'catalog')]))
+def _primitive_library(primitive_library_bases):
+    return primitive_library_mod.load(*(primitive_library_bases or [os.path.join(ROOT, 'data', 'primitive-library')]))
 
 
-def corpus(model_paths, catalog_bases, schema_dir):
+def corpus(model_paths, primitive_library_bases, schema_dir):
     """Validation and location state, computed by the same readers as the CLI."""
     rows = []
     for path in model_paths:
@@ -98,9 +98,9 @@ def corpus(model_paths, catalog_bases, schema_dir):
                          'located': 'not derived', 'detail': ', '.join(unset)})
             continue
         try:
-            cat = catalog_mod.load_for(path, model, catalog_bases, schema_dir)
+            cat = primitive_library_mod.load_for(path, model, primitive_library_bases, schema_dir)
             errors, _stats = validate.semantic(path, cat)
-        except (OSError, ValueError, KeyError, catalog_mod.CatalogError) as error:
+        except (OSError, ValueError, KeyError, primitive_library_mod.PrimitiveLibraryError) as error:
             rows.append({'name': name, 'validation': 'refused',
                          'located': 'not derived', 'detail': str(error)})
             continue
@@ -135,7 +135,7 @@ def generator(manifest_path, cat, model_paths):
             continue
         with open(path, encoding='utf-8') as f:
             model = json.load(f)
-        c = catalog_mod.load_for(path, model)
+        c = primitive_library_mod.load_for(path, model)
         cs = capabilities_mod.conditions(manifest, derive.products(path, c), c)
         if cs:
             conds[name] = cs
@@ -147,18 +147,18 @@ def generator(manifest_path, cat, model_paths):
         'verdicts': verdicts,
         'conditions': conds,
         # the reader's own definition (§10.2): None for a conformer, which witnesses nothing;
-        # a template contract is realised by its template and has no witness to lack
+        # a template primitive is realised by its template and has no witness to lack
         'unwitnessed': capabilities_mod.unwitnessed(manifest, cat),
     }
 
 
-def facts(model_paths, catalog_bases, schema_dir, manifest_paths):
-    cat = _catalog(catalog_bases)
+def facts(model_paths, primitive_library_bases, schema_dir, manifest_paths):
+    cat = _primitive_library(primitive_library_bases)
     return {
         'commit': _git_commit(),
         'date': _build_date(),
-        'catalog': cat,
-        'corpus': corpus(model_paths, catalog_bases, schema_dir),
+        'primitive_library': cat,
+        'corpus': corpus(model_paths, primitive_library_bases, schema_dir),
         'generators': [generator(path, cat, model_paths) for path in manifest_paths],
     }
 
@@ -255,7 +255,7 @@ def _verification_lines(item):
 
 
 def render_status(state):
-    cat = state['catalog']
+    cat = state['primitive_library']
     corpus_rows = state['corpus']
     valid = sum(row['validation'] == 'valid' for row in corpus_rows)
     located = sum(row['located'] == 'all tensors' for row in corpus_rows)
@@ -265,14 +265,14 @@ def render_status(state):
         f"*Generated from commit `{state['commit']}` on {state['date']}. Not tracked; rebuilt by the documentation action.*",
         '',
         'This page reports what the repository validates, derives and runs at build time. '
-        'The specification remains the authority on validity and denotation; each contract '
+        'The specification remains the authority on validity and denotation; each primitive '
         "version's witness is the authority on primitive computation.", '',
-        '## Catalog and corpus', '',
+        '## Primitive Library and corpus', '',
     ]
     out += _table(
-        ['Catalog contracts', 'Axes', 'Precision roles', 'Concrete documents',
+        ['Primitive Library primitives', 'Axes', 'Precision roles', 'Concrete documents',
          'Valid as written', 'Fully located', 'Templates'],
-        [[len(cat['contracts']), len(cat['axes']), len(cat['precision']), len(corpus_rows),
+        [[len(cat['primitives']), len(cat['axes']), len(cat['precision']), len(corpus_rows),
           valid, located, templates]],
     )
     out += ['### Corpus', '']
@@ -282,7 +282,7 @@ def render_status(state):
          for row in corpus_rows],
     )
     out += ['## Implementation coverage', '',
-            'A manifest is checked against the catalog before its coverage is reported. '
+            'A manifest is checked against the primitive library before its coverage is reported. '
             'The detailed model-and-implementation to-do list is the '
             '[branch ledger](../branch-ledger/).', '']
     for item in state['generators']:
@@ -292,18 +292,18 @@ def render_status(state):
         out += [f"### `{gen['name']}`", '',
                 f"Manifest `{os.path.relpath(item['path'], ROOT)}`, generated by `{gen['generator']}`.", '']
         out += _table(
-            ['Contract entries', 'Contracts without an entry', 'Entries with branch gaps',
-             'Corpus documents runnable', 'Contracts without a witness'],
-            [[len(manifest['contracts']), len(item['missing']),
-              len([c for c in item['branches'] if c not in item['missing']]),   # the ledger lists absent contracts too
+            ['PrimitiveReference entries', 'Primitives without an entry', 'Entries with branch gaps',
+             'Corpus documents runnable', 'Primitives without a witness'],
+            [[len(manifest['primitives']), len(item['missing']),
+              len([c for c in item['branches'] if c not in item['missing']]),   # the ledger lists absent primitives too
               f"{can_run}/{len(item['verdicts'])}",
               len(item['unwitnessed']) if item['unwitnessed'] is not None else 'not applicable']],
         )
         gaps = [[f'`{identity}`', ', '.join(f'`{gap}`' for gap in values)]
                 for identity, values in sorted(item['branches'].items())]
-        gaps = [[f'`{identity}`', 'contract entry absent'] for identity in item['missing']] + gaps
-        out += ['#### Catalog gaps', '']
-        out += (_table(['Contract', 'Not admitted'], gaps) if gaps else ['None.', ''])
+        gaps = [[f'`{identity}`', 'primitive entry absent'] for identity in item['missing']] + gaps
+        out += ['#### Primitive Library gaps', '']
+        out += (_table(['PrimitiveReference', 'Not admitted'], gaps) if gaps else ['None.', ''])
         out += ['#### Corpus admission', '']
         out += _table(
             ['Document', 'Verdict', 'First reason', 'Runs under a condition'],
@@ -328,17 +328,17 @@ def render_ledger(state, selected=None):
         '# TensorSpine branch ledger', '',
         f"*Generated from commit `{state['commit']}` on {state['date']}. Not tracked; rebuilt by the documentation action.*",
         '',
-        'For each model-and-implementation pair, this is the to-do list: absent contract '
+        'For each model-and-implementation pair, this is the to-do list: absent primitive '
         'entries, unadmitted enum values, record fields and optional arguments, followed by the '
         'admission result for every corpus document.', '',
     ]
     for item in items:
         gen = item['manifest']['generator']
-        out += [f"## `{gen['name']}`", '', '### Contract and branch gaps', '']
-        gaps = [[f'`{identity}`', 'contract entry absent'] for identity in item['missing']]
+        out += [f"## `{gen['name']}`", '', '### PrimitiveReference and branch gaps', '']
+        gaps = [[f'`{identity}`', 'primitive entry absent'] for identity in item['missing']]
         gaps += [[f'`{identity}`', '<br>'.join(f'`{gap}`' for gap in values)]
                  for identity, values in sorted(item['branches'].items())]
-        out += (_table(['Contract', 'Work remaining'], gaps) if gaps else ['None.', ''])
+        out += (_table(['PrimitiveReference', 'Work remaining'], gaps) if gaps else ['None.', ''])
         out += ['### Model pairs', '']
         out += _table(
             ['Model', 'Admission', 'Work remaining'],
@@ -349,15 +349,15 @@ def render_ledger(state, selected=None):
     return '\n'.join(out).rstrip() + '\n'
 
 
-def run(kind, model_paths, catalog_bases, schema_dir, manifest_paths, output=None,
+def run(kind, model_paths, primitive_library_bases, schema_dir, manifest_paths, output=None,
         selected_generator=None):
     """Write a status or ledger Markdown document. Return a CLI exit status."""
     try:
-        state = facts(model_paths, catalog_bases, schema_dir, manifest_paths)
+        state = facts(model_paths, primitive_library_bases, schema_dir, manifest_paths)
         text = (render_status(state) if kind == 'status'
                 else render_ledger(state, selected=selected_generator))
     except (OSError, ValueError, KeyError, json.JSONDecodeError,
-            catalog_mod.CatalogError) as error:
+            primitive_library_mod.PrimitiveLibraryError) as error:
         print(f'  status not readable: {error}', file=sys.stderr)
         return 1
     filename = 'status.md' if kind == 'status' else 'branch-ledger.md'

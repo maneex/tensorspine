@@ -1,4 +1,4 @@
-"""conditioning.scale@1.0.0 — input ⊙ (1 + out · act(in · condition)): the adaptive scale Voxtral
+"""conditioning.scale@2.0.0 — input ⊙ (1 + out · act(in · condition)): the adaptive scale Voxtral
 Realtime applies to the feed-forward's normed input, its condition the time embedding of the delay.
 
 | branch / record            | status                                                      |
@@ -7,7 +7,7 @@ Realtime applies to the feed-forward's normed input, its condition the time embe
 | condition delivered        | implemented: appended to `condition_cache` along the port's stream (an `align` transform: another domain than the input's) |
 | condition held             | implemented: an invocation delivering nothing on the port — every decode step — reads the cache (§7's exemption) |
 
-Conventions the contract leaves open, as read here: the condition applied is the last element
+Conventions the primitive leaves open, as read here: the condition applied is the last element
 held — one per sequence for a time embedding, which is what the held stream carries; the rank
 path is computed once per invocation from that element and broadcast over the input's rows. An
 invocation with nothing delivered and nothing held is refused: there is no condition to scale by.
@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import supports_from, w
 
-CONTRACT = ("conditioning.scale", "1.0.0")
+PRIMITIVE = ("conditioning.scale", "2.0.0")
 ACT = {'silu': F.silu, 'gelu': F.gelu, 'gelu_tanh': lambda x: F.gelu(x, approximate='tanh'),
        'relu2': lambda x: F.relu(x).pow(2)}
 

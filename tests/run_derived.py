@@ -6,22 +6,22 @@ facts known independently.
   1. Schema: `--derive` output validates against schemas/tensorspine-derived.schema.json;
      `--d1` output, the graph alone, validates against the same schema.
   2. Agreement: D3 elements = the validator's resident count; D5 operations per element =
-     the validator's; D1 nodes = D3 members' occurrences ∪ stateless occurrences.
+     the validator's; D1 nodes = D3 members' instances ∪ stateless instances.
   3. Facts: Llama 3 8B — 4 KiB per cached position per layer, 128 KiB per token, one value of
      8 KiB per element crossing a layer boundary, and the live-value peak at the head: the f32
      logits beside the normed hidden state, by hand; ColBERT — the peak inside a layer, three
      residual-width values; Whisper — the cross-attention cache grows along the audio stream;
      Voxtral — 60 states carried across fragments, and the token input joins the audio stream at
-     the stream's count for its kind (§5.3); every structural cut is legal (no
+     the stream's count for its kind (§5.3); every structural graph_split is valid (no
      crossing edge points backwards); every document's peak is a set of D2 values at a D1
      node whose bytes add up.
-  4. Across positions (§4.1, O9.5): every D1 node carries `across_positions`, the contract's
+  4. Across positions (§4.1, O9.5): every D1 node carries `across_positions`, the primitive's
      condition on the node's own arguments; a node reading across positions of a fragmented
      stream owns a state carried across its fragments (V18 as a property of the products); the
      counts on Llama, ColBERT, Whisper, Voxtral, Qwen 3.5 4B, DeepSeek and the template; a
      condition over an argument the document leaves unresolved refuses the derivation.
   5. The grammar before the meaning (the review's I2): a document off the schema — a foreign
-     schema tag, a misspelt occurrence field — has no products; `derive.products` refuses it with
+     schema tag, a misspelt instance field — has no products; `derive.products` refuses it with
      `--validate`'s own first line, and `--lint` reports it unanalysed.
 
     python3 tests/run_derived.py
@@ -39,12 +39,12 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import d1                              # noqa: E402
 import derive                          # noqa: E402
 import schema as schema_mod            # noqa: E402
 import validate                        # noqa: E402
-from expr import contract_condition    # noqa: E402
+from expr import primitive_condition    # noqa: E402
 from signature import ASSIGNMENTS, corpus, name_of   # noqa: E402
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
@@ -57,13 +57,13 @@ def check(label, ok, detail=''):
 
 
 def across(cat, node):
-    """The contract's across_positions condition on a D1 node's arguments (§4.1); false when absent."""
-    effect = cat['contracts'][node['contract']['name']].get('effects', {}).get('across_positions')
-    return bool(effect and contract_condition(effect['when'], node['arguments']))
+    """The primitive's across_positions condition on a D1 node's arguments (§4.1); false when absent."""
+    effect = cat['primitives'][node['primitive']['name']].get('effects', {}).get('across_positions')
+    return bool(effect and primitive_condition(effect['when'], node['arguments']))
 
 
 def main():
-    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    cat = primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
     schema_path = schema_mod.locate(SCHEMAS, 'derived')
     reg = schema_mod.registry(SCHEMAS)
     ok = check("a derived schema is in the tree", schema_path is not None)
@@ -96,19 +96,19 @@ def main():
                     and peak['bytes_per_element'] == sum(by_value[v]['bytes_per_element'] for v in peak['values'])
                     and peak['bytes_per_element'] >= max((v['bytes_per_element'] or 0) for v in doc['d2']['values']),
                     str(peak)[:200])
-        # every structural cut is legal: block A is closed under ancestors
+        # every structural graph_split is valid: block A is closed under ancestors
         blocks = {}
-        for c in doc['d2']['cuts']:
+        for c in doc['d2']['graph_splits']:
             payload = {p['value'] for p in c['payload']}
             crossing = [e for e in doc['d1']['edges'] if f"{e['from']['node']}.{e['from']['port']}" in payload]
-            ok &= check(f"{name}: cut {c['cut']} has a payload of distinct values", len(payload) == len(c['payload']))
+            ok &= check(f"{name}: graph_split {c['graph_split']} has a payload of distinct values", len(payload) == len(c['payload']))
             if not crossing and c['payload']:
-                ok &= check(f"{name}: cut {c['cut']} payload values are edge sources", False)
-        # across_positions (§4.1, O9.5): every node carries it, equal to the contract's condition on the
-        # node's own arguments — false when the contract declares none
+                ok &= check(f"{name}: graph_split {c['graph_split']} payload values are edge sources", False)
+        # across_positions (§4.1, O9.5): every node carries it, equal to the primitive's condition on the
+        # node's own arguments — false when the primitive declares none
         nodes_d1 = doc['d1']['nodes']
         wrong = [n for n, e in nodes_d1.items() if not isinstance(e.get('across_positions'), bool) or e['across_positions'] != across(cat, e)]
-        ok &= check(f"{name}: every D1 node carries across_positions, the contract's condition on its own arguments",
+        ok &= check(f"{name}: every D1 node carries across_positions, the primitive's condition on its own arguments",
                     not wrong, str(wrong[:3]))
         # V18 as a property of the products: a node reading across positions of a fragmented stream owns a
         # state carried across that stream's fragments
@@ -133,10 +133,10 @@ def main():
                 len(kv) == 32 and all(s['bytes_per_cached_position'] == 4096 for s in kv))
     ok &= check("llama3-8b: 128 KiB per token across the model",
                 l3['d4']['totals']['append_bytes_per_cached_position'] == 131072)
-    cut = next(c for c in l3['d2']['cuts'] if c['cut'] == 'decoder[layer<=3]')
+    graph_split = next(c for c in l3['d2']['graph_splits'] if c['graph_split'] == 'decoder[layer<=3]')
     ok &= check("llama3-8b: one value of 8 KiB per element crosses a layer boundary",
-                len(cut['payload']) == 1 and cut['bytes_per_element'] == 8192
-                and cut['bytes_per_invocation'] == {'tokens': 8192.0}, str(cut['payload']))
+                len(graph_split['payload']) == 1 and graph_split['bytes_per_element'] == 8192
+                and graph_split['bytes_per_invocation'] == {'tokens': 8192.0}, str(graph_split['payload']))
     ok &= check("llama3-8b: 14.96 GiB of parameters in bf16",
                 round(l3['d3']['totals']['bytes'] / 2**30, 2) == 14.96)
     # by hand: the peak is at the head, where the f32 logits (128256 × 4) sit beside the normed
@@ -159,8 +159,8 @@ def main():
     ok &= check("voxtral: 60 states carried across fragments — 32 encoder rings of 750 frames, 26 decoder rings of 8192 tokens on the "
                 "stream the token input joined, and the front end's two histories",
                 len(v['d4']['totals']['carried']) == 60
-                and all(s['law'] == 'window' and s['span'] in (750, 8192) for s in v['d4']['states']
-                        if s['carried_across_fragments'] and s['contract'] == 'attention.dense'))
+                and all(s['evolution'] == 'window' and s['span'] in (750, 8192) for s in v['d4']['states']
+                        if s['carried_across_fragments'] and s['primitive'] == 'attention.dense'))
     # a joining input takes the stream's count at its kind (§5.3): the tokens join `audio` at kind token, where the
     # projector's merge left one element per eight frames; the fused values count the same, and both inputs are
     # required for the generative output — the delivery adds the embeddings position by position
@@ -175,7 +175,7 @@ def main():
                 all(d2v[k]['required_for'] == ['main'] for k in ('audio', 'tokens', 'delay')))
     caches = [s for s in v['d4']['states'] if s['state'] == 'condition_cache']
     ok &= check("voxtral: 26 condition caches, append states on the delay stream (kind sequence) indexed by the condition port, shared by_source, not carried",
-                len(caches) == 26 and all(s['law'] == 'append' and s['sharing'] == 'by_source' and s['indexed_by_port'] == 'condition'
+                len(caches) == 26 and all(s['evolution'] == 'append' and s['sharing'] == 'by_source' and s['indexed_by_port'] == 'condition'
                                           and s['stream'] == {'kind': 'sequence', 'stream': 'delay'} and not s['carried_across_fragments']
                                           for s in caches), str(caches[:1])[:300])
     ok &= check("voxtral: the delay stream is one element per sequence, count 1.0, and the time embedding is a sequence-kind value on it",
@@ -183,7 +183,7 @@ def main():
                 and d2v['time_embed.embedding']['domain'] == {'kind': 'sequence', 'stream': 'delay'} and d2v['time_embed.embedding']['count'] == {'delay': 1.0})
     ok &= check("deepseek-v4-pro: next_tokens joins the token stream at count 1.0, as before",
                 {x['value']: x for x in docs['deepseek-v4-pro']['d2']['values']}['next_tokens']['count'] == {'tokens': 1.0})
-    rings = {s['identity']: s for s in v['d4']['states'] if s['contract'] == 'conv_frontend'}
+    rings = {s['identity']: s for s in v['d4']['states'] if s['primitive'] == 'conv_frontend'}
     ok &= check("voxtral: the front end's histories are windows of kernel − 1 and kernel − stride frames, indexed by the frames port on the audio stream (V18)",
                 rings['conv_frontend.conv1_history']['span'] == 2 and rings['conv_frontend.conv2_history']['span'] == 1
                 and all(s['indexed_by_port'] == 'frames' and s['indexed_by_source'] and s['carried_across_fragments']
@@ -201,13 +201,13 @@ def main():
                 {s['identity']: s['writer'] for s in shared} == {'shared.sliding.kv': 'decoder/attn[layer=18].kv', 'shared.full.kv': 'decoder/attn_full[layer=19].kv'})
     ok &= check("llama3-8b: no O5.10 information loss once every flattened axis declares its factors",
                 l3['d6']['information_loss'] == [])
-    parts = {(p['node'], json.dumps(p['target'], sort_keys=True)): p for p in l3['d6']['partitions']}
+    parts = {(p['node'], json.dumps(p['target'], sort_keys=True)): p for p in l3['d6']['partition_options']}
     heads = parts.get(('decoder/attn[layer=0]', json.dumps({'argument_axis': 'attention.heads'}, sort_keys=True)))
     ok &= check("llama3-8b: the head partition keeps whole KV groups — granularity 32 / 8 = 4 — and every partition lists its communications",
                 heads is not None and heads['granularity'] == 4 and heads['communication'] == ['all_reduce']
                 and all(isinstance(p['communication'], list)
                         and p['granularity'] == (4 if p['target'] == {'argument_axis': 'attention.heads'} else 1)
-                        for p in l3['d6']['partitions']),
+                        for p in l3['d6']['partition_options']),
                 str(heads))
     vocab = parts.get(('embed', json.dumps({'argument_axis': 'model.vocabulary'}, sort_keys=True)))
     ok &= check("llama3-8b: the embedding's vocabulary partition admits two patterns, a gather of owned rows or a sum of masked partials",
@@ -244,18 +244,18 @@ def main():
                     for d in docs.values() for t in d['d3']['tensors'] if t['elements'] is not None))
     gp = {t['identity']: t for t in g['d3']['tensors']}
     ok &= check("gemma3n: expand.projection is stored [3, 2048, 2048], storage.multiplicity first, multiplicity 3, 12 582 912 elements; "
-                "the totals (4 435 182 688 elements, 8 870 365 376 bytes with the correction scale stored bf16) and D6 (545 partitions, 32 losses) unchanged",
+                "the totals (4 435 182 688 elements, 8 870 365 376 bytes with the correction scale stored bf16) and D6 (545 partition_options, 32 losses) unchanged",
                 [(a['axis'], a['extent']) for a in gp['expand.projection']['shape']] == [('storage.multiplicity', 3), ('model.width', 2048), ('model.width', 2048)]
                 and gp['expand.projection']['multiplicity'] == 3 and gp['expand.projection']['elements'] == 12582912
                 and g['d3']['totals']['elements'] == 4435182688 and g['d3']['totals']['bytes'] == 8870365376    # the correction scale stored bf16 (S4.2)
-                and len(g['d6']['partitions']) == 545 and len(g['d6']['information_loss']) == 32,
+                and len(g['d6']['partition_options']) == 545 and len(g['d6']['information_loss']) == 32,
                 str(gp['expand.projection'].get('shape')))
     sg = q35['decoder.mlp.shared_gate[layer=0]']
     ok &= check("qwen3.5-35b-a3b: a declared multiplicity of one is an extent-one storage axis — shared_gate[layer=0] is [1, 512, 2048], "
-                "multiplicity 1, 1 048 576 elements, located on the plain tensor; the totals (35 107 181 936 elements) and D6 (589 partitions) unchanged",
+                "multiplicity 1, 1 048 576 elements, located on the plain tensor; the totals (35 107 181 936 elements) and D6 (589 partition_options) unchanged",
                 [(a['axis'], a['extent']) for a in sg['shape']] == [('storage.multiplicity', 1), ('ffn.inner', 512), ('model.width', 2048)]
                 and sg['multiplicity'] == 1 and sg['elements'] == 1048576 and sg['location'] == {'tensor': 'model.language_model.layers.0.mlp.shared_expert.gate_proj.weight'}
-                and docs['qwen3.5-35b-a3b']['d3']['totals']['elements'] == 35107181936 and len(docs['qwen3.5-35b-a3b']['d6']['partitions']) == 589,
+                and docs['qwen3.5-35b-a3b']['d3']['totals']['elements'] == 35107181936 and len(docs['qwen3.5-35b-a3b']['d6']['partition_options']) == 589,
                 str(sg['shape']))
     ok &= check("gemma3n: 697 tensors located under model.language_model — the two stream projections as stacks of three altup(_unembed)_projections.{c}.weight at dim 0 "
                 "(the storage axis), the readers' k/v/k_norm without an identity from layer 20 on, the per-layer tables whole",
@@ -273,14 +273,14 @@ def main():
     ok &= check("colbert-v2: 198 tensors located one-to-one — enc.attn.q[layer=3] under bert.encoder.layer, the head on linear.weight",
                 cb.get('enc.attn.q[layer=3]') == {'tensor': 'bert.encoder.layer.3.attention.self.query.weight'}
                 and cb.get('pooler.weight') == {'tensor': 'linear.weight'} and len(cb_names) == 198 and len(set(cb_names)) == 198)
-    # across_positions on the corpus (§4.1, O9.5), counted by contract
+    # across_positions on the corpus (§4.1, O9.5), counted by primitive
     def flagged(name):
-        return Counter(e['contract']['name'] for e in docs[name]['d1']['nodes'].values() if e['across_positions'])
+        return Counter(e['primitive']['name'] for e in docs[name]['d1']['nodes'].values() if e['across_positions'])
 
     def stateless(name):
         members = {m.rsplit('.', 1)[0] for s in docs[name]['d4']['states'] for m in s['members']}
         return [n for n, e in docs[name]['d1']['nodes'].items() if e['across_positions'] and n not in members]
-    ok &= check("llama3-8b: 32 occurrences read across positions — the attentions, nothing else",
+    ok &= check("llama3-8b: 32 instances read across positions — the attentions, nothing else",
                 flagged('llama3-8b') == {'attention.dense': 32}, str(flagged('llama3-8b')))
     ok &= check("colbert-v2: the 12 attentions read across positions; the pooler with reduce none does not",
                 flagged('colbert-v2') == {'attention.dense': 12} and docs['colbert-v2']['d1']['nodes']['pooler']['arguments']['reduce'] == 'none'
@@ -298,7 +298,7 @@ def main():
     ok &= check("deepseek-v4-pro: 62 latent attentions and the MTP merge read across positions",
                 flagged('deepseek-v4-pro') == {'attention.latent_compressed': 62, 'mtp.merge': 1}, str(flagged('deepseek-v4-pro')))
     ok &= check("decoder-causal-yarn: 26 attentions read across positions under the assignment",
-                flagged('decoder-causal-yarn@1.0.0') == {'attention.dense': 26}, str(flagged('decoder-causal-yarn@1.0.0')))
+                flagged('decoder-causal-yarn@2.0.0') == {'attention.dense': 26}, str(flagged('decoder-causal-yarn@2.0.0')))
     ok &= check("gemma3n: aux_select carries its layer index in D1 — an index-valued argument, evaluated in the site's environment",
                 g['d1']['nodes']['decoder/aux_select[layer=7]']['arguments'].get('layer') == 7,
                 str(g['d1']['nodes']['decoder/aux_select[layer=7]']['arguments']))
@@ -307,7 +307,7 @@ def main():
     with open(os.path.join(MODELS, 'whisper-large-v3.json'), encoding='utf-8') as f:
         undecided = json.load(f)
     undecided['quantities']['k'] = {"type": {"kind": "cardinality"}, "source": {"kind": "external"}}
-    undecided['occurrences']['conv_frontend']['arguments']['kernel'] = {"quantity": "k"}
+    undecided['instances']['conv_frontend']['arguments']['kernel'] = {"quantity": "k"}
     tmp = tempfile.mkdtemp(prefix='tensorspine-derived-')
     path = os.path.join(tmp, 'whisper-undecided.json')
     with open(path, 'w', encoding='utf-8') as f:
@@ -325,12 +325,12 @@ def main():
         source = f.read()
     llama = json.loads(source)
     for label, mutate, expect in (
-            ("a foreign schema tag", lambda d: d.__setitem__('schema', 'not-tensorspine/99'), "schema: 'tensorspine/2.0' was expected"),
-            ("a misspelt occurrence field", lambda d: d['occurrences']['embed'].__setitem__('argumants', d['occurrences']['embed'].pop('arguments')),
-             "occurrences/embed: 'arguments' is a required property")):
+            ("a foreign schema tag", lambda d: d.__setitem__('schema', 'not-tensorspine/99'), "schema: 'tensorspine/3.0' was expected"),
+            ("a misspelt instance field", lambda d: d['instances']['embed'].__setitem__('argumants', d['instances']['embed'].pop('arguments')),
+             "instances/embed: 'arguments' is a required property")):
         mutated = json.loads(source)
         mutate(mutated)
-        mutated['catalog'] = [{"base": os.path.join(ROOT, 'data', 'catalog') + os.sep}]
+        mutated['primitive_libraries'] = [{"base": os.path.join(ROOT, 'data', 'primitive-library') + os.sep}]
         path = os.path.join(tmp, f"llama-{label.split()[-1]}.json")
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(mutated, f)
@@ -345,27 +345,27 @@ def main():
         advisories = lint.model_advisories(cat, [path])
         ok &= check(f"{label}: --lint reports it off the schema and does not analyse it",
                     len(advisories) == 1 and 'off the schema' in advisories[0][1] and expect in advisories[0][1], str(advisories[:1]))
-    # G (R20): the generated JSON Schema per contract version (non-normative). Every corpus
-    # occurrence's resolved arguments validate against its contract's schema; a scalar domain
+    # G (R20): the generated JSON Schema per primitive version (non-normative). Every corpus
+    # instance's resolved arguments validate against its primitive's schema; a scalar domain
     # violation is caught by it, while a relation between arguments (an invariant) is invisible to
     # JSON Schema and kept as an x-tensorspine-* annotation, which the check states.
-    import contract_schema
+    import primitive_schema
     import jsonschema
-    schemas = {cid: s for cid, s in contract_schema.render(cat).items()}
+    schemas = {cid: s for cid, s in primitive_schema.render(cat).items()}
     bad = []
     checked = 0
     for name, doc in docs.items():
         for node, e in doc['d1']['nodes'].items():
-            sch = schemas.get(f"{e['contract']['name']}@{e['contract']['version']}")
+            sch = schemas.get(f"{e['primitive']['name']}@{e['primitive']['version']}")
             if sch is None:
                 continue
             checked += 1
             errs = list(jsonschema.Draft202012Validator(sch).iter_errors(e['arguments']))
             if errs:
                 bad.append(f"{name} {node}: {errs[0].message}")
-    ok &= check(f"G: every corpus occurrence's resolved arguments validate against its contract's generated schema ({checked} occurrences)",
+    ok &= check(f"G: every corpus instance's resolved arguments validate against its primitive's generated schema ({checked} instances)",
                 not bad, str(bad[:3]))
-    att = schemas['attention.dense@1.0.0']
+    att = schemas['attention.dense@2.0.0']
     v = jsonschema.Draft202012Validator(att)
     ok &= check("G: a scalar domain violation is caught by the schema — window.span 0 below minimum, kv_heads 0 below minimum, a fractional span not an integer",
                 bool(list(v.iter_errors({'width': 8, 'heads': 4, 'head_dim': 8, 'mask': 'causal', 'window': {'span': 0}})))
@@ -374,7 +374,7 @@ def main():
     ok &= check("G: a relation between arguments is invisible to JSON Schema — heads not a multiple of kv_heads validates, and is carried in x-tensorspine-invariants",
                 not list(v.iter_errors({'width': 8, 'heads': 32, 'head_dim': 8, 'kv_heads': 3, 'mask': 'causal'}))
                 and any('multiple' in i['description'] for i in att['x-tensorspine-invariants']))
-    moe = schemas['moe@1.0.0']
+    moe = schemas['moe@2.0.0']
     ok &= check("G: top_k above experts validates against the moe schema too — a relation, not a domain",
                 not list(jsonschema.Draft202012Validator(moe).iter_errors({'width': 8, 'experts': 4, 'top_k': 8, 'inner': 8}))
                 and any('experts' in i['description'] for i in moe['x-tensorspine-invariants']))

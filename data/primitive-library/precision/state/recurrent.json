@@ -1,0 +1,16 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "state.recurrent",
+  "definition": {
+    "summary": "Fixed-size recurrent state.",
+    "description": "A recurrent state is overwritten at every position and accumulates rounding: `f32` by default, `bf16` admissible, nothing narrower.",
+    "admissible": [
+      "f32",
+      "bf16"
+    ],
+    "default": "f32",
+    "sensitivity": "full_precision",
+    "note": "a recurrent state accumulates: precision drift compounds in it"
+  }
+}

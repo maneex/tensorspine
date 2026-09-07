@@ -101,7 +101,7 @@ def main(argv=None):
         text.num_hidden_layers = args.layers
         if getattr(text, 'layer_types', None):
             text.layer_types = list(text.layer_types)[:args.layers]
-    load_dtype = torch.bfloat16 if args.truncate_after_load else dtype     # the whole checkpoint first, as stored; the cast after the cut
+    load_dtype = torch.bfloat16 if args.truncate_after_load else dtype     # the whole checkpoint first, as stored; the cast after the graph_split
     t0 = time.time()
     # the class the config maps to: causal-LM when transformers lists the type there, else the
     # image-text-to-text wrapper (a multimodal checkpoint run on text; its decoder is `language_model`)
@@ -116,8 +116,8 @@ def main(argv=None):
     inner = getattr(model, 'model', model)             # a base model is its own inner model
     lm = getattr(inner, 'language_model', inner)       # the text model: its layers, its methods
     if args.truncate_after_load:
-        # the module list cut after loading: the config keeps its layer count, so every table sized by it keeps its
-        # slices and a shared-KV layer past the cut still reads the writer the whole model gives it
+        # the module list graph_split after loading: the config keeps its layer count, so every table sized by it keeps its
+        # slices and a shared-KV layer past the graph_split still reads the writer the whole model gives it
         lm.layers = torch.nn.ModuleList(list(lm.layers)[:args.layers])
         n_layers = args.layers
         for name in (args.drop or '').split(','):
@@ -129,7 +129,7 @@ def main(argv=None):
     print(f"loaded {args.model}: {n_layers} layers in {dtype} ({time.time() - t0:.0f}s)")
     ids = [int(x) for x in args.ids.split(',')]
     dump, hooks, hook_map = {}, [], {}
-    layers = getattr(inner, 'layers', None) or getattr(getattr(inner, 'language_model', None), 'layers', None) \
+    layers = getattr(inner, 'layers', None) or getattr(getattr(inner, 'language_model', None), 'layers', None)\
         or inner.encoder.layer                          # BERT: encoder.layer
     for spec in args.capture:                          # a method's return is a value: wrapped, recorded at the prefill
         method, vname = spec.split(':')
@@ -189,8 +189,8 @@ def main(argv=None):
             import tempfile
             import graph as graph_mod
             doc_path = os.path.join(graph_mod.ROOT, 'data', 'models', f'{args.document}.json')
-            cut, _ = graph_mod.truncated(doc_path, f'{args.composition}.layer={n_layers}', tempfile.mkdtemp(prefix='dump-hf-'))
-            for ident, st in graph_mod.load(cut).states.items():
+            graph_split, _ = graph_mod.truncated(doc_path, f'{args.composition}.layer={n_layers}', tempfile.mkdtemp(prefix='dump-hf-'))
+            for ident, st in graph_mod.load(graph_split).states.items():
                 writer = st.get('writer') or st['members'][0]
                 m = re.search(r'\[layer=(\d+)\]', writer)
                 if m:
@@ -468,7 +468,7 @@ def metadata(args, n_layers, ids, tokens, hook_map, inputs=None):
     artifact = {'name': artifact_name(args.model), **_provenance(args.model)}
     if args.artifact_id:
         artifact['id'] = args.artifact_id
-    out = {'schema': 'tensorspine-fixture/1', 'kind': 'integration', 'document': args.document,
+    out = {'schema': 'tensorspine-fixture/2', 'kind': 'integration', 'document': args.document,
            'artifact': artifact,
            'delivery': {'implementation': 'transformers', 'program': PROGRAM,
                         'versions': {'torch': torch.__version__, 'transformers': __import__('transformers').__version__}},

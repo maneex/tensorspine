@@ -2,10 +2,10 @@
 __pycache__/
 *.pyc
 
-# Generated documentation (built by tools/site.sh / docs/style/catalog.sh)
+# Generated documentation (built by tools/site.sh / docs/style/primitive-library.sh)
 /_site/
-/docs/CATALOG-REFERENCE.md
-/docs/CATALOG-REFERENCE.html
+/docs/PRIMITIVE-LIBRARY-REFERENCE.md
+/docs/PRIMITIVE-LIBRARY-REFERENCE.html
 
 # Working notes (plans, reviews) — never part of the tree
 /plans/

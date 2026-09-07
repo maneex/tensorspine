@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """D5, first derivation (§4.1, §4.5): operations per token follow from the
 parameter inventory — two per weight element consumed — scaled by the
-activated fraction of a sparse unit, plus the corrections a contract declares.
+activated fraction of a sparse unit, plus the corrections a primitive declares.
 
   1. llama3-8b: dense, no state corrections beyond attention's sequence term:
      ops per element = 2 × (parameter elements − the embedding table) + one
      embedding row, a lookup being the limiting case of a sparsity unit; the
      per-cached-position term is 4·heads·head_dim per attention layer.
   2. llama4-scout: MoE — the routed experts count at top_k / experts; the
-     independent oracle is the closed formula the catalog used to declare.
+     independent oracle is the closed formula the primitive library used to declare.
   3. shieldstral-3b and its composite derive the same figures.
 
     python3 tests/run_costs.py
@@ -21,7 +21,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import validate                        # noqa: E402
 
 MODELS = os.path.join(ROOT, 'data', 'models')
@@ -39,7 +39,7 @@ def stats(cat, name):
 
 
 def main():
-    cat = catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    cat = primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
     ok = True
     s = stats(cat, 'llama3-8b')
     with open(os.path.join(MODELS, 'llama3-8b.json'), encoding='utf-8') as f:
@@ -55,17 +55,17 @@ def main():
     with open(os.path.join(MODELS, 'llama4-scout.json'), encoding='utf-8') as f:
         l4 = json.load(f)
     q = {k: v['source']['value'] for k, v in l4['quantities'].items() if v['source']['kind'] == 'literal'}
-    moe = l4['compositions']['decoder']['occurrences']['moe']['arguments']
+    moe = l4['compositions']['decoder']['instances']['moe']['arguments']
     val = lambda e: e['literal'] if 'literal' in e else q[e['quantity']]
     experts, top_k, width, inner = val(moe['experts']), val(moe['top_k']), val(moe['width']), val(moe['inner'])
     shared = val(moe['shared']) if 'shared' in moe else 0
     layers = 48
     s = stats(cat, 'llama4-scout')
     routed_elements = layers * experts * 3 * width * inner            # in (2·inner × width) + out (width × inner)
-    emb = l4['occurrences']['embed']['arguments']
+    emb = l4['instances']['embed']['arguments']
     table = val(emb['vocabulary']) * val(emb['width'])                # the embedding lookup: one row per element
     dense_part = 2 * (s['parameter_elements'] - routed_elements - table) + 2 * val(emb['width'])
-    expected = dense_part + layers * 6 * width * inner * top_k        # the formula the catalog used to declare
+    expected = dense_part + layers * 6 * width * inner * top_k        # the formula the primitive library used to declare
     ok &= check(f"llama4-scout: routed experts count at top_k/experts = {top_k}/{experts}",
                 abs(s['ops_per_element'] - expected) <= 1, f"derived {s['ops_per_element']} vs oracle {expected}")
     ok &= check("llama4-scout: sparse ops < dense ops", s['ops_per_element'] < 2 * s['parameter_elements'])

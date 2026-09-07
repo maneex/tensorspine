@@ -36,9 +36,9 @@ def state_bytes(graph, capacity, compute_dtype):
     total = 0
     for s in graph.states.values():
         per = sum(p['elements'] for p in s['payload']) * width
-        if s['law'] == 'append':
+        if s['evolution'] == 'append':
             total += per * capacity_of(capacity, s['stream']['stream'])
-        elif s['law'] == 'window':
+        elif s['evolution'] == 'window':
             total += per * (s['span'] or 0)
         else:
             total += per

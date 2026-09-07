@@ -1,9 +1,9 @@
 {
-  "schema": "tensorspine/2.0",
+  "schema": "tensorspine/3.0",
   "model": "colbert_v2",
-  "catalog": [
+  "primitive_libraries": [
     {
-      "base": "../catalog/"
+      "base": "../primitive-library/"
     }
   ],
   "quantities": {
@@ -104,11 +104,11 @@
     }
   },
   "constants": {},
-  "occurrences": {
+  "instances": {
     "embed": {
-      "contract": {
+      "primitive": {
         "name": "embedding.token_position_type",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -133,9 +133,9 @@
       ]
     },
     "pooler": {
-      "contract": {
+      "primitive": {
         "name": "pooler",
-        "version": "1.0.0"
+        "version": "2.0.0"
       },
       "arguments": {
         "width": {
@@ -175,11 +175,11 @@
       "families": [
         "encoder"
       ],
-      "occurrences": {
+      "instances": {
         "attn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.layer",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -194,9 +194,9 @@
           ]
         },
         "attn": {
-          "contract": {
+          "primitive": {
             "name": "attention.dense",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -232,9 +232,9 @@
           ]
         },
         "attn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -246,9 +246,9 @@
           ]
         },
         "ffn_n": {
-          "contract": {
+          "primitive": {
             "name": "norm.layer",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -263,9 +263,9 @@
           ]
         },
         "ffn": {
-          "contract": {
+          "primitive": {
             "name": "ffn.dense",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -289,9 +289,9 @@
           ]
         },
         "ffn_r": {
-          "contract": {
+          "primitive": {
             "name": "residual.add",
-            "version": "1.0.0"
+            "version": "2.0.0"
           },
           "arguments": {
             "width": {
@@ -763,17 +763,17 @@
     "values": {
       "enc.entry": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "enc",
-            "occurrence": "attn",
+            "instance": "attn",
             "indices": {
               "layer": {
                 "literal": 0
@@ -785,17 +785,17 @@
       },
       "enc.entry.a": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "embed"
+            "instance": "embed"
           },
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "enc",
-            "occurrence": "attn_r",
+            "instance": "attn_r",
             "indices": {
               "layer": {
                 "literal": 0
@@ -807,10 +807,10 @@
       },
       "pooler.in": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "generated",
             "composition": "enc",
-            "occurrence": "ffn_n",
+            "instance": "ffn_n",
             "indices": {
               "layer": {
                 "op": "subtract",
@@ -828,9 +828,9 @@
           "port": "output"
         },
         "to": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "pooler"
+            "instance": "pooler"
           },
           "port": "input"
         }
@@ -843,9 +843,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "weight"
           }
@@ -865,9 +865,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "position"
           }
@@ -887,9 +887,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "token_type"
           }
@@ -909,9 +909,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "norm"
           }
@@ -931,9 +931,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "parameter": "norm_bias"
           }
@@ -953,9 +953,9 @@
         },
         "members": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "pooler"
+              "instance": "pooler"
             },
             "parameter": "weight"
           }
@@ -978,9 +978,9 @@
       "tokens": {
         "to": [
           {
-            "occurrence": {
+            "instance": {
               "kind": "root",
-              "occurrence": "embed"
+              "instance": "embed"
             },
             "port": "tokens"
           }
@@ -991,9 +991,9 @@
     "outputs": {
       "embeddings": {
         "from": {
-          "occurrence": {
+          "instance": {
             "kind": "root",
-            "occurrence": "pooler"
+            "instance": "pooler"
           },
           "port": "output"
         },

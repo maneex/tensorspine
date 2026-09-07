@@ -1,4 +1,4 @@
-"""conditioning.layer_select@1.0.0 — the `layer`-th of the `layers` vectors the input carries.
+"""conditioning.layer_select@2.0.0 — the `layer`-th of the `layers` vectors the input carries.
 
 | branch / record | status      |
 |-----------------|-------------|
@@ -6,7 +6,7 @@
 """
 from kernels._common import refuse_unknown, supports_from
 
-CONTRACT = ("conditioning.layer_select", "1.0.0")
+PRIMITIVE = ("conditioning.layer_select", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"layers": "any", "width": "any", "layer": "any"}, "states": []}

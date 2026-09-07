@@ -4,8 +4,8 @@ before it: several sessions in one invocation, batch-plan B04), the positions of
 every D4 state an input and an output (ONNX has no mutable state: a session carries the tensors
 between runs), every parameter an initializer at its D3 dtype cast to the compute dtype where a
 primitive uses it (the reference's convention, the cast folded once by the runtime), and every
-occurrence a call of its contract's emitter (`primitives/<name>.py`), in D1's order. The exposed
-outputs are graph outputs; with `dump`, so is every value crossing a D6 layer cut (R07)."""
+instance a call of its primitive's emitter (`primitives/<name>.py`), in D1's order. The exposed
+outputs are graph outputs; with `dump`, so is every value crossing a D6 layer graph_split (R07)."""
 import os
 import tempfile
 
@@ -58,7 +58,7 @@ class Builder:
         return names[0] if isinstance(outputs, int) and outputs == 1 else names
 
     def remove(self, node):
-        """Drop a node whose outputs another one now provides (a fusion across occurrences)."""
+        """Drop a node whose outputs another one now provides (a fusion across instances)."""
         self.nodes.remove(node)
         for n in node.output:
             self.by_output.pop(n, None)
@@ -121,16 +121,16 @@ class StateRef:
 
     def __init__(self, b, entry, compute, layout='none', held=None):
         self.b, self.entry, self.layout = b, entry, layout
-        self.identity, self.law, self.span = entry['identity'], entry['law'], entry.get('span')
+        self.identity, self.evolution, self.span = entry['identity'], entry['evolution'], entry.get('span')
         self.stream = (entry.get('stream') or {}).get('stream')
         self.held = held                  # aligned: the positions each session holds on the state's stream, [b] (the input's name)
         self.components = {p['component']: [a['extent'] for a in p['shape']] for p in entry['payload']}
         self.inputs = {}
         for c, shape in self.components.items():
             if layout == 'aligned':       # a buffer of the capacity per session; a fixed state per session
-                dims = (['b'] if self.law == 'fixed' else ['b', f"{self.identity}.cap"]) + shape
+                dims = (['b'] if self.evolution == 'fixed' else ['b', f"{self.identity}.cap"]) + shape
             else:
-                dims = shape if self.law == 'fixed' else [f"{self.identity}.len"] + shape
+                dims = shape if self.evolution == 'fixed' else [f"{self.identity}.len"] + shape
             self.inputs[c] = b.input(f"state/{self.identity}/{c}", b.ctype, dims)
         self.written = {}
 
@@ -150,7 +150,7 @@ class Emitter:
         """`primitives`: the emitters per target (`registry.load_all()`), or one target's set. `target`:
         the runtime the graph is emitted for — `onnx`, standard operators only, runs anywhere;
         `onnxruntime`, its fused operators wherever the target has a primitive of its own. The physical
-        parameters may name a `backend` per occurrence, which picks that occurrence's target. `layout`:
+        parameters may name a `backend` per instance, which picks that instance's target. `layout`:
         how sessions share an invocation (batch-plan B02, B04) — `none`, one session on the element
         axis; `aligned`, a batch axis before it, every session delivering the same count on each
         stream, the `append` states buffers of a capacity per session with the positions each holds
@@ -165,19 +165,19 @@ class Emitter:
         self.layout = layout
 
     def primitive(self, node, entry):
-        """The occurrence's emitter: the target's, or the one the physical parameters' `backend` names."""
-        target = (physical_for(self.physical, node, entry['contract']) or {}).get('backend') or self.target
+        """The instance's emitter: the target's, or the one the physical parameters' `backend` names."""
+        target = (physical_for(self.physical, node, entry['primitive']) or {}).get('backend') or self.target
         table = self.primitives.get(target)
         if table is None:
             raise Refusal(f"{node}: backend {target!r} names no target of this generator ({sorted(self.primitives)})")
-        return table.get((entry['contract']['name'], entry['contract']['version']))
+        return table.get((entry['primitive']['name'], entry['primitive']['version']))
 
     def refusals(self, nodes=None):
         out = []
         for node, entry in self.graph.nodes.items():
             if nodes is not None and node not in nodes:
                 continue
-            key = (entry['contract']['name'], entry['contract']['version'])
+            key = (entry['primitive']['name'], entry['primitive']['version'])
             p = self.primitive(node, entry)
             if p is None:
                 out.append(f"{node}: no primitive for {key[0]}@{key[1]}")
@@ -187,19 +187,19 @@ class Emitter:
         return out
 
     def evaluable(self, delivered):
-        """The occurrences an invocation evaluates (§7): every input port fed by a delivered input or
-        an evaluated occurrence; a port a state indexed by it holds is fed too (a source complete)."""
+        """The instances an invocation evaluates (§7): every input port fed by a delivered input or
+        an evaluated instance; a port a state indexed by it holds is fed too (a source complete)."""
         g = self.graph
         fed = {(n, p) for (n, p), name in g.fed_by_input.items() if name in delivered}
         held = {}
         for st in g.states.values():
-            if st.get('indexed_by_port') and st['law'] == 'append':
+            if st.get('indexed_by_port') and st['evolution'] == 'append':
                 for m in st['members']:
                     node, _s = m.rsplit('.', 1)
                     held[(node, st['indexed_by_port'])] = True
         # the source of an insert transform may deliver nothing (§7): `splice`, the language's only insert
-        # today, recognised by its contract, as the reference does — D2 emits no transforms
-        inserts = {(n, 'source') for n, e in g.nodes.items() if e['contract']['name'] == 'splice'}
+        # today, recognised by its primitive, as the reference does — D2 emits no transforms
+        inserts = {(n, 'source') for n, e in g.nodes.items() if e['primitive']['name'] == 'splice'}
         done = set()
         for node in g.order:
             ok = True
@@ -239,9 +239,9 @@ class Emitter:
         states = {ident: StateRef(b, entry, self.compute, self.layout, held.get((entry.get('stream') or {}).get('stream')))
                   for ident, entry in g.states.items()}
         needed = {f"{o['node']}.{o['port']}" for o in g.interfaces['outputs'].values()}
-        dumped = {p['value'] for c in g.layer_cuts() for p in c['payload']} if dump else set()
+        dumped = {p['value'] for c in g.layer_graph_splits() for p in c['payload']} if dump else set()
         active = self.evaluable(delivered)
-        self.origin = {}                  # value name -> (contract name, the primitive's raw output, its Identity node)
+        self.origin = {}                  # value name -> (primitive name, the primitive's raw output, its Identity node)
         for node in g.order:
             if node not in active:
                 continue
@@ -263,7 +263,7 @@ class Emitter:
                 out_name = b.name(vname) if vname in b.taken else vname
                 b.taken.add(out_name)
                 b.node('Identity', [name], outputs=[out_name])
-                self.origin[out_name] = (entry['contract']['name'], name, b.by_output[out_name])
+                self.origin[out_name] = (entry['primitive']['name'], name, b.by_output[out_name])
                 values[vname] = out_name
                 if vname in needed or vname in dumped:
                     b.output(out_name, b.ctype)
@@ -273,15 +273,15 @@ class Emitter:
         return b.model(g.model)
 
 
-def physical_for(physical, node, contract):
-    """The opaque parameters addressed to an occurrence (generators/CAPABILITIES.md): by its exact
-    identifier, by a site pattern where `*` alone is a wildcard, or by its contract version; more
-    specific entries override more general ones (contract < pattern < exact)."""
+def physical_for(physical, node, primitive):
+    """The opaque parameters addressed to an instance (generators/CAPABILITIES.md): by its exact
+    identifier, by a site pattern where `*` alone is a wildcard, or by its primitive version; more
+    specific entries override more general ones (primitive < pattern < exact)."""
     import re
     if not physical:
         return None
     out = {}
-    cid = f"{contract['name']}@{contract['version']}"
+    cid = f"{primitive['name']}@{primitive['version']}"
     for key, value in physical.items():
         if key == cid:
             out.update(value)
@@ -295,13 +295,13 @@ def physical_for(physical, node, contract):
 
 class Context:
     """What a primitive's emitter sees: the builder, the parameters as initializers, the node's
-    positions, and the opaque physical parameters addressed to the occurrence — the channel a
+    positions, and the opaque physical parameters addressed to the instance — the channel a
     backend-specific realisation (a fused operator of one runtime) is selected through."""
 
     def __init__(self, b, emitter, params, node, entry, positions, factor):
         self.b, self.emitter, self.params, self.node, self.entry, self.factor = b, emitter, params, node, entry, factor
         self.compute = b.compute
-        self.physical = physical_for(emitter.physical, node, entry['contract'])
+        self.physical = physical_for(emitter.physical, node, entry['primitive'])
         self.layout = emitter.layout      # the batch layout of the whole graph (B02): `none` or `aligned`
         self._positions = positions
 
@@ -317,13 +317,13 @@ class Context:
         return name
 
     def target(self):
-        """The target this occurrence is emitted for: the physical parameters' `backend` when they name
+        """The target this instance is emitted for: the physical parameters' `backend` when they name
         one, else the generator's target — the registry chose the primitive by it already."""
         return (self.physical or {}).get('backend') or self.emitter.target
 
     def origin(self, value):
-        """(contract name, the primitive's raw output name, the Identity node naming the value) of a value
-        an earlier occurrence produced — what a fusion across occurrences reasons on."""
+        """(primitive name, the primitive's raw output name, the Identity node naming the value) of a value
+        an earlier instance produced — what a fusion across instances reasons on."""
         return self.emitter.origin.get(value)
 
     @property

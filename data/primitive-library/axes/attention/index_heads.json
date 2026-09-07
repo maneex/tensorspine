@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "attention.index_heads",
+  "definition": {
+    "space": "value",
+    "summary": "Heads of the sparse index."
+  }
+}

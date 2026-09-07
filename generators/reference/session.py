@@ -1,6 +1,6 @@
 """A session: the state instances of one (session, branch) key, the positions
 consumed per stream, prefill and decode (R08) — and a fork, by the sharing granularity
-each state's contract declares (§4.3)."""
+each state's primitive declares (§4.3)."""
 import torch
 
 import state as state_mod
@@ -111,7 +111,7 @@ class Session:
     def fork(self, at=None):
         """A new session over the same model, forked from this one at position `at` of the
         forked stream (the generative output's; default: the current position), its states
-        copied by the granularity each contract declares (§4.3):
+        copied by the granularity each primitive declares (§4.3):
 
           by_position    the entries before `at` are copied: a shared prefix, entry by entry;
           within_span    the ring is copied whole, only when `at` is the current position — the
@@ -164,7 +164,7 @@ class Session:
 class Batch:
     """Several sessions evaluated in one invocation — the packed layout (B03): each session keeps
     its own states and positions (its instance key, §4.4), the model's `step_batch` evaluates the
-    occurrences on the sessions' elements together where it may and per session where it must.
+    instances on the sessions' elements together where it may and per session where it must.
     Every session delivers the same inputs (§7: one delivery pattern per invocation), and no more
     than SESSIONS_PER_INVOCATION sessions ride together. Batching is invisible: what a session
     gets is what it would get alone, up to the rounding of a product over more rows (B06, B07)."""

@@ -1,8 +1,8 @@
 """The derived document as Python — and nothing else (R01).
 
-A `Graph` is built from a `.derived.json` or, given a model document, from the
+A `Graph` is built from a `.derived.json` or, given a model definition, from the
 products `tools/derive.py` computes in-process. The backend never reads the
-model source or the catalog itself: everything it needs must be in D1–D6.
+model source or the primitive library itself: everything it needs must be in D1–D6.
 """
 import json
 import os
@@ -12,7 +12,7 @@ from fractions import Fraction
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
-import catalog as catalog_mod   # noqa: E402
+import primitive_library as primitive_library_mod   # noqa: E402
 import derive                   # noqa: E402
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
@@ -20,26 +20,26 @@ DTYPES = {'bf16': 'bfloat16', 'f16': 'float16', 'f32': 'float32'}
 
 
 def derive_document(model_path, assignment=None):
-    """D1–D6 of a model document, through the language's own tools: the catalog read against the
+    """D1–D6 of a model definition, through the language's own tools: the primitive library read against the
     repository's schemas, the document through both stages of `--validate` (`derive.products`)."""
     with open(model_path, encoding='utf-8') as f:
         model = json.load(f)
-    cat = catalog_mod.load_for(model_path, model, schema_dir=SCHEMAS)
+    cat = primitive_library_mod.load_for(model_path, model, schema_dir=SCHEMAS)
     return derive.products(model_path, cat, assignment, schema_dir=SCHEMAS)
 
 
 def load(path, assignment=None):
-    """A `Graph` from a derived document, or from a model document derived here."""
+    """A `Graph` from a derived document, or from a model definition derived here."""
     with open(path, encoding='utf-8') as f:
         doc = json.load(f)
-    if doc.get('schema') == 'tensorspine-derived/2.1':
+    if doc.get('schema') == 'tensorspine-derived/3.0':
         return Graph(doc)
     return Graph(derive_document(path, assignment))
 
 
 def edited(model_path, edits, out_dir, suffix='edited'):
-    """A copy of a model document with dotted paths replaced (`quantities.d.source.value=64`,
-    `compositions.decoder.indices.layer.stop.literal=3`), its catalog bases made absolute so
+    """A copy of a model definition with dotted paths replaced (`quantities.d.source.value=64`,
+    `compositions.decoder.indices.layer.stop.literal=3`), its primitive library bases made absolute so
     the copy can live anywhere. A test convenience, not a semantics: the document is data
     and this edits it; whether the result is valid is the language's verdict, as always."""
     with open(model_path, encoding='utf-8') as f:
@@ -55,7 +55,7 @@ def edited(model_path, edits, out_dir, suffix='edited'):
         notes.append(f"{'.'.join(map(str, keys))}: {before!r} -> {value!r}")
         node[last] = value
     here = os.path.dirname(os.path.abspath(model_path))
-    model['catalog'] = [{"base": os.path.normpath(os.path.join(here, e['base']))} for e in model['catalog']]
+    model['primitive_libraries'] = [{"base": os.path.normpath(os.path.join(here, e['base']))} for e in model['primitive_libraries']]
     model['model'] = f"{model['model']}-{suffix}"
     out = os.path.join(out_dir, f"{os.path.basename(model_path)[:-5]}.{suffix}.json")
     with open(out, 'w', encoding='utf-8') as f:
@@ -89,7 +89,7 @@ def truncated(model_path, spec, out_dir):
 
     cited = set()
 
-    def cite(node):                     # the index expressions of the composition's occurrences, wherever written
+    def cite(node):                     # the index expressions of the composition's instances, wherever written
         if isinstance(node, dict):
             if node.get('kind') == 'generated' and node.get('composition') == comp:
                 quantities(node.get('indices', {}), cited)
@@ -102,7 +102,7 @@ def truncated(model_path, spec, out_dir):
                 cite(v)
     cite(model.get('bindings', {}))
     cite(model['compositions'][comp].get('bindings', {}))
-    for occ in model['compositions'][comp]['occurrences'].values():
+    for occ in model['compositions'][comp]['instances'].values():
         quantities(occ.get('when', {}), cited)
     for q in sorted(cited):
         entry = model.get('quantities', {}).get(q)
@@ -122,8 +122,8 @@ def truncated(model_path, spec, out_dir):
     for kind in ('values', 'parameters', 'constants'):          # not the states: their members are pruned below
         walk(model.get('bindings', {}).get(kind, {}), ('bindings', kind))
     walk(model['compositions'][comp].get('bindings', {}), ('compositions', comp, 'bindings'))
-    for site, occ in model['compositions'][comp]['occurrences'].items():
-        walk(occ.get('when', {}), ('compositions', comp, 'occurrences', site, 'when'))
+    for site, occ in model['compositions'][comp]['instances'].items():
+        walk(occ.get('when', {}), ('compositions', comp, 'instances', site, 'when'))
     path, notes = edited(model_path, edits, out_dir, suffix=f"{stop}{index}s")
     # a shared state names its members by literal index: those beyond the new range go, and an
     # identity left without members with them (an index outside the range is a rejection, §5.2)
@@ -133,10 +133,10 @@ def truncated(model_path, spec, out_dir):
     for sid, binding in list(doc.get('bindings', {}).get('states', {}).items()):
         keep = []
         for m in binding['members']:
-            occ = m['occurrence']
+            occ = m['instance']
             lit = ((occ.get('indices') or {}).get(index) or {}).get('literal')
             if occ.get('kind') == 'generated' and occ.get('composition') == comp and lit is not None and lit >= stop:
-                pruned.append(f"bindings.states.{sid}: member {occ['occurrence']}[{index}={lit}] beyond {stop}, dropped")
+                pruned.append(f"bindings.states.{sid}: member {occ['instance']}[{index}={lit}] beyond {stop}, dropped")
             else:
                 keep.append(m)
         if keep:
@@ -175,7 +175,7 @@ class Graph:
             node, port = vname.rsplit('.', 1)
             self.outputs_of.setdefault(node, {})[port] = v
         self.streams = doc['d2']['streams']
-        self.cuts = doc['d2']['cuts']
+        self.graph_splits = doc['d2']['graph_splits']
         self.tensors = {t['identity']: t for t in doc['d3']['tensors']}
         self.slots_of = {}
         for t in doc['d3']['tensors']:
@@ -205,15 +205,15 @@ class Graph:
             c = float((v.get('count') or {}).get(stream, 1.0))
             self.elements_per[name] = Fraction(c).limit_denominator(1 << 20) ** -1 if c else Fraction(1)
         # ports that may receive nothing: the sources of insert transforms (D2 transforms are not
-        # emitted; the contract's transform is visible through the value domains: a `source` port
-        # of `splice` — the language's only insert today — is recognised by its contract)
-        self.insert_sources = {n: ['source'] for n, e in self.nodes.items() if e['contract']['name'] == 'splice'}
-        # ports whose delivered elements an `append` state of the occurrence indexed by them holds in
+        # emitted; the primitive's transform is visible through the value domains: a `source` port
+        # of `splice` — the language's only insert today — is recognised by its primitive)
+        self.insert_sources = {n: ['source'] for n, e in self.nodes.items() if e['primitive']['name'] == 'splice'}
+        # ports whose delivered elements an `append` state of the instance indexed by them holds in
         # full (D4 `indexed_by_port`, §7): such a port may deliver nothing in a later invocation; a
         # window holds a suffix and exempts nothing
         self.state_indexed_by = {}
         for st in doc['d4']['states']:
-            if st.get('indexed_by_port') and st['law'] == 'append':
+            if st.get('indexed_by_port') and st['evolution'] == 'append':
                 for m in st['members']:
                     node, sname = m.rsplit('.', 1)
                     self.state_indexed_by.setdefault(node, {})[st['indexed_by_port']] = sname
@@ -236,8 +236,8 @@ class Graph:
         self.token_input = self.feedback_input or next(
             (n for n, v in self.input_values.items() if v.get('domain', {}).get('kind') == 'token'), None)
 
-    def layer_cuts(self):
-        return [c for c in self.cuts if c['kind'] == 'layer']
+    def layer_graph_splits(self):
+        return [c for c in self.graph_splits if c['kind'] == 'layer']
 
     def required_inputs(self):
         """The inputs a first invocation must deliver: those D2 marks `required_for` the

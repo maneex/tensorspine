@@ -1,9 +1,0 @@
-{
-  "schema": "tensorspine-catalog-unit/2.0",
-  "kind": "axis",
-  "name": "instance.session",
-  "definition": {
-    "space": "instance",
-    "summary": "Instance key: a session, one sequence being served."
-  }
-}

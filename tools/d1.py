@@ -1,16 +1,16 @@
 """`--d1`: emit D1 (§7), the EXPANDED graph of a model.
 
-The model document is not the graph — it is a generator. Read naively, without
+The model definition is not the graph — it is a generator. Read naively, without
 unrolling `for_each` or evaluating index expressions, it shows fewer nodes than
 reality and apparent cycles. D1 is the form every consumer reads: viewer,
 porting, infrastructure matching.
 
-Identifiers follow §5.2 rule 2: a root occurrence by its name, a generated one
+Identifiers follow §5.2 rule 2: a root instance by its name, a generated one
 as `<composition>/<site>[<i>=<v>,...]` with indices in name order, an
-occurrence of a template prefixed by its instance. The graph is a set (§5.2
+instance of a template prefixed by its instance. The graph is a set (§5.2
 rule 4): the listing here is the canonical one — nodes by identifier, edges by
 (source, destination) — whatever the order of the document's members. A
-binding is emitted only where the occurrences it names are (rule 3).
+binding is emitted only where the instances it names are (rule 3).
 """
 import itertools
 import json
@@ -18,10 +18,10 @@ import os
 import re
 from collections import defaultdict, deque
 
-import catalog as catalog_mod
+import primitive_library as primitive_library_mod
 import model as model_mod
 import schema as schema_mod
-from expr import (UNRESOLVED, argument_references, contract_condition, contract_value, index_grid,
+from expr import (UNRESOLVED, argument_references, primitive_condition, primitive_value, index_grid,
                   missing_assignment, model_condition, model_value, resolve_quantities, static_argument)
 
 MAX_DEPTH = 8
@@ -31,8 +31,8 @@ def _record_defaults(declared, values, root):
     """A record field with a declared default, absent from the document and applicable
     (its `present_when` true), gets the default — recursively, as the validator resolves it
     (finding 12, 30 Aug 2026): D1 is fully resolved, records included, so no consumer has to
-    know the catalog's defaults. Paths in defaults and conditions are absolute (`rope.scaling.kind`):
-    the scope is the occurrence's whole argument map."""
+    know the primitive_library's defaults. Paths in defaults and conditions are absolute (`rope.scaling.kind`):
+    the scope is the instance's whole argument map."""
     for name, decl in declared.items():
         t = decl.get('type', {})
         if t.get('kind') != 'record' or not isinstance(values.get(name), dict):
@@ -41,20 +41,20 @@ def _record_defaults(declared, values, root):
         for field, fdecl in t['fields'].items():
             if field in record or 'default' not in fdecl:
                 continue
-            if 'present_when' in fdecl and not contract_condition(fdecl['present_when'], root):
+            if 'present_when' in fdecl and not primitive_condition(fdecl['present_when'], root):
                 continue
-            v = contract_value(fdecl['default'], root)
+            v = primitive_value(fdecl['default'], root)
             if v is not UNRESOLVED and v is not None:
                 record[field] = v
         _record_defaults(t['fields'], record, root)
 
 
 def _across_positions(definition, args, where):
-    """Whether the occurrence reads positions of its stream beyond those of the element it
-    produces: the contract's `effects.across_positions` condition (§4.1, O9.5) on its resolved
-    arguments, as V18 evaluates it; false when the contract declares none ("absent, the
+    """Whether the instance reads positions of its stream beyond those of the element it
+    produces: the primitive's `effects.across_positions` condition (§4.1, O9.5) on its resolved
+    arguments, as V18 evaluates it; false when the primitive declares none ("absent, the
     primitive reads its own element alone"). An argument the condition reads and the document
-    leaves unresolved makes the fact undecidable — a refusal, never a guess: `contract_condition`
+    leaves unresolved makes the fact undecidable — a refusal, never a guess: `primitive_condition`
     answers false to what it cannot decide, which is right for a guard and wrong for a fact."""
     effect = definition.get('effects', {}).get('across_positions')
     if not effect:
@@ -66,14 +66,14 @@ def _across_positions(definition, args, where):
         if cur is UNRESOLVED:
             raise ValueError(f"{where}: across_positions is undecidable — its condition reads argument "
                              f"'{path}', which does not resolve")
-    return bool(contract_condition(effect['when'], {k: v for k, v in args.items() if v is not UNRESOLVED}))
+    return bool(primitive_condition(effect['when'], {k: v for k, v in args.items() if v is not UNRESOLVED}))
 
 
 def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     """The D1 document of one model.
 
-    `assignment` supplies the external quantities by name; a template contract
-    receives its own from the arguments of the occurrence that invokes it.
+    `assignment` supplies the external quantities by name; a template primitive
+    receives its own from the arguments of the instance that invokes it.
     """
     model = model_mod.load(model_path)
     assignment = assignment or {}
@@ -86,17 +86,17 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         return static_argument(v, quantities, env)
 
     def identity(key):
-        """Canonical identity of an occurrence key (§5.2 rule 2)."""
+        """Canonical identity of an instance key (§5.2 rule 2)."""
         if key[0] == 'root':
             return key[1]
         _, composition, site, indices = key
         template = ",".join(f"{k}={v}" for k, v in indices)      # already sorted by name
         return f"{composition}/{site}[{template}]"
 
-    # --- unroll the occurrences; a guarded-out site is remembered as absent -
+    # --- unroll the instances; a guarded-out site is remembered as absent -
     keys = {}
     absent = set()
-    for name, o in model['occurrences'].items():
+    for name, o in model['instances'].items():
         if 'when' in o:
             truth = model_condition(o['when'], quantities, {})
             if truth is UNRESOLVED:
@@ -109,7 +109,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
         names, ranges = index_grid(comp['indices'], quantities)
         for combo in itertools.product(*ranges):
             env = dict(zip(names, combo))
-            for site_name, site in comp['occurrences'].items():
+            for site_name, site in comp['instances'].items():
                 key = ('gen', comp_name, site_name, tuple(sorted(env.items())))
                 if 'when' in site:
                     truth = model_condition(site['when'], quantities, env)
@@ -125,31 +125,31 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     inputs_of = {}        # (instance key, port) -> [(node, port)]: fan-out into a template
     outputs_of = {}       # (instance key, port) -> (node, port)
     for key in list(keys):
-        contract_name = keys[key]['contract']['name']
-        definition = cat['contracts'][contract_name]
+        primitive_name = keys[key]['primitive']['name']
+        definition = cat['primitives'][primitive_name]
         if 'template' not in definition:
-            continue                                          # primitive contract
-        if contract_name in _stack:
-            raise ValueError(f"contract cycle: {' -> '.join(_stack + (contract_name,))}")
+            continue                                          # primitive definition
+        if primitive_name in _stack:
+            raise ValueError(f"primitive cycle: {' -> '.join(_stack + (primitive_name,))}")
         if _depth + 1 > MAX_DEPTH:
-            raise ValueError(f"contract nesting deeper than {MAX_DEPTH}")
-        occurrence = keys.pop(key)
+            raise ValueError(f"primitive nesting deeper than {MAX_DEPTH}")
+        instance_site = keys.pop(key)
         instance = _prefix + identity(key)
         env0 = dict(key[3]) if key[0] == 'gen' else {}       # a generated site's indices (§5.2)
         sub_assignment = {}
-        for arg_name, arg_value in occurrence['arguments'].items():
+        for arg_name, arg_value in instance_site['arguments'].items():
             v = static(arg_value, env0)
             if v is not UNRESOLVED:
                 sub_assignment[arg_name] = v
-        sub = emit(catalog_mod.template_path(cat, definition), cat, sub_assignment,
-                   instance + "/", _depth + 1, _stack + (contract_name,))
+        sub = emit(primitive_library_mod.template_path(cat, definition), cat, sub_assignment,
+                   instance + "/", _depth + 1, _stack + (primitive_name,))
         nodes_sub = sub['d1']['nodes']
         edges.extend(sub['d1']['edges'])
-        instances[instance] = {"contract": occurrence['contract'],
+        instances[instance] = {"primitive": instance_site['primitive'],
                                "arguments": dict(sub_assignment)}
-        if 'weights_location_prefix' in occurrence:
+        if 'weights_location_prefix' in instance_site:
             from validate import _physical_name
-            prefix, problem = _physical_name(occurrence['weights_location_prefix'], env0, value, {})
+            prefix, problem = _physical_name(instance_site['weights_location_prefix'], env0, value, {})
             if problem:
                 raise ValueError(f"{instance}: weights_location_prefix: {problem}")
             instances[instance]['weights_location_prefix'] = prefix
@@ -163,20 +163,20 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
             instances.setdefault('__nodes__', {})[n] = v
 
     nodes = instances.pop('__nodes__', {}) if instances else {}
-    for key, occurrence in keys.items():
-        contract_name = occurrence['contract']['name']
-        definition = cat['contracts'][contract_name]
+    for key, instance in keys.items():
+        primitive_name = instance['primitive']['name']
+        definition = cat['primitives'][primitive_name]
         env = dict(key[3]) if key[0] == 'gen' else {}        # a generated site's indices (§5.2)
-        args = {a: static(v, env) for a, v in occurrence['arguments'].items()}
+        args = {a: static(v, env) for a, v in instance['arguments'].items()}
         for arg_name, decl in definition['arguments'].items():
             if arg_name not in args and 'default' in decl:
-                args[arg_name] = contract_value(decl['default'], args)
+                args[arg_name] = primitive_value(decl['default'], args)
         _record_defaults(definition['arguments'], args, args)
-        families = list(occurrence['families'])
+        families = list(instance['families'])
         if key[0] == 'gen':
             families = sorted(set(model['compositions'][key[1]]['families']) | set(families))
         nodes[_prefix + identity(key)] = {
-            "contract": occurrence['contract'],
+            "primitive": instance['primitive'],
             "arguments": {k: v for k, v in args.items() if v is not UNRESOLVED},
             "families": families,
             "across_positions": _across_positions(definition, args, _prefix + identity(key))}
@@ -200,8 +200,8 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
 
     def select(sel, env):
         if sel['kind'] == 'root':
-            return ('root', sel['occurrence'])
-        return ('gen', sel['composition'], sel['occurrence'],
+            return ('root', sel['instance'])
+        return ('gen', sel['composition'], sel['instance'],
                 tuple(sorted((k, value(v, env)) for k, v in sel['indices'].items())))
 
     def sources(sel, port, env):
@@ -218,8 +218,8 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
 
     for bid, binding in model['bindings']['values'].items():
         for env in loop_envs(binding, bid):
-            src_key, srcs = sources(binding['from']['occurrence'], binding['from']['port'], env)
-            dst_key, dsts = destinations(binding['to']['occurrence'], binding['to']['port'], env)
+            src_key, srcs = sources(binding['from']['instance'], binding['from']['port'], env)
+            dst_key, dsts = destinations(binding['to']['instance'], binding['to']['port'], env)
             if src_key in absent or dst_key in absent:
                 continue                                      # §5.2 rule 3
             for src_node, src_port in srcs:
@@ -232,7 +232,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     for name, decl in model['interfaces']['inputs'].items():
         to = []
         for endpoint in decl['to']:
-            _key, dsts = destinations(endpoint['occurrence'], endpoint['port'], {})
+            _key, dsts = destinations(endpoint['instance'], endpoint['port'], {})
             to.extend({"node": n, "port": p} for n, p in dsts)
         entry = {"to": to, "kind": decl['kind']}
         if 'stream' in decl:
@@ -241,7 +241,7 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
             entry['fragmented'] = True
         interfaces['inputs'][name] = entry
     for name, decl in model['interfaces']['outputs'].items():
-        _key, srcs = sources(decl['from']['occurrence'], decl['from']['port'], {})
+        _key, srcs = sources(decl['from']['instance'], decl['from']['port'], {})
         node, port = srcs[0]
         interfaces['outputs'][name] = {"node": node, "port": port,
                                        "generative": decl['generative']}
@@ -272,16 +272,16 @@ def emit(model_path, cat, assignment=None, _prefix="", _depth=0, _stack=()):
     graph = {"nodes": nodes, "edges": edges, "interfaces": interfaces, "topological_order": order}
     if instances:
         graph["instances"] = instances
-    return {"schema": "tensorspine-derived/2.1",
+    return {"schema": "tensorspine-derived/3.0",
             "model": model['model'],
-            "catalog": model['catalog'],
+            "primitive_libraries": model['primitive_libraries'],
             "assignment": {k: v for k, v in assignment.items() if k in declared},
             "d1": graph}
 
 
 def output_name(model_path, suffix):
     """`llama3-8b.d1.json`; for a template in its versioned directory,
-    `decoder-causal-yarn@1.0.0.d1.json`."""
+    `decoder-causal-yarn@2.0.0.d1.json`."""
     base = os.path.basename(model_path)[:-5]
     if re.fullmatch(r'\d+\.\d+\.\d+', base):
         base = f"{os.path.basename(os.path.dirname(model_path))}@{base}"
@@ -300,7 +300,7 @@ def self_check(document, schema_dir):
             for e in schema_mod.check_document(schema_path, document, schema_mod.registry(schema_dir))]
 
 
-def run(model_paths, catalog_bases, output=None, assignment=None, models_base=None,
+def run(model_paths, primitive_library_bases, output=None, assignment=None, models_base=None,
         schema_dir=None):
     """Emit D1 for each model. Returns (failed, skipped).
 
@@ -314,10 +314,10 @@ def run(model_paths, catalog_bases, output=None, assignment=None, models_base=No
         with open(path, encoding='utf-8') as f:
             document = json.load(f)
         try:
-            cat = catalog_mod.load_for(path, document, catalog_bases, models_base=models_base)
-        except catalog_mod.CatalogError as e:
+            cat = primitive_library_mod.load_for(path, document, primitive_library_bases, models_base=models_base)
+        except primitive_library_mod.PrimitiveLibraryError as e:
             failed += 1
-            print(f"  {name:34s} catalog refused: {e}")
+            print(f"  {name:34s} primitive library refused: {e}")
             continue
         unset = missing_assignment(document, assignment)
         if unset:

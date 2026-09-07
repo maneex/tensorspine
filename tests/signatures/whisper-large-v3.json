@@ -1,7 +1,7 @@
 {
  "nodes": 485,
  "edges": 675,
- "per_contract": {
+ "per_primitive": {
   "attention.dense": 96,
   "conv_frontend": 1,
   "embedding.token_position": 1,

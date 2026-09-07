@@ -1,0 +1,15 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "attention.projection_bias",
+  "definition": {
+    "summary": "Biases of the attention projections.",
+    "admissible": [
+      "f32",
+      "bf16",
+      "f16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision"
+  }
+}

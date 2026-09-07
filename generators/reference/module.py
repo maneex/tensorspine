@@ -49,15 +49,15 @@ def scaled(positions, count):
     return torch.arange(start, start + elements(n, count), device=positions.device)
 
 
-def physical_for(physical, node, contract):
-    """The opaque parameters addressed to an occurrence: by its exact identifier, by a site
-    pattern where `*` alone is a wildcard (`decoder/attn[layer=*]`), or by its contract
-    version; more specific entries override more general ones (contract < pattern < exact)."""
+def physical_for(physical, node, primitive):
+    """The opaque parameters addressed to an instance: by its exact identifier, by a site
+    pattern where `*` alone is a wildcard (`decoder/attn[layer=*]`), or by its primitive
+    version; more specific entries override more general ones (primitive < pattern < exact)."""
     import re
     if not physical:
         return None
     out = {}
-    cid = f"{contract['name']}@{contract['version']}"
+    cid = f"{primitive['name']}@{primitive['version']}"
     for key, value in physical.items():
         if key == cid:
             out.update(value)
@@ -82,9 +82,9 @@ def node_streams(graph, node):
 
 
 def evaluated_per_session(graph, step):
-    """Whether a batch evaluates the occurrence per session (B03; harness guide §8): it reads
-    across positions of its stream (D1's `across_positions`, the contract's condition evaluated on
-    the occurrence's arguments — the kernels declare nothing), it carries a state (per session by
+    """Whether a batch evaluates the instance per session (B03; harness guide §8): it reads
+    across positions of its stream (D1's `across_positions`, the primitive's condition evaluated on
+    the instance's arguments — the kernels declare nothing), it carries a state (per session by
     its instance key, §4.4), or it reads values of several streams (a broadcast from a per-session
     value). A derived document without the field is refused: the split is read, never guessed
     from the states."""
@@ -110,7 +110,7 @@ class TensorspineModel(nn.Module):
         self.check = True          # every produced value against its D2 shape (eager)
         self.static = False        # masked attention over the whole capacity (compiled form)
         self.loaded_blocks = 0     # blocks materialised so far (the traffic, in blocks)
-        self.physical = {s.node: physical_for(physical, s.node, s.contract) for s in plan.steps}
+        self.physical = {s.node: physical_for(physical, s.node, s.primitive) for s in plan.steps}
         self.per_session = {s.node: evaluated_per_session(graph, s) for s in plan.steps}   # a batch's split (B03)
 
     def block_params(self, block):
@@ -145,7 +145,7 @@ def feed(model, s, inputs, values):
 
 
 def evaluate(model, s, ctx, ins, params, sts, stream_positions):
-    """One occurrence: the kernel on its inputs, parameters and states, at its positions (the
+    """One instance: the kernel on its inputs, parameters and states, at its positions (the
     stream's, scaled by its D2 count, §5.3); every output checked against its D2 shape. On the
     packed layout `stream_positions` is a list, one entry per session: each session's positions
     are scaled on their own and then concatenated — a merge's block per session, never one arange
@@ -195,7 +195,7 @@ def step(model, inputs, positions, states, dump=None):
             if s.node not in active:
                 continue
             if s.kernel is None:
-                raise ShapeError(f"{s.node}: no kernel for {s.contract['name']}@{s.contract['version']}, yet evaluated")
+                raise ShapeError(f"{s.node}: no kernel for {s.primitive['name']}@{s.primitive['version']}, yet evaluated")
             ins = feed(model, s, inputs, values)
             params = {slot: block_params[ident] for slot, ident in s.params.items()}
             sts = {name: states[ident] for name, ident in s.states.items()}
@@ -212,15 +212,15 @@ def step(model, inputs, positions, states, dump=None):
 
 def step_batch(model, inputs, positions, states):
     """One invocation for several sessions — the packed layout (B03): `inputs`, `positions` and
-    `states` hold one entry per session. An occurrence the model evaluates per session
+    `states` hold one entry per session. An instance the model evaluates per session
     (`per_session`: it reads across positions, it carries a state, or it reads several streams)
-    runs on each session's elements and states in turn; every other occurrence runs once on the
+    runs on each session's elements and states in turn; every other instance runs once on the
     sessions' elements concatenated along the element axis — the language's own axis, its
     positions per element — and its outputs are split back, each session's rows being its
     elements of the stream through the value's D2 count (a merge, the temporal projector, makes
     fewer rows than it reads, and every aligned delivery keeps its groups inside a session,
     §5.3). A session gets what it would get alone, up to the rounding of a matrix product over
-    more rows. The sessions must evaluate the same occurrences (§7: one delivery pattern per
+    more rows. The sessions must evaluate the same instances (§7: one delivery pattern per
     invocation)."""
     k = len(inputs)
     if k == 1:
@@ -230,7 +230,7 @@ def step_batch(model, inputs, positions, states):
     actives = [plan.evaluable(set(i), st) for i, st in zip(inputs, states)]
     for i, a in enumerate(actives[1:], 1):
         if a != actives[0]:
-            raise ShapeError(f"a batch's sessions evaluate different occurrences (§7): session {i} differs on "
+            raise ShapeError(f"a batch's sessions evaluate different instances (§7): session {i} differs on "
                              f"{sorted(a ^ actives[0])[:3]}")
     active = actives[0]
     values = [{} for _ in range(k)]
@@ -244,7 +244,7 @@ def step_batch(model, inputs, positions, states):
             if s.node not in active:
                 continue
             if s.kernel is None:
-                raise ShapeError(f"{s.node}: no kernel for {s.contract['name']}@{s.contract['version']}, yet evaluated")
+                raise ShapeError(f"{s.node}: no kernel for {s.primitive['name']}@{s.primitive['version']}, yet evaluated")
             params = {slot: block_params[ident] for slot, ident in s.params.items()}
             per = [feed(model, s, inputs[i], values[i]) for i in range(k)]
             spos = [positions[i].get(s.stream) if s.stream else None for i in range(k)]
@@ -262,7 +262,7 @@ def step_batch(model, inputs, positions, states):
                             if spos[0] is not None and port in s.counts else delivered)
                     if t.shape[0] != sum(rows):
                         raise ShapeError(f"{s.node}.{port}: {t.shape[0]} rows for {rows} per session — not the per-element "
-                                         f"occurrence the derived document describes")
+                                         f"instance the derived document describes")
                     for i, part in enumerate(torch.split(t, rows, dim=0)):
                         outs[i][port] = part
             for i in range(k):

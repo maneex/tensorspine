@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "vision.patch",
+  "definition": {
+    "space": "value",
+    "summary": "Patch side, in pixels."
+  }
+}

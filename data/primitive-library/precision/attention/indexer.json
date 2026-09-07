@@ -1,0 +1,17 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "attention.indexer",
+  "definition": {
+    "summary": "Projections of the sparse index of latent attention.",
+    "admissible": [
+      "bf16",
+      "f16",
+      "f32",
+      "f8e4m3",
+      "fp4"
+    ],
+    "default": "bf16",
+    "sensitivity": "quantizable"
+  }
+}

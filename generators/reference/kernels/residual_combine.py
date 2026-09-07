@@ -1,4 +1,4 @@
-"""residual.combine@1.0.0 — output_scale · (left_scale · left + right_scale · right).
+"""residual.combine@2.0.0 — output_scale · (left_scale · left + right_scale · right).
 
 | branch / record | status      |
 |-----------------|-------------|
@@ -6,7 +6,7 @@
 """
 from kernels._common import refuse_unknown, supports_from
 
-CONTRACT = ("residual.combine", "1.0.0")
+PRIMITIVE = ("residual.combine", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "left_scale": "any", "right_scale": "any", "output_scale": "any"}, "states": []}

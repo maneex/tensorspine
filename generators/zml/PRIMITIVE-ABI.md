@@ -1,6 +1,6 @@
 # The ZML generator's primitive ABI
 
-*One primitive, asked to emit the body of one occurrence. The request is a projection of the derived
+*One primitive, asked to emit the body of one instance. The request is a projection of the derived
 document — D1's arguments, D2's and D3's shapes, D4's state rules — plus the opaque physical
 parameters; the response is one MLIR function, or the reasons there is none. The grammar is
 `generators/zml/primitive-abi.schema.json`. This is the ZML generator's boundary, not the
@@ -11,12 +11,12 @@ obtained.*
 
 A ZML primitive does not compute. It runs once, while the graph is being built, and **emits MLIR**;
 XLA compiles the result. So the artifact a primitive fundamentally is, is IR — and IR that depends
-on more than the contract: on this occurrence's concrete shapes, and on physical parameters the
+on more than the primitive: on this instance's concrete shapes, and on physical parameters the
 serving application chooses, `backend` among them. ZML itself works this way, dispatching on a
 runtime backend value at emission time.
 
 Every primitive the generator ships is linked in and needs no boundary. The boundary exists for the
-primitive that is **not** linked in — a contract the catalog has and this build does not. Without
+primitive that is **not** linked in — a primitive the primitive library has and this build does not. Without
 one, a new primitive means a new runtime binary on every machine before that model can be served.
 
 Two properties follow, and they are why the boundary is JSON in and MLIR text out:
@@ -45,11 +45,11 @@ decision; how the callee is loaded is not, and the same request and response sur
 
 | Section | Content | Where it comes from |
 |---|---|---|
-| `occurrence` | The node this body is for | D1's node identifier |
-| `contract` | name and version | D1 |
+| `instance` | The node this body is for | D1's node identifier |
+| `primitive` | name and version | D1 |
 | `arguments` | resolved, defaults applied | D1, verbatim |
 | `signature` | the function type the host will call | D2 shapes, D3 shapes, D4 payloads, and the deployment's workload |
-| `states` | the law, access and sharing of each state held | D4's state rule |
+| `states` | the evolution, access and sharing of each state held | D4's state rule |
 | `physical` | opaque, `backend` among its keys | the deployment, or the serving application |
 
 Nothing in it is new vocabulary. Every field is a projection of a document that already has a schema,
@@ -90,13 +90,13 @@ field or state rule the primitive does not implement. That is the same report th
 produces before any weight is read, so a fetched primitive refuses in the same words as a linked one
 and the runtime's decision does not depend on which it got.
 
-`notes` records a convention read into a contract that leaves one open — as the reference generator's
-kernels do in their headers. A note is evidence, never authority: where a note and the contract
-disagree, the contract wins and the note has become a finding.
+`notes` records a convention read into a primitive that leaves one open — as the reference generator's
+kernels do in their headers. A note is evidence, never authority: where a note and the primitive
+disagree, the primitive wins and the note has become a finding.
 
 ## Where the body is spliced
 
-The generator emits every occurrence as a `stablehlo.composite` named for its contract and version,
+The generator emits every instance as a `stablehlo.composite` named for its primitive and version,
 with the D1 arguments as composite attributes and the emitted function as its decomposition. That
 seam is the same whether the body came from a linked-in primitive or from this boundary, and it is
 what a backend with a faster kernel pattern-matches to substitute its own.
@@ -104,25 +104,27 @@ what a backend with a faster kernel pattern-matches to substitute its own.
 An emitted body naming an operation from a dialect the host has not registered fails at parse —
 loudly, and before it can affect the graph.
 
-## Does every contract fit through it?
+<a id="does-every-contract-fit-through-it"></a>
+
+## Does every primitive fit through it?
 
 The boundary was derived from MLIR's constructor shape and StableHLO's op set — both closed,
 both owned elsewhere — and **not** induced from the primitives that happen to exist. An
 interface fitted to the primitives one can already see is fitted to the wrong sample: the
-ones that motivate a boundary are the ones not yet written. The catalog's contracts are
+ones that motivate a boundary are the ones not yet written. The primitive library's primitives are
 therefore used to *falsify* the boundary, never to generate it.
 
-The catalog's contract shapes were checked against the request and response. A body needs its
+The primitive library's primitive shapes were checked against the request and response. A body needs its
 arguments, input and output ports, parameter slots, states, and the positions of the streams
 indexing its elements. The generated
-[status page](https://maneex.github.io/tensorspine/status/) carries the catalog state.
+[status page](https://maneex.github.io/tensorspine/status/) carries the primitive library state.
 
-| Contract shape | Examples | Verdict |
+| Primitive Definition shape | Examples | Verdict |
 |---|---|---|
 | arguments, ports and slots only | stateless primitives | expressible; the request carries all three |
-| with states | `attention.dense`, `sequence.gated_delta`, `attention.latent_compressed` | expressible: each state is an operand and a result, with D4's law beside it. `attention.dense` also carries the `align` transform, and cross attention's `source_values` is an ordinary port. |
+| with states | `attention.dense`, `sequence.gated_delta`, `attention.latent_compressed` | expressible: each state is an operand and a result, with D4's evolution beside it. `attention.dense` also carries the `align` transform, and cross attention's `source_values` is an ordinary port. |
 | with a `merge` transform | `conv_frontend`, projectors | expressible **because the shapes are concrete**: *n·k* elements become *n*, which the operand and result extents already say. |
-| template | `decoder.causal_yarn` | expands to other contracts before any body is asked for |
+| template | `decoder.causal_yarn` | expands to other primitives before any body is asked for |
 | with an `insert` transform | `splice` | **does not fit** |
 
 ### The one that does not fit, and why it is not the boundary's fault
@@ -134,7 +136,7 @@ reference generator refuses it for exactly that reason and in those words, admit
 empty `source`. Two generators reaching the same wall from opposite directions is evidence
 about the language, not about this interface — and it is already recorded as such.
 
-Adding a placement operand here would be inventing a semantics the catalog has not fixed, and
+Adding a placement operand here would be inventing a semantics the primitive library has not fixed, and
 would make a fetched primitive depend on a convention no document declares. So the boundary
 stays as it is, and `splice` refuses in the same words as everywhere else.
 
@@ -143,7 +145,7 @@ stays as it is, and `splice` refuses in the same words as everywhere else.
 Nothing in the schema — which is the result worth having, since a boundary fitted to known cases
 would not survive the next one. Two readings it did settle:
 
-- **Several `positions` operands are needed**, not one. Multimodal RoPE indexes one occurrence
+- **Several `positions` operands are needed**, not one. Multimodal RoPE indexes one instance
   by more than one stream, and the operand is named by its stream precisely so that a request
   can carry several. A single positions operand would have been the natural guess and would
   have been wrong.

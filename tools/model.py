@@ -1,17 +1,17 @@
-"""Reading a model document: the form every command works on.
+"""Reading a model definition: the form every command works on.
 
 A composition may carry its own bindings, written against its sites (§5.2).
 They are syntactic sugar: each scoped rule is exactly one top-level rule whose
 `for_each` is the composition's indices and whose endpoints select the
-generated occurrence of the current index. `normalise` performs that
+generated instance of the current index. `normalise` performs that
 expansion, so that validation, D1, the viewer and the linter read one form
 and the denotation has one definition.
 
     composition C, indices {i}, scoped value rule R {from: {site: a, port: p},
                                                      to:   {site: b, port: q, indices: {i: i-1}}}
     ==  top-level rule "C.R" {for_each: C.indices,
-                              from: {occurrence: generated(C, a, {i: i}), port: p},
-                              to:   {occurrence: generated(C, b, {i: i-1}), port: q}}
+                              from: {instance: generated(C, a, {i: i}), port: p},
+                              to:   {instance: generated(C, b, {i: i-1}), port: q}}
 
 A scoped parameter or state rule without a declared `tensor` / `identity`
 names it `C.R`, indexed by the composition's indices.
@@ -46,12 +46,12 @@ def _current(comp):
 
 
 def _selector(comp_name, comp, endpoint, rule_name):
-    """The occurrence selector an endpoint denotes: a site of the composition,
+    """The instance selector an endpoint denotes: a site of the composition,
     at the current indices unless overridden, or any explicit selector."""
-    if 'occurrence' in endpoint:
-        return endpoint['occurrence']
+    if 'instance' in endpoint:
+        return endpoint['instance']
     site = endpoint['site']
-    if site not in comp['occurrences']:
+    if site not in comp['instances']:
         raise ModelError(f"composition '{comp_name}', binding '{rule_name}': "
                          f"no site named '{site}'")
     indices = _current(comp)
@@ -60,7 +60,7 @@ def _selector(comp_name, comp, endpoint, rule_name):
             raise ModelError(f"composition '{comp_name}', binding '{rule_name}': "
                              f"'{name}' is not an index of the composition")
         indices[name] = e
-    return {"kind": "generated", "composition": comp_name, "occurrence": site, "indices": indices}
+    return {"kind": "generated", "composition": comp_name, "instance": site, "indices": indices}
 
 
 def _hoist(comp_name, comp, kind, rule_name, rule):
@@ -70,11 +70,11 @@ def _hoist(comp_name, comp, kind, rule_name, rule):
     qualified = f"{comp_name}.{rule_name}"
     if kind == 'values':
         for side in ('from', 'to'):
-            top[side] = {"occurrence": _selector(comp_name, comp, rule[side], rule_name),
+            top[side] = {"instance": _selector(comp_name, comp, rule[side], rule_name),
                          "port": rule[side]['port']}
         return top
     slot = {'parameters': 'parameter', 'states': 'state', 'constants': 'constant'}[kind]
-    top['members'] = [{"occurrence": _selector(comp_name, comp, m, rule_name), slot: m[slot]}
+    top['members'] = [{"instance": _selector(comp_name, comp, m, rule_name), slot: m[slot]}
                       for m in rule['members']]
     if 'dtype' in rule:                      # parameter and state identities select a dtype
         top['dtype'] = rule['dtype']

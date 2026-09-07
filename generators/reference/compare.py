@@ -1,7 +1,7 @@
 """Fixtures and dumps. A fixture is a safetensors file whose metadata is a document on the
 language's fixture schema (`schemas/tensorspine-fixture.schema.json`,
 `docs/TENSORSPINE-FIXTURE.md`): what a conformer is checked against, whether it was produced by
-a contract version's witness (`unit`) or dumped from the delivery implementation of a whole model
+a primitive version's witness (`unit`) or dumped from the delivery implementation of a whole model
 (`integration`). A dump is what a run of this generator leaves behind for a comparison: the same
 container, a header of plain facts, no schema. The comparison is a verdict: one test per key
 present on both sides — exact for integers and booleans, a tolerance for floating values — and a
@@ -19,7 +19,7 @@ SCHEMAS = os.path.join(ROOT, 'schemas')
 if os.path.join(ROOT, 'tools') not in sys.path:
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-SCHEMA_TAG = 'tensorspine-fixture/1'
+SCHEMA_TAG = 'tensorspine-fixture/2'
 
 
 def write_dump(path, tensors, header):

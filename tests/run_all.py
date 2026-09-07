@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One command for every suite (README §3): the twelve language suites, then the generator
+"""One command for every suite (README §3): the thirteen language suites, then the generator
 harnesses by what the environment offers — the reference harness (the witness inside it) needs
 `torch`, the ONNX harness `onnxruntime`, the ZML harness a checkout at `$ZML_HOME` — every skip
 printed with its reason, exit 1 on any failure. Checkpoints and samples come from
@@ -22,7 +22,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
-LANGUAGE = ('run_rejections', 'run_templates', 'run_states', 'run_expressions', 'run_signatures', 'run_costs',
+LANGUAGE = ('run_migration', 'run_rejections', 'run_templates', 'run_states', 'run_expressions', 'run_signatures', 'run_costs',
             'run_derived', 'run_artifact', 'run_fixtures', 'run_capabilities', 'run_status', 'run_harness')
 
 

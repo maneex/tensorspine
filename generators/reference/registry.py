@@ -1,6 +1,6 @@
 """{name, version} -> kernel module, and the refusal report (R02).
 
-A kernel module declares `CONTRACT = (name, version)`, `supports(arguments)`
+A kernel module declares `PRIMITIVE = (name, version)`, `supports(arguments)`
 returning the 'name=value' pairs it does not implement (empty when it runs),
 and `run(ctx, arguments, inputs, params, states)`.
 """
@@ -18,18 +18,18 @@ def load_kernels():
     for f in sorted(os.listdir(os.path.join(HERE, 'kernels'))):
         if f.endswith('.py') and not f.startswith('_'):
             m = importlib.import_module(f"kernels.{f[:-3]}")
-            kernels[tuple(m.CONTRACT)] = m
+            kernels[tuple(m.PRIMITIVE)] = m
     return kernels
 
 
 def refusals(graph, kernels, nodes=None):
     """Every reason the model cannot run, collected before any weight is read; over the
-    occurrences an invocation evaluates when `nodes` is given (§7)."""
+    instances an invocation evaluates when `nodes` is given (§7)."""
     out = []
     for node, entry in graph.nodes.items():
         if nodes is not None and node not in nodes:
             continue
-        key = (entry['contract']['name'], entry['contract']['version'])
+        key = (entry['primitive']['name'], entry['primitive']['version'])
         k = kernels.get(key)
         if k is None:
             out.append(f"{node}: no kernel for {key[0]}@{key[1]}")

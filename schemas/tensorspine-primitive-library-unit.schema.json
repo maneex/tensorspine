@@ -1,0 +1,1959 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tensorspine.dev/schema/3.0/primitive-library-unit.json",
+  "title": "TensorSpine primitive library unit",
+  "description": "One logical vocabulary unit of a primitive library base: a primitive definition, a named axis, a precision role, or the base itself. The file path reproduces the unit's identity; a primitive's file name is its version (§8.2). Every enumeration here is the closed vocabulary a consumer may implement in advance (§4.3, O0.6); a unit outside it is refused at load time, never read with a guess (I7). Documentation fields are defined once, in documentation.json, and referenced from the site they document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "name",
+    "definition"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tensorspine-primitive-library-unit/3.0"
+    },
+    "kind": {
+      "enum": [
+        "primitive",
+        "axis",
+        "precision_role",
+        "base"
+      ]
+    },
+    "name": {
+      "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+    },
+    "definition": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "primitive"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/primitive_definition"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "axis"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/axis_definition"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "precision_role"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/precision_role_definition"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "base"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "definition": {
+            "$ref": "#/$defs/base_definition"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "argument_path": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*$",
+      "description": "A declared argument, or a field of a record argument, dotted."
+    },
+    "argument_expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "argument": {
+          "$ref": "#/$defs/argument_path"
+        }
+      },
+      "required": [
+        "argument"
+      ]
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/literal_expression"
+        },
+        {
+          "$ref": "#/$defs/argument_expression"
+        },
+        {
+          "$ref": "#/$defs/unary_operation"
+        },
+        {
+          "$ref": "#/$defs/binary_operation"
+        },
+        {
+          "$ref": "#/$defs/nary_operation"
+        },
+        {
+          "$ref": "#/$defs/conditional_expression"
+        }
+      ],
+      "description": "Closed scalar algebra over literals and resolved arguments (O0.1), conditional included. Every reference resolves to a declared argument."
+    },
+    "unary_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "negate",
+            "absolute"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        }
+      },
+      "required": [
+        "op",
+        "args"
+      ]
+    },
+    "binary_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "subtract",
+            "divide",
+            "ceil_divide",
+            "floor_divide",
+            "modulo"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "op",
+        "args"
+      ]
+    },
+    "nary_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "enum": [
+            "add",
+            "multiply",
+            "min",
+            "max"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expression"
+          },
+          "minItems": 2
+        }
+      },
+      "required": [
+        "op",
+        "args"
+      ]
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/boolean_condition"
+        },
+        {
+          "$ref": "#/$defs/not_condition"
+        },
+        {
+          "$ref": "#/$defs/all_condition"
+        },
+        {
+          "$ref": "#/$defs/any_condition"
+        },
+        {
+          "$ref": "#/$defs/present_condition"
+        },
+        {
+          "$ref": "#/$defs/comparison_condition"
+        }
+      ]
+    },
+    "boolean_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "boolean": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "boolean"
+      ]
+    },
+    "not_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "not": {
+          "$ref": "#/$defs/condition"
+        }
+      },
+      "required": [
+        "not"
+      ]
+    },
+    "all_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "all"
+      ]
+    },
+    "any_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "any"
+      ]
+    },
+    "present_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "$ref": "#/$defs/argument_path"
+        }
+      },
+      "required": [
+        "present"
+      ]
+    },
+    "comparison_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compare": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "operator": {
+              "enum": [
+                "equal",
+                "not_equal",
+                "less",
+                "less_or_equal",
+                "greater",
+                "greater_or_equal"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/expression"
+            },
+            "right": {
+              "$ref": "#/$defs/expression"
+            }
+          },
+          "required": [
+            "operator",
+            "left",
+            "right"
+          ]
+        }
+      },
+      "required": [
+        "compare"
+      ]
+    },
+    "argument_type": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "cardinality",
+            "real",
+            "physical",
+            "boolean",
+            "enum",
+            "record"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "cardinality"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/cardinality_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "real"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/real_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "physical"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/physical_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "boolean"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/boolean_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "enum"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/enum_type"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "record"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/record_type"
+          }
+        }
+      ],
+      "description": "The closed set of argument types (O9.4): a scalar, an enum, or a record of such values. There is no opaque type and no reference type: a value the primitive cannot type cannot be refused, and §8.1 requires refusal."
+    },
+    "record_type": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "record"
+        },
+        "fields": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/field_declaration"
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "kind",
+        "fields"
+      ],
+      "minProperties": 2
+    },
+    "field_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/argument_type"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "structural": {
+          "type": "boolean",
+          "description": "The argument decides which slots, ports or states exist, or their shapes; a non-structural argument changes only the computation."
+        },
+        "default": {
+          "$ref": "#/$defs/expression"
+        },
+        "domain": {
+          "$ref": "#/$defs/argument_domain"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "value_descriptions": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/value_descriptions"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/argument_deprecation"
+        }
+      },
+      "required": [
+        "type",
+        "required",
+        "structural"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "domain"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "cardinality",
+                      "real",
+                      "physical"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "argument_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/argument_type"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "structural": {
+          "type": "boolean",
+          "description": "The argument decides which slots, ports or states exist, or their shapes; a non-structural argument changes only the computation."
+        },
+        "default": {
+          "$ref": "#/$defs/expression"
+        },
+        "domain": {
+          "$ref": "#/$defs/argument_domain"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "value_descriptions": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/value_descriptions"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/argument_deprecation"
+        }
+      },
+      "required": [
+        "type",
+        "required",
+        "structural"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "domain"
+            ]
+          },
+          "then": {
+            "properties": {
+              "type": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "cardinality",
+                      "real",
+                      "physical"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "axis_nature": {
+      "enum": [
+        "feature",
+        "structural",
+        "projection"
+      ]
+    },
+    "shape_factor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+        },
+        "axis": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+        },
+        "nature": {
+          "$ref": "#/$defs/axis_nature"
+        },
+        "extent": {
+          "$ref": "#/$defs/expression"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "axis",
+        "nature",
+        "extent"
+      ]
+    },
+    "shape_axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+        },
+        "axis": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+        },
+        "nature": {
+          "$ref": "#/$defs/axis_nature"
+        },
+        "extent": {
+          "$ref": "#/$defs/expression"
+        },
+        "factors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shape_factor"
+          },
+          "minItems": 2
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "axis",
+        "nature",
+        "extent"
+      ]
+    },
+    "shape": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "axes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shape_axis"
+          }
+        }
+      },
+      "required": [
+        "axes"
+      ]
+    },
+    "port_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "inherit",
+            "sequence",
+            "token",
+            "position",
+            "patch"
+          ]
+        },
+        "from": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "self": {
+                  "const": true
+                }
+              },
+              "required": [
+                "self"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "port": {
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                }
+              },
+              "required": [
+                "port"
+              ],
+              "description": "The domain of the named input port of this primitive (§5.3)."
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "description": "A port's indexing domain: `inherit` — the instance's own domain, or the domain of one of its input ports — or a kind, the stream being that of the edge (§5.3)."
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "domain": {
+          "$ref": "#/$defs/port_domain"
+        },
+        "role": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "domain",
+        "role"
+      ]
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/port"
+          }
+        },
+        "outputs": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/port"
+          }
+        }
+      },
+      "required": [
+        "inputs",
+        "outputs"
+      ]
+    },
+    "sharing_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "exclusive",
+            "shareable"
+          ]
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          },
+          "minItems": 1
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "shareable"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "roles"
+            ]
+          }
+        }
+      ],
+      "description": "Whether a slot may be tied to another (§3.4, V15): `exclusive`, or `shareable` with the roles of the slots it may share with."
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+        },
+        "sharing": {
+          "$ref": "#/$defs/sharing_rule"
+        },
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "multiplicity": {
+          "$ref": "#/$defs/expression"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "sharing",
+        "shape"
+      ]
+    },
+    "constant_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+        },
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "multiplicity": {
+          "$ref": "#/$defs/expression"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "shape"
+      ]
+    },
+    "state_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "$ref": "#/$defs/shape"
+        },
+        "role": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape",
+        "role"
+      ]
+    },
+    "state_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "enum": [
+            "read",
+            "append",
+            "evict",
+            "write"
+          ]
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "effect"
+      ]
+    },
+    "indexing_source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "self": {
+              "const": true
+            }
+          },
+          "required": [
+            "self"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            }
+          },
+          "required": [
+            "port"
+          ],
+          "description": "The state grows along the stream of the named input port and is frozen once that stream is complete (§5.3)."
+        }
+      ]
+    },
+    "evolution_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "evolution": {
+          "enum": [
+            "append",
+            "window",
+            "fixed"
+          ]
+        },
+        "access": {
+          "enum": [
+            "logical_position",
+            "ring",
+            "aggregate",
+            "selected"
+          ]
+        },
+        "sharing": {
+          "enum": [
+            "by_position",
+            "by_source",
+            "within_span",
+            "at_fork_point"
+          ]
+        },
+        "indexed_by": {
+          "$ref": "#/$defs/indexing_source"
+        },
+        "span": {
+          "$ref": "#/$defs/expression"
+        },
+        "stride": {
+          "$ref": "#/$defs/expression"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "when",
+        "evolution",
+        "access",
+        "sharing",
+        "indexed_by"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "evolution": {
+                "const": "window"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "span"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "evolution": {
+                "enum": [
+                  "append",
+                  "fixed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "span"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "state_port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "present_when": {
+          "$ref": "#/$defs/condition"
+        },
+        "written_when": {
+          "$ref": "#/$defs/condition",
+          "description": "The condition over the arguments under which the instance writes this state; absent, it always does. An identity instance has exactly one writer among its members (V20): the others read the storage the writer fills."
+        },
+        "payload": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state_component"
+          },
+          "minProperties": 1
+        },
+        "key_axes": {
+          "type": "array",
+          "items": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+          },
+          "minItems": 1
+        },
+        "operations": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state_operation"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evolution_rule"
+          },
+          "minItems": 1
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "carried_across": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "when": {
+              "$ref": "#/$defs/condition"
+            },
+            "description": {
+              "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "when"
+          ],
+          "description": "The condition over the arguments under which the state survives between the invocations that deliver successive fragments of its stream (§5.3). Declared once per state port."
+        }
+      },
+      "required": [
+        "present_when",
+        "payload",
+        "key_axes",
+        "operations",
+        "rules"
+      ]
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reads": {
+          "type": "array",
+          "items": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          }
+        },
+        "across_positions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "when"
+          ],
+          "properties": {
+            "when": {
+              "$ref": "#/$defs/condition"
+            },
+            "description": {
+              "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "description": "The condition over the arguments under which the primitive reads positions of its stream beyond those of the element it produces (O9.5): a convolution reads neighbouring frames, attention every earlier position, a pooler with a reduction the whole sequence; a merge reads only the group its transform declares and does not qualify. Absent, the primitive reads its own element alone. An instance that reads across positions of a fragmented stream must carry a state across that stream's fragments (V18)."
+        }
+      },
+      "required": [
+        "reads",
+        "writes"
+      ]
+    },
+    "partition_target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "argument_axis": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+            }
+          },
+          "required": [
+            "argument_axis"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instance_key_axis": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+            }
+          },
+          "required": [
+            "instance_key_axis"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "payload_axis": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                },
+                "component": {
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                },
+                "axis": {
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+                }
+              },
+              "required": [
+                "state",
+                "component",
+                "axis"
+              ]
+            }
+          },
+          "required": [
+            "payload_axis"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "any_axis"
+          ],
+          "properties": {
+            "any_axis": {
+              "const": true
+            }
+          },
+          "description": "Elementwise: every axis may be partitioned, with no communication."
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "none"
+          ],
+          "properties": {
+            "none": {
+              "const": true
+            }
+          },
+          "description": "No meaning-preserving partition exists — a stated fact, never an omission."
+        }
+      ]
+    },
+    "partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/partition_target"
+        },
+        "communication": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/communication"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/communication"
+              }
+            }
+          ],
+          "description": "The logical communication the partition implies — one pattern, or the several a partition admits (`embed`: gather the rows from the shard that owns them, or sum the masked partial lookups of every shard). Which an implementation realises is the manifest's to say."
+        },
+        "granularity": {
+          "$ref": "#/$defs/expression",
+          "description": "The number of consecutive coordinates of the target axis a shard keeps whole, an expression over the arguments; absent, one. `attention.dense` partition options its heads by KV group, `heads / kv_heads`, so that a shard's queries find their keys on the shard."
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "communication"
+      ],
+      "description": "One axis along which partition preserves meaning, with the logical communication it implies — several when the partition admits several patterns — and the granularity a shard keeps whole (O7.1). A primitive declares at least one entry: `none` when no graph split preserves meaning. Partition options are declared per instance; their consistency across instances is compilation's (Specification §7, §10.3)."
+    },
+    "communication": {
+      "enum": [
+        "none",
+        "all_reduce",
+        "all_gather",
+        "all_to_all"
+      ]
+    },
+    "domain_transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from_port": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+        },
+        "to_port": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+        },
+        "relation": {
+          "enum": [
+            "merge",
+            "align",
+            "insert"
+          ]
+        },
+        "factor": {
+          "$ref": "#/$defs/expression"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from_port",
+        "to_port",
+        "relation"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "relation": {
+                "const": "merge"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "factor"
+            ]
+          }
+        }
+      ],
+      "description": "How a port's domain relates to the instance's own (§5.3): `merge` — the output carries the input port's stream at the output's kind, one element per `factor` input elements; `align` — the input port carries another domain, the output stays in the instance's domain; `insert` — the input port's elements enter the instance's stream, which the output keeps."
+    },
+    "logical_cost": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/cost_entry"
+      },
+      "description": "Corrections to the derived cost (§4.1, D5). Operations on parameters — two per weight element per element of the output domain, scaled by the activated fraction of a sparse unit — and parameter bytes are derived from the inventory and never declared. A primitive declares only what that rule cannot see: operations on a state, per element or per cached position."
+    },
+    "primitive_primitive": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/semantic_version"
+        },
+        "arguments": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/argument_declaration"
+          }
+        },
+        "ports": {
+          "$ref": "#/$defs/ports"
+        },
+        "parameters": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "constants": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/constant_slot"
+          }
+        },
+        "state_ports": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/state_port"
+          }
+        },
+        "effects": {
+          "$ref": "#/$defs/effects"
+        },
+        "invariants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/primitive_invariant"
+          },
+          "description": "The relations V8 checks on the resolved arguments (§6): each a condition that must hold and a description of what it means. Domains constrain one argument; an invariant relates several."
+        },
+        "partition_options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/partition"
+          }
+        },
+        "domain_transforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/domain_transform"
+          }
+        },
+        "logical_cost": {
+          "$ref": "#/$defs/logical_cost"
+        },
+        "tags": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+        },
+        "external_docs": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+        },
+        "summary": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "sparsity": {
+          "$ref": "#/$defs/sparsity"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+        }
+      },
+      "required": [
+        "version",
+        "arguments",
+        "ports",
+        "parameters",
+        "constants",
+        "state_ports",
+        "effects",
+        "partition_options"
+      ]
+    },
+    "primitive_definition": {
+      "type": "object",
+      "if": {
+        "required": [
+          "template"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/template_primitive"
+      },
+      "else": {
+        "$ref": "#/$defs/primitive_primitive"
+      },
+      "description": "A primitive definition, or — when it names a `template` — a template primitive (§4.6)."
+    },
+    "axis_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "space": {
+          "enum": [
+            "value",
+            "instance",
+            "storage"
+          ]
+        },
+        "summary": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "external_docs": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+        }
+      },
+      "required": [
+        "space"
+      ]
+    },
+    "precision_role_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "admissible": {
+          "type": "array",
+          "items": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/dtype"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "default": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/dtype"
+        },
+        "sensitivity": {
+          "enum": [
+            "quantizable",
+            "reduced",
+            "full_precision"
+          ]
+        },
+        "summary": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "external_docs": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+        }
+      },
+      "required": [
+        "admissible",
+        "default",
+        "sensitivity"
+      ]
+    },
+    "base_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primitive_library": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_-]*(/[A-Za-z0-9_-]+)*$"
+        },
+        "title": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/title"
+        },
+        "external_docs": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+        },
+        "tags": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tag_definitions"
+        },
+        "summary": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "templates": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the templates of this base's template primitives live, relative to the base: one document `<name>/<version>.json` per template version (§4.6). Required when the base carries a template primitive."
+        },
+        "contact": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/contact"
+        },
+        "license": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/license"
+        }
+      },
+      "required": [
+        "primitive_library",
+        "title"
+      ]
+    },
+    "template_primitive": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/semantic_version"
+        },
+        "tags": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/tags"
+        },
+        "external_docs": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/external_docs"
+        },
+        "summary": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/summary"
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "template": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier",
+              "description": "File name of the template, without extension, resolved against the models base."
+            },
+            "version": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/semantic_version",
+              "description": "The template version pinned by this primitive; the template document must carry the same one (§4.6)."
+            },
+            "id": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "id"
+          ]
+        },
+        "deprecated": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/deprecation"
+        }
+      },
+      "required": [
+        "version",
+        "template"
+      ],
+      "description": "A template primitive: its meaning is the family of graphs a template — a parameterized model definition — denotes, one per assignment (§4.6)."
+    },
+    "sparsity": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/sparsity_unit"
+      },
+      "description": "Structured sparsity (§4.5, O6.6): the activatable units of the primitive."
+    },
+    "conditional_expression": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "if": {
+          "$ref": "#/$defs/condition"
+        },
+        "then": {
+          "$ref": "#/$defs/expression"
+        },
+        "else": {
+          "$ref": "#/$defs/expression"
+        }
+      },
+      "required": [
+        "if",
+        "then",
+        "else"
+      ]
+    },
+    "cost_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "when": {
+          "$ref": "#/$defs/condition"
+        },
+        "expression": {
+          "$ref": "#/$defs/expression"
+        },
+        "status": {
+          "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
+        },
+        "per": {
+          "enum": [
+            "element",
+            "cached_position",
+            "sequence",
+            "invocation"
+          ],
+          "description": "What the expression is counted per: an element of the instance's output domain, a position held in a state, a sequence, or an invocation (§4.1)."
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expression",
+        "status",
+        "per"
+      ],
+      "description": "One correction to the derived cost, applying where its condition holds; every applying entry contributes (§4.1, O0.5)."
+    },
+    "sparsity_unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "policy",
+        "activated_per_element",
+        "union_per_invocation"
+      ],
+      "properties": {
+        "unit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "parameters",
+            "axis"
+          ],
+          "properties": {
+            "parameters": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+              }
+            },
+            "axis": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/qualified_name"
+            }
+          },
+          "description": "The activatable unit: the parameter slots that form one unit, and the axis along which units are laid out."
+        },
+        "policy": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "argument"
+              ],
+              "properties": {
+                "argument": {
+                  "$ref": "#/$defs/argument_path"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "port"
+              ],
+              "properties": {
+                "port": {
+                  "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/identifier"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "element"
+              ],
+              "properties": {
+                "element": {
+                  "const": true
+                }
+              }
+            }
+          ],
+          "description": "What selects the units: an argument (a routing policy), the value on an input port (a token id), or the element itself (its position, its type)."
+        },
+        "activated_per_element": {
+          "$ref": "#/$defs/expression"
+        },
+        "union_per_invocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expression": {
+              "$ref": "#/$defs/expression"
+            },
+            "status": {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/epistemic_status"
+            },
+            "per": {
+              "const": "invocation"
+            },
+            "description": {
+              "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "expression",
+            "status",
+            "per"
+          ],
+          "description": "Upper bound on the union of units an invocation may activate (O6.6)."
+        },
+        "description": {
+          "$ref": "https://tensorspine.dev/schema/3.0/documentation.json#/$defs/description"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "description": "One activatable unit (§4.5, O6.6): the slots that form it, the axis it is laid out along, what selects it, how many are activated per element of the output domain, and the bound per invocation. A lookup table is the limiting case: one row per element."
+    },
+    "argument_domain_bound": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "inclusive"
+      ],
+      "description": "An interval endpoint of an argument domain: a value and whether it is inclusive. The value is a scalar literal or a reference to another argument of the same primitive — a bound like `kv_heads <= heads` names `heads`. The referenced argument must be required or defaulted, so it always resolves at a call site (primitive library.primitive_references refuses one that may be absent).",
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/literal_expression"
+            },
+            {
+              "$ref": "#/$defs/argument_expression"
+            }
+          ]
+        },
+        "inclusive": {
+          "type": "boolean"
+        }
+      }
+    },
+    "argument_interval_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "interval"
+        },
+        "lower": {
+          "$ref": "#/$defs/argument_domain_bound"
+        },
+        "upper": {
+          "$ref": "#/$defs/argument_domain_bound"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "lower"
+          ]
+        },
+        {
+          "required": [
+            "upper"
+          ]
+        }
+      ]
+    },
+    "argument_set_domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "values"
+      ],
+      "properties": {
+        "kind": {
+          "const": "set"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "https://tensorspine.dev/schema/3.0/model.json#/$defs/scalar_literal"
+          }
+        }
+      }
+    },
+    "argument_domain": {
+      "description": "A numeric precondition on a primitive argument, checked under V3 after the type at every call site (§4.6): an interval with a lower and/or upper bound, or a finite set of admissible values. Admitted on a cardinality, real or physical argument only; a relation between two arguments (heads a multiple of kv_heads) is an invariant, not a domain.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/argument_interval_domain"
+        },
+        {
+          "$ref": "#/$defs/argument_set_domain"
+        }
+      ]
+    },
+    "primitive_invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holds",
+        "description"
+      ],
+      "description": "A relation the resolved arguments must satisfy for the instance to be admissible — V8 (§6). Evaluated after the types and domains (V3), on the arguments with defaults applied, in the instance's index environment. A condition that reads an argument which may be absent must guard it with a `present` test, as every primitive condition must (§4.3); a condition undecidable for another reason is a refusal, never read as false.",
+      "properties": {
+        "holds": {
+          "$ref": "#/$defs/condition"
+        },
+        "description": {
+          "type": "string",
+          "description": "What the relation means, in words — the text V8 prints when it does not hold."
+        }
+      }
+    }
+  }
+}

@@ -1,11 +1,11 @@
-"""embedding.token_position_type@1.0.0 — BERT's embedding: the token's row of `weight`, the
+"""embedding.token_position_type@2.0.0 — BERT's embedding: the token's row of `weight`, the
 position's row of `position` (the stream position, 0 upwards) and the segment type's row of
 `token_type` summed, then a LayerNorm with `norm`, `norm_bias` and `eps`.
 
 | branch / record             | status                                                        |
 |-----------------------------|---------------------------------------------------------------|
 | token + position + type sum | implemented                                                   |
-| segment type                | 0 for every token, as the contract states for this version    |
+| segment type                | 0 for every token, as the primitive states for this version    |
 | LayerNorm (eps)             | implemented                                                   |
 
 A position at or beyond `positions` has no row and is refused at run time.
@@ -13,12 +13,12 @@ A position at or beyond `positions` has no row and is refused at run time.
 import torch.nn.functional as F
 from kernels._common import refuse_unknown, supports_from, w
 
-CONTRACT = ("embedding.token_position_type", "1.0.0")
+PRIMITIVE = ("embedding.token_position_type", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "positions": "any", "token_types": "any", "eps": "any"},
                 "states": [],
-                "notes": ["the segment type is 0 for every token, as the contract states for this version"]}
+                "notes": ["the segment type is 0 for every token, as the primitive states for this version"]}
 
 
 # What a conformer must meet against this kernel's unit fixtures, per compute dtype (§4.2):

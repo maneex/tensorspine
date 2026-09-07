@@ -1,18 +1,18 @@
-"""conv_frontend@1.0.0 — the audio stem: `frames` [n, mels] through the first convolution
+"""conv_frontend@2.0.0 — the audio stem: `frames` [n, mels] through the first convolution
 (`conv1_weight` [width, mels, kernel], the file's own layout, stride one), an activation, the
 second (`conv2_weight` [width, width, kernel]) with stride `stride`, an activation, then the row
 of the learned position table for each output position. n frames make n / stride positions of
-the same stream (the contract's `merge`, §5.3).
+the same stream (the primitive's `merge`, §5.3).
 
 | branch / record                       | status                                                    |
 |---------------------------------------|-----------------------------------------------------------|
 | symmetric padding (`causal` false)    | implemented: (kernel − 1) / 2 frames each side, both convolutions |
 | bias                                  | implemented, both ways                                    |
-| position (learned table)              | implemented; absent, nothing is added (rotary positions belong to the next occurrence) |
+| position (learned table)              | implemented; absent, nothing is added (rotary positions belong to the next instance) |
 | causal (left padding, Voxtral)        | implemented: `kernel − stride` zero frames before the first of each convolution (`kernel − 1` for the first, whose stride is one) |
 | streaming (conv1_history, conv2_history) | implemented: the left padding of each convolution is its history ring — the frames of the previous fragments it keeps, zeros before the first write — and the fragment's frames (the first convolution's outputs, for the second) are appended after; the fragments compute what the whole signal would |
 
-Conventions the contract leaves to the witness, as read here: the activation after each
+Conventions the primitive leaves to the witness, as read here: the activation after each
 convolution is the erf GELU (Whisper's stem, Voxtral Realtime's); an even kernel has no symmetric
 padding and is refused. The positions the kernel receives are the frames' (the node's own domain,
 count 1); the output positions are theirs divided by `stride` — integers, since a delivery is
@@ -25,14 +25,14 @@ import torch
 import torch.nn.functional as F
 from kernels._common import present, supports_from, w
 
-CONTRACT = ("conv_frontend", "1.0.0")
+PRIMITIVE = ("conv_frontend", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "mels": "any", "stride": "any", "kernel": "any", "bias": "any", "position": "any",
                               "causal": "any", "streaming": "any"},
                 "states": ["window"],
                 "transforms": ["merge"],
-                "notes": ["the activation after each convolution is the erf GELU, the convention the contract leaves to the witness",
+                "notes": ["the activation after each convolution is the erf GELU, the convention the primitive leaves to the witness",
                           "an even kernel has no symmetric padding and is refused at run time"]}
 
 

@@ -45,11 +45,11 @@ pub const SlotBinding = struct {
     param: usize,
 };
 
-/// One state an occurrence holds: the contract's name for it, which layout holds it,
+/// One state an instance holds: the primitive's name for it, which layout holds it,
 /// where that layout's components begin in the flat state array, and which portion of
-/// them this occurrence owns.
+/// them this instance owns.
 ///
-/// `member` is a **physical parameter**, not a contract argument: D4 declares one
+/// `member` is a **physical parameter**, not a primitive argument: D4 declares one
 /// identity per layer, and packing a family into one buffer is the serving
 /// application's layout choice (`state.zig`).
 pub const StateBinding = struct {
@@ -70,10 +70,10 @@ pub const Step = struct {
     /// fixes the signature; the primitive fills it (PRIMITIVE-ABI.md, the same rule).
     outputs: []const []const u8,
     shapes: []const zml.Shape,
-    /// The name of the `stablehlo.composite` this occurrence becomes.
+    /// The name of the `stablehlo.composite` this instance becomes.
     composite: [:0]const u8,
-    /// Whether a batch evaluates this occurrence per session — it reads across positions
-    /// of its stream (D1's `across_positions`, the contract's condition on its arguments),
+    /// Whether a batch evaluates this instance per session — it reads across positions
+    /// of its stream (D1's `across_positions`, the primitive's condition on its arguments),
     /// holds a state (per session by its instance key, §4.4) or reads values of several
     /// streams (a broadcast from a per-session value) — or once on every session's
     /// elements together (harness guide §8; batch-plan B05: the aligned layout, the
@@ -155,7 +155,7 @@ pub const Plan = struct {
         self.arena.deinit();
     }
 
-    /// Cut the steps into `count` contiguous programs of roughly equal length, and work
+    /// Split the steps into `count` contiguous programs of roughly equal length, and work
     /// out what crosses each boundary. Splitting is a **serving choice** — the graph and
     /// its numbers are the same either way — so it is a run-time argument, like the
     /// reference generator's `--max-ram`.
@@ -271,8 +271,8 @@ pub fn until(
     batch: i64,
     capacity: i64,
     compute: zml.DataType,
-    /// Pack states whose law, access and payload agree into one buffer each. A serving
-    /// layout choice: one buffer per identity is legal and simpler, one buffer per
+    /// Pack states whose evolution, access and payload agree into one buffer each. A serving
+    /// layout choice: one buffer per identity is valid and simpler, one buffer per
     /// family is what a deep model needs and what a paged cache would want.
     packed_states: bool,
 ) !Plan {
@@ -319,8 +319,8 @@ pub fn until(
         if (!needed.contains(node_id)) continue;
         const node = g.node(node_id) orelse continue;
 
-        const prim = registry.find(node.contract.name, node.contract.version) orelse {
-            log.err("{s}: no primitive for {s}@{s}", .{ node_id, node.contract.name, node.contract.version });
+        const prim = registry.find(node.primitive.name, node.primitive.version) orelse {
+            log.err("{s}: no primitive for {s}@{s}", .{ node_id, node.primitive.name, node.primitive.version });
             return Error.NoPrimitive;
         };
 
@@ -374,8 +374,8 @@ pub fn until(
         }
 
         // states: D4's members are `node.state`, as D3's are `node.slot`. States whose
-        // law, access and payload agree share one allocation — the serving layout — and
-        // each occurrence is told which portion is its own.
+        // evolution, access and payload agree share one allocation — the serving layout — and
+        // each instance is told which portion is its own.
         var step_states: std.ArrayList(StateBinding) = .empty;
         for (d.d4.states) |st| {
             for (st.members) |m| {
@@ -419,7 +419,7 @@ pub fn until(
             try shapes.append(a, shapeOf(v, batch, elements, compute));
         }
 
-        // Per session or on the union (harness guide §8): the occurrence reads across
+        // Per session or on the union (harness guide §8): the instance reads across
         // positions of its stream — D1's `across_positions`, read and never guessed from the
         // states or from whether the primitive takes positions — holds a state (per session
         // by its instance key), or reads values of several streams (a broadcast from a
@@ -447,7 +447,7 @@ pub fn until(
             .composite = try std.fmt.allocPrintSentinel(
                 a,
                 "tensorspine.{s}",
-                .{node.contract.name},
+                .{node.primitive.name},
                 0,
             ),
             .per_session = per_session,

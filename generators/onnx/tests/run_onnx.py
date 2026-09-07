@@ -4,13 +4,13 @@
   1. Every corpus document derives (through the language's own tool) and the generator reads
      back the counts the language put in it.
   2. This generator as a conformer (Specification §4.2): every unit fixture the reference witness
-     recorded whose contract, arguments and states the manifest admits is emitted from the
+     recorded whose primitive, arguments and states the manifest admits is emitted from the
      fixture's own document with the fixture as its checkpoint, run through onnxruntime invocation
      by invocation, and compared — every output and every state — within the fixture's tolerance
      for f32. A fixture the manifest refuses is skipped and says why.
   3. Every committed integration fixture whose document the manifest can run and whose checkpoint
      is on disk: the document truncated as the fixture says, emitted with the values crossing
-     every layer cut as outputs, the prefill compared value by value, state by state and on the
+     every layer graph_split as outputs, the prefill compared value by value, state by state and on the
      logits within the fixture's tolerance, then the greedy tokens; `skip` when the checkpoint is
      absent.
   4. The manifest regenerates from the emitters' tables identically, and the language's reader
@@ -41,7 +41,7 @@ MODELS = os.path.join(ROOT, 'data', 'models')
 TOOL = os.path.join(ROOT, 'tools', 'tensorspine')
 MANIFEST = os.path.join(GENERATOR, 'capabilities.json')
 REFERENCE_FIXTURES = os.path.join(ROOT, 'generators', 'reference', 'fixtures')
-UNIT_FIXTURES = os.path.join(REFERENCE_FIXTURES, 'contracts')
+UNIT_FIXTURES = os.path.join(REFERENCE_FIXTURES, 'primitives')
 CHECKPOINTS = {'llama3-8b': 'Meta-Llama-3-8B', 'shieldstral-3b': 'Shieldstral-1.0-3B', 'colbert-v2': 'colbertv2.0',
                'qwen3.5-4b-text': 'Qwen3.5-4B', 'qwen3.8-27b-text': 'Qwen3.8-27B', 'qwen3.5-35b-a3b': 'Qwen3.5-35B-A3B',
                'whisper-large-v3': 'whisper-large-v3', 'voxtral-realtime': 'Voxtral-Mini-4B-Realtime-2602'}
@@ -90,7 +90,7 @@ def corpus_counts(scratch):
         doc = g.doc
         want = (len(doc['d1']['nodes']), len(doc['d2']['values']), len(doc['d3']['tensors']), len(doc['d4']['states']),
                 len(doc['d1']['edges']), len(doc['d1']['topological_order']))
-        ok &= check(f"{name}: {want[0]} occurrences, {want[1]} values, {want[2]} tensors, {want[3]} states read back", g.counts() == want)
+        ok &= check(f"{name}: {want[0]} instances, {want[1]} values, {want[2]} tensors, {want[3]} states read back", g.counts() == want)
     return ok
 
 
@@ -101,8 +101,8 @@ def unit_fixtures(scratch, manifest, physical=None, target='onnx'):
     prims = registry.load_all()
     for fixture in sorted(glob.glob(os.path.join(UNIT_FIXTURES, '*', '*.safetensors'))):
         meta = artifact.read_metadata(fixture)
-        cid = f"{meta['contract']['name']}@{meta['contract']['version']}"
-        entry = manifest['contracts'].get(cid)
+        cid = f"{meta['primitive']['name']}@{meta['primitive']['version']}"
+        entry = manifest['primitives'].get(cid)
         if entry is None:
             print(f"  skip {meta['id']}: no entry for {cid} in the manifest")
             continue
@@ -111,14 +111,14 @@ def unit_fixtures(scratch, manifest, physical=None, target='onnx'):
             print(f"  skip {meta['id']}: the manifest does not admit {reasons[0]}")
             continue
         work = tempfile.mkdtemp(prefix='unit-', dir=scratch)
-        doc = dict(meta['document'], catalog=[{'base': os.path.join(ROOT, 'data', 'catalog') + os.sep}])
+        doc = dict(meta['document'], primitive_libraries=[{'base': os.path.join(ROOT, 'data', 'primitive-library') + os.sep}])
         model_path = os.path.join(work, doc['model'] + '.json')
         with open(model_path, 'w', encoding='utf-8') as f:
             json.dump(doc, f)
         g = graph_mod.load(derive(model_path, work))
-        laws = {s['law'] for s in g.states.values()}
-        if laws - set(manifest['state_laws']):
-            print(f"  skip {meta['id']}: state law {sorted(laws - set(manifest['state_laws']))} not implemented")
+        evolutions = {s['evolution'] for s in g.states.values()}
+        if evolutions - set(manifest['state_evolutions']):
+            print(f"  skip {meta['id']}: state evolution rule {sorted(evolutions - set(manifest['state_evolutions']))} not implemented")
             continue
         from safetensors.numpy import load_file
         fx = load_file(fixture)
@@ -207,7 +207,7 @@ def truncated(model_path, composition, stop, out_dir):
                 walk(v)
     walk(model.get('bindings', {}))
     walk(comp.get('bindings', {}))
-    model['catalog'] = [{'base': os.path.join(ROOT, 'data', 'catalog') + os.sep}]
+    model['primitive_libraries'] = [{'base': os.path.join(ROOT, 'data', 'primitive-library') + os.sep}]
     model['model'] = f"{model['model']}-{stop}layers"
     path = os.path.join(out_dir, f"{os.path.basename(model_path)[:-5]}.{stop}layers.json")
     with open(path, 'w', encoding='utf-8') as f:
@@ -337,7 +337,7 @@ def integration_fixtures(scratch, manifest, artifacts, physical=None, target='on
             ours['logits/last'] = logits[-1]
             ours['logits/argmax'] = logits.argmax(-1)
         worst, bad, compared = 0.0, [], 0
-        one_sided = sorted(set(theirs) ^ set(ours))     # a layer output the cuts do not carry, as the reference's own comparison
+        one_sided = sorted(set(theirs) ^ set(ours))     # a layer output the graph_splits do not carry, as the reference's own comparison
         for key, want in theirs.items():
             if key not in ours:
                 continue
@@ -403,8 +403,8 @@ def consistency(manifest):
     admitted = 0
     for fixture in sorted(glob.glob(os.path.join(UNIT_FIXTURES, '*', '*.safetensors'))):
         meta = artifact.read_metadata(fixture)
-        cid = f"{meta['contract']['name']}@{meta['contract']['version']}"
-        entry = manifest['contracts'].get(cid)
+        cid = f"{meta['primitive']['name']}@{meta['primitive']['version']}"
+        entry = manifest['primitives'].get(cid)
         if entry is None:
             continue
         reasons = capabilities_mod.supports(entry, meta['arguments'])
@@ -413,7 +413,7 @@ def consistency(manifest):
         else:
             admitted += 1
     # the documented structural refusals of the attention primitive are refused by the manifest
-    att = manifest['contracts']['attention.dense@1.0.0']
+    att = manifest['primitives']['attention.dense@2.0.0']
     for combo, label in (({'cross': True, 'mask': 'none'}, 'cross'),
                          ({'mask': 'chunked', 'chunk': {'span': 8}}, 'mask chunked'),
                          ({'mask': 'causal', 'window': {'span': 8}}, 'window'),
@@ -434,7 +434,7 @@ def main(argv=None):
     ap.add_argument('--model-artifacts', default=os.environ.get('TENSORSPINE_MODEL_ARTIFACTS'),
                     help='the runtime directory: weights/<artifact>/ for the checkpoints ($TENSORSPINE_MODEL_ARTIFACTS)')
     ap.add_argument('--target', default='onnx', choices=registry.targets(), help='the runtime every graph is emitted for (default: onnx, the standard operators)')
-    ap.add_argument('--physical', metavar='FILE', help="opaque physical parameters for every emission, overriding the target per occurrence")
+    ap.add_argument('--physical', metavar='FILE', help="opaque physical parameters for every emission, overriding the target per instance")
     a = ap.parse_args(argv)
     print(f"  target: {a.target}")
     physical = None

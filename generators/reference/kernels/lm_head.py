@@ -1,7 +1,7 @@
-"""lm_head@1.0.0 — one logit per vocabulary entry; with `softcap`, tanh(logits / softcap) · softcap."""
+"""lm_head@2.0.0 — one logit per vocabulary entry; with `softcap`, tanh(logits / softcap) · softcap."""
 from kernels._common import chunked_matmul, refuse_unknown, supports_from
 
-CONTRACT = ("lm_head", "1.0.0")
+PRIMITIVE = ("lm_head", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "vocabulary": "any", "softcap": "any"}, "states": []}

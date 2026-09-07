@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   language:
-    # the twelve language suites: the schemas, the catalog, the corpus, the tools — jsonschema alone
+    # the thirteen language suites: schemas, primitive library, corpus, migration and tools — jsonschema alone
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

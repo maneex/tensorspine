@@ -1,7 +1,7 @@
 """JSON Schema validation, cross-file $ref included.
 
 The stock `jsonschema` CLI cannot follow a $ref from one schema to another: it
-has no idea where https://tensorspine.dev/schema/2.0/catalog-unit.json lives. This
+has no idea where https://tensorspine.dev/schema/3.0/primitive-library-unit.json lives. This
 module builds the registry that maps the published namespace onto the files of
 the repository.
 
@@ -43,7 +43,7 @@ def locate(schema_dir, role):
     """Path of the schema whose `$id` ends with `<role>.json`.
 
     Roles are the last segment of the published namespace: `model`,
-    `catalog-unit`, `documentation`. The file may be named anything.
+    `primitive-library-unit`, `documentation`. The file may be named anything.
     """
     suffix = '/' + role + '.json'
     for identity, (path, _doc) in discover(schema_dir).items():

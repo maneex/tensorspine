@@ -8,10 +8,10 @@ grammar. `tests/run_fixtures.py` validates both without loading tensor payloads.
 
 | Path | Kind | Source |
 |---|---|---|
-| `contracts/<contract>@<version>/<case>.safetensors` | Unit | The contract's reference implementation, executed by `ref.py witness` on generated parameters and inputs |
-| `*.hf.safetensors` | Integration | The model's delivery implementation, dumped at the TensorSpine document's legal cuts and states |
+| `primitives/<primitive>@<version>/<case>.safetensors` | Unit | The primitive's reference implementation, executed by `ref.py witness` on generated parameters and inputs |
+| `*.hf.safetensors` | Integration | The model's delivery implementation, dumped at the TensorSpine document's valid graph splits and states |
 
-The fixture metadata carries the contract or model identity, compute dtype, tolerances, artifact
+The fixture metadata carries the primitive or model identity, compute dtype, tolerances, artifact
 provenance, truncation and delivery-library versions. Do not duplicate those values here; the
 generated [status page](https://maneex.github.io/tensorspine/status/) reports recorded verification
 state.
@@ -54,7 +54,7 @@ For a model whose tables are sized by the layer count, whose layers return sever
 streams and whose caches are shared (Gemma 3n), four options keep the hook map data and name
 nothing: `--truncate-after-load` loads the whole checkpoint on its full config in bf16, keeps the
 first `--layers` decoder layers and casts to `--dtype` (`num_hidden_layers` stays, so the per-layer
-tables keep their slices and a shared-KV reader past the cut still reads its writer as in the whole
+tables keep their slices and a shared-KV reader past the graph split still reads its writer as in the whole
 model; `--drop audio_tower,vision_tower` frees the towers first); `--layer-output-layout streams_first`
 records a layer's `[streams, B, T, D]` tensor as `[T, streams, D]`; `--capture METHOD:VALUE` records
 a method's return as a D1 value (`project_per_layer_inputs:embed.auxiliary`); `--states-from-document`
@@ -81,7 +81,7 @@ and the `k_proj`, `v_proj` and `k_norm` the file stores for the ten reader layer
 module builds none for them and `transformers` drops them on load — the document has no slot for
 a computation that does not exist, so they stay an advisory (breadth plan, finding 31).
 
-The dumper records cut values, post-prefill state, exposed outputs, generated tokens and the
+The dumper records graph split values, post-prefill state, exposed outputs, generated tokens and the
 non-token inputs the prefill delivered. Its `hook_map` is the only mapping between
 delivery-implementation names and TensorSpine D1/D4 names. Captured tensors are cloned
 immediately because delivery implementations may update state in place.

@@ -1,7 +1,7 @@
 {
  "nodes": 291,
  "edges": 386,
- "per_contract": {
+ "per_primitive": {
   "attention.dense": 48,
   "embed": 1,
   "lm_head": 1,

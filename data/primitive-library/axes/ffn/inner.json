@@ -1,0 +1,9 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "ffn.inner",
+  "definition": {
+    "space": "value",
+    "summary": "Inner width of a feed-forward network."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "moe.router",
+  "definition": {
+    "summary": "Routing projection of a mixture of experts.",
+    "admissible": [
+      "f32",
+      "bf16",
+      "f16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision",
+    "note": "routing logits decide WHICH expert is chosen: the sensitivity is on ACCUMULATION (§9.4), not on storage. bf16 stored + f32 accumulated is common practice."
+  }
+}

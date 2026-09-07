@@ -10,7 +10,7 @@ Two stages, in that order, because the second one assumes the first:
 
 Everything reported here is a refusal with its cause, never advice: §8.1 makes
 explicit refusal the normative obligation, and I7 forbids silent defaults. What
-is legal but questionable belongs to `--lint`, which never blocks.
+is valid but questionable belongs to `--lint`, which never blocks.
 
 Every command crosses both stages in this order, not `--validate` alone:
 `derive.products` — the one entry of every derivation, taken by `--derive`,
@@ -19,20 +19,20 @@ every generator — runs `structural` before `analyse`, and `--lint` analyses no
 document that is off the schema. A document the grammar refuses has no
 products, whatever asked for them.
 
-Coverage of the semantic stage (§6): V1 resolution — catalog bases, contracts,
-templates, occurrences, ports, streams; V2 arguments and defaults; V3 argument
+Coverage of the semantic stage (§6): V1 resolution — primitive library bases, primitives,
+templates, instances, ports, streams; V2 arguments and defaults; V3 argument
 types and domains (records recursively, defaults applied first, inapplicable
 fields refused); V4 shape unification; V5 indexing domains as (kind, stream)
 with the declared transforms; V6 acyclicity; V7 totality and uniqueness of
 bindings, state slots included; V9 member compatibility; V10 resolvable
 ranges, guards and derivations; V11 a literal quantity against its declared
-derivation; V8 a primitive contract's invariants on the resolved arguments; V13 no dangling output; V14 precision admissibility on parameter
+derivation; V8 a primitive definition's invariants on the resolved arguments; V13 no dangling output; V14 precision admissibility on parameter
 and state identities; V15 tying compatibility; V16 a carried state on a
-fragmented stream; V18 an occurrence reading across positions of a fragmented
+fragmented stream; V18 an instance reading across positions of a fragmented
 stream carries a state across its fragments; V19 a joining input joins at a
 kind the stream carries independently of it; V20 one writer per state identity
 instance. Bindings inherit the presence of
-the occurrences they name (§5.2 rule 3). Template contracts are expanded at
+the instances they name (§5.2 rule 3). Template primitives are expanded at
 every call site (§4.6).
 """
 import itertools
@@ -40,20 +40,20 @@ import json
 import os
 from collections import Counter, defaultdict, deque
 
-import catalog as catalog_mod
+import primitive_library as primitive_library_mod
 import model as model_mod
 import schema as schema_mod
-from expr import (UNRESOLVED, argument_references, contract_condition, contract_value,
+from expr import (UNRESOLVED, argument_references, primitive_condition, primitive_value,
                   index_grid, missing_assignment, model_condition, model_value,
                   quantity_references, resolve_quantities, static_argument)
 
-MAX_CONTRACT_DEPTH = 8
+MAX_PRIMITIVE_DEPTH = 8
 
 
-# --- template contracts: the interface a template exposes (§4.6) -----------
+# --- template primitives: the interface a template exposes (§4.6) -----------
 
-def _to_contract_expression(e, template):
-    """A template default, written over quantities, as a contract expression
+def _to_primitive_expression(e, template):
+    """A template default, written over quantities, as a primitive expression
     over arguments. None when it reads something a caller cannot supply."""
     if 'literal' in e:
         return e
@@ -67,7 +67,7 @@ def _to_contract_expression(e, template):
             return {"literal": q['source']['value']}
         return None
     if 'op' in e:
-        args = [_to_contract_expression(x, template) for x in e['args']]
+        args = [_to_primitive_expression(x, template) for x in e['args']]
         if any(a is None for a in args):
             return None
         return {"op": e['op'], "args": args}
@@ -75,7 +75,7 @@ def _to_contract_expression(e, template):
 
 
 def template_interface(definition, template):
-    """The contract a template contract presents to a caller: one argument per
+    """The primitive a template primitive presents to a caller: one argument per
     external quantity of the template, with its type, domain and declared
     default; the template's public inputs as input ports with their kinds, its
     public outputs as output ports whose domains expansion resolves (§4.6)."""
@@ -87,7 +87,7 @@ def template_interface(definition, template):
         if 'domain' in q:
             decl['domain'] = q['domain']
         if 'default' in q['source']:
-            default = _to_contract_expression(q['source']['default'], template)
+            default = _to_primitive_expression(q['source']['default'], template)
             if default is not None:
                 decl['default'] = default
                 decl['required'] = False
@@ -100,11 +100,11 @@ def template_interface(definition, template):
         ports['outputs'][k] = {"role": "activation.hidden",
                                "domain": {"kind": "inherit", "from": {"self": True}}}
     return {"version": definition['version'], "arguments": arguments, "ports": ports,
-            "parameters": {}, "constants": {}, "state_ports": {}, "partitions": []}
+            "parameters": {}, "constants": {}, "state_ports": {}, "partition_options": []}
 
 
 def instance_ports(exposed):
-    """Contract ports of one instance, carrying the kinds and shapes the
+    """PrimitiveReference ports of one instance, carrying the kinds and shapes the
     expanded template resolved, so that V4 and V5 apply across the boundary."""
     ports = {}
     for side, entries in exposed.items():
@@ -145,7 +145,7 @@ def _check_domain(v, domain, label, problems):
         limit = model_value(bound['value'], {})
         if limit is UNRESOLVED:
             continue
-        inside = (v >= limit if edge == 'lower' else v <= limit) if bound['inclusive'] \
+        inside = (v >= limit if edge == 'lower' else v <= limit) if bound['inclusive']\
             else (v > limit if edge == 'lower' else v < limit)
         if not inside:
             problems.append(('V3', f"argument '{label}' = {v!r} is {op} the domain bound "
@@ -155,7 +155,7 @@ def _check_domain(v, domain, label, problems):
 def _check_argument_domain(v, domain, label, problems, scope):
     """A primitive argument value against its declared domain (§4.6: admissibility at the call
     site). A bound's value is a scalar literal or a reference to another argument
-    (`kv_heads <= heads`), evaluated in the occurrence's resolved arguments; an undecidable bound
+    (`kv_heads <= heads`), evaluated in the instance's resolved arguments; an undecidable bound
     (its argument refused upstream) is skipped, not read as a limit."""
     if domain['kind'] == 'set':
         if v not in domain['values']:
@@ -165,10 +165,10 @@ def _check_argument_domain(v, domain, label, problems, scope):
         bound = domain.get(edge)
         if bound is None:
             continue
-        limit = contract_value(bound['value'], scope)
+        limit = primitive_value(bound['value'], scope)
         if limit is UNRESOLVED or limit is None:
             continue
-        inside = (v >= limit if edge == 'lower' else v <= limit) if bound['inclusive'] \
+        inside = (v >= limit if edge == 'lower' else v <= limit) if bound['inclusive']\
             else (v > limit if edge == 'lower' else v < limit)
         if not inside:
             problems.append(('V3', f"argument '{label}' = {v!r} is {op} the domain bound "
@@ -179,7 +179,7 @@ def _check_argument_domain(v, domain, label, problems, scope):
 
 def _resolve_record(declared, given, evaluate, root, path, problems, into=None):
     """Resolve one map of values against one map of declarations: the top
-    level of an occurrence, or the fields of a record. Unknown names are V2,
+    level of an instance, or the fields of a record. Unknown names are V2,
     everything about a value's type is V3. Defaults are applied before any
     check (V2), and an inapplicable field is forbidden, not ignored (I2)."""
     values = {} if into is None else into
@@ -196,7 +196,7 @@ def _resolve_record(declared, given, evaluate, root, path, problems, into=None):
         progress = False
         for arg_name in list(pending):
             # Paths are absolute (`rope.scaling.kind`): the scope is the whole map.
-            v = contract_value(declared[arg_name]['default'], root)
+            v = primitive_value(declared[arg_name]['default'], root)
             if v is not None and v is not UNRESOLVED:
                 values[arg_name] = v
                 pending.remove(arg_name)
@@ -209,7 +209,7 @@ def _resolve_record(declared, given, evaluate, root, path, problems, into=None):
         label = f"{path}{arg_name}"
         applicable = True
         if 'present_when' in decl:
-            applicable = contract_condition(decl['present_when'], root)
+            applicable = primitive_condition(decl['present_when'], root)
         if arg_name not in values:
             if decl['required'] and applicable:
                 problems.append(('V2', f"required argument missing '{label}'"))
@@ -270,7 +270,7 @@ def _check_type(v, t, label, evaluate, root, problems, siblings):
 
 
 def resolve_arguments(definition, given, evaluate):
-    """The complete, typed argument map of one occurrence, and the (code,
+    """The complete, typed argument map of one instance, and the (code,
     message) problems found on the way. Every declared default is applied,
     every value is checked against its declared type, records recursively."""
     problems = []
@@ -296,6 +296,10 @@ def structural(model_path, schema_dir, role='model'):
     dup = duplicate_keys(model_path)
     if dup:
         return [f"[V12] {dup}"]
+    try:
+        primitive_library_mod.read_json(model_path)
+    except primitive_library_mod.PrimitiveLibraryError as error:
+        return [str(error)]
     reg = schema_mod.registry(schema_dir)
     return [schema_mod.format_error(e) for e in schema_mod.check(schema_path, model_path, reg)]
 
@@ -308,7 +312,7 @@ def semantic(model_path, cat, assignment=None):
 
 def _shape_identity(shape, args):
     """A shape as V4 compares it: axis identity and extent, position by position."""
-    return tuple((a['axis'], contract_value(a['extent'], args)) for a in shape['axes'])
+    return tuple((a['axis'], primitive_value(a['extent'], args)) for a in shape['axes'])
 
 
 STORAGE_AXIS = 'storage.multiplicity'
@@ -316,9 +320,9 @@ STORAGE_AXIS = 'storage.multiplicity'
 
 def _storage_shape(param):
     """A parameter slot's shape as stored (§3.4, finding 30): a declared multiplicity is a leading
-    axis — local name `multiplicity`, the catalog's `storage.multiplicity`, extent the count —
+    axis — local name `multiplicity`, the primitive_library's `storage.multiplicity`, extent the count —
     before the shape axes. What a location addresses (V17), what V15 compares, what D3 writes;
-    absent from the computation's shape, which the contract declares."""
+    absent from the computation's shape, which the primitive declares."""
     if 'multiplicity' not in param:
         return param['shape']
     lead = {'name': 'multiplicity', 'axis': STORAGE_AXIS, 'nature': 'storage', 'extent': param['multiplicity']}
@@ -326,7 +330,7 @@ def _storage_shape(param):
 
 
 def _present(element, args):
-    return contract_condition(element['present_when'], args) if 'present_when' in element else True
+    return primitive_condition(element['present_when'], args) if 'present_when' in element else True
 
 
 # --- V17: locations (§3.4) ----------------------------------------------------
@@ -356,7 +360,7 @@ def evaluate_location(loc, env, shape, args, value, coordinates=None, in_concat=
     slot's extent. Returns (evaluated, problems)."""
     coordinates = coordinates or {}
     axes = [a['name'] for a in shape['axes']]
-    extents = [contract_value(a['extent'], args) for a in shape['axes']]
+    extents = [primitive_value(a['extent'], args) for a in shape['axes']]
     problems = []
 
     def dim_of(axis, what):
@@ -463,10 +467,10 @@ def _dtype_values(model, d):
 
 def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     """Stage 2, in full: errors, stats, the derived domains and shapes of the
-    public interface ports — what a template contract exposes to its caller —
+    public interface ports — what a template primitive exposes to its caller —
     and the carried states.
 
-    A template contract is expanded here at every call site (§4.6): the
+    A template primitive is expanded here at every call site (§4.6): the
     template is analysed under the assignment the arguments make, its own
     bindings are checked for totality, and its parameter and state slots are
     counted into the caller's. Two invocations share nothing."""
@@ -496,59 +500,59 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     def static(v, env=None):
         return static_argument(v, quantities, env)
 
-    # --- the contract citation graph is acyclic and of bounded depth (§4.6) --
+    # --- the primitive citation graph is acyclic and of bounded depth (§4.6) --
     def template_of(definition):
-        return catalog_mod.template_path(cat, definition)
+        return primitive_library_mod.template_path(cat, definition)
 
-    def contract_dependencies(path):
+    def primitive_dependencies(path):
         try:
             template = model_mod.load(path)
         except (OSError, model_mod.ModelError):
             return None
         names = set()
-        for o in template['occurrences'].values():
-            names.add(o['contract']['name'])
+        for o in template['instances'].values():
+            names.add(o['primitive']['name'])
         for c in template['compositions'].values():
-            for o in c['occurrences'].values():
-                names.add(o['contract']['name'])
+            for o in c['instances'].values():
+                names.add(o['primitive']['name'])
         return names
 
     def walk(name, stack, depth):
-        definition = cat['contracts'].get(name)
+        definition = cat['primitives'].get(name)
         if definition is None or 'template' not in definition:
             return
         if name in stack:
-            fail('V1', f"contract cycle: {' -> '.join(list(stack) + [name])}")
+            fail('V1', f"primitive cycle: {' -> '.join(list(stack) + [name])}")
             return
-        if depth > MAX_CONTRACT_DEPTH:
-            fail('V1', f"contract nesting deeper than {MAX_CONTRACT_DEPTH} at '{name}'")
+        if depth > MAX_PRIMITIVE_DEPTH:
+            fail('V1', f"primitive nesting deeper than {MAX_PRIMITIVE_DEPTH} at '{name}'")
             return
-        deps = contract_dependencies(template_of(definition))
+        deps = primitive_dependencies(template_of(definition))
         if deps is None:
-            fail('V1', f"template not found for template contract '{name}'")
+            fail('V1', f"template not found for template primitive '{name}'")
             return
         for d in sorted(deps):
             walk(d, stack + (name,), depth + 1)
 
-    every_occurrence = list(model['occurrences'].values()) + [
-        o for c in model['compositions'].values() for o in c['occurrences'].values()]
-    seen_contracts = set()
-    for o in every_occurrence:
-        name = o['contract']['name']
-        if name not in seen_contracts:
-            seen_contracts.add(name)
+    every_instance = list(model['instances'].values()) + [
+        o for c in model['compositions'].values() for o in c['instances'].values()]
+    seen_primitives = set()
+    for o in every_instance:
+        name = o['primitive']['name']
+        if name not in seen_primitives:
+            seen_primitives.add(name)
             walk(name, (), 1)
-    stats['composite_contracts'] = sum(
-        1 for c in seen_contracts if 'template' in (cat['contracts'].get(c) or {}))
+    stats['composite_primitives'] = sum(
+        1 for c in seen_primitives if 'template' in (cat['primitives'].get(c) or {}))
 
     # --- expansion: the document is a generator, not the graph ------------
-    # A guarded site that does not fire is not an occurrence, and is remembered
+    # A guarded site that does not fire is not an instance, and is remembered
     # as absent: a binding naming it is not emitted there (§5.2 rule 3), which
     # is not a reference failure. An unknown name or an index outside the
     # ranges still is (V1). A guard that cannot be decided is a refusal.
     sites = {}
     absent = set()
-    for name, o in model['occurrences'].items():
+    for name, o in model['instances'].items():
         if 'when' in o:
             truth = model_condition(o['when'], quantities, {})
             if truth is UNRESOLVED:
@@ -562,7 +566,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         names, ranges = index_grid(comp['indices'], quantities)
         for combo in itertools.product(*ranges):
             env = dict(zip(names, combo))
-            for site_name, site in comp['occurrences'].items():
+            for site_name, site in comp['instances'].items():
                 key = ('gen', comp_name, site_name, tuple(sorted(env.items())))
                 if 'when' in site:
                     truth = model_condition(site['when'], quantities, env)
@@ -573,27 +577,27 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                         absent.add(key)
                         continue
                 sites[key] = site
-    stats['occurrences'] = len(sites)
+    stats['instances'] = len(sites)
 
     def where(key):
         if key[0] == 'root':
             return key[1]
         return f"{key[1]}/{key[2]}[" + ",".join(f"{k}={v}" for k, v in key[3]) + "]"
 
-    # --- V1/V2: contracts and arguments -----------------------------------
+    # --- V1/V2: primitives and arguments -----------------------------------
     resolved = {}
     sub_results = {}
     weights_prefixes = {}                 # instance key -> the evaluated weights_location_prefix
     for key, o in sites.items():
-        name = o['contract']['name']
-        definition = catalog_mod.contract(cat, o['contract'])
+        name = o['primitive']['name']
+        definition = primitive_library_mod.primitive(cat, o['primitive'])
         if definition is None:
-            fail('V1', f"contract absent from catalog: {name}")
+            fail('V1', f"primitive absent from primitive library: {name}")
             continue
         template_file = None
         if 'weights_location_prefix' in o:
             if 'template' not in definition:
-                fail('V17', f"{name} @{where(key)}: a weights_location_prefix on an occurrence that is not a "
+                fail('V17', f"{name} @{where(key)}: a weights_location_prefix on an instance that is not a "
                             f"template instance")
             else:
                 env0 = dict(key[3]) if key[0] == 'gen' else {}
@@ -603,37 +607,37 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 else:
                     weights_prefixes[key] = prefix
         if 'template' in definition:
-            # A template contract: its arguments are the template's external
+            # A template primitive: its arguments are the template's external
             # quantities, with their types, domains and declared defaults.
             template_file = template_of(definition)
             template = model_mod.load(template_file)
             definition = template_interface(definition, template)
-        if definition['version'] != o['contract']['version']:
-            fail('V1', f"{name}: version {o['contract']['version']} "
-                       f"!= catalog {definition['version']}")
+        if definition['version'] != o['primitive']['version']:
+            fail('V1', f"{name}: version {o['primitive']['version']} "
+                       f"!= primitive library {definition['version']}")
         env = dict(key[3]) if key[0] == 'gen' else {}
         args, problems = resolve_arguments(definition, o['arguments'],
                                            lambda v: static(v, env))
         for code, message in problems:
             fail(code, f"{name} @{where(key)}: {message}")
-        # V8: the contract's invariants on the resolved arguments (§6), after the types and
+        # V8: the primitive's invariants on the resolved arguments (§6), after the types and
         # domains. An invariant reading an argument refused upstream (UNRESOLVED) is skipped — the
-        # V3 line already covers it; otherwise it must hold. `contract_condition` guards a
-        # maybe-absent argument with `present` (catalog.contract_references enforces it at load),
+        # V3 line already covers it; otherwise it must hold. `primitive_condition` guards a
+        # maybe-absent argument with `present` (primitive_library.primitive_references enforces it at load),
         # so a decidable invariant is never spuriously false.
         for inv in definition.get('invariants', []):
             refs = argument_references(inv['holds'])
             if any(_resolve_path(p, args) is UNRESOLVED for p in refs):
                 continue
-            if not contract_condition(inv['holds'], args):
+            if not primitive_condition(inv['holds'], args):
                 shown = ', '.join(f"{p} = {_resolve_path(p, args)}" for p in sorted(refs)
                                   if _resolve_path(p, args) is not None)
                 fail('V8', f"{name} @{where(key)}: '{inv['description']}' does not hold"
                            + (f" ({shown})" if shown else ""))
         if template_file is not None and not problems:
             # Expansion at the call site: the template under this assignment.
-            if _depth + 1 > MAX_CONTRACT_DEPTH:
-                fail('V1', f"{name} @{where(key)}: contract nesting deeper than {MAX_CONTRACT_DEPTH}")
+            if _depth + 1 > MAX_PRIMITIVE_DEPTH:
+                fail('V1', f"{name} @{where(key)}: primitive nesting deeper than {MAX_PRIMITIVE_DEPTH}")
             else:
                 sub_assignment = {k: v for k, v in args.items() if v is not UNRESOLVED}
                 cache_key = (template_file, json.dumps(sub_assignment, sort_keys=True, default=str))
@@ -672,8 +676,8 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
 
     def select(sel, env):
         if sel['kind'] == 'root':
-            return ('root', sel['occurrence'])
-        return ('gen', sel['composition'], sel['occurrence'],
+            return ('root', sel['instance'])
+        return ('gen', sel['composition'], sel['instance'],
                 tuple(sorted((k, value(v, env)) for k, v in sel['indices'].items())))
 
     def port_shape(port, args):
@@ -685,15 +689,15 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     edges = []
     for bid, binding in model['bindings']['values'].items():
         for env in loop_envs(binding, bid):
-            src_key = select(binding['from']['occurrence'], env)
-            dst_key = select(binding['to']['occurrence'], env)
+            src_key = select(binding['from']['instance'], env)
+            dst_key = select(binding['to']['instance'], env)
             if src_key in absent or dst_key in absent:
                 continue                                       # §5.2 rule 3
             ok = True
             for key, port, side, label in ((src_key, binding['from']['port'], 'outputs', 'from'),
                                            (dst_key, binding['to']['port'], 'inputs', 'to')):
                 if key not in resolved:
-                    fail('V1', f"{bid}{env}: {label} occurrence does not exist {where(key)}")
+                    fail('V1', f"{bid}{env}: {label} instance does not exist {where(key)}")
                     ok = False
                     continue
                 name, definition, _ = resolved[key]
@@ -730,9 +734,9 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         if 'stream' in decl and decl['stream'] not in model['interfaces']['inputs']:
             fail('V1', f"input {name}: joins unknown stream '{decl['stream']}'")
         for endpoint in decl['to']:
-            key = select(endpoint['occurrence'], {})
+            key = select(endpoint['instance'], {})
             if key not in resolved:
-                fail('V1', f"input {name}: occurrence does not exist")
+                fail('V1', f"input {name}: instance does not exist")
                 continue
             if endpoint['port'] not in resolved[key][1]['ports']['inputs']:
                 fail('V1', f"input {name}: port '{endpoint['port']}' does not exist")
@@ -751,9 +755,9 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 fail('V4', f"input {name}: feeds {first[1]}{list(first[0])} and "
                            f"{where(key)}.{endpoint['port']}{list(shape)}, whose shapes differ")
     for name, decl in model['interfaces']['outputs'].items():
-        key = select(decl['from']['occurrence'], {})
+        key = select(decl['from']['instance'], {})
         if key not in resolved:
-            fail('V1', f"output {name}: occurrence does not exist")
+            fail('V1', f"output {name}: instance does not exist")
             continue
         if decl['from']['port'] not in resolved[key][1]['ports']['outputs']:
             fail('V1', f"output {name}: port '{decl['from']['port']}' does not exist")
@@ -787,12 +791,12 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             if indegree[m] == 0:
                 queue.append(m)
     if len(order) != len(nodes):
-        fail('V6', f"value cycle: {len(nodes) - len(order)} occurrence(s) in a cycle")
+        fail('V6', f"value cycle: {len(nodes) - len(order)} instance(s) in a cycle")
     stats['dag'] = (len(order) == len(nodes))
 
-    # --- V5: streams, transforms and the occurrence's own domain (§5.3) ----
+    # --- V5: streams, transforms and the instance's own domain (§5.3) ----
     domains = dict(seeds)                 # (key, port) -> (kind, stream)
-    own = {}                              # key -> the occurrence's own domain
+    own = {}                              # key -> the instance's own domain
     incoming = {}
     for src_key, src_port, dst_key, dst_port, bid in edges:
         incoming.setdefault(dst_key, []).append((src_key, src_port, dst_port, bid))
@@ -843,7 +847,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 continue
             domains[(node, port_name)] = dm
     for name, decl in model['interfaces']['outputs'].items():
-        key = select(decl['from']['occurrence'], {})
+        key = select(decl['from']['instance'], {})
         dm = domains.get((key, decl['from']['port']))
         if dm is None:
             continue
@@ -859,7 +863,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         if 'stream' not in decl or decl['stream'] not in model['interfaces']['inputs']:
             continue
         descends = set()                  # everything the joining input feeds, directly or through values
-        queue = [select(e['occurrence'], {}) for e in decl['to']]
+        queue = [select(e['instance'], {}) for e in decl['to']]
         while queue:
             k = queue.pop()
             if k in descends or k not in resolved:
@@ -867,7 +871,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             descends.add(k)
             queue.extend(downstream.get(k, ()))
         # independent of the input: another input's delivery on the stream, or a value produced by an
-        # occurrence the input does not reach (an elementwise primitive's second operand joins the
+        # instance the input does not reach (an elementwise primitive's second operand joins the
         # first's stream, which the first delivers: `residual.add`'s `b` joins `a`)
         independent = {dm[0] for (k, p), dm in domains.items() if dm[1] == decl['stream']
                        and (k not in descends or ((k, p) in seeds and producers.get((k, p)) != f"input:{name}"))}
@@ -900,7 +904,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             fail('V14', f"{tid}: dtype selector is {values.lower().replace('_', ' ')}")
             values = None
         for env in loop_envs(binding, tid):
-            members = [(select(m['occurrence'], env), m['parameter']) for m in binding['members']]
+            members = [(select(m['instance'], env), m['parameter']) for m in binding['members']]
             if any(key in absent for key, _ in members):
                 continue                                       # §5.2 rule 3
             tensor_identities += 1
@@ -930,7 +934,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 fail('V17', f"{instance}: no location, while the document locates its weights")
             for key, pname in members:
                 if key not in resolved:
-                    fail('V1', f"parameter {tid}: occurrence does not exist {where(key)}")
+                    fail('V1', f"parameter {tid}: instance does not exist {where(key)}")
                     continue
                 name, definition, args = resolved[key]
                 param = definition['parameters'].get(pname)
@@ -941,7 +945,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                     fail('V7', f"parameter {tid}: slot '{pname}' absent for these arguments")
                     continue
                 if 'multiplicity' in param:
-                    m = contract_value(param['multiplicity'], args)
+                    m = primitive_value(param['multiplicity'], args)
                     if not isinstance(m, (int, float)) or isinstance(m, bool) or m != int(m) or m < 1:
                         fail('V7', f"parameter {tid}: slot '{pname}' declares a multiplicity that resolves to {m!r} — "
                                    f"a present slot has a positive integer number of copies; none is `present_when` (§3.4)")
@@ -1013,17 +1017,17 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
 
     # --- D5, first derivation: elements, operations per element (§4.1) ----
     # Two operations per weight element per element of the output domain,
-    # scaled by the activated fraction of a sparsity unit (§4.5); a contract
+    # scaled by the activated fraction of a sparsity unit (§4.5); a primitive
     # adds only the corrections the inventory cannot see, every applying one.
     def elements(shape, args, multiplicity=None):
         n = 1
         for a in shape['axes']:
-            extent = contract_value(a['extent'], args)
+            extent = primitive_value(a['extent'], args)
             if extent is UNRESOLVED or not isinstance(extent, (int, float)):
                 return None
             n *= extent
         if multiplicity is not None:
-            m = contract_value(multiplicity, args)
+            m = primitive_value(multiplicity, args)
             if m is UNRESOLVED or not isinstance(m, (int, float)):
                 return None
             n *= m
@@ -1033,7 +1037,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     for key, (name, definition, args) in resolved.items():
         fraction = {}
         for unit in definition.get('sparsity', []):
-            activated = contract_value(unit['activated_per_element'], args)
+            activated = primitive_value(unit['activated_per_element'], args)
             for pname in unit['unit']['parameters']:
                 param = definition['parameters'].get(pname)
                 if param is None:
@@ -1041,7 +1045,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 extent = None
                 for a in param['shape']['axes']:
                     if a['axis'] == unit['unit']['axis']:
-                        extent = contract_value(a['extent'], args)
+                        extent = primitive_value(a['extent'], args)
                 if activated is not UNRESOLVED and extent:
                     fraction[pname] = activated / extent
         for param_name, param in definition['parameters'].items():
@@ -1052,9 +1056,9 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 continue
             ops['element'] += 2 * n * fraction.get(param_name, 1)
         for entry in definition.get('logical_cost', []):
-            if 'when' in entry and not contract_condition(entry['when'], args):
+            if 'when' in entry and not primitive_condition(entry['when'], args):
                 continue
-            v = contract_value(entry['expression'], args)
+            v = primitive_value(entry['expression'], args)
             if v is not UNRESOLVED and v is not None:
                 ops[entry['per']] += v
     # Resident elements count each tensor identity once (tied tensors once).
@@ -1062,7 +1066,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     for tid, binding in model['bindings']['parameters'].items():
         for env in loop_envs(binding, tid):
             member = binding['members'][0]
-            key = select(member['occurrence'], env)
+            key = select(member['instance'], env)
             if key not in resolved:
                 continue
             _n, definition, args = resolved[key]
@@ -1090,7 +1094,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             values = None
         binding_envs = loop_envs(binding, sid)
         for env in binding_envs:
-            members = [(select(m['occurrence'], env), m['state']) for m in binding['members']]
+            members = [(select(m['instance'], env), m['state']) for m in binding['members']]
             if any(key in absent for key, _ in members):
                 continue                                       # §5.2 rule 3
             state_identities += 1
@@ -1104,21 +1108,21 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
             indexing = None
             for key, sname in members:
                 if key not in resolved:
-                    fail('V1', f"state {sid}: occurrence does not exist {where(key)}")
+                    fail('V1', f"state {sid}: instance does not exist {where(key)}")
                     continue
                 name, definition, args = resolved[key]
                 port = definition['state_ports'].get(sname)
                 if port is None:
                     fail('V1', f"state {sid}: {name} has no state port '{sname}'")
                     continue
-                if not contract_condition(port['present_when'], args):
+                if not primitive_condition(port['present_when'], args):
                     fail('V7', f"state {sid}: port '{sname}' absent for these arguments")
                     continue
                 slot = (key, sname)
                 if slot in state_slots:
                     fail('V7', f"state port {name}.{sname} bound twice")
                 state_slots[slot] = sid
-                applicable = [r for r in port['rules'] if contract_condition(r['when'], args)]
+                applicable = [r for r in port['rules'] if primitive_condition(r['when'], args)]
                 if not applicable:
                     fail('V9', f"state {sid}: no rule of {name}.{sname} applies to these arguments")
                 rule = applicable[0] if applicable else None
@@ -1141,7 +1145,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 elif text != rule_text:
                     fail('V9', f"state {sid}: members under different derivation rules")
                 if rule is not None:
-                    stream = own.get(key) if 'self' in rule['indexed_by'] \
+                    stream = own.get(key) if 'self' in rule['indexed_by']\
                         else domains.get((key, rule['indexed_by']['port']))
                     if indexing is None:
                         indexing = stream
@@ -1159,21 +1163,21 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
                 instance_keys[sid + (f"{env}" if env else "")] = (
                     tuple(binding['identity'].get('indices', {})) + key_axes)
     stats['precisions_checked'] = checked
-    carried_on = defaultdict(set)         # occurrence key -> the streams its states carry across fragments
+    carried_on = defaultdict(set)         # instance key -> the streams its states carry across fragments
     for key, (name, definition, args) in resolved.items():
         for state_name, port in definition['state_ports'].items():
-            if not contract_condition(port['present_when'], args):
+            if not primitive_condition(port['present_when'], args):
                 continue
             if (key, state_name) not in state_slots:
                 fail('V7', f"unbound state port: {name}@{where(key)}.{state_name}")
             ca = port.get('carried_across')
-            applicable = [r for r in port['rules'] if contract_condition(r['when'], args)]
+            applicable = [r for r in port['rules'] if primitive_condition(r['when'], args)]
             rule = applicable[0] if applicable else None
-            # the state's own stream (§4.3): the occurrence's, or the port's it is indexed by
+            # the state's own stream (§4.3): the instance's, or the port's it is indexed by
             mine = (own.get(key) if rule is None or 'self' in rule['indexed_by']
                     else domains.get((key, rule['indexed_by']['port'])))
             by_port = rule is not None and 'port' in rule['indexed_by']
-            if ca and contract_condition(ca['when'], args):
+            if ca and primitive_condition(ca['when'], args):
                 if mine is None or mine[1] not in fragmented:
                     fail('V16', f"{name}@{where(key)}.{state_name}: carried across fragments, "
                                 f"but its stream {mine} is not a fragmented input")
@@ -1194,9 +1198,9 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
         for key, sname in inst['members']:
             _n, definition, args = resolved[key]
             port = definition['state_ports'].get(sname)
-            if port is None or not contract_condition(port['present_when'], args):
+            if port is None or not primitive_condition(port['present_when'], args):
                 continue
-            if 'written_when' not in port or contract_condition(port['written_when'], args):
+            if 'written_when' not in port or primitive_condition(port['written_when'], args):
                 writers.append((key, sname))
         if len(writers) != 1:
             fail('V20', f"state {inst['identity']}: {len(writers)} writer(s) among {len(inst['members'])} member(s) — "
@@ -1208,7 +1212,7 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     # --- V18: reading across positions of a fragmented stream needs a state carried across it
     for key, (name, definition, args) in resolved.items():
         across = definition.get('effects', {}).get('across_positions')
-        if not across or not contract_condition(across['when'], args):
+        if not across or not primitive_condition(across['when'], args):
             continue
         for port_name, port in definition['ports']['inputs'].items():
             if not _present(port, args):
@@ -1225,14 +1229,14 @@ def analyse(model_path, cat, assignment=None, _depth=0, _cache=None):
     ports = {'inputs': {}, 'outputs': {}}
     for pname, decl in model['interfaces']['inputs'].items():
         endpoint = decl['to'][0]
-        key = select(endpoint['occurrence'], {})
+        key = select(endpoint['instance'], {})
         entry = {'kind': decl['kind'], 'stream': decl.get('stream', pname), 'shape': None}
         if key in resolved:
             _n, definition, args = resolved[key]
             entry['shape'] = port_shape(definition['ports']['inputs'].get(endpoint['port'], {}), args)
         ports['inputs'][pname] = entry
     for pname, decl in model['interfaces']['outputs'].items():
-        key = select(decl['from']['occurrence'], {})
+        key = select(decl['from']['instance'], {})
         dm = domains.get((key, decl['from']['port']))
         entry = {'kind': dm[0] if dm else None, 'stream': dm[1] if dm else None, 'shape': None}
         if key in resolved:
@@ -1265,7 +1269,7 @@ def variable_quantities(model):
     while changed:
         changed = False
         for n, q in qs.items():
-            if n not in variable and q['source']['kind'] == 'derived' \
+            if n not in variable and q['source']['kind'] == 'derived'\
                     and quantity_references(q['source']['expression']) & variable:
                 variable.add(n)
                 changed = True
@@ -1325,7 +1329,7 @@ def check_assignment(model, assignment):
     return [f"[{code}] assignment: {message}" for code, message in problems]
 
 
-def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20,
+def run(model_paths, schema_dir, primitive_library_bases, assignment=None, max_errors=20,
         models_base=None):
     """Both stages over several documents. Returns (failed, skipped).
 
@@ -1350,11 +1354,11 @@ def run(model_paths, schema_dir, catalog_bases, assignment=None, max_errors=20,
         with open(path, encoding='utf-8') as f:
             document = json.load(f)
         try:
-            cat = catalog_mod.load_for(path, document, catalog_bases, schema_dir, models_base)
-        except catalog_mod.CatalogError as e:
+            cat = primitive_library_mod.load_for(path, document, primitive_library_bases, schema_dir, models_base)
+        except primitive_library_mod.PrimitiveLibraryError as e:
             failed += 1
             print(f"  {name}")
-            print(f"    catalog     refused: {e}")
+            print(f"    primitive library     refused: {e}")
             continue
         unset = missing_assignment(document, assignment)
         if unset:

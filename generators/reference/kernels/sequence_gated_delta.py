@@ -1,4 +1,4 @@
-"""sequence.gated_delta@1.0.0 — gated DeltaNet: a per-head matrix state updated by the
+"""sequence.gated_delta@2.0.0 — gated DeltaNet: a per-head matrix state updated by the
 delta rule behind a short causal convolution (Qwen 3.5 / Qwen3-Next).
 
 | branch / record            | status                                         |
@@ -9,7 +9,7 @@ delta rule behind a short causal convolution (Qwen 3.5 / Qwen3-Next).
 | out_gate none/sigmoid/swish| refused                                        |
 | value_heads > key_heads    | implemented (q, k repeated per value head)     |
 
-Conventions the contract leaves open, as read from the reference implementation: q and k are
+Conventions the primitive leaves open, as read from the reference implementation: q and k are
 L2-normalised (eps 1e-6) inside the rule and q is scaled by head_dim^-1/2; β = σ(b);
 g = −exp(A_log) · softplus(a + dt_bias); the state decays by exp(g) then takes the delta
 update k ⊗ ((v − Sᵀk) β); the read-out is normalised per head by an RMS norm whose scale is
@@ -22,7 +22,7 @@ import torch
 import torch.nn.functional as F
 from kernels._common import present, refuse_unknown, supports_from, w
 
-CONTRACT = ("sequence.gated_delta", "1.0.0")
+PRIMITIVE = ("sequence.gated_delta", "2.0.0")
 
 
 CAPABILITIES = {"arguments": {"width": "any", "key_heads": "any", "value_heads": "any", "head_dim": "any",

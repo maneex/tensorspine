@@ -1,4 +1,4 @@
-"""Structural signature of a model document: what must not change when the
+"""Structural signature of a model definition: what must not change when the
 document is rewritten — sugar rearranged, sites merged under `when`, bindings
 scoped — while the denoted graph stays the same (§1.1: functional denotation
 is about the graph, not the text).
@@ -6,8 +6,8 @@ is about the graph, not the text).
 The signature is computed from D1 and the validator's derivations, never from
 identifiers: node names change with the writing, the graph does not.
 
-  * nodes and edges, per contract;
-  * a Weisfeiler-Lehman hash of the value graph, nodes labelled by contract and
+  * nodes and edges, per primitive;
+  * a Weisfeiler-Lehman hash of the value graph, nodes labelled by primitive and
     resolved arguments, edges by their ports (4 refinement rounds);
   * parameter slots, tensor identities and ties; state slots, identities and
     the multiset of derived instance keys.
@@ -23,12 +23,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-import catalog as catalog_mod          # noqa: E402
+import primitive_library as primitive_library_mod          # noqa: E402
 import d1                              # noqa: E402
 import validate                        # noqa: E402
 
 ASSIGNMENTS = {
-    'decoder-causal-yarn@1.0.0': {"width": 3072, "layers": 26, "heads": 32, "kv_heads": 8,
+    'decoder-causal-yarn@2.0.0': {"width": 3072, "layers": 26, "heads": 32, "kv_heads": 8,
                                   "head_dim": 128, "inner": 9216, "eps": 0.00001,
                                   "precision": "bf16"},
 }
@@ -43,7 +43,7 @@ def corpus():
 
 
 def name_of(path):
-    """`llama3-8b` for a model, `decoder-causal-yarn@1.0.0` for a template."""
+    """`llama3-8b` for a model, `decoder-causal-yarn@2.0.0` for a template."""
     rel = os.path.relpath(path, MODELS)
     if os.sep in rel:
         directory, version = rel.split(os.sep)
@@ -57,7 +57,7 @@ def _h(x):
 
 def wl_hash(document, rounds=4):
     nodes = document['nodes']
-    label = {n: _h([v['contract']['name'], v['arguments']]) for n, v in nodes.items()}
+    label = {n: _h([v['primitive']['name'], v['arguments']]) for n, v in nodes.items()}
     out_e, in_e = {n: [] for n in nodes}, {n: [] for n in nodes}
     for e in document['edges']:
         out_e[e['from']['node']].append((e['from']['port'], e['to']['port'], e['to']['node']))
@@ -71,7 +71,7 @@ def wl_hash(document, rounds=4):
 
 
 def signature(model_path, cat=None):
-    cat = cat or catalog_mod.load(os.path.join(ROOT, 'data', 'catalog'))
+    cat = cat or primitive_library_mod.load(os.path.join(ROOT, 'data', 'primitive-library'))
     name = name_of(model_path)
     assignment = ASSIGNMENTS.get(name)
     document = d1.emit(model_path, cat, assignment)['d1']
@@ -79,11 +79,11 @@ def signature(model_path, cat=None):
     if result['errors']:
         raise ValueError(f"{name}: not valid, no signature: {result['errors'][0]}")
     stats = result['stats']
-    per_contract = Counter(v['contract']['name'] for v in document['nodes'].values())
+    per_primitive = Counter(v['primitive']['name'] for v in document['nodes'].values())
     return {
         "nodes": len(document['nodes']),
         "edges": len(document['edges']),
-        "per_contract": dict(sorted(per_contract.items())),
+        "per_primitive": dict(sorted(per_primitive.items())),
         "wl": wl_hash(document),
         "parameter_slots": stats['parameter_slots'],
         "tensors": stats['tensors'],

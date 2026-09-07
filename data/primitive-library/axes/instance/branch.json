@@ -1,0 +1,10 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "axis",
+  "name": "instance.branch",
+  "definition": {
+    "space": "instance",
+    "summary": "Instance key: a branch of a session, a fork of the sequence.",
+    "description": "An `instance` axis keys state allocations rather than tensor elements: two branches of one session own distinct state instances, and a state binding says whether they may share."
+  }
+}

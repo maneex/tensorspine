@@ -1,0 +1,16 @@
+{
+  "schema": "tensorspine-primitive-library-unit/3.0",
+  "kind": "precision_role",
+  "name": "norm.scale",
+  "definition": {
+    "summary": "Scale of a normalization.",
+    "admissible": [
+      "f32",
+      "bf16",
+      "f16"
+    ],
+    "default": "bf16",
+    "sensitivity": "full_precision",
+    "note": "a quantized normalization scale shifts the whole layer"
+  }
+}
