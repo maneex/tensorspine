@@ -1,0 +1,32 @@
+// Render with: dot -Tsvg docs/derived-products.dot -o docs/derived-products.svg
+digraph derived_products {
+  graph [rankdir=LR, bgcolor="#F6FAFC", pad="0.34", nodesep="0.22", ranksep="0.55", splines=ortho, fontname="Arial"];
+  node [shape=box, style="rounded,filled", fontname="Arial", color="#BFD3DE", fillcolor="#FFFFFF", fontcolor="#123348", penwidth=1.4, margin="0.16,0.11"];
+  edge [color="#3389A5", fontname="Arial", fontcolor="#557583", fontsize=10, penwidth=1.8, arrowsize=0.75];
+
+  model [color="#218EA5", fillcolor="#17639A:#27C9C3", gradientangle=0, fontcolor="#FFFFFF",
+         label=<<FONT POINT-SIZE="11"><B>MODEL DEFINITION</B></FONT><BR/><FONT POINT-SIZE="13"><B>+ primitive library</B></FONT><BR/><FONT POINT-SIZE="10">tensorspine --derive</FONT>>];
+
+  subgraph cluster_products {
+    label=<<FONT POINT-SIZE="11"><B>DERIVED PRODUCTS</B> — describe, never decide</FONT>>; fontname="Arial"; fontcolor="#557583"; color="#BFD3DE"; style="rounded"; bgcolor="#EEF5F8";
+    d1 [label=<<B>D1</B> Computation Graph<BR/><FONT POINT-SIZE="10">what computes, in what order</FONT>>];
+    d2 [label=<<B>D2</B> Value Shapes and Lifetimes<BR/><FONT POINT-SIZE="10">what flows, how big, how long</FONT>>];
+    d3 [label=<<B>D3</B> Parameter Tensor Inventory<BR/><FONT POINT-SIZE="10">what is learned, where it is stored</FONT>>];
+    d4 [label=<<B>D4</B> State Inventory and Behavior<BR/><FONT POINT-SIZE="10">what persists, who writes it</FONT>>];
+    d5 [label=<<B>D5</B> Logical Resource Requirements and Costs<BR/><FONT POINT-SIZE="10">what it costs, logically</FONT>>];
+    d6 [label=<<B>D6</B> Decomposition Options<BR/><FONT POINT-SIZE="10">along which lines it comes apart</FONT>>];
+  }
+
+  subgraph cluster_serving {
+    label=<<FONT POINT-SIZE="11"><B>SERVING APPLICATION</B> — decides</FONT>>; fontname="Arial"; fontcolor="#557583"; color="#BFD3DE"; style="rounded"; bgcolor="#EEF5F8";
+    s1 [label=<execution order<BR/><FONT POINT-SIZE="10">and which instances read back</FONT>>];
+    s2 [label=<activation buffers<BR/><FONT POINT-SIZE="10">and the traffic across a boundary</FONT>>];
+    s3 [label=<loading<BR/><FONT POINT-SIZE="10">exactly the tensors of an extract</FONT>>];
+    s4 [label=<state storage per session<BR/><FONT POINT-SIZE="10">paging, sharing, ownership</FONT>>];
+    s5 [label=<budgets<BR/><FONT POINT-SIZE="10">memory and time; candidates compared</FONT>>];
+    s6 [label=<extracts and shards<BR/><FONT POINT-SIZE="10">the line, the axis, the machine, the workload</FONT>>];
+  }
+
+  model -> d1; model -> d2; model -> d3; model -> d4; model -> d5; model -> d6;
+  d1 -> s1; d2 -> s2; d3 -> s3; d4 -> s4; d5 -> s5; d6 -> s6;
+}

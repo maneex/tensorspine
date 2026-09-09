@@ -4,7 +4,8 @@
 
 > A valid model definition and its primitives make six products computable without inference code
 > (Specification §7). This document is how the repository writes them down: one JSON per model,
-> one schema, D1 required and D2–D6 optional.
+> one schema, D1 required and D2–D6 optional. For what each product tells a serving application and
+> what to do with it, read [Reading the derived products](DERIVED-PRODUCTS.md).
 
 > **Untagged vocabulary update (7 Sep 2026).** Canonical Primitive Library, Primitive Reference,
 > Primitive Instance, state evolution and graph split fields replace the previous

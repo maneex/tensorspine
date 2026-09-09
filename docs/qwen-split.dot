@@ -1,0 +1,38 @@
+// Render with: dot -Tsvg docs/qwen-split.dot -o docs/qwen-split.svg
+digraph qwen_split {
+  graph [rankdir=TB, bgcolor="#F6FAFC", pad="0.34", nodesep="0.35", ranksep="0.55", splines=spline, compound=true, fontname="Arial"];
+  node [shape=box, style="rounded,filled", fontname="Arial", color="#BFD3DE", fillcolor="#FFFFFF", fontcolor="#123348", penwidth=1.4, margin="0.18,0.12"];
+  edge [color="#3389A5", fontname="Arial", fontcolor="#557583", fontsize=11, penwidth=2.0, arrowsize=0.75];
+
+  tokens [shape=ellipse, style="dashed", color="#8FB0C0", label=<tokens>];
+
+  subgraph cluster_a {
+    label=<<FONT POINT-SIZE="13"><B>DEVICE A</B> — the block of decoder[layer&lt;=15]</FONT><BR/><FONT POINT-SIZE="11">97 instances: embed and layers 0–15 · 12 gated-delta, 4 attention</FONT><BR/><FONT POINT-SIZE="11">D3: 4.51 GiB, the tied embedding table included · D4 per session: 4 KV caches at 4 KiB per position, 12 fixed states of 2 MiB, 12 rings of 48 KiB</FONT>>;
+    fontname="Arial"; fontcolor="#123348"; color="#218EA5"; style="rounded"; bgcolor="#EEF5F8"; labeljust="l";
+    a0 [label=<<B>shard 0</B><BR/><FONT POINT-SIZE="11">gated delta: value heads 0–15, their recurrent state<BR/>attention: query heads 0–7, KV heads 0–1, their k and v<BR/>norms and adds: along the residual</FONT>>];
+    a1 [label=<<B>shard 1</B><BR/><FONT POINT-SIZE="11">gated delta: value heads 16–31, their recurrent state<BR/>attention: query heads 8–15, KV heads 2–3, their k and v<BR/>norms and adds: along the residual</FONT>>];
+    { rank=same; a0; a1; }
+    a0 -> a1 [style=invis];
+    a0 -> a1 [dir=both, style=dashed, color="#8FB0C0", constraint=false, label=<all_reduce after each output projection>];
+  }
+
+  line [shape=plaintext, fillcolor="#F6FAFC", color="#F6FAFC", fontcolor="#17639A",
+        label=<<B>the line: decoder[layer&lt;=15]</B><BR/><FONT POINT-SIZE="11" COLOR="#557583">D2 payload: the residual stream, bf16[tokens, 2560] — 5 KiB per token, 2.5 MiB per 512-token prefill<BR/>D6 separated states: none — each device owns its states</FONT>>];
+
+  subgraph cluster_b {
+    label=<<FONT POINT-SIZE="13"><B>DEVICE B</B> — the rest</FONT><BR/><FONT POINT-SIZE="11">98 instances: layers 16–31, final_n, lm_head · 12 gated-delta, 4 attention</FONT><BR/><FONT POINT-SIZE="11">D3: 4.51 GiB, the tied table again for lm_head · D4 per session: the same 4 + 12 + 12</FONT>>;
+    fontname="Arial"; fontcolor="#123348"; color="#218EA5"; style="rounded"; bgcolor="#EEF5F8"; labeljust="l";
+    b0 [label=<<B>shard 0</B><BR/><FONT POINT-SIZE="11">the same axes, layers 16–31</FONT>>];
+    b1 [label=<<B>shard 1</B><BR/><FONT POINT-SIZE="11">the same axes, layers 16–31</FONT>>];
+    { rank=same; b0; b1; }
+    b0 -> b1 [style=invis];
+    b0 -> b1 [dir=both, style=dashed, color="#8FB0C0", constraint=false, label=<all_reduce>];
+  }
+
+  logits [shape=ellipse, style="dashed", color="#8FB0C0", label=<logits>];
+
+  tokens -> a0 [lhead=cluster_a];
+  a0 -> line [ltail=cluster_a, penwidth=2.6, color="#17639A", arrowhead=none];
+  line -> b0 [lhead=cluster_b, penwidth=2.6, color="#17639A"];
+  b0 -> logits [ltail=cluster_b];
+}
