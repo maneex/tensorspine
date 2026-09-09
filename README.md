@@ -213,7 +213,7 @@ A harness consumes the model definition and primitive definitions to answer:
 `--derive` emits these Derived Products: **D1 — Derived Computation Graph**,
 **D2 — Derived Value Shapes and Lifetimes**, **D3 — Derived Parameter Tensor Inventory**,
 **D4 — Derived State Inventory and Behavior**, **D5 — Derived Logical Resource Requirements and Costs**,
-and **D6 — Derived Graph Splits and Partition Options**. The
+and **D6 — Derived Decomposition Options**. The
 [derived-document guide](docs/TENSORSPINE-DERIVED_JSON.md) describes their JSON representation.
 
 <a id="3-repository"></a>

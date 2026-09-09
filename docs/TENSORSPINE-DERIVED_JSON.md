@@ -202,11 +202,24 @@ the specification and not modelled here.
 
 <a id="8--d6-legal-cuts-and-partitions"></a><a id="8--d6-derived-graph-splits-and-partition-options"></a><a id="8--d6-valid-graph-splits-and-partition-options"></a>
 
-## 8 — D6, Derived Graph Splits and Partition Options
+## 8 — D6, Derived Decomposition Options
+
+D6 answers one question of a model a consumer has never seen: *along which lines can it be taken
+apart, and what is at each line* — without choosing a line. Two decompositions exist and D6 carries
+both. The **sequential** one is the graph splits: a partition of the instances into a first block
+and a second such that every crossing edge points forward — where a pipeline stage ends, where a
+loading block ends, where a program ends, where a harness compares, where a serving application's
+extract ends. D6 names the *structural* splits — every layer prefix of a composition and every
+family, each closed under ancestors, so valid by construction — as the lines a consumer can point
+at; any prefix of D1's order is valid too, and a consumer cutting elsewhere checks the edge rule
+itself. The **parallel** one is the partition options: per instance, the semantic axes along which
+its primitive may be split, with the communication each implies. D6 describes; the decision — which
+line, which axis, on what machine — is the serving application's (§10.3).
 
 | Field | Content |
 |---|---|
-| `graph_splits` | The D2 graph splits by name, with their block sizes and the number of crossing values. |
+| `graph_splits` | One entry per structural graph split, by the name D2 and D5 use: its `kind` (`layer`, `family`), `sizes` (the two blocks' instance counts), `crossing_values` (the number of values in its D2 payload), its `block` — the first block's instances in D1 order, template instances expanded — and its `separated_states` (below). The payload itself and its bytes stay in D2 and D5. |
+| `graph_splits[].separated_states` | Every D4 state identity whose members are not all on one side of the split: `identity`, `evolution`, `span`, `bytes_per_cached_position` and `sharing` as D4 states them, the `writer` and its `writer_side` (`first` or `second`), the members on each side (`first`, `second`), and `history_needed_by` — the members on the side away from the writer that may need positions the state no longer holds: every far-side reader of a `window` identity, none of an `append` or `fixed` one. A `window` state keeps `span` positions; a reader served through it alone cannot see older ones (the reference plan's finding 26 records the case: decode and unwrapped prefills are exact, a multi-position invocation past the ring is not served). The list says whom the precaution concerns; it decides nothing. |
 | `partition_options` | For every node — template instances expanded — every partition its primitive declares whose condition holds: `target` (an argument axis, an instance-key axis, a state payload axis, `any_axis`, `none`), the logical `communication` it admits, always a list (`none`, `all_reduce`, `all_gather`, `all_to_all`; `embed` lists two, a gather of the owned rows or a sum of masked partial lookups), and its `granularity`, the number of consecutive coordinates of the axis a shard keeps whole, evaluated (attention's heads: `heads / kv_heads`, the KV group; one elsewhere). A partition is the node's own; consistency across nodes is the engine's (§7, §10.3). |
 | `information_loss` | Every parameter slot axis whose extent is a product and that declares no factors (O5.10): partitionability along its factors is unknown and is reported as such, never as non-partitionability. |
 

@@ -1228,13 +1228,104 @@
               },
               "crossing_values": {
                 "type": "integer"
+              },
+              "block": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/node_identifier"
+                },
+                "description": "The first block's instances in D1 order, template instances expanded: the ancestor closure of the split's layer prefix or family. Every crossing edge leaves it."
+              },
+              "separated_states": {
+                "type": "array",
+                "description": "Every D4 state identity whose members are not all on one side of the split: its storage is written on one side and read on the other.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "identity": {
+                      "type": "string"
+                    },
+                    "evolution": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "span": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "bytes_per_cached_position": {
+                      "type": "number"
+                    },
+                    "sharing": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "writer": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "The member that writes the storage, as D4 names it."
+                    },
+                    "writer_side": {
+                      "enum": [
+                        "first",
+                        "second"
+                      ]
+                    },
+                    "first": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "The members in the first block."
+                    },
+                    "second": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "description": "The members in the second block."
+                    },
+                    "history_needed_by": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "The members on the side away from the writer that may need positions the state no longer holds: every far-side reader of a `window` identity, none of an `append` or `fixed` one."
+                    }
+                  },
+                  "required": [
+                    "identity",
+                    "evolution",
+                    "span",
+                    "bytes_per_cached_position",
+                    "sharing",
+                    "writer",
+                    "writer_side",
+                    "first",
+                    "second",
+                    "history_needed_by"
+                  ]
+                }
               }
             },
             "required": [
               "graph_split",
               "kind",
               "sizes",
-              "crossing_values"
+              "crossing_values",
+              "block",
+              "separated_states"
             ]
           }
         },

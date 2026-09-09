@@ -199,7 +199,11 @@ that every implementation supports every primitive. See
 A partition of the emitted instances into two blocks. It is **valid** when every crossing edge is
 directed from the first block to the second. Its **payload** is the set of values on the crossing
 edges — the values live at the graph split — each sized per invocation by its port shape and the number of
-its domain elements. See [Specification §7](SPECIFICATION.md#7--required-derived-products).
+its domain elements. It **separates** a state identity when the identity's members are not all on
+one side: the storage is written on one side and read on the other. D6 names the structural graph
+splits — every layer prefix of a composition and every family, closed under ancestors — with their
+first block and the identities they separate; any prefix of D1's order is a valid graph split too.
+See [Specification §7](SPECIFICATION.md#7--required-derived-products).
 
 ## D
 
@@ -240,7 +244,7 @@ The products that can be computed from a valid model and its referenced primitiv
 | **D3** | Derived Parameter Tensor Inventory |
 | **D4** | Derived State Inventory and Behavior |
 | **D5** | Derived Logical Resource Requirements and Costs |
-| **D6** | Derived Graph Splits and Partition Options |
+| **D6** | Derived Decomposition Options |
 
 Derivation computes these products. Exact, bounded and estimated qualifications
 remain part of each fact; a product's name does not imply numerical exactness.

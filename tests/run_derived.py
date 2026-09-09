@@ -30,6 +30,7 @@ import glob
 import json
 import math
 import os
+import re
 import sys
 import tempfile
 from collections import Counter
@@ -104,6 +105,64 @@ def main():
             ok &= check(f"{name}: graph_split {c['graph_split']} has a payload of distinct values", len(payload) == len(c['payload']))
             if not crossing and c['payload']:
                 ok &= check(f"{name}: graph_split {c['graph_split']} payload values are edge sources", False)
+        # D6, Derived Decomposition Options: every split states its first block — the ancestor
+        # closure of its layer prefix or family, recomputed here from D1 alone — which every
+        # crossing edge leaves; layer splits of one composition nest; the separated states are
+        # exactly D4's identities with members on both sides, and `history_needed_by` the far-side
+        # readers of a `window` identity
+        parents = {}
+        for e in doc['d1']['edges']:
+            parents.setdefault(e['to']['node'], set()).add(e['from']['node'])
+        def closure(seeds):
+            seen, stack = set(), list(seeds)
+            while stack:
+                n = stack.pop()
+                if n in seen:
+                    continue
+                seen.add(n)
+                stack.extend(parents.get(n, ()))
+            return seen
+        def seeds_of(split):
+            m = re.match(r'^(.*)\[([A-Za-z_][A-Za-z0-9_]*)<=(-?\d+)\]$', split)
+            if m:
+                comp, index, bound = m.group(1), m.group(2), int(m.group(3))
+                at = re.compile(r'[\[,]' + re.escape(index) + r'=(-?\d+)[,\]]')
+                return {n for n in nodes_d1 if n.startswith(comp + '/') and (lambda k: k and int(k.group(1)) <= bound)(at.search(n))}
+            if split.startswith('family:'):
+                return {n for n, e in nodes_d1.items() if split[7:] in (e.get('families') or [])}
+            return None
+        nodes_d1 = doc['d1']['nodes']
+        d1_order = {n: i for i, n in enumerate(doc['d1']['topological_order'])}
+        by_state = {s['identity']: s for s in doc['d4']['states']}
+        previous = {}
+        for c in doc['d6']['graph_splits']:
+            block, seeds = c['block'], seeds_of(c['graph_split'])
+            block_set = set(block)
+            ok &= check(f"{name}: D6 {c['graph_split']} block is the ancestor closure of its seeds, in D1 order, of the stated size",
+                        seeds is not None and block_set == closure(seeds) and len(block) == len(block_set) == c['sizes'][0]
+                        and block == sorted(block, key=d1_order.get), str(block[:3]))
+            ok &= check(f"{name}: D6 {c['graph_split']} — no edge enters its block",
+                        not any(e['to']['node'] in block_set and e['from']['node'] not in block_set for e in doc['d1']['edges']))
+            if c['kind'] == 'layer':
+                comp = c['graph_split'].split('[')[0]
+                ok &= check(f"{name}: D6 {c['graph_split']} contains the previous layer split of {comp}",
+                            previous.get(comp, set()) <= block_set)
+                previous[comp] = block_set
+            expected = []
+            for s in doc['d4']['states']:
+                first = [m for m in s['members'] if m.rsplit('.', 1)[0] in block_set]
+                second = [m for m in s['members'] if m.rsplit('.', 1)[0] not in block_set]
+                if first and second:
+                    writer_first = s['writer'] is None or s['writer'].rsplit('.', 1)[0] in block_set
+                    far = second if writer_first else first
+                    expected.append({"identity": s['identity'], "evolution": s['evolution'], "span": s['span'],
+                                     "bytes_per_cached_position": s['bytes_per_cached_position'], "sharing": s['sharing'],
+                                     "writer": s['writer'], "writer_side": "first" if writer_first else "second",
+                                     "first": first, "second": second,
+                                     "history_needed_by": [m for m in far if m != s['writer']] if s['evolution'] == 'window' else []})
+            expected.sort(key=lambda s: s['identity'])
+            ok &= check(f"{name}: D6 {c['graph_split']} separated_states are D4's identities with members on both sides, history_needed_by its definition",
+                        c['separated_states'] == expected, str(c['separated_states'])[:300])
         # across_positions (§4.1, O9.5): every node carries it, equal to the primitive's condition on the
         # node's own arguments — false when the primitive declares none
         nodes_d1 = doc['d1']['nodes']
@@ -199,6 +258,19 @@ def main():
                 len(shared) == 2 and all(s['instance_key'] == ['instance.session', 'instance.branch'] for s in shared))
     ok &= check("gemma3n: D4 names the writer of each shared identity — layer 18 for the sliding ring, 19 for the full cache",
                 {s['identity']: s['writer'] for s in shared} == {'shared.sliding.kv': 'decoder/attn[layer=18].kv', 'shared.full.kv': 'decoder/attn_full[layer=19].kv'})
+    sep = {c['graph_split']: {s['identity']: s for s in c['separated_states']} for c in g['d6']['graph_splits']}
+    sliding = [f'decoder[layer<={k}]' for k in range(18, 28)]
+    full = [f'decoder[layer<={k}]' for k in range(19, 29)]
+    ok &= check("gemma3n: D6 — the layer splits 18..27 separate the sliding ring, its writer first and every far-side reader in history_needed_by",
+                all('shared.sliding.kv' in sep[c] and sep[c]['shared.sliding.kv']['writer_side'] == 'first'
+                    and sep[c]['shared.sliding.kv']['history_needed_by'] == sep[c]['shared.sliding.kv']['second'] for c in sliding)
+                and not any('shared.sliding.kv' in sep[c] for c in sep if c not in sliding),
+                str({c: list(sep[c]) for c in sep if sep[c]})[:300])
+    ok &= check("gemma3n: D6 — the layer splits 19..28 separate the full cache, an append identity, with nobody needing history",
+                all('shared.full.kv' in sep[c] and sep[c]['shared.full.kv']['history_needed_by'] == [] for c in full),
+                str({c: list(sep[c]) for c in sep if sep[c]})[:300])
+    ok &= check("llama3-8b: D6 separates no state — every identity has one member",
+                all(c['separated_states'] == [] for c in l3['d6']['graph_splits']))
     ok &= check("llama3-8b: no O5.10 information loss once every flattened axis declares its factors",
                 l3['d6']['information_loss'] == [])
     parts = {(p['node'], json.dumps(p['target'], sort_keys=True)): p for p in l3['d6']['partition_options']}

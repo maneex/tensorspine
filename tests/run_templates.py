@@ -91,7 +91,11 @@ def derived_parity(cat):
 
     def placement(doc):
         d = doc['d6']
-        return (sorted((strip(c['graph_split']), c['kind'], c['crossing_values']) for c in d['graph_splits']),
+        return (sorted((strip(c['graph_split']), c['kind'], c['crossing_values'],
+                        tuple(strip(n) for n in c['block']),
+                        tuple((strip(s['identity']), s['evolution'], s['writer_side'], tuple(strip(m) for m in s['first']),
+                               tuple(strip(m) for m in s['second']), tuple(strip(m) for m in s['history_needed_by']))
+                              for s in c['separated_states'])) for c in d['graph_splits']),
                 sorted((strip(p['node']), canon(p['target']), canon(p['communication']), p['granularity']) for p in d['partition_options']),
                 sorted((strip(l['node']), l['slot'], l['axis']) for l in d['information_loss']))
 

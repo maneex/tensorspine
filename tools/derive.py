@@ -725,7 +725,10 @@ def d5(graph, cat, products3, products4, products2, stats):
 
 # --- D6 ---------------------------------------------------------------------
 
-def d6(graph, cat, products2):
+def d6(graph, cat, products2, products4, order):
+    """D6, Derived Decomposition Options: the structural graph splits with their first block
+    — in D1's published topological order, `order` — and the state identities each separates,
+    and every instance's partition options."""
     resolved = graph['resolved']
     partition_options = []
     loss = []
@@ -746,9 +749,33 @@ def d6(graph, cat, products2):
                     loss.append({"node": ident(key), "slot": pname, "axis": a['axis'],
                                  "reason": "flattened axis without declared factors (O5.10): "
                                            "partitionability along its factors is unknown"})
-    return {"graph_splits": [{"graph_split": c['graph_split'], "kind": c['kind'], "sizes": c['sizes'],
-                      "crossing_values": len(c['payload'])} for c in products2['graph_splits']],
-            "partition_options": partition_options, "information_loss": loss}
+    # The block of every split is the closure D2 computed for its payload; a state identity is
+    # separated when its members fall on both sides, and the readers on the side away from the
+    # writer of a `window` identity may need positions the ring no longer holds (finding 26).
+    blocks = {name: block for name, _kind, block in _structural_graph_splits(graph)}
+    graph_splits = []
+    for c in products2['graph_splits']:
+        block = blocks[c['graph_split']]
+        block_ids = {ident(k) for k in block}
+        separated = []
+        for s in products4['states']:
+            sides = {m: (m.rsplit('.', 1)[0] in block_ids) for m in s['members']}
+            first = [m for m in s['members'] if sides[m]]
+            second = [m for m in s['members'] if not sides[m]]
+            if not first or not second:
+                continue
+            writer_first = sides[s['writer']] if s['writer'] else True
+            far = second if writer_first else first
+            separated.append({"identity": s['identity'], "evolution": s['evolution'], "span": s['span'],
+                              "bytes_per_cached_position": s['bytes_per_cached_position'], "sharing": s['sharing'],
+                              "writer": s['writer'], "writer_side": "first" if writer_first else "second",
+                              "first": first, "second": second,
+                              "history_needed_by": [m for m in far if m != s['writer']] if s['evolution'] == 'window' else []})
+        graph_splits.append({"graph_split": c['graph_split'], "kind": c['kind'], "sizes": c['sizes'],
+                             "crossing_values": len(c['payload']),
+                             "block": [n for n in order if n in block_ids],
+                             "separated_states": sorted(separated, key=lambda s: s['identity'])})
+    return {"graph_splits": graph_splits, "partition_options": partition_options, "information_loss": loss}
 
 
 # --- entry points -----------------------------------------------------------
@@ -770,9 +797,9 @@ def products(model_path, cat, assignment=None, schema_dir=None):
     p4 = d4(graph, cat)
     p2 = d2(graph, cat)
     p5 = d5(graph, cat, p3, p4, p2, result['stats'])
-    p6 = d6(graph, cat, p2)
     document = d1_mod.emit(model_path, cat, assignment)
     _consistent(document['d1']['nodes'], graph)
+    p6 = d6(graph, cat, p2, p4, document['d1']['topological_order'])
     document.update({"d2": p2, "d3": p3, "d4": p4, "d5": p5, "d6": p6})
     return document
 
