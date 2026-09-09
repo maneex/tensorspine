@@ -1962,6 +1962,18 @@
         "communication": "none",
         "note": "KV payload partition by head: target tagged payload, not argument",
         "description": "The cache itself partitions by KV head, with no communication."
+      },
+      {
+        "target": {
+          "payload_axis": {
+            "state": "kv",
+            "component": "v",
+            "axis": "attention.kv_heads"
+          }
+        },
+        "communication": "none",
+        "note": "KV payload partition by head: the values beside the keys",
+        "description": "The values partition by KV head as the keys do: a shard holds its heads' keys and values together, with no communication."
       }
     ],
     "domain_transforms": [

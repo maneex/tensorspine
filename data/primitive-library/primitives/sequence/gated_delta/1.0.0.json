@@ -710,6 +710,29 @@
         },
         "communication": "none",
         "description": "Instance-key axis: sessions are independent."
+      },
+      {
+        "target": {
+          "payload_axis": {
+            "state": "recurrent",
+            "component": "s",
+            "axis": "deltanet.value_heads"
+          }
+        },
+        "communication": "none",
+        "granularity": {
+          "op": "floor_divide",
+          "args": [
+            {
+              "argument": "value_heads"
+            },
+            {
+              "argument": "key_heads"
+            }
+          ]
+        },
+        "note": "recurrent payload partition by value head, by whole key-head groups as the computation is",
+        "description": "The recurrent state partitions by value head with no communication: a shard holds the state matrices of its value heads, by whole key-head groups as the computation partitions, so a shard's keys find their states on the shard."
       }
     ],
     "note": "Gated-delta recurrent layer with a short causal convolution and a per-head matrix state.",

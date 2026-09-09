@@ -320,14 +320,14 @@ def main():
                 [(a['axis'], a['extent']) for a in gp['expand.projection']['shape']] == [('storage.multiplicity', 3), ('model.width', 2048), ('model.width', 2048)]
                 and gp['expand.projection']['multiplicity'] == 3 and gp['expand.projection']['elements'] == 12582912
                 and g['d3']['totals']['elements'] == 4435182688 and g['d3']['totals']['bytes'] == 8870365376    # the correction scale stored bf16 (S4.2)
-                and len(g['d6']['partition_options']) == 545 and len(g['d6']['information_loss']) == 32,
+                and len(g['d6']['partition_options']) == 575 and len(g['d6']['information_loss']) == 32,
                 str(gp['expand.projection'].get('shape')))
     sg = q35['decoder.mlp.shared_gate[layer=0]']
     ok &= check("qwen3.5-35b-a3b: a declared multiplicity of one is an extent-one storage axis — shared_gate[layer=0] is [1, 512, 2048], "
                 "multiplicity 1, 1 048 576 elements, located on the plain tensor; the totals (35 107 181 936 elements) and D6 (589 partition_options) unchanged",
                 [(a['axis'], a['extent']) for a in sg['shape']] == [('storage.multiplicity', 1), ('ffn.inner', 512), ('model.width', 2048)]
                 and sg['multiplicity'] == 1 and sg['elements'] == 1048576 and sg['location'] == {'tensor': 'model.language_model.layers.0.mlp.shared_expert.gate_proj.weight'}
-                and docs['qwen3.5-35b-a3b']['d3']['totals']['elements'] == 35107181936 and len(docs['qwen3.5-35b-a3b']['d6']['partition_options']) == 589,
+                and docs['qwen3.5-35b-a3b']['d3']['totals']['elements'] == 35107181936 and len(docs['qwen3.5-35b-a3b']['d6']['partition_options']) == 656,
                 str(sg['shape']))
     ok &= check("gemma3n: 697 tensors located under model.language_model — the two stream projections as stacks of three altup(_unembed)_projections.{c}.weight at dim 0 "
                 "(the storage axis), the readers' k/v/k_norm without an identity from layer 20 on, the per-layer tables whole",
