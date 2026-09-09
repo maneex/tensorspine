@@ -1478,6 +1478,10 @@ const measureValues = MEASURES_BY_NODE;   // { name -> {byNode, ok} }
 // own edges, and used only when its size is the size D2 reports.
 function cutBlock(name) {
   if (!HAS) return null;
+  // D6 states every structural split's first block; the closure below is the fallback for a
+  // document derived before it did.
+  const stated = ((DERIVED.d6 || {}).graph_splits || []).find(c => c.graph_split === name);
+  if (stated && Array.isArray(stated.block)) return new Set(stated.block);
   let seeds;
   const layer = /^(.*)\[([A-Za-z_][A-Za-z0-9_]*)<=(-?\d+)\]$/.exec(name);
   if (layer) {
@@ -1659,7 +1663,7 @@ function derivedTree() {
   kid('per element', fmtOps(d5.operations.element.value), { kind: 'product', which: 'd5' }, 'p-d5');
   kid('corrections', (d5.corrections || []).length, { kind: 'product', which: 'd5' }, 'p-d5');
 
-  head('d6', 'Derived Graph Splits and Partition Options', null, 'p-d6');
+  head('d6', 'Derived Decomposition Options', null, 'p-d6');
   kid('valid graph splits', d6.graph_splits.length, { kind: 'product', which: 'd6' }, 'p-d6');
   kid('partition options', (d6.partition_options || []).length, { kind: 'product', which: 'd6' }, 'p-d6');
   kid('information loss', (d6.information_loss || []).length, { kind: 'product', which: 'd6' }, 'p-d6');
@@ -2104,7 +2108,7 @@ function renderInspector(sel) {
 const PRODUCTS = [
   ['d1', 'Derived Computation Graph'], ['d2', 'Derived Value Shapes and Lifetimes'],
   ['d3', 'Derived Parameter Tensor Inventory'], ['d4', 'Derived State Inventory and Behavior'],
-  ['d5', 'Derived Logical Resource Requirements and Costs'], ['d6', 'Derived Graph Splits and Partition Options'],
+  ['d5', 'Derived Logical Resource Requirements and Costs'], ['d6', 'Derived Decomposition Options'],
 ];
 let currentProduct = 'd3';
 const openFolds = new Set();
@@ -2318,7 +2322,18 @@ function productBody(which) {
     `<tr class="pick" data-select='${escAttr(JSON.stringify({ kind: 'graph_split', name: c.graph_split }))}'>` +
     `<td class="id">${esc(c.graph_split)}</td><td class="m">${esc(c.kind)}</td>` +
     `<td class="m">${fmtInt(c.sizes[0])} | ${fmtInt(c.sizes[1])}</td>` +
-    `<td class="num">${esc(String(c.crossing_values))}</td></tr>`);
+    `<td class="num">${esc(String(c.crossing_values))}</td>` +
+    `<td class="num">${esc(String((c.separated_states || []).length))}</td></tr>`);
+  const separated = [];
+  for (const c of d6.graph_splits) {
+    for (const s of (c.separated_states || [])) {
+      separated.push(`<tr><td class="id">${esc(c.graph_split)}</td><td class="m">${esc(s.identity)}</td>` +
+        `<td class="m">${esc(String(s.evolution))}${s.span ? ' · span ' + fmtInt(s.span) : ''}</td>` +
+        `<td class="m">${esc(s.writer_side)}: ${esc(String(s.writer))}</td>` +
+        `<td class="m">${fmtInt(s.first.length)} | ${fmtInt(s.second.length)}</td>` +
+        `<td class="m">${s.history_needed_by.length ? esc(s.history_needed_by.map(m => m.replace(/\.[^.]*$/, '')).join(', ')) : '—'}</td></tr>`);
+    }
+  }
   const parts = foldedRows((d6.partition_options || []).map(x => ({ ...x, identity: x.node })), x => x.node,
     (x, label, n, open) =>
       `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.primitive)}</td>` +
@@ -2328,14 +2343,17 @@ function productBody(which) {
     (x, label, n, open) =>
       `<td class="id">${chev(label, n, open)}</td><td class="m">${esc(x.slot)}</td><td class="m">${esc(x.axis)}</td>`,
     x => ({ kind: 'd1node', id: x.node }));
-  return pHead('Derived Graph Splits and Partition Options', 'semantic, not a plan — the machine and the workload are a consumer’s inputs (§10.3)',
+  return pHead('Derived Decomposition Options', 'how the graph may be taken apart, without taking it apart — the machine and the workload are a consumer’s inputs (§10.3)',
       `${d6.graph_splits.length} graph splits · ${(d6.partition_options || []).length} partition options`) +
     pTotals([['valid graph splits', d6.graph_splits.length], ['partition options', (d6.partition_options || []).length],
              ['information loss', (d6.information_loss || []).length,
               (d6.information_loss || []).length ? 'q' : 'off']]) +
     `<div class="foldnote" style="margin:16px 0 0">valid graph splits — pick one to mark it on the diagram</div>` +
-    pTable([{ label: 'graph split', w: '42%' }, { label: 'kind', w: '14%' }, { label: 'blocks', w: '22%' },
-            { label: 'crossing values', right: true }], graph_splits) +
+    pTable([{ label: 'graph split', w: '38%' }, { label: 'kind', w: '12%' }, { label: 'blocks', w: '20%' },
+            { label: 'crossing values', w: '15%', right: true }, { label: 'separated states', right: true }], graph_splits) +
+    (separated.length ? `<div class="foldnote" style="margin:22px 0 0">separated states — a state written on one side of the split and read on the other; the last column names the readers that may need positions the state no longer holds (a window's ring)</div>` +
+      pTable([{ label: 'graph split', w: '20%' }, { label: 'identity', w: '16%' }, { label: 'evolution', w: '14%' },
+              { label: 'writer', w: '22%' }, { label: 'members first | second', w: '12%' }, { label: 'history needed by' }], separated) : '') +
     `<div class="foldnote" style="margin:22px 0 0">partition options</div>` +
     pTable([{ label: 'node', w: '34%' }, { label: 'primitive', w: '22%' },
             { label: 'target', w: '26%' }, { label: 'communication' }], parts) +
