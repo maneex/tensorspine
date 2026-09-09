@@ -3,10 +3,11 @@
 //!
 //! A compiled graph has static shapes, so an invocation of n elements is its own
 //! program, and one of b sessions of n elements another (batch-plan B05: the aligned
-//! layout, every session delivering the same count); and a long graph is graph_split into
-//! several programs run in sequence, because XLA's scratch for one program holds an
-//! f32 copy of every weight that program's matmuls touch. All are serving choices —
-//! the numbers do not move — so all are arguments.
+//! layout, every session delivering the same count); and a long graph may be split into
+//! several programs run in sequence, XLA freeing one program's scratch before the next
+//! begins (`main.zig`'s `openPlatform` says why one program no longer holds every
+//! weight's f32 copy). All are serving choices — the numbers do not move — so all are
+//! arguments.
 
 const std = @import("std");
 

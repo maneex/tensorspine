@@ -73,14 +73,16 @@ const Args = struct {
         \\   --max-tokens=<n>      Tokens to answer with: exactly that many when generating,
         \\                         which has no stopping rule, and at most that many in a chat
         \\                         turn, which also stops on a stop token (default: 8)
-        \\   --split=<n>           Compile and run the graph as n programs in sequence; XLA's
-        \\                         scratch holds an f32 copy of every weight one program's
-        \\                         matmuls touch, so cutting bounds a run's memory
+        \\   --split=<n>           Compile and run the graph as n programs in sequence, XLA freeing
+        \\                         one program's scratch before the next begins; the numbers do
+        \\                         not move. One program holds the weights plus one layer's f32
+        \\                         copies (see --compute); splitting bounds the rest of its scratch
         \\   --separate-states     One buffer per D4 identity instead of one per family; the
         \\                         packed layout is the default and is a serving choice
-        \\   --compute=<dtype>     f32 (default) or bf16. f32 upcasts every weight inside the graph,
-        \\                         which doubles what a run holds; bf16 computes at the checkpoint's
-        \\                         own precision, as ZML's hand-written models do
+        \\   --compute=<dtype>     f32 (default) or bf16. f32 upcasts each weight for its matmul, and
+        \\                         XLA CPU does the same for a bf16 dot: either way a program holds one
+        \\                         layer's f32 copies at a time; bf16 computes at the checkpoint's own
+        \\                         precision, as ZML's hand-written models do
         \\   --out=<path>          Write the result's raw bytes here
         \\   --dump=<dir>          Also write every state buffer, named by its D4 identity
         \\   --dump-mlir=<dir>     Ask XLA to dump the emitted IR here
@@ -204,13 +206,41 @@ fn parseSessions(allocator: std.mem.Allocator, spec: ?[]const u8, layout: []cons
     return .{ .ids = try all.toOwnedSlice(allocator), .count = count, .length = length.? };
 }
 
+/// XLA CPU's default scheduler is its "concurrency optimized" one: it orders a program
+/// breadth-first so independent thunks can overlap, and a parameter's f32 convert depends
+/// on nothing but the parameter — so every weight a program's matmuls touch is converted
+/// first and buffer assignment holds all the copies at once, about three times the
+/// weights (llama3-8b, 8 layers, 4.23 GiB loaded: 14328 MiB, ZML plan §7). The
+/// memory-minimising scheduler places each convert beside its dot and reuses the scratch:
+/// the same 8 layers hold 4788 MiB, the weights plus one layer's copies, and the numbers
+/// do not move. XLA reads the flag from the environment at load, so it is appended there
+/// before the platform opens; a caller's own XLA_FLAGS stand, and one naming this flag
+/// keeps its choice.
+const SCHEDULER_FLAG = "--xla_cpu_enable_concurrency_optimized_scheduler=false";
+
+extern "c" fn setenv(name: [*:0]const u8, value: [*:0]const u8, overwrite: c_int) c_int;
+
+/// The one device this generator runs on. ZML's CPU default is four, and a replicated
+/// parameter is copied to each of them — four times the weights resident, before
+/// anything is computed. Sharding is a non-goal here (the manifest declares no
+/// partition_options), so one device is both what this generator means and what fits.
+fn openPlatform(allocator: std.mem.Allocator, io: std.Io) !*zml.Platform {
+    const current: []const u8 = if (std.c.getenv("XLA_FLAGS")) |v| std.mem.span(v) else "";
+    if (std.mem.indexOf(u8, current, "xla_cpu_enable_concurrency_optimized_scheduler") == null) {
+        const flags = try std.fmt.allocPrintSentinel(allocator, "{s} {s}", .{ current, SCHEDULER_FLAG }, 0);
+        defer allocator.free(flags);
+        if (setenv("XLA_FLAGS", flags, 1) != 0) return error.Environment;
+    }
+    return try zml.Platform.auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
+}
+
 /// One compiled arity, as one or more programs run in sequence.
 ///
 /// A compiled graph has static shapes, so prefill and decode are two arities; and a
-/// long graph is graph_split into several programs because XLA's scratch for one program holds
-/// an f32 copy of every weight that program's matmuls touch — it upcasts bf16 dots on
-/// CPU — so a whole model in one program needs about three times its own weights.
-/// Cutting bounds that to the largest group, and the numbers do not move.
+/// long graph may be split into several programs, XLA freeing each one's scratch before
+/// the next begins. Under the scheduler `openPlatform` selects, one program holds the
+/// weights plus one layer's f32 copies, so splitting bounds the rest of a program's
+/// scratch rather than being what makes a model fit; the numbers do not move either way.
 fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Graph) !void {
     const checkpoint = args.checkpoint orelse {
         log.err("generating needs --checkpoint: the parameters come from where D3 locates them", .{});
@@ -229,11 +259,7 @@ fn generate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     const batch: i64 = @intCast(sessions.count);
     const prompt: i64 = @intCast(sessions.length);
 
-    // One device. ZML's CPU default is four, and a replicated parameter is copied to
-    // each of them — four times the weights resident, before anything is computed.
-    // Sharding is a non-goal here (the manifest declares no partition_options), so one device
-    // is both what this generator means and what fits.
-    const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
+    const platform = try openPlatform(allocator, io);
     defer platform.deinit(allocator, io);
     log.info("platform: {s}, {d} device(s)", .{ @tagName(platform.target), platform.devices.len });
 
@@ -411,7 +437,7 @@ fn unit(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const graph.Gr
     const target = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ o.node, o.port });
     defer allocator.free(target);
 
-    const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
+    const platform = try openPlatform(allocator, io);
     defer platform.deinit(allocator, io);
 
     var tensors: zml.safetensors.TensorRegistry = try .fromPath(allocator, io, checkpoint);
@@ -541,7 +567,7 @@ fn evaluate(allocator: std.mem.Allocator, io: std.Io, args: Args, g: *const grap
     const batch: i64 = @intCast(sessions.count);
     const prompt: i64 = @intCast(sessions.length);
 
-    const platform: *zml.Platform = try .auto(allocator, io, .{ .cpu = .{ .device_count = 1 } });
+    const platform = try openPlatform(allocator, io);
     defer platform.deinit(allocator, io);
     log.info("platform: {s}, {d} device(s)", .{ @tagName(platform.target), platform.devices.len });
 

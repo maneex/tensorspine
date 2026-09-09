@@ -117,8 +117,8 @@ pub const Boundary = struct {
 
 /// A contiguous run of steps compiled as one program. Several programs run in sequence
 /// over the same weights and states, and XLA frees each one's scratch before the next
-/// begins — which is what bounds a run whose scratch would otherwise hold every layer's
-/// weights at once.
+/// begins — a bound on what one program keeps; the scheduler `main.zig` selects is what
+/// keeps a program from holding every layer's f32 copies at once.
 pub const Group = struct {
     first: usize,
     last: usize,

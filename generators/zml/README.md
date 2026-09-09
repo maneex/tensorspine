@@ -58,8 +58,10 @@ tools/tensorspine --derive data/models/llama3-8b.json -o "$TENSORSPINE_MODEL_ART
   --max-tokens=8 --compute=bf16 --split=16
 ```
 
-`--compute` and `--split` are serving choices used to bound the run's resident set. The prompt
-defaults to the reference fixture's identifiers; `--ids="$IDS"` overrides it.
+`--compute` and `--split` are serving choices, and the numbers do not depend on them. Neither is
+what makes a run fit: a run holds about its weights (see the options below), and `--split` bounds
+what else a long program keeps. The prompt defaults to the reference fixture's identifiers;
+`--ids="$IDS"` overrides it.
 
 Nothing about that command is llama's. The hybrid is the same invocation against another document:
 
@@ -135,7 +137,7 @@ same standing as the reference generator's `--max-ram`.
 
 | Option | What it decides |
 |---|---|
-| `--split=<n>` | compile and run the graph as *n* programs in sequence. XLA CPU upcasts bf16 matmuls to f32, so one program's scratch holds an f32 copy of every weight its matmuls touch; cutting bounds that copy to the largest group. |
+| `--split=<n>` | compile and run the graph as *n* programs in sequence, XLA freeing one program's scratch before the next begins. XLA CPU upcasts bf16 matmuls to f32; under its default scheduler a program converts every weight its matmuls touch before the first dot and holds all the copies at once — about three times the weights — so `tspl` selects the memory-minimising scheduler instead (`--xla_cpu_enable_concurrency_optimized_scheduler=false`, appended to `XLA_FLAGS` unless the caller names that flag): one program holds the weights plus one layer's copies (llama3-8b, 8 layers, 4.23 GiB loaded: 4788 MiB, against 14328 MiB before). Splitting bounds the rest of a program's scratch. |
 | `--compute=<dtype>` | `f32` (default) or `bf16`. bf16 is the artifact's own precision, as ZML's hand-written models use; f32 is what makes a comparison against the reference a comparison of the mathematics rather than of two roundings. |
 | `--capacity=<n>` | positions a growing state holds — deployment intent, not a document fact (§7). |
 | `--separate-states` | one buffer per D4 identity instead of one per family. The packed layout is the default; both give identical results. |
