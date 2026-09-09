@@ -1860,6 +1860,9 @@ function cutBody(name) {
   const { block, why } = cutMarkable(name);
   const nodes = block ? [...block] : [];
   const loss = lossOf(nodes).length;
+  // D6: the state identities this split separates — written on one side, read on the other.
+  const stated = ((DERIVED.d6 || {}).graph_splits || []).find(x => x.graph_split === name);
+  const seps = stated ? (stated.separated_states || []) : [];
   const comms = {};
   for (const x of partitionOptionsOf(nodes)) for (const c of [].concat(x.communication)) comms[c] = (comms[c] || 0) + 1;
   if (why) {
@@ -1888,6 +1891,15 @@ function cutBody(name) {
       ['information loss', `${loss} flattened axes`],
     ].concat(Object.entries(comms).sort((a, b) => b[1] - a[1])
       .map(([k, v]) => [k, `${fmtInt(v)} node(s)`]))) +
+    `<h4 class="insp"><span class="dnum">D6</span>separated states<span class="n">${seps.length}</span></h4>` +
+    (seps.length ? seps.map(s =>
+      `<div class="drow"><div class="n">${esc(s.identity)}</div>
+        <div class="m"><span>evolution</span><b>${esc(String(s.evolution))}${s.span ? ' \u00b7 span ' + fmtInt(s.span) : ''}</b></div>
+        <div class="m"><span>writer</span><b>${esc(s.writer_side)} \u00b7 ${esc(String(s.writer))}</b></div>
+        <div class="m"><span>members first | second</span><b>${fmtInt(s.first.length)} | ${fmtInt(s.second.length)}</b></div>
+        <div class="m"><span>history needed by</span><b>${s.history_needed_by.length ? fmtInt(s.history_needed_by.length) + ' reader(s)' : '\u2014'}</b></div>
+        ${s.history_needed_by.length ? `<div style="margin-top:4px;font-family:var(--mono);font-size:11px;line-height:1.5;white-space:normal;word-break:break-all">${esc(s.history_needed_by.map(m => m.replace(/\.[^.]*$/, '')).join(', '))}</div>` : ''}</div>`).join('')
+      : `<div class="state-box">None \u2014 every state identity has all its members on one side of this split.</div>`) +
     `<div class="state-box">Which of these graph splits is a <b>good</b> one is not decided here: partition options are semantic, and the machine and the workload are inputs a consumer adds (§10.3).</div>`;
 }
 
@@ -2352,8 +2364,8 @@ function productBody(which) {
     pTable([{ label: 'graph split', w: '38%' }, { label: 'kind', w: '12%' }, { label: 'blocks', w: '20%' },
             { label: 'crossing values', w: '15%', right: true }, { label: 'separated states', right: true }], graph_splits) +
     (separated.length ? `<div class="foldnote" style="margin:22px 0 0">separated states — a state written on one side of the split and read on the other; the last column names the readers that may need positions the state no longer holds (a window's ring)</div>` +
-      pTable([{ label: 'graph split', w: '20%' }, { label: 'identity', w: '16%' }, { label: 'evolution', w: '14%' },
-              { label: 'writer', w: '22%' }, { label: 'members first | second', w: '12%' }, { label: 'history needed by' }], separated) : '') +
+      pTable([{ label: 'graph split', w: '19%' }, { label: 'identity', w: '16%' }, { label: 'evolution', w: '12%' },
+              { label: 'writer', w: '21%' }, { label: 'members', w: '8%' }, { label: 'history needed by' }], separated) : '') +
     `<div class="foldnote" style="margin:22px 0 0">partition options</div>` +
     pTable([{ label: 'node', w: '34%' }, { label: 'primitive', w: '22%' },
             { label: 'target', w: '26%' }, { label: 'communication' }], parts) +
