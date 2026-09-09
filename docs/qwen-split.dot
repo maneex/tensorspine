@@ -7,20 +7,20 @@ digraph qwen_split {
   tokens [shape=ellipse, style="dashed", color="#8FB0C0", label=<tokens>];
 
   subgraph cluster_a {
-    label=<<FONT POINT-SIZE="13"><B>DEVICE A</B> — the block of decoder[layer&lt;=15]</FONT><BR/><FONT POINT-SIZE="11">97 instances: embed and layers 0–15 · 12 gated-delta, 4 attention</FONT><BR/><FONT POINT-SIZE="11">D3: 4.51 GiB, the tied embedding table included · D4 per session: 4 KV caches at 4 KiB per position, 12 fixed states of 2 MiB, 12 rings of 48 KiB</FONT>>;
+    label=<<FONT POINT-SIZE="13"><B>DEVICE A</B> — the block of decoder[layer&lt;=15]</FONT><BR/><FONT POINT-SIZE="11">97 instances: embed and layers 0–15 · 12 gated-delta, 4 attention</FONT><BR/><FONT POINT-SIZE="11">parameters: 4.51 GiB, the tied embedding table included · states per session: 4 KV caches at 4 KiB per position, 12 fixed states of 2 MiB, 12 rings of 48 KiB</FONT>>;
     fontname="Arial"; fontcolor="#123348"; color="#218EA5"; style="rounded"; bgcolor="#EEF5F8"; labeljust="l";
     a0 [label=<<B>shard 0</B><BR/><FONT POINT-SIZE="11">gated delta: value heads 0–15, their recurrent state<BR/>attention: query heads 0–7, KV heads 0–1, their k and v<BR/>norms and adds: along the residual</FONT>>];
     a1 [label=<<B>shard 1</B><BR/><FONT POINT-SIZE="11">gated delta: value heads 16–31, their recurrent state<BR/>attention: query heads 8–15, KV heads 2–3, their k and v<BR/>norms and adds: along the residual</FONT>>];
     { rank=same; a0; a1; }
     a0 -> a1 [style=invis];
-    a0 -> a1 [dir=both, style=dashed, color="#8FB0C0", constraint=false, label=<all_reduce after each output projection>];
+    a0 -> a1 [dir=both, style=dashed, color="#8FB0C0", constraint=false, label=<all_reduce after each output projection, as the partition options say>];
   }
 
   line [shape=plaintext, fillcolor="#F6FAFC", color="#F6FAFC", fontcolor="#17639A",
-        label=<<B>the line: decoder[layer&lt;=15]</B><BR/><FONT POINT-SIZE="11" COLOR="#557583">D2 payload: the residual stream, bf16[tokens, 2560] — 5 KiB per token, 2.5 MiB per 512-token prefill<BR/>D6 separated states: none — each device owns its states</FONT>>];
+        label=<<B>the line: decoder[layer&lt;=15]</B><BR/><FONT POINT-SIZE="11" COLOR="#557583">payload: the residual stream, bf16[tokens, 2560] — 5 KiB per token, 2.5 MiB per 512-token prefill<BR/>separated states: none — each device owns its states</FONT>>];
 
   subgraph cluster_b {
-    label=<<FONT POINT-SIZE="13"><B>DEVICE B</B> — the rest</FONT><BR/><FONT POINT-SIZE="11">98 instances: layers 16–31, final_n, lm_head · 12 gated-delta, 4 attention</FONT><BR/><FONT POINT-SIZE="11">D3: 4.51 GiB, the tied table again for lm_head · D4 per session: the same 4 + 12 + 12</FONT>>;
+    label=<<FONT POINT-SIZE="13"><B>DEVICE B</B> — the rest</FONT><BR/><FONT POINT-SIZE="11">98 instances: layers 16–31, final_n, lm_head · 12 gated-delta, 4 attention</FONT><BR/><FONT POINT-SIZE="11">parameters: 4.51 GiB, the tied table again for lm_head · states per session: the same 4 + 12 + 12</FONT>>;
     fontname="Arial"; fontcolor="#123348"; color="#218EA5"; style="rounded"; bgcolor="#EEF5F8"; labeljust="l";
     b0 [label=<<B>shard 0</B><BR/><FONT POINT-SIZE="11">the same axes, layers 16–31</FONT>>];
     b1 [label=<<B>shard 1</B><BR/><FONT POINT-SIZE="11">the same axes, layers 16–31</FONT>>];

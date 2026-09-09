@@ -1,10 +1,11 @@
 # Reading the derived products
 
-*What each of D1–D6 tells a serving application, what to do with it, and one worked example: turning D6
-into a split of `qwen3.5-4b-text` across two devices. Practical, non-normative. The
-[derived-document guide](TENSORSPINE-DERIVED_JSON.md) says how the products are written down; the
-[harness guide](HARNESS.md) says which serving decision needs which product; [Specification §7](SPECIFICATION.md#7--required-derived-products)
-defines them. This guide reads them.*
+*What each derived product tells a serving application, what to do with it, and one worked example:
+turning the Derived Decomposition Options into a split of `qwen3.5-4b-text` across two devices.
+Practical, non-normative. The [derived-document guide](TENSORSPINE-DERIVED_JSON.md) says how the
+products are written down; the [harness guide](HARNESS.md) says which serving decision needs which
+product; [Specification §7](SPECIFICATION.md#7--required-derived-products) defines them. This guide
+reads them.*
 
 <a id="0-the-idea"></a>
 
@@ -17,12 +18,12 @@ six products, each answering one question a consumer asks of a model it has neve
 
 | Product | The question it answers | What a serving application does with it |
 |---|---|---|
-| **D1 — Derived Computation Graph** | What computes, in what order? | Builds the executable graph; knows which instances read across positions |
-| **D2 — Derived Value Shapes and Lifetimes** | What flows between instances, how big, how long? | Sizes activation buffers; prices what crosses a boundary |
-| **D3 — Derived Parameter Tensor Inventory** | What is learned, and where is it stored? | Loads exactly the tensors it needs, from the checkpoint the document locates |
-| **D4 — Derived State Inventory and Behavior** | What persists between invocations, who writes it? | Allocates per-session storage; decides paging, sharing and ownership |
-| **D5 — Derived Logical Resource Requirements and Costs** | What does it cost, logically? | Budgets memory and computation; compares candidates |
-| **D6 — Derived Decomposition Options** | Along which lines can it be taken apart? | Cuts the graph into extracts and shards inside each |
+| **Derived Computation Graph** | What computes, in what order? | Builds the executable graph; knows which instances read across positions |
+| **Derived Value Shapes and Lifetimes** | What flows between instances, how big, how long? | Sizes activation buffers; prices what crosses a boundary |
+| **Derived Parameter Tensor Inventory** | What is learned, and where is it stored? | Loads exactly the tensors it needs, from the checkpoint the document locates |
+| **Derived State Inventory and Behavior** | What persists between invocations, who writes it? | Allocates per-session storage; decides paging, sharing and ownership |
+| **Derived Logical Resource Requirements and Costs** | What does it cost, logically? | Budgets memory and computation; compares candidates |
+| **Derived Decomposition Options** | Along which lines can it be taken apart? | Cuts the graph into extracts and shards inside each |
 
 ![The six products and the decisions they feed](derived-products.svg)
 
@@ -36,15 +37,16 @@ for what workload, is the serving application's (§10.3). What follows walks the
 `qwen3.5-4b-text`, the text decoder of Qwen 3.5 4B: 32 layers, three gated-delta layers for every
 attention layer (attention at layers 3, 7, 11, …, 31), width 2560, 16 query heads over 4 KV heads of
 256, gated delta with 16 key heads and 32 value heads of 128, a vocabulary of 248 320 rows, and the
-embedding table tied to the output head. Every figure below comes from one command:
+embedding table tied to the output head. Every figure below comes from one command, whose output holds
+the six products as the members `d1` to `d6` of one document:
 
 ```sh
 python3 tools/tensorspine --derive data/models/qwen3.5-4b-text.json -o out/
 ```
 
-<a id="2-d1"></a>
+<a id="2-the-computation-graph"></a>
 
-## 2 — D1, the graph
+## 2 — The Derived Computation Graph
 
 **What it says.** 195 instances and 258 edges, in one topological order, with families attached: 24
 `sequence.gated_delta`, 8 `attention.dense`, 32 `ffn.gated`, 64 `residual.add`, 65 `norm.rms`, one
@@ -59,9 +61,9 @@ the eight attention layers, `linear_attention` the twenty-four others, without p
 `across_positions` to know which instances need a state on a fragmented stream (§5.3) — every one that
 reads back — and which are pure functions of their element.
 
-<a id="3-d2"></a>
+<a id="3-the-value-shapes-and-lifetimes"></a>
 
-## 3 — D2, the values
+## 3 — The Derived Value Shapes and Lifetimes
 
 **What it says.** 196 values, each with its shape *per element*, its dtype, its producer and consumers,
 and the stream it is indexed by. For every structural graph split, the **payload**: the values live at
@@ -72,12 +74,12 @@ where the f32 logits over 248 320 rows sit beside the residual.
 
 **What to do with it.** Multiply by the workload: a prefill of 512 tokens moves 2.5 MiB across that
 split, a decode step 5 KiB. Size the activation arena from the peak: one element's peak times the
-elements an invocation carries. What D2 does *not* give is a count — how many tokens, how many
-sessions — because counts are deployment intent, never a model fact.
+elements an invocation carries. What the value inventory does *not* give is a count — how many tokens,
+how many sessions — because counts are deployment intent, never a model fact.
 
-<a id="4-d3"></a>
+<a id="4-the-parameter-tensor-inventory"></a>
 
-## 4 — D3, the parameters
+## 4 — The Derived Parameter Tensor Inventory
 
 **What it says.** 426 tensors, 4.21 billion elements, 8.41 GB, one of them tied: `embed.weight` is also
 `lm_head.weight`, `bf16[248320, 2560]`, 1.27 GB, stored once at
@@ -92,9 +94,9 @@ dtype the document says (V17). Given a set of instances — an extract — the m
 it needs, and the locations which bytes to read. Note the tied tensor: whichever side of a split holds
 `lm_head` holds the same 1.27 GB as the side that holds `embed`.
 
-<a id="5-d4"></a>
+<a id="5-the-state-inventory-and-behavior"></a>
 
-## 5 — D4, the states
+## 5 — The Derived State Inventory and Behavior
 
 **What it says.** 56 state identities, one per layer and state port, each with its evolution, its
 access, its sharing rule, its payload per position and the members that touch it:
@@ -117,32 +119,32 @@ position between sessions with a common prefix, the recurrent state only up to a
 within its span. Know who writes: a member that reads an identity written elsewhere is served through
 the state, and a `window` state serves nothing older than its span.
 
-<a id="6-d5"></a>
+<a id="6-the-logical-resource-requirements-and-costs"></a>
 
-## 6 — D5, the costs
+## 6 — The Derived Logical Resource Requirements and Costs
 
 **What it says.** Parameters: 8.41 GB, exact. Computation: 8.44 Gop per element, exact — two operations
-per weight element per element, plus every declared correction. State: the D4 totals. The payload of
-every split, per element and per invocation, in bytes. Each figure carries its status — exact, bounded
-or estimated — and never a count of anything executed.
+per weight element per element, plus every declared correction. State: the state inventory's totals. The
+payload of every split, per element and per invocation, in bytes. Each figure carries its status —
+exact, bounded or estimated — and never a count of anything executed.
 
 **What to do with it.** Budget: a device's memory is weights plus state per session times sessions plus
 the activation peak; its time is operations per element times elements. Compare candidates before
-running any: two splits, two shardings, two dtypes. D5 is logical: what the model requires, not what an
-implementation achieves.
+running any: two splits, two shardings, two dtypes. The costs are logical: what the model requires, not
+what an implementation achieves.
 
-<a id="7-d6"></a>
+<a id="7-the-decomposition-options"></a>
 
-## 7 — D6, the decomposition
+## 7 — The Derived Decomposition Options
 
 **What it says.** Two decompositions, both described, neither chosen.
 
 *Sequential — the graph splits.* 31 layer splits, `decoder[layer<=0]` … `decoder[layer<=30]`, and 8
 family splits. Each is valid by construction — the ancestor closure of a layer prefix or a family, so
 every crossing edge points forward — and each states its **block**, the instances on the first side in
-D1 order, and its **separated states**, the identities with members on both sides. On this model no
-split separates a state: every identity has one member. Any prefix of D1's order is a valid split too;
-D6 names the structural ones.
+the graph's order, and its **separated states**, the identities with members on both sides. On this
+model no split separates a state: every identity has one member. Any prefix of the graph's order is a
+valid split too; the decomposition options name the structural ones.
 
 *Parallel — the partition options.* Per instance, the axes along which its primitive may be split without
 changing its meaning, with the communication each implies and the granularity a shard keeps whole:
@@ -164,36 +166,38 @@ as unknown, never as impossible.
 
 **What to do with it.** Cut and shard. The example below does both.
 
-<a id="8-from-d6-to-a-split"></a>
+<a id="8-from-the-decomposition-options-to-a-split"></a>
 
-## 8 — From D6 to a split: `qwen3.5-4b-text` on two devices
+## 8 — From the decomposition options to a split: `qwen3.5-4b-text` on two devices
 
 The serving application has two devices, each with two accelerators, and wants a two-stage pipeline
 with tensor parallelism inside each stage. Nothing in what follows needs the model's source or the
 primitive library: the derived document suffices, and every number is in it.
 
-![From D6 to a split of qwen3.5-4b-text](qwen-split.svg)
+![From the decomposition options to a split of qwen3.5-4b-text](qwen-split.svg)
 
-**Step 1 — choose the line, from D6.** `decoder[layer<=15]`: its block is 97 instances — `embed` and
-layers 0 to 15 — and the other side 98 — layers 16 to 31, `final_n`, `lm_head`. Both sides hold 12
-gated-delta layers and 4 attention layers, which is what balances a pipeline. `separated_states` is
-empty: every state's writer and readers sit on one side, so nothing persistent crosses the line.
+**Step 1 — choose the line, from the decomposition options.** `decoder[layer<=15]`: its block is 97
+instances — `embed` and layers 0 to 15 — and the other side 98 — layers 16 to 31, `final_n`, `lm_head`.
+Both sides hold 12 gated-delta layers and 4 attention layers, which is what balances a pipeline.
+`separated_states` is empty: every state's writer and readers sit on one side, so nothing persistent
+crosses the line.
 
-**Step 2 — price the line, from D2.** One value crosses: the residual stream, 5 120 bytes per token.
-For a workload of one session, 512-token prefills and one-token decodes: 2.5 MiB per prefill, 5 KiB per
-decode step. That is the pipeline's inter-stage traffic, and all of it.
+**Step 2 — price the line, from the value shapes and lifetimes.** One value crosses: the residual
+stream, 5 120 bytes per token. For a workload of one session, 512-token prefills and one-token decodes:
+2.5 MiB per prefill, 5 KiB per decode step. That is the pipeline's inter-stage traffic, and all of it.
 
-**Step 3 — load each side, from D3.** The block's members name the identities each device holds:
-4.51 GiB each — 3.33 GiB of layers and the 1.18 GiB embedding table, which D3 marks as tied to the
-output head, so device A holds it for `embed` and device B holds the same bytes for `lm_head`. A serving
-application that minds the duplicate chooses a line that keeps `embed` and `lm_head` together, or
-accepts 1.18 GiB twice; D3 is what lets it see the choice.
+**Step 3 — load each side, from the parameter tensor inventory.** The block's members name the
+identities each device holds: 4.51 GiB each — 3.33 GiB of layers and the 1.18 GiB embedding table,
+which the inventory marks as tied to the output head, so device A holds it for `embed` and device B
+holds the same bytes for `lm_head`. A serving application that minds the duplicate chooses a line that
+keeps `embed` and `lm_head` together, or accepts 1.18 GiB twice; the inventory is what lets it see the
+choice.
 
-**Step 4 — allocate each side, from D4.** Per session on each device: 4 KV caches at 4 KiB per cached
-position — 64 MiB at 4 096 positions — 12 recurrent states of 2 MiB and 12 rings of 48 KiB. Each device
-owns its states outright: no identity spans the line.
+**Step 4 — allocate each side, from the state inventory and behavior.** Per session on each device: 4
+KV caches at 4 KiB per cached position — 64 MiB at 4 096 positions — 12 recurrent states of 2 MiB and
+12 rings of 48 KiB. Each device owns its states outright: no identity spans the line.
 
-**Step 5 — shard inside each side, from D6's partition options.** Two accelerators per device:
+**Step 5 — shard inside each side, from the partition options.** Two accelerators per device:
 
 - the gated-delta layers by value heads — 32 heads in groups of 2, so 16 heads per shard — with an
   `all_reduce` after the output projection; the `recurrent` state follows, 16 of its 32 matrices per
@@ -202,9 +206,9 @@ owns its states outright: no identity spans the line.
   and with them 2 of the 4 KV heads — with an `all_reduce` after the output projection; the KV cache
   follows by KV head, `k` and `v` alike, 2 heads per shard, no communication;
 - the norms and residual adds along any axis, so along the residual's width as the projections leave it;
-- the `z` slot of the gated delta is where D6 says *unknown*: its flattened axis declares no factors, so
-  the planner keeps that projection whole on each shard, or asks the primitive's author to declare the
-  factors — it does not guess.
+- the `z` slot of the gated delta is where the decomposition options say *unknown*: its flattened axis
+  declares no factors, so the planner keeps that projection whole on each shard, or asks the primitive's
+  author to declare the factors — it does not guess.
 
 Sessions are an independent axis throughout: a second session may go to a second replica with no
 communication at all.
@@ -224,5 +228,5 @@ keeps a matrix per value head, or which safetensors file holds what. All of that
 
 Counts — tokens per invocation, sessions, batch — are deployment intent. Physical costs — what a shard
 costs on a backend — are the implementation's. Hardware topology, placement and scheduling belong to
-deployment control (Architecture §2). And a decision: D6 lists lines and axes; choosing among them is
-the serving application's, which is why nothing here is called a plan.
+deployment control (Architecture §2). And a decision: the decomposition options list lines and axes;
+choosing among them is the serving application's, which is why nothing here is called a plan.

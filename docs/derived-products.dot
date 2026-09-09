@@ -9,12 +9,12 @@ digraph derived_products {
 
   subgraph cluster_products {
     label=<<FONT POINT-SIZE="11"><B>DERIVED PRODUCTS</B> — describe, never decide</FONT>>; fontname="Arial"; fontcolor="#557583"; color="#BFD3DE"; style="rounded"; bgcolor="#EEF5F8";
-    d1 [label=<<B>D1</B> Computation Graph<BR/><FONT POINT-SIZE="10">what computes, in what order</FONT>>];
-    d2 [label=<<B>D2</B> Value Shapes and Lifetimes<BR/><FONT POINT-SIZE="10">what flows, how big, how long</FONT>>];
-    d3 [label=<<B>D3</B> Parameter Tensor Inventory<BR/><FONT POINT-SIZE="10">what is learned, where it is stored</FONT>>];
-    d4 [label=<<B>D4</B> State Inventory and Behavior<BR/><FONT POINT-SIZE="10">what persists, who writes it</FONT>>];
-    d5 [label=<<B>D5</B> Logical Resource Requirements and Costs<BR/><FONT POINT-SIZE="10">what it costs, logically</FONT>>];
-    d6 [label=<<B>D6</B> Decomposition Options<BR/><FONT POINT-SIZE="10">along which lines it comes apart</FONT>>];
+    d1 [label=<<B>Derived Computation Graph</B><BR/><FONT POINT-SIZE="10">what computes, in what order</FONT>>];
+    d2 [label=<<B>Derived Value Shapes and Lifetimes</B><BR/><FONT POINT-SIZE="10">what flows, how big, how long</FONT>>];
+    d3 [label=<<B>Derived Parameter Tensor Inventory</B><BR/><FONT POINT-SIZE="10">what is learned, where it is stored</FONT>>];
+    d4 [label=<<B>Derived State Inventory and Behavior</B><BR/><FONT POINT-SIZE="10">what persists, who writes it</FONT>>];
+    d5 [label=<<B>Derived Logical Resource Requirements and Costs</B><BR/><FONT POINT-SIZE="10">what it costs, logically</FONT>>];
+    d6 [label=<<B>Derived Decomposition Options</B><BR/><FONT POINT-SIZE="10">along which lines it comes apart</FONT>>];
   }
 
   subgraph cluster_serving {
