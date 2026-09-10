@@ -11,7 +11,9 @@
  * `check_quantities` hands it a quantity's value under the declared type, `_resolve_record` hands
  * it an argument's. So it lives here rather than under either, and its wording — which says
  * `argument '…'` in both cases, the quantity side rewriting the first occurrence afterwards — is
- * written once.
+ * written once. The *domain* table the tools write twice, `_check_domain` for a quantity and
+ * `_check_argument_domain` for an argument, differing in the scope a bound is evaluated in and in
+ * nothing else; here it is written once and the scope is a parameter ({@link BoundLimit}).
  *
  * **The record branch is the argument side's.** A `record` type recurses into `_resolve_record`,
  * which applies defaults, refuses unknown fields (V2) and reads `present_when` — the argument
@@ -141,19 +143,40 @@ export function checkType(
 }
 
 /**
- * `_check_domain`: a **model quantity's** value against its declared domain (§2.2).
+ * How an interval bound's `value` becomes the limit a comparison reads, or `undefined` for a bound
+ * that is skipped rather than read as a limit.
+ *
+ * The two callers differ in this and in nothing else: `_check_domain` evaluates a model expression
+ * in the **empty scope** — "only a literal bound is checked here" — and `_check_argument_domain`
+ * evaluates a primitive expression in the **instance's resolved arguments**, where an argument
+ * refused upstream answers the sentinel and an absent one answers `None`, both skipped.
+ */
+export type BoundLimit = (bound: PyValue) => PyValue | undefined;
+
+/** `model_value(bound['value'], {})`: `_check_domain`'s own reading, and this table's default. */
+function modelLimit(bound: PyValue): PyValue | undefined {
+  const limit = modelValue(bound, NO_QUANTITIES);
+  return limit === UNRESOLVED ? undefined : limit;
+}
+
+/**
+ * `_check_domain`: a value against a declared domain (§2.2) — a **model quantity's** by default.
  *
  * "A bound is a model scalar expression; only a literal bound is checked here (the empty scope
  * leaves a quantity-referencing bound undecidable)" — the scope really is empty, so a bound
  * written over another quantity is skipped rather than resolved, on a document where every
- * quantity has a value. The primitive argument's domain is checked by its own sibling
- * (`_check_argument_domain`, feature 1.6a), which evaluates a bound in the instance's arguments.
+ * quantity has a value.
+ *
+ * The tools write the table twice, once per scope (`_check_domain` and `_check_argument_domain`),
+ * with the same two shapes and the same wording; here it is written once and the scope is the
+ * {@link BoundLimit} parameter, which is what feature 1.6a's `checkArgumentDomain` supplies.
  */
 export function checkDomain(
   value: PyValue,
   domain: PyValue,
   label: string,
   problems: SemanticProblem[],
+  limitOf: BoundLimit = modelLimit,
 ): void {
   const refuse = (message: string): void => {
     problems.push(semanticProblem('V3', `argument '${label}' ${message}`));
@@ -171,8 +194,8 @@ export function checkDomain(
   ] as const) {
     const bound = optional(domain, edge, null);
     if (bound === null) continue;
-    const limit = modelValue(demand(bound, 'value'), NO_QUANTITIES);
-    if (limit === UNRESOLVED) continue;
+    const limit = limitOf(demand(bound, 'value'));
+    if (limit === undefined) continue;
     const inclusive = truthy(demand(bound, 'inclusive'));
     const operator = edge === 'lower' ? (inclusive ? '>=' : '>') : inclusive ? '<=' : '<';
     if (!compares(value, limit, operator)) {
@@ -186,19 +209,8 @@ export function checkDomain(
 
 /** `left <op> right`, as Python answers it — `False` for anything a `nan` takes part in. */
 function compares(left: PyValue, right: PyValue, operator: '>=' | '>' | '<=' | '<'): boolean {
-  let order: number | undefined;
-  try {
-    order = pyOrder(left, right);
-  } catch (error) {
-    if (error instanceof PyTypeError) {
-      // `pyOrder` writes `<`; the operator the line was written with is what Python names.
-      throw new PyTypeError(
-        `'${operator}' not supported between instances of ` +
-          `'${pythonTypeName(left)}' and '${pythonTypeName(right)}'`,
-      );
-    }
-    throw error;
-  }
+  // An unorderable pair raises naming this operator, which is the line the tools wrote.
+  const order = pyOrder(left, right, operator);
   if (order === undefined) return false;
   if (operator === '>=') return order >= 0;
   if (operator === '>') return order > 0;

@@ -35,9 +35,9 @@ import { PyTypeError } from '../expr/errors.js';
 import { pyEqual } from '../expr/arithmetic.js';
 import type { PathSegment } from '../schema/types.js';
 import { comparePythonStrings } from '../schema/repr.js';
-import { asText, demand, entries, has, listOf as list, optional } from './access.js';
+import { demand, entries, has, listOf as list, optional } from './access.js';
 import { detailAt, type LibraryDetail } from './problems.js';
-import { pyRepr } from './repr.js';
+import { pyRepr, pyStr } from './repr.js';
 
 /** What `primitive_references` reads of the gathered bases: the axes and the precision roles. */
 export interface ReferenceLibrary {
@@ -64,7 +64,7 @@ function concat(left: PyValue, right: PyValue): PyValue[] {
  * Python's `f"{v}"` would write it rather than refused, so that a definition reaching this
  * function without the grammar behind it still gets a message instead of an exception.
  */
-const text = asText;
+const text = pyStr;
 
 // --- the two walks that find argument paths --------------------------------
 

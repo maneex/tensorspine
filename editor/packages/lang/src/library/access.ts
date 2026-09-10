@@ -20,7 +20,6 @@ import {
   type PyValue,
 } from '../expr/value.js';
 import { PyKeyError, PyTypeError } from '../expr/errors.js';
-import { pyRepr } from './repr.js';
 
 /** `d['name']`: the member, or the `KeyError` the tools raise for a document off the grammar. */
 export function demand(value: PyValue, name: string): PyValue {
@@ -65,11 +64,6 @@ export function members(value: PyValue): [string, PyValue][] {
 /** `for x in value`: a list's elements, a record's names, a string's characters. */
 export function listOf(value: PyValue): PyValue[] {
   return pyIterate(value);
-}
-
-/** A value written as Python's `f"{v}"` writes it: a string bare, anything else through `repr`. */
-export function asText(value: PyValue): string {
-  return typeof value === 'string' ? value : pyRepr(value);
 }
 
 /** A value read as a record, or an empty one: for a place the grammar makes an object. */

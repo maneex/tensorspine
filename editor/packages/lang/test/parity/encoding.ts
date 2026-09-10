@@ -2,6 +2,7 @@ import {
   formatNumber,
   isRecord,
   member,
+  put,
   UNRESOLVED,
   type PyRecord,
   type PyValue,
@@ -33,7 +34,9 @@ export function encode(value: PyValue): unknown {
   if (typeof value === 'string') return { str: value };
   if (Array.isArray(value)) return { list: value.map(encode) };
   const record: Record<string, unknown> = {};
-  for (const [name, one] of Object.entries(value as PyRecord)) record[name] = encode(one);
+  // A member called `__proto__` is one the identifier pattern admits, and plain assignment would
+  // set the prototype instead of adding it — the defence `put` states (feature 0.3).
+  for (const [name, one] of Object.entries(value as PyRecord)) put<unknown>(record, name, encode(one));
   return { record };
 }
 
@@ -65,7 +68,7 @@ export function decode(encoded: PyValue): PyValue {
   }
   const values = member(encoded, 'record') as PyRecord;
   const record: Record<string, PyValue> = {};
-  for (const [name, one] of Object.entries(values)) record[name] = decode(one);
+  for (const [name, one] of Object.entries(values)) put(record, name, decode(one));
   return record;
 }
 
@@ -77,6 +80,6 @@ export function decodeMap(encoded: PyRecord): Map<string, PyValue> {
 /** An encoded map as a record, which is the shape an assignment and an argument map have. */
 export function decodeRecord(encoded: PyRecord): PyRecord {
   const record: Record<string, PyValue> = {};
-  for (const [name, one] of Object.entries(encoded)) record[name] = decode(one);
+  for (const [name, one] of Object.entries(encoded)) put(record, name, decode(one));
   return record;
 }

@@ -28,7 +28,14 @@
  * each caller decides whether an unresolved value is acceptable at that point, and what is
  * forbidden is deciding silently (I7).
  */
-import { isJsonArray, isJsonNumber, isJsonObject, lexemeDenotes, type JsonValue } from '../json/index.js';
+import {
+  isJsonArray,
+  isJsonNumber,
+  isJsonObject,
+  lexemeDenotes,
+  put,
+  type JsonValue,
+} from '../json/index.js';
 
 import { PyKeyError, PyTypeError } from './errors.js';
 
@@ -192,21 +199,9 @@ export function toPython(value: JsonValue): PyValue {
   if (isJsonArray(value)) return value.map(toPython);
   if (isJsonObject(value)) {
     const record: Record<string, PyValue> = {};
-    for (const one of value.members) {
-      // `__proto__` is a member like any other to CPython's `json`, and the model schema's
-      // `propertyNames` admits the name; plain assignment would set the prototype instead
-      // (`json/tree.ts` states the whole rule).
-      if (one.name === '__proto__') {
-        Object.defineProperty(record, one.name, {
-          value: toPython(one.value),
-          writable: true,
-          enumerable: true,
-          configurable: true,
-        });
-      } else {
-        record[one.name] = toPython(one.value);
-      }
-    }
+    // `__proto__` is a member like any other to CPython's `json`, and the model schema's
+    // `propertyNames` admits the name; `put` is where that rule is stated (`json/tree.ts`).
+    for (const one of value.members) put(record, one.name, toPython(one.value));
     return record;
   }
   return value;

@@ -35,6 +35,10 @@ What it writes (the implementation plan's §0.5):
     out/quantities/index.json         `check_quantities`, `check_assignment` and the assignment
                                       report over every model document, and over the edited
                                       documents and assignments of `quantity_cases.py`
+    out/arguments/index.json          `resolve_arguments`, the invariants (V8) and the facts the
+                                      argument sheet reads, per site of every model document and
+                                      of every template it instantiates, plus the synthetic
+                                      declarations of `argument_cases.py`
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -80,6 +84,9 @@ ROOT = os.path.dirname(EDITOR)
 TOOL = os.path.join(ROOT, 'tools', 'tensorspine')
 MODELS = os.path.join(ROOT, 'data', 'models')
 REJECTIONS = os.path.join(ROOT, 'tests', 'rejections')
+# The base every suite of the repository reads a model under: `tests/run_rejections.py` loads it
+# explicitly, and every corpus document pins it through its own `primitive_libraries`.
+REFERENCE_BASE = os.path.join('data', 'primitive-library')
 SIGNATURES = os.path.join(ROOT, 'tests', 'signatures')
 
 
@@ -816,6 +823,369 @@ def quantities(corpus, name_of, assignments):
     return {'source': SOURCE, 'template': TEMPLATE, 'documents': documents, 'cases': cases}
 
 
+# --- arguments, their types, domains and invariants (feature 1.6a) ----------
+
+# How many index environments of one composition site are recorded when they all resolve to the
+# same thing. Every environment is *walked* — the lines are checked against the tools' own — and
+# the cases the fixture carries are the distinct outcomes, plus the first and the last of the
+# grid, so a `layer`-valued argument keeps one case per layer and a constant one keeps one case.
+FIRST_ENVIRONMENT = 0
+LAST_ENVIRONMENT = -1
+
+
+def _written_fields(written):
+    """The map of expressions a record argument's fields are written in, or None."""
+    if isinstance(written, dict) and isinstance(written.get('record'), dict):
+        return written['record']
+    return None
+
+
+def _resolve_with_facts(declared, given, evaluate, root, path, written, problems, facts,
+                        into=None):
+    """`validate._resolve_record`, transcribed once more, recording each row's verdict as the
+    walk decides it.
+
+    The transcription is what the fixture needs and what the tools do not expose: `applicable` is
+    read *during* the loop, and an argument the domain refused is `UNRESOLVED` in the map that
+    comes out, so neither can be recovered from the answer afterwards (finding F2 of the plan).
+    It is not a second opinion: the caller requires its values and its problems to equal
+    `validate.resolve_arguments`' own on every site of every document, so a transcription that
+    drifted would fail the oracle rather than the port. Every check it makes is the tools' own
+    function — `_check_type`, `_check_argument_domain`, `primitive_condition`, `primitive_value`.
+    """
+    from expr import UNRESOLVED, primitive_condition, primitive_value
+    import validate as validate_mod
+
+    values = {} if into is None else into
+    if root is None:
+        root = values
+    supplied = set()
+    for name, value in given.items():
+        if name not in declared:
+            problems.append(('V2', f"unknown argument '{path}{name}'"))
+        else:
+            supplied.add(name)
+            values[name] = evaluate(value)
+    pending = [n for n, d in declared.items() if n not in values and 'default' in d]
+    while pending:
+        progress = False
+        for name in list(pending):
+            v = primitive_value(declared[name]['default'], root)
+            if v is not None and v is not UNRESOLVED:
+                values[name] = v
+                pending.remove(name)
+                progress = True
+        if not progress:
+            for name in pending:
+                problems.append(('V2', f"default of '{path}{name}' does not resolve"))
+            break
+    for name, decl in declared.items():
+        label = f"{path}{name}"
+        expression = written[name] if isinstance(written, dict) and name in written else None
+        fact = {'path': label, 'applicable': True, 'source': 'absent',
+                'domain': 'unchecked' if 'domain' in decl else 'undeclared',
+                'indices': set()}
+        if name in supplied and expression is not None:
+            fact['written'] = encode(expression)
+        facts.append(fact)
+        first_problem = len(problems)
+        first_fact = len(facts)
+
+        def close(fact=fact, first_problem=first_problem, first_fact=first_fact):
+            """The problems of this row: those appended for it, less the fields' own."""
+            claimed = set()
+            for one in facts[first_fact:]:
+                claimed |= one['indices']
+            own = set(range(first_problem, len(problems))) - claimed
+            fact['problems'] = [list(problems[i]) for i in sorted(own)]
+            fact['indices'] = own | claimed
+
+        if 'present_when' in decl:
+            fact['applicable'] = bool(primitive_condition(decl['present_when'], root))
+        if name not in values:
+            if decl['required'] and fact['applicable']:
+                problems.append(('V2', f"required argument missing '{label}'"))
+            close()
+            continue
+        fact['source'] = 'given' if name in supplied else 'default'
+        if not fact['applicable']:
+            fact['value'] = encode(values[name])
+            problems.append(('V3', f"argument '{label}' is present but inapplicable "
+                                   f"for these arguments"))
+            close()
+            continue
+        if decl['type']['kind'] == 'record' and isinstance(values[name], dict):
+            # `_check_type`'s record branch, unrolled so that the fields' rows are recorded too:
+            # the record is cleared and filled in place, as the tools fill it.
+            held = values[name]
+            inner = dict(held)
+            held.clear()
+            _resolve_with_facts(decl['type']['fields'], inner, lambda x: x, root, label + '.',
+                                _written_fields(expression), problems, facts, into=held)
+        else:
+            validate_mod._check_type(values[name], decl['type'], label, lambda x: x, root,
+                                     problems, values)
+        if len(problems) == first_problem and 'domain' in decl and values[name] is not UNRESOLVED:
+            before = len(problems)
+            validate_mod._check_argument_domain(values[name], decl['domain'], label, problems,
+                                                root)
+            fact['domain'] = 'refused' if len(problems) > before else 'ok'
+        if len(problems) > first_problem and decl['type']['kind'] != 'record':
+            values[name] = UNRESOLVED
+        fact['value'] = encode(values[name])
+        close()
+    return values
+
+
+def _invariant_verdicts(definition, values):
+    """The V8 block of `analyse`, with a verdict for every invariant and not only for the ones
+    that fail — the block the argument sheet shows under its rows (§4.12)."""
+    from expr import UNRESOLVED, argument_references, primitive_condition
+    import validate as validate_mod
+
+    out = []
+    for invariant in definition.get('invariants', []):
+        references = argument_references(invariant['holds'])
+        reads = sorted(references)
+        shown = ', '.join(
+            f"{path} = {validate_mod._resolve_path(path, values)}" for path in reads
+            if validate_mod._resolve_path(path, values) is not None
+            and validate_mod._resolve_path(path, values) is not UNRESOLVED)
+        record = {'description': invariant['description'], 'reads': reads, 'shown': shown}
+        if any(validate_mod._resolve_path(path, values) is UNRESOLVED for path in references):
+            out.append(dict(record, verdict='skipped'))
+        elif primitive_condition(invariant['holds'], values):
+            out.append(dict(record, verdict='holds'))
+        else:
+            out.append(dict(record, verdict='fails', message=(
+                f"'{invariant['description']}' does not hold" + (f" ({shown})" if shown else ""))))
+    return out
+
+
+def _argument_case(definition, instance, env, quantities):
+    """One site resolved: what `resolve_arguments` answers, the V8 verdicts, and the facts."""
+    from expr import static_argument
+    import validate as validate_mod
+
+    problems = []
+    facts = []
+    values = _resolve_with_facts(definition['arguments'], instance['arguments'],
+                                 lambda v: static_argument(v, quantities, env), None, '',
+                                 instance['arguments'], problems, facts)
+    expected, expected_problems = validate_mod.resolve_arguments(
+        definition, instance['arguments'], lambda v: static_argument(v, quantities, env))
+    written = json.dumps(encode_map(values))
+    if written != json.dumps(encode_map(expected)):
+        die(f"the transcription resolves {written} where validate.resolve_arguments answers "
+            f"{json.dumps(encode_map(expected))}")
+    if [tuple(one) for one in problems] != [tuple(one) for one in expected_problems]:
+        die(f"the transcription refuses {problems} where validate.resolve_arguments refuses "
+            f"{expected_problems}")
+    for fact in facts:
+        fact.pop('indices', None)
+        fact.setdefault('problems', [])
+    invariants = _invariant_verdicts(definition, values)
+    refusals = [list(one) for one in problems]
+    refusals += [['V8', one['message']] for one in invariants if one['verdict'] == 'fails']
+    return {'values': encode_map(values),
+            'problems': refusals,
+            'facts': facts,
+            'invariants': invariants}, values
+
+
+def _sites_of(document, quantities):
+    """The sites `analyse` resolves, in its own order: the root instances whose guard fires, and
+    every index environment of every composition's, `where(key)` and the pointer of each."""
+    import itertools
+    from expr import UNRESOLVED, index_grid, model_condition
+
+    sites = []
+    for name, instance in document['instances'].items():
+        if 'when' in instance:
+            truth = model_condition(instance['when'], quantities, {})
+            if truth is UNRESOLVED or not truth:
+                continue
+        sites.append({'at': f"instances/{name}", 'where': name, 'env': {}, 'instance': instance,
+                      'grid': None})
+    for composition, definition in document.get('compositions', {}).items():
+        names, ranges = index_grid(definition['indices'], quantities)
+        grid = [dict(zip(names, combo)) for combo in itertools.product(*ranges)]
+        for position, env in enumerate(grid):
+            for site, instance in definition['instances'].items():
+                if 'when' in instance:
+                    truth = model_condition(instance['when'], quantities, env)
+                    if truth is UNRESOLVED or not truth:
+                        continue
+                where = f"{composition}/{site}[" + ",".join(
+                    f"{k}={v}" for k, v in sorted(env.items())) + "]"
+                sites.append({
+                    'at': f"compositions/{composition}/instances/{site}",
+                    'where': where, 'env': env, 'instance': instance,
+                    'grid': (position, len(grid))})
+    return sites
+
+
+def _walk_document(path, assignment, cat, bases, depth, within, cases, lines, messages, seen):
+    """Every site of one document, and of every template it instantiates, as `analyse` walks
+    them: the same guards, the same interface for a template primitive, the same sub-assignment
+    at a call site, and the same cache — a template analysed once per assignment (§4.6)."""
+    import model as model_mod
+    import primitive_library as primitive_library_mod
+    import validate as validate_mod
+    from expr import UNRESOLVED, resolve_quantities
+
+    document = model_mod.load(path)
+    quantities = resolve_quantities(document, assignment)
+    relative = os.path.relpath(path, ROOT)
+    grouped = {}
+    for site in _sites_of(document, quantities):
+        instance = site['instance']
+        name = instance['primitive']['name']
+        definition = primitive_library_mod.primitive(cat, instance['primitive'])
+        if definition is None:
+            continue                       # V1, and no arguments to resolve (feature 1.6b)
+        template_file = None
+        if 'template' in definition:
+            template_file = primitive_library_mod.template_path(cat, definition)
+            definition = validate_mod.template_interface(definition,
+                                                        model_mod.load(template_file))
+        answer, values = _argument_case(definition, instance, site['env'], quantities)
+        resolution_problems = [one for one in answer['problems'] if one[0] != 'V8']
+        for code, message in answer['problems']:
+            lines.append(f"[{code}] {name} @{site['where']}: {message}")
+            messages.append(f"[{code}] {message}")
+        case = dict(answer, document=relative, at=site['at'], where=site['where'],
+                    within=within, bases=bases,
+                    assignment=None if assignment is None else encode_map(assignment),
+                    primitive=instance['primitive'], template=template_file is not None,
+                    env=encode_map(site['env']))
+        # One case per distinct outcome, plus the first and the last environment of the grid.
+        outcome = json.dumps([answer['values'], answer['problems'], answer['facts'],
+                              answer['invariants']], sort_keys=True)
+        group = grouped.setdefault((site['at'], outcome), {'case': case, 'environments': 0})
+        group['environments'] += 1
+        if site['grid'] is not None and site['grid'][0] == site['grid'][1] - 1:
+            group['case'] = case            # the boundary the last environment reaches
+        if template_file is not None and not resolution_problems:
+            if depth + 1 > validate_mod.MAX_PRIMITIVE_DEPTH:
+                continue
+            sub_assignment = {k: v for k, v in values.items() if v is not UNRESOLVED}
+            key = (template_file, json.dumps(sub_assignment, sort_keys=True, default=str))
+            if key in seen:
+                continue
+            seen.add(key)
+            _walk_document(template_file, sub_assignment, cat, bases, depth + 1,
+                           f"{within + ' / ' if within else ''}{name} @{site['where']}",
+                           cases, lines, messages, seen)
+    for group in grouped.values():
+        cases.append(dict(group['case'], environments=group['environments']))
+
+
+def arguments(corpus, name_of, assignments):
+    """`resolve_arguments`, the V8 block, and the per-argument facts of `describe`, over every
+    site of every model document of the repository — the corpus, the template under its
+    documented assignment, the 73 of `tests/rejections/models/`, and the sites of every template
+    a document instantiates, expanded at the call site as `analyse` expands them.
+
+    Beside them, the synthetic declarations of `argument_cases.py`: the reference base declares 13
+    `present_when`s, no `seconds` argument, no set domain and no default that fails to resolve, so
+    the corpus alone leaves half of `_resolve_record` unvisited.
+
+    Every line the walk produces is checked against `validate.analyse`'s own errors for the same
+    document, so the fixture is the tools' answer and not a transcription's.
+    """
+    import model as model_mod
+    import primitive_library as primitive_library_mod
+    import validate as validate_mod
+    from argument_cases import CASES
+    from expr import static_argument
+
+    with open(os.path.join(REJECTIONS, 'models.json'), encoding='utf-8') as handle:
+        rejection_cases = json.load(handle)['cases']
+    named = {os.path.join('tests', 'rejections', case['document']): case.get('assign')
+             for case in rejection_cases}
+
+    paths = [(name_of(path), os.path.relpath(path, ROOT)) for path in corpus()]
+    paths += [(f"rejection-{name[:-len('.json')]}",
+               os.path.join('tests', 'rejections', 'models', name))
+              for name in sorted(os.listdir(os.path.join(REJECTIONS, 'models')))
+              if name.endswith('.json')]
+
+    documents = []
+    cases = []
+    gathered = {}
+    for slug, relative in paths:
+        full = os.path.join(ROOT, relative)
+        record = {}
+        assignment = assignments.get(slug, named.get(relative))
+        record.update({'name': slug, 'path': relative,
+                       'assignment': None if assignment is None else encode_map(assignment),
+                       'sites': 0, 'error': None})
+        mine = []
+        lines = []
+        messages = []
+        try:
+            document = model_mod.load(full)
+            # A corpus document is read under the bases it declares; a rejection document under
+            # the reference base, which is what `tests/run_rejections.py` hands `validate.semantic`
+            # — 21 of the 73 declare `../primitive-library/`, which from `tests/rejections/models/`
+            # names the directory of *rejection bases* and gathers nothing.
+            bases = ([REFERENCE_BASE] if relative.startswith('tests/rejections/')
+                     else [os.path.relpath(base, ROOT)
+                           for base in primitive_library_mod.bases_of(full, document)])
+            # `load_for` memoises; `load` does not, and every document of the repository names
+            # the same base — 88 gatherings of it would cost more than the whole step.
+            key = tuple(bases)
+            if key not in gathered:
+                gathered[key] = primitive_library_mod.load(
+                    *[os.path.join(ROOT, base) for base in bases])
+            cat = gathered[key]
+            record['bases'] = bases
+            _walk_document(full, assignment, cat, bases, 0, '', mine, lines, messages, set())
+        except Exception as error:                        # whatever it is, it is the answer
+            record['error'] = _raised(error)
+            record['sites'] = len(mine)
+            documents.append(record)
+            cases.extend(mine)
+            continue
+        record['sites'] = len(mine)
+        # The refusals without the instance and the site `analyse` prefixes them with: a
+        # deduplicated case stands for every environment that resolves to it, so the *messages*
+        # are what both implementations can compare exactly.
+        record['messages'] = sorted(set(messages))
+        # The tools' own answer for the same document: every line the walk produced must be one
+        # of `analyse`'s, and every V2 and V8 line of `analyse`'s must be one of the walk's (V3
+        # is shared with the quantities, feature 1.5).
+        try:
+            errors = validate_mod.analyse(full, cat, assignment)['errors']
+        except Exception:
+            record['analysed'] = False
+        else:
+            record['analysed'] = True
+            for line in lines:
+                if not any(one == line or one.startswith(line + '  (in instance ')
+                           for one in errors):
+                    die(f"{relative}: the walk produced a line the tools do not: {line}")
+            for one in errors:
+                bare = one.split('  (in instance ')[0]
+                if one.startswith('[V2] ') or one.startswith('[V8] '):
+                    if bare not in lines:
+                        die(f"{relative}: the tools refuse a line the walk does not: {one}")
+        documents.append(record)
+        cases.extend(mine)
+
+    synthetic = []
+    for name, definition, given, quantities, env in CASES:
+        record = {'name': name, 'definition': definition, 'given': given,
+                  'quantities': encode_map(quantities), 'env': encode_map(env), 'error': None}
+        try:
+            record.update(_argument_case(definition, {'arguments': given}, env, quantities)[0])
+        except Exception as error:                        # whatever it is, it is the answer
+            record['error'] = _raised(error)
+        synthetic.append(record)
+
+    return {'documents': documents, 'cases': cases, 'synthetic': synthetic}
+
 # --- the primitive library loader (feature 1.3) -----------------------------
 
 # What a mutation replaces a value by. A string keeps the shape it had — `attention.heads` becomes
@@ -1050,6 +1420,11 @@ def main():
     print(f"oracle: {len(quantity_cases['documents'])} document(s) and "
           f"{len(quantity_cases['cases'])} case(s) of quantities and assignments")
 
+    argument_cases = arguments(corpus, name_of, assignments)
+    print(f"oracle: {len(argument_cases['cases'])} argument site(s) over "
+          f"{len(argument_cases['documents'])} document(s), and "
+          f"{len(argument_cases['synthetic'])} synthetic declaration(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -1100,6 +1475,17 @@ def main():
             'documents': len(quantity_cases['documents']),
             'cases': len(quantity_cases['cases']),
         },
+        'arguments': {
+            'index': 'arguments/index.json',
+            'note': ('resolve_arguments, the V8 block and the per-argument facts of describe, '
+                     'over every site of every model document of the repository and of every '
+                     'template it instantiates, and over synthetic declarations reaching the '
+                     'branches the reference base does not declare; every line the walk produces '
+                     'is checked against validate.analyse own errors for the same document.'),
+            'documents': len(argument_cases['documents']),
+            'sites': len(argument_cases['cases']),
+            'synthetic': len(argument_cases['synthetic']),
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -1120,6 +1506,8 @@ def main():
           json.dumps(model_cases, indent=1) + '\n')
     write(os.path.join(out, 'quantities', 'index.json'),
           json.dumps(quantity_cases, indent=1) + '\n')
+    write(os.path.join(out, 'arguments', 'index.json'),
+          json.dumps(argument_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

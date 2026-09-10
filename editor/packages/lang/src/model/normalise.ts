@@ -56,8 +56,10 @@ import {
   type PyRecord,
   type PyValue,
 } from '../expr/value.js';
+import { put } from '../json/tree.js';
 import { JsonParseError, parse } from '../json/parse.js';
-import { asText, demand, entries, has, optional } from '../library/access.js';
+import { demand, entries, has, optional } from '../library/access.js';
+import { pyStr } from '../library/repr.js';
 
 import { ModelError } from './errors.js';
 
@@ -67,28 +69,6 @@ const SLOT: PyRecord = {
   states: 'state',
   constants: 'constant',
 };
-
-/**
- * `d[name] = value` on a record being built.
- *
- * `__proto__` is a member name like any other to CPython's `json`, and the model schema's own
- * `propertyNames` pattern admits it (`^[A-Za-z_][A-Za-z0-9_-]*$`), so an index, a site or a
- * binding may be called that; plain assignment would set the object's prototype instead of adding
- * a member, and the member would vanish. `json/tree.ts` states the whole rule and `toPython`
- * applies it to the reading; this is the same defence on the records this module makes.
- */
-function put(record: Record<string, PyValue>, name: string, value: PyValue): void {
-  if (name === '__proto__') {
-    Object.defineProperty(record, name, {
-      value,
-      writable: true,
-      enumerable: true,
-      configurable: true,
-    });
-  } else {
-    record[name] = value;
-  }
-}
 
 /** Python's `d[name] = value` on a copy: an existing name keeps its place, a new one is appended. */
 function withKey(record: PyRecord, name: string, value: PyValue): PyRecord {
@@ -138,7 +118,7 @@ function selector(
   if (typeof site !== 'string' || !hasKey(instances, site)) {
     throw new ModelError(
       'site',
-      `composition '${compositionName}', binding '${ruleName}': no site named '${asText(site)}'`,
+      `composition '${compositionName}', binding '${ruleName}': no site named '${pyStr(site)}'`,
     );
   }
   let indices = current(composition);

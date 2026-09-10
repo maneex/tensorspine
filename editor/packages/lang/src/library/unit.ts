@@ -26,12 +26,12 @@
 import type { JsonValue } from '../json/tree.js';
 import { toPython, type PyValue } from '../expr/value.js';
 import { pyEqual } from '../expr/arithmetic.js';
-import { asText, get, has } from './access.js';
+import { get, has } from './access.js';
 import { join, normalise, relative } from './paths.js';
 import { libraryProblem, type LibraryProblem } from './problems.js';
 import { primitiveReferences } from './references.js';
 import { readRefusal, readText, type ReadText } from './read.js';
-import { pyRepr } from './repr.js';
+import { pyRepr, pyStr } from './repr.js';
 import { pinnedTemplate } from './template.js';
 import {
   identityProblem,
@@ -180,7 +180,7 @@ function precisionProblems(path: string, definition: PyValue): LibraryProblem[] 
     libraryProblem(
       'precision',
       path,
-      `${path}: default '${asText(fallback)}' is not in the admissible set ${pyRepr(admissible)}`,
+      `${path}: default '${pyStr(fallback)}' is not in the admissible set ${pyRepr(admissible)}`,
     ),
   ];
 }

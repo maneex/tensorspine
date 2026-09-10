@@ -17,7 +17,21 @@ export {
   type RuleCode,
   type SemanticProblem,
 } from './problems.js';
-export { checkDomain, checkType, type RecordCheck } from './conformance.js';
+export { checkDomain, checkType, type BoundLimit, type RecordCheck } from './conformance.js';
+export {
+  checkArgumentDomain,
+  checkInvariants,
+  describeArguments,
+  resolveArguments,
+  type ArgumentDescription,
+  type ArgumentFact,
+  type ArgumentResolution,
+  type ArgumentSource,
+  type DomainVerdict,
+  type Evaluate,
+  type InvariantResult,
+  type InvariantVerdict,
+} from './arguments.js';
 export {
   assignmentNeeded,
   checkAssignment,

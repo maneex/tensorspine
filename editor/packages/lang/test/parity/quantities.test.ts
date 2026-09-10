@@ -12,7 +12,6 @@ import {
   loadModel,
   ModelError,
   parse,
-  PyError,
   resolveQuantities,
   toPython,
   variableQuantities,
@@ -21,6 +20,7 @@ import {
   type SemanticProblem,
 } from '../../src/index.js';
 import { decode, decodeRecord, encodeMap } from './encoding.js';
+import { raisedAs, type Raised } from './raised.js';
 import { applyEdits, type Edit } from './edits.js';
 import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from './oracle.js';
 
@@ -42,12 +42,6 @@ import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from '
 
 const inCI = process.env['CI'] !== undefined && process.env['CI'] !== '';
 const generated = oracleGenerated();
-
-/** What the tools raised, by CPython's name for it. */
-interface Raised {
-  type: string;
-  message: string;
-}
 
 /** Everything feature 1.5 answers about one document, as the oracle records it. */
 interface Facts {
@@ -106,16 +100,6 @@ function rejections(): RejectionCase[] {
 /** A repository file's bytes, as `open(encoding='utf-8')` reads them. */
 function repositoryText(relative: string): string {
   return readFileSync(join(repositoryRoot, relative), 'utf8');
-}
-
-/** The name CPython gives the refusal the port raised. */
-function raisedAs(error: unknown): Raised {
-  if (error instanceof ModelError) return { type: 'ModelError', message: error.message };
-  if (error instanceof PyError) {
-    // `PyKeyError` is `KeyError`, and so on: the classes carry Python's names with the prefix.
-    return { type: error.constructor.name.replace(/^Py/, ''), message: error.message };
-  }
-  throw error;
 }
 
 /**

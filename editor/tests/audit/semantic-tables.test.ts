@@ -7,6 +7,7 @@ import { COMPARISONS, OPERATORS, toPython, type PyValue } from '../../packages/l
 import { loadSchemas, type Vocabulary } from '../../packages/lang/src/schema/index.js';
 import { parse } from '../../packages/lang/src/json/index.js';
 import {
+  checkArgumentDomain,
   checkType,
   formatSemanticProblems,
   type SemanticProblem,
@@ -36,6 +37,11 @@ import { editorRoot } from './tree.js';
 // real". It is written as the tools write it, an `if`/`else if` chain ending in "type '…' is
 // unknown to this validator", so the audit reads it the way a table cannot be read: by *asking*
 // it about every kind the grammar declares, and requiring that none falls through.
+//
+// The fourth is the *domain*'s, beside it: `domain['kind'] == 'set'` and everything else read as
+// an interval — the tools' own two-branch reading, which has no fall-through at all, so a third
+// shape would be silently read as an interval. The audit asks each shape the grammar declares
+// which branch decides it, and requires the shapes and the branches to be the same two.
 
 const repositoryRoot = resolve(editorRoot, '..');
 
@@ -133,6 +139,13 @@ describe('the walk that finds them', () => {
   });
 });
 
+/** The schema of that file, as JSON: what the vocabulary cannot answer is read here. */
+function schemaFile(name: string): Record<string, unknown> {
+  return JSON.parse(
+    readFileSync(join(repositoryRoot, 'schemas', name), 'utf8'),
+  ) as Record<string, unknown>;
+}
+
 describe('the type table of packages/lang/src/validate', () => {
   const KINDS = `${UNIT}#/$defs/argument_type/properties/kind`;
   const UNITS = `${MODEL}#/$defs/physical_type/properties/unit`;
@@ -172,5 +185,50 @@ describe('the type table of packages/lang/src/validate', () => {
       const refused = typed(2.5, declared).length > 0;
       expect(refused, unit).toBe(unit !== 'seconds');
     }
+  });
+});
+
+describe('the domain table of packages/lang/src/validate', () => {
+  const DOMAIN = `${UNIT}#/$defs/argument_domain`;
+
+  /** The `kind` each alternative of a domain fixes, read from the schema's own `const`s. */
+  function shapes(): string[] {
+    const unit = schemaFile('tensorspine-primitive-library-unit.schema.json');
+    const defs = unit['$defs'] as Record<string, Record<string, unknown>>;
+    return union(DOMAIN).alternatives.map((alternative) => {
+      const target = alternative.target as string;
+      const name = target.slice(target.lastIndexOf('/') + 1);
+      const properties = defs[name]?.['properties'] as Record<string, Record<string, unknown>>;
+      const kind = properties['kind']?.['const'];
+      expect(kind, `${target} fixes no kind`).toBeTypeOf('string');
+      return kind as string;
+    });
+  }
+
+  /**
+   * Which branch decides a domain of that shape: the set's, or the interval's.
+   *
+   * The domain carries both a set and a bound, and the value is inside the set and below the
+   * bound — so the message says which one was read.
+   */
+  function branchOf(kind: string): string {
+    const problems: SemanticProblem[] = [];
+    const domain = `{"kind": "${kind}", "values": [1], ` +
+      '"lower": {"value": {"literal": 2}, "inclusive": true}}';
+    checkArgumentDomain(1n, toPython(parse(domain)), 'x', problems, {});
+    const lines = formatSemanticProblems(problems);
+    if (lines.length === 0) return 'set';
+    expect(lines.join(' '), kind).toContain('domain bound');
+    return 'interval';
+  }
+
+  it('decides each shape the grammar declares by its own branch, and has no third', () => {
+    const declared = shapes();
+    expect(declared.length).toBeGreaterThan(0);
+    const branches = declared.map((kind) => branchOf(kind));
+    // One shape per branch, and one branch per shape: a third alternative in the schema would be
+    // read as an interval without anyone saying so, and a branch with no shape would be dead.
+    expect([...new Set(branches)].sort()).toEqual([...new Set(declared)].sort());
+    expect(branches.length).toBe(new Set(branches).size);
   });
 });

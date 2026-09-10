@@ -21,6 +21,7 @@
 import { PyTypeError, PyValueError } from './errors.js';
 import { apply, compare } from './arithmetic.js';
 import { comparePythonStrings } from '../schema/index.js';
+import { put } from '../json/tree.js';
 
 import {
   asRecord,
@@ -161,16 +162,7 @@ export function staticArgument(value: PyValue, quantities: Quantities, env?: Env
   if (isRecord(value) && hasKey(value, 'record')) {
     const out: Record<string, PyValue> = {};
     for (const [name, one] of items(member(value, 'record') as PyValue)) {
-      if (name === '__proto__') {
-        Object.defineProperty(out, name, {
-          value: staticArgument(one, quantities, env),
-          writable: true,
-          enumerable: true,
-          configurable: true,
-        });
-      } else {
-        out[name] = staticArgument(one, quantities, env);
-      }
+      put(out, name, staticArgument(one, quantities, env));
     }
     return out;
   }

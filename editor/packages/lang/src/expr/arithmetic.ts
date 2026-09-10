@@ -216,10 +216,18 @@ export function pyAbsolute(value: PyValue): PyValue {
  * what `model_condition` catches and turns into `UNRESOLVED` and what `primitive_condition`
  * does not catch.
  *
+ * The refusal **names the operator the comparison was written with**, as Python's does: `l > r`
+ * raises `'>' not supported between instances of 'str' and 'int'`. A caller that orders rather
+ * than compares — `min`, `max`, `sorted` — reports `<`, which is the default.
+ *
  * Integers and floats are compared exactly, as Python compares them: the float is split at its
  * decimal point, so an integer beyond 2^53 is not first rounded to a double.
  */
-export function pyOrder(left: PyValue, right: PyValue): number | undefined {
+export function pyOrder(
+  left: PyValue,
+  right: PyValue,
+  operator: '<' | '>' | '<=' | '>=' = '<',
+): number | undefined {
   if (typeof left === 'string' && typeof right === 'string') {
     const order = comparePythonStrings(left, right);
     return order < 0 ? -1 : order > 0 ? 1 : 0;
@@ -234,7 +242,8 @@ export function pyOrder(left: PyValue, right: PyValue): number | undefined {
     return order === undefined ? undefined : -order;
   }
   throw new PyTypeError(
-    `'<' not supported between instances of '${typeName(left)}' and '${typeName(right)}'`,
+    `'${operator}' not supported between instances of ` +
+      `'${typeName(left)}' and '${typeName(right)}'`,
   );
 }
 
@@ -325,14 +334,16 @@ export const OPERATORS: Readonly<Record<string, (args: readonly PyValue[]) => Py
 export const COMPARISONS: Readonly<Record<string, (left: PyValue, right: PyValue) => boolean>> = {
   equal: (left, right) => pyEqual(left, right),
   not_equal: (left, right) => !pyEqual(left, right),
-  greater: (left, right) => pyOrder(left, right) === 1,
-  less: (left, right) => pyOrder(left, right) === -1,
+  // Each names its own operator, because that is what the `TypeError` of an unorderable pair
+  // carries: `l > r` raises `'>' not supported between instances of 'str' and 'int'`.
+  greater: (left, right) => pyOrder(left, right, '>') === 1,
+  less: (left, right) => pyOrder(left, right, '<') === -1,
   greater_or_equal: (left, right) => {
-    const order = pyOrder(left, right);
+    const order = pyOrder(left, right, '>=');
     return order === 1 || order === 0;
   },
   less_or_equal: (left, right) => {
-    const order = pyOrder(left, right);
+    const order = pyOrder(left, right, '<=');
     return order === -1 || order === 0;
   },
 };

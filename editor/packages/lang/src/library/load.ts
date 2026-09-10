@@ -37,12 +37,12 @@ import {
   type SchemaRegistry,
   type StructuralProblem,
 } from '../schema/registry.js';
-import { asText, get, has, members } from './access.js';
+import { get, has, members } from './access.js';
 import { basename, dirname, join, normalise, relative } from './paths.js';
 import { afterRefusal, libraryProblem, type LibraryProblem } from './problems.js';
 import { primitiveReferences, type ReferenceLibrary } from './references.js';
 import { readRefusal, readText, type ReadText } from './read.js';
-import { pyRepr } from './repr.js';
+import { pyRepr, pyStr } from './repr.js';
 import type { LibrarySource } from './source.js';
 import { pinnedTemplate, templateInterface, type TemplatePin } from './template.js';
 
@@ -311,7 +311,7 @@ export function loadLibrary(bases: readonly string[], context: LibraryContext): 
       libraryProblem(
         'precision',
         where,
-        `${where}: default '${asText(fallback)}' is not in the admissible set ${pyRepr(admissible)}`,
+        `${where}: default '${pyStr(fallback)}' is not in the admissible set ${pyRepr(admissible)}`,
       ),
     );
   }
@@ -439,7 +439,7 @@ function readDirectoryBase(
   const manifest = readManifest(base, gathering, context);
   let templates: string | null = null;
   if (manifest !== null && has(manifest, 'templates')) {
-    templates = normalise(join(base, asText(get(manifest, 'templates'))));
+    templates = normalise(join(base, pyStr(get(manifest, 'templates'))));
   }
   if (modelsBase !== null) templates = modelsBase;
 
@@ -567,7 +567,7 @@ function readMonolithicBase(
   const section = (name: string): [string, PyValue][] => members(get(document, name));
   for (const [name, definition] of section('primitives')) {
     const version = get(definition, 'version');
-    const key = identityKey(name, asText(version));
+    const key = identityKey(name, pyStr(version));
     const label = `(${pyRepr(name)}, ${pyRepr(version)})`;
     gathering.provide(gathering.primitives, key, label, definition, base);
     if (!gathering.baseOf.has(key)) gathering.baseOf.set(key, base);
@@ -674,7 +674,7 @@ export function basesOf(
     };
   }
   const bases = (declared as readonly PyValue[]).map((entry) =>
-    normalise(join(here, asText(get(entry, 'base')))),
+    normalise(join(here, pyStr(get(entry, 'base')))),
   );
   return { bases, problem: null };
 }

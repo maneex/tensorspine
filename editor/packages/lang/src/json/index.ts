@@ -18,6 +18,7 @@ export {
   hasMember,
   indexOfMember,
   memberNames,
+  put,
   toPlain,
   withMember,
   withoutMember,
