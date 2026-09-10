@@ -29,6 +29,9 @@ What it writes (the implementation plan's §0.5):
     out/library/index.json            the reference base gathered, the 33 library rejection cases
                                       refused word for word, and `primitive_references` over one
                                       mutation at a time of every unit of the reference base
+    out/model/index.json              `model.load` over every model document of the repository and
+                                      over edited ones, with the refusals it raises
+    out/model/normalised/*.json       each of those documents with its scoped bindings hoisted
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -592,6 +595,108 @@ def expressions(assignments, corpus, name_of):
     return {'documents': documents, 'environments': cases.environments, 'cases': cases.cases}
 
 
+# --- model normalisation (feature 1.4) --------------------------------------
+
+
+def _edit(document, pointer, operation, value):
+    """One edit at a JSON pointer, applied in place.
+
+    No member name of a model document holds `/` or `~`, so the pointer is split and nothing is
+    unescaped — the same reading the library step's mutations take, so that both implementations
+    walk the same path."""
+    steps = pointer.split('/')[1:]
+    cursor = document
+    for step in steps[:-1]:
+        cursor = cursor[int(step)] if isinstance(cursor, list) else cursor[step]
+    last = steps[-1]
+    if operation == 'delete':
+        if isinstance(cursor, list):
+            cursor.pop(int(last))
+        else:
+            del cursor[last]
+        return
+    if isinstance(cursor, list):
+        cursor[int(last)] = value
+    else:
+        cursor[last] = value
+
+
+def _no_floats(value, where):
+    """A fixture value carries no float: the integer/float distinction is what is being compared,
+    and a float in the fixture would make the fixture's own JSON decide it."""
+    if isinstance(value, float):
+        die(f"{where}: an edit value carries a float ({value!r}); write whole numbers only")
+    if isinstance(value, dict):
+        for name, one in value.items():
+            _no_floats(one, where)
+    elif isinstance(value, list):
+        for one in value:
+            _no_floats(one, where)
+
+
+def _normalised(out, slug, document):
+    """`json.dumps(model.normalise(document))`, written where the parity suite reads it."""
+    import model as model_mod
+    text = json.dumps(model_mod.normalise(document), indent=2, ensure_ascii=False) + '\n'
+    write(os.path.join(out, 'model', 'normalised', f"{slug}.json"), text)
+    return f"model/normalised/{slug}.json"
+
+
+def model(out, corpus, name_of):
+    """`model.load` over every model document of the repository, and over edited ones.
+
+    Every document of `data/models/` and of `tests/rejections/models/` is recorded normalised —
+    the whole text, so that a parity failure names the line that moved — or, for the three that
+    refuse, with the `ModelError` the tools raise. Beside them the edited cases of
+    `model_cases.py` reach the branches no document of the repository takes: a scoped `constants`
+    rule, a declared `tensor` or `identity`, a second index, an endpoint written as a selector,
+    and the refusal `tests/rejections` has no case for.
+    """
+    import model as model_mod
+    from model_cases import CASES, SOURCE
+
+    def refusal(path):
+        try:
+            return None, model_mod.load(path)
+        except model_mod.ModelError as error:
+            return {'type': 'ModelError', 'message': str(error)}, None
+
+    documents = []
+    paths = [(name_of(path), os.path.relpath(path, ROOT)) for path in corpus()]
+    paths += [(f"rejection-{name[:-len('.json')]}",
+               os.path.join('tests', 'rejections', 'models', name))
+              for name in sorted(os.listdir(os.path.join(REJECTIONS, 'models')))
+              if name.endswith('.json')]
+    for slug, relative in paths:
+        error, document = refusal(os.path.join(ROOT, relative))
+        if error is not None:
+            documents.append({'path': relative, 'error': error, 'normalised': None})
+            continue
+        documents.append({'path': relative, 'error': None,
+                          'normalised': _normalised(out, slug, document)})
+
+    cases = []
+    source = os.path.join(ROOT, SOURCE)
+    for name, edits in CASES:
+        for edit in edits:
+            if edit['op'] == 'set':
+                _no_floats(edit['value'], name)
+        with open(source, encoding='utf-8') as handle:
+            document = json.load(handle, object_pairs_hook=model_mod._pairs)
+        for edit in edits:
+            _edit(document, edit['pointer'], edit['op'], edit.get('value'))
+        case = {'name': name, 'source': SOURCE, 'edits': edits}
+        try:
+            case['normalised'] = _normalised(out, f"case-{name}", document)
+            case['error'] = None
+        except model_mod.ModelError as error:
+            case['normalised'] = None
+            case['error'] = {'type': 'ModelError', 'message': str(error)}
+        cases.append(case)
+
+    return {'source': SOURCE, 'documents': documents, 'cases': cases}
+
+
 # --- the primitive library loader (feature 1.3) -----------------------------
 
 # What a mutation replaces a value by. A string keeps the shape it had — `attention.heads` becomes
@@ -818,6 +923,10 @@ def main():
     print(f"oracle: {len(library_cases['cases'])} library rejection case(s) and "
           f"{len(library_cases['mutations'])} cross-reference case(s)")
 
+    model_cases = model(out, corpus, name_of)
+    print(f"oracle: {len(model_cases['documents'])} document(s) normalised and "
+          f"{len(model_cases['cases'])} edited case(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -850,6 +959,14 @@ def main():
                      'through schema.deepest, which is how the tools read each of them.'),
             'cases': len(structural_cases),
         },
+        'model': {
+            'index': 'model/index.json',
+            'note': ('model.load over every model document of the repository, and over edited '
+                     'ones reaching the branches no document takes; each normalised document is '
+                     'the whole text json.dumps writes, so a parity failure names the line.'),
+            'documents': len(model_cases['documents']),
+            'cases': len(model_cases['cases']),
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -866,6 +983,8 @@ def main():
           json.dumps(expression_cases, indent=1) + '\n')
     write(os.path.join(out, 'library', 'index.json'),
           json.dumps(library_cases, indent=1) + '\n')
+    write(os.path.join(out, 'model', 'index.json'),
+          json.dumps(model_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

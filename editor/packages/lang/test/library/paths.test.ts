@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { basename, dirname, isAbsolute, join, normalise, relative } from '../../src/library/index.js';
+import { basename, dirname, isAbsolute, join, normalisePath as normalise, relative } from '../../src/library/index.js';
 
 // The loader computes a path in four places and each one decides what it refuses: a unit's
 // identity is its path relative to its section root, a base's templates location is `templates`

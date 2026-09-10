@@ -74,4 +74,4 @@ export { LibrarySourceError, memorySource, type LibrarySource } from './source.j
 export { readRefusal, readText, type ReadText, type TextReading } from './read.js';
 export { layoutVocabulary, legacyLayout } from './legacy.js';
 export { pyRepr, pyStr } from './repr.js';
-export { basename, dirname, isAbsolute, join, normalise, relative } from './paths.js';
+export { basename, dirname, isAbsolute, join, normalise as normalisePath, relative } from './paths.js';
