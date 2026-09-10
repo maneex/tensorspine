@@ -3,8 +3,14 @@ import { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { COMPARISONS, OPERATORS } from '../../packages/lang/src/expr/index.js';
+import { COMPARISONS, OPERATORS, toPython, type PyValue } from '../../packages/lang/src/expr/index.js';
 import { loadSchemas, type Vocabulary } from '../../packages/lang/src/schema/index.js';
+import { parse } from '../../packages/lang/src/json/index.js';
+import {
+  checkType,
+  formatSemanticProblems,
+  type SemanticProblem,
+} from '../../packages/lang/src/validate/index.js';
 import { editorRoot } from './tree.js';
 
 // The catching rule (d) of the implementation plan's §1: "The set-equality test of the core's
@@ -23,6 +29,13 @@ import { editorRoot } from './tree.js';
 // that carries one, therefore reaches this audit without anyone remembering to add it — and a
 // second check requires that no enum written at a place named `op` or `operator`, anywhere in
 // the five schemas, has escaped the walk.
+//
+// The third table is V3's, in `packages/lang/src/validate/conformance.ts`: the dimensional types
+// of §2.1, which it decides by name, and the one unit the language treats apart — "a physical
+// value in `tokens`, `elements`, `bytes` or `operations` is a whole number, only `seconds` being
+// real". It is written as the tools write it, an `if`/`else if` chain ending in "type '…' is
+// unknown to this validator", so the audit reads it the way a table cannot be read: by *asking*
+// it about every kind the grammar declares, and requiring that none falls through.
 
 const repositoryRoot = resolve(editorRoot, '..');
 
@@ -117,5 +130,47 @@ describe('the walk that finds them', () => {
       }
     }
     expect(missed).toEqual([]);
+  });
+});
+
+describe('the type table of packages/lang/src/validate', () => {
+  const KINDS = `${UNIT}#/$defs/argument_type/properties/kind`;
+  const UNITS = `${MODEL}#/$defs/physical_type/properties/unit`;
+
+  /** The lines `checkType` answered for one value against one declared type. */
+  function typed(value: PyValue, declared: string): string[] {
+    const problems: SemanticProblem[] = [];
+    checkType(value, toPython(parse(declared)), 'x', problems, () => undefined);
+    return formatSemanticProblems(problems);
+  }
+
+  /** Every kind the language declares an argument or a quantity may have. */
+  function kinds(): string[] {
+    const found = vocabulary.enumAt(KINDS);
+    expect(found, `${KINDS} is not an enumeration of the loaded schemas`).toBeDefined();
+    return (found as { values: readonly unknown[] }).values.map(String).sort();
+  }
+
+  it('decides every dimensional type the grammar declares', () => {
+    // A kind the table does not carry falls through to "unknown to this validator", which is the
+    // tools' own fall-through and the one answer no conforming document may ever get.
+    expect(kinds().length).toBeGreaterThan(0);
+    for (const kind of kinds()) {
+      const declared = `{"kind": "${kind}", "unit": "seconds", "values": [1], "fields": {}}`;
+      const lines = typed(1n, declared).join(' ');
+      expect(lines, kind).not.toContain('is unknown to this validator');
+    }
+  });
+
+  it('names `seconds`, and no other unit, as the one that admits a real', () => {
+    const found = vocabulary.enumAt(UNITS);
+    expect(found, `${UNITS} is not an enumeration of the loaded schemas`).toBeDefined();
+    const units = (found as { values: readonly unknown[] }).values.map(String);
+    expect(units).toContain('seconds');
+    for (const unit of units) {
+      const declared = `{"kind": "physical", "unit": "${unit}"}`;
+      const refused = typed(2.5, declared).length > 0;
+      expect(refused, unit).toBe(unit !== 'seconds');
+    }
   });
 });

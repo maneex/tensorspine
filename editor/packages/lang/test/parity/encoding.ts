@@ -37,6 +37,13 @@ export function encode(value: PyValue): unknown {
   return { record };
 }
 
+/** A map of values as the fixture encodes one: `generate.py`'s `encode_map`. */
+export function encodeMap(values: ReadonlyMap<string, PyValue>): Record<string, unknown> {
+  // `Object.fromEntries` defines properties rather than assigning them, so a quantity called
+  // `__proto__` — which the identifier pattern admits — lands as a member like any other.
+  return Object.fromEntries([...values].map(([name, one]) => [name, encode(one)]));
+}
+
 /** The value an encoding stands for. */
 export function decode(encoded: PyValue): PyValue {
   if (!isRecord(encoded)) throw new Error(`not an encoded value: ${JSON.stringify(encoded)}`);

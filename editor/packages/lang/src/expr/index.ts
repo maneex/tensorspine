@@ -38,6 +38,7 @@ export {
   PyError,
   PyIndexError,
   PyKeyError,
+  PyOverflowError,
   PyTypeError,
   PyValueError,
   PyZeroDivisionError,

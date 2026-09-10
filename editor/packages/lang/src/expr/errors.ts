@@ -30,3 +30,14 @@ export class PyIndexError extends PyError {}
 
 /** Python's `KeyError`: a member the grammar requires and the document does not carry. */
 export class PyKeyError extends PyError {}
+
+/**
+ * Python's `OverflowError`: `int()` of an infinity, and `float()` of an integer past the double
+ * range.
+ *
+ * One line of the tools reaches it — V3's whole-number test on a physical value,
+ * `float(v) != int(v)` — and only for a value CPython's `json` accepts and JavaScript's would
+ * not: `Infinity` and `NaN` as bare tokens (feature 0.3), or an integer of more than 308 digits.
+ * The tools raise there rather than answering, so the port raises too.
+ */
+export class PyOverflowError extends PyError {}

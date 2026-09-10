@@ -20,3 +20,4 @@ export * from './schema/index.js';
 export * from './expr/index.js';
 export * from './library/index.js';
 export * from './model/index.js';
+export * from './validate/index.js';

@@ -32,6 +32,9 @@ What it writes (the implementation plan's §0.5):
     out/model/index.json              `model.load` over every model document of the repository and
                                       over edited ones, with the refusals it raises
     out/model/normalised/*.json       each of those documents with its scoped bindings hoisted
+    out/quantities/index.json         `check_quantities`, `check_assignment` and the assignment
+                                      report over every model document, and over the edited
+                                      documents and assignments of `quantity_cases.py`
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -697,6 +700,122 @@ def model(out, corpus, name_of):
     return {'source': SOURCE, 'documents': documents, 'cases': cases}
 
 
+# --- quantities and assignments (feature 1.5) -------------------------------
+
+
+def _facts(model, raw, assignment):
+    """What feature 1.5's four functions answer about one document, in one fixed order.
+
+    `check_quantities` is handed the *normalised* reading, as `analyse` hands it one, and
+    `check_assignment`, `external_names` and `missing_assignment` the document as read, as `run`,
+    `--d1`, `--derive`, `--lint` and the status page hand it. Normalisation moves only `bindings`
+    and `compositions` (feature 1.4), which no rule of this module reads, and the parity suite
+    pins that the two readings agree on every corpus document.
+
+    The order matters: a document off the grammar raises somewhere, and the fixture records the
+    *first* refusal, so the port has to reach it at the same point.
+    """
+    import validate
+    from expr import external_names, missing_assignment, resolve_quantities
+    external = sorted(external_names(raw))
+    required = sorted(external_names(raw, with_defaults=False))
+    missing = missing_assignment(raw, assignment)
+    unassigned = missing_assignment(raw, None)
+    variable = sorted(validate.variable_quantities(model))
+    resolved = resolve_quantities(model, assignment)
+    problems = [[code, message] for code, message in validate.check_quantities(model, resolved)]
+    errors = validate.check_assignment(raw, assignment)
+    return {
+        'external': external,
+        'required': required,
+        'missing': missing,
+        'unassigned_missing': unassigned,
+        # The fragment `--validate`, `--d1` and `--derive` each print around their own words.
+        'report': f"needs --assign for {missing}" if missing else None,
+        'variable': variable,
+        'resolved': encode_map(resolved),
+        'problems': problems,
+        'assignment_errors': errors,
+    }
+
+
+def _raised(error):
+    return {'type': type(error).__name__, 'message': str(error)}
+
+
+def _encoded_edit(edit):
+    """One edit as the fixture carries it: the value tagged, so its float-ness survives."""
+    written = {'pointer': edit['pointer'], 'op': edit['op']}
+    if edit['op'] == 'set':
+        written['value'] = encode(edit['value'])
+    return written
+
+
+def quantities(corpus, name_of, assignments):
+    """`check_quantities`, `check_assignment`, `variable_quantities` and the assignment report.
+
+    Over every model document of the repository — the corpus, the template under its documented
+    assignment, and the 73 of `tests/rejections/models/` under the assignment each case names —
+    and over the edited documents and assignments of `quantity_cases.py`, which reach the branches
+    the corpus does not take: no corpus document declares a variable quantity, a boolean or a
+    physical quantity, and eight domains in fifteen documents leave most of the domain table
+    unvisited.
+    """
+    import model as model_mod
+    from quantity_cases import CASES, SOURCE, TEMPLATE
+
+    with open(os.path.join(REJECTIONS, 'models.json'), encoding='utf-8') as handle:
+        rejection_cases = json.load(handle)['cases']
+    named = {os.path.join('tests', 'rejections', case['document']): case.get('assign')
+             for case in rejection_cases}
+
+    documents = []
+    paths = [(name_of(path), os.path.relpath(path, ROOT)) for path in corpus()]
+    paths += [(f"rejection-{name[:-len('.json')]}",
+               os.path.join('tests', 'rejections', 'models', name))
+              for name in sorted(os.listdir(os.path.join(REJECTIONS, 'models')))
+              if name.endswith('.json')]
+    for slug, relative in paths:
+        assignment = assignments.get(slug, named.get(relative))
+        record = {'path': relative,
+                  'assignment': None if assignment is None else encode_map(assignment),
+                  'refused': None, 'error': None}
+        full = os.path.join(ROOT, relative)
+        try:
+            model = model_mod.load(full)
+        except model_mod.ModelError as error:
+            record['refused'] = str(error)
+            documents.append(record)
+            continue
+        with open(full, encoding='utf-8') as handle:
+            raw = json.load(handle)
+        try:
+            record.update(_facts(model, raw, assignment))
+        except Exception as error:                    # whatever it is, it is the answer
+            record['error'] = _raised(error)
+        documents.append(record)
+
+    cases = []
+    for name, relative, edits, assignment in CASES:
+        with open(os.path.join(ROOT, relative), encoding='utf-8') as handle:
+            document = json.load(handle, object_pairs_hook=model_mod._pairs)
+        for edit in edits:
+            _edit(document, edit['pointer'], edit['op'], edit.get('value'))
+        record = {'name': name, 'document': relative,
+                  'edits': [_encoded_edit(edit) for edit in edits],
+                  'assignment': None if assignment is None else encode_map(assignment),
+                  'error': None}
+        try:
+            # An edited document is not normalised: every edit is inside `quantities`, which
+            # normalisation never touches, and both implementations read it as it stands.
+            record.update(_facts(document, document, assignment))
+        except Exception as error:                    # whatever it is, it is the answer
+            record['error'] = _raised(error)
+        cases.append(record)
+
+    return {'source': SOURCE, 'template': TEMPLATE, 'documents': documents, 'cases': cases}
+
+
 # --- the primitive library loader (feature 1.3) -----------------------------
 
 # What a mutation replaces a value by. A string keeps the shape it had — `attention.heads` becomes
@@ -927,6 +1046,10 @@ def main():
     print(f"oracle: {len(model_cases['documents'])} document(s) normalised and "
           f"{len(model_cases['cases'])} edited case(s)")
 
+    quantity_cases = quantities(corpus, name_of, assignments)
+    print(f"oracle: {len(quantity_cases['documents'])} document(s) and "
+          f"{len(quantity_cases['cases'])} case(s) of quantities and assignments")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -967,6 +1090,16 @@ def main():
             'documents': len(model_cases['documents']),
             'cases': len(model_cases['cases']),
         },
+        'quantities': {
+            'index': 'quantities/index.json',
+            'note': ('check_quantities over the normalised reading of every model document of '
+                     'the repository, check_assignment and missing_assignment over the document '
+                     'as read, and the edited documents and assignments that reach the branches '
+                     'the corpus does not take; values are tagged, so an edit keeps its '
+                     'float-ness and the resolved map its integer/float distinction.'),
+            'documents': len(quantity_cases['documents']),
+            'cases': len(quantity_cases['cases']),
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -985,6 +1118,8 @@ def main():
           json.dumps(library_cases, indent=1) + '\n')
     write(os.path.join(out, 'model', 'index.json'),
           json.dumps(model_cases, indent=1) + '\n')
+    write(os.path.join(out, 'quantities', 'index.json'),
+          json.dumps(quantity_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

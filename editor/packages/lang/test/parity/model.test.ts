@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { toJsonValue, toPython, type PyRecord, type PyValue } from '../../src/expr/index.js';
 import { parse, serialize } from '../../src/json/index.js';
 import { ModelError, loadModel, normalise } from '../../src/model/index.js';
+import { applyEdits, put, type Edit } from './edits.js';
 import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from './oracle.js';
 
 // Parity of model normalisation (feature 1.4): what `tools/model.py` reads a document as.
@@ -31,13 +32,6 @@ import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from '
 
 const inCI = process.env['CI'] !== undefined && process.env['CI'] !== '';
 const generated = oracleGenerated();
-
-/** One edit of an edited case. */
-interface Edit {
-  pointer: string;
-  op: 'set' | 'delete';
-  value?: unknown;
-}
 
 /** The refusal the tools raised, as `str(ModelError)`. */
 interface Refusal {
@@ -109,46 +103,10 @@ function fixtureValue(value: unknown, where: string): PyValue {
   return value as PyValue;
 }
 
-/** `d[name] = value`, safe for the one name JavaScript reads as the prototype (1.1, 0.3). */
-function put(record: Record<string, PyValue>, name: string, value: PyValue): void {
-  if (name === '__proto__') {
-    Object.defineProperty(record, name, {
-      value,
-      writable: true,
-      enumerable: true,
-      configurable: true,
-    });
-  } else {
-    record[name] = value;
-  }
-}
-
-/** One edit applied in place, at the pointer the fixture writes — split, never unescaped. */
-function applyEdit(root: PyValue, edit: Edit, where: string): void {
-  const steps = edit.pointer.split('/').slice(1);
-  let cursor = root;
-  for (const step of steps.slice(0, -1)) {
-    cursor = Array.isArray(cursor)
-      ? ((cursor as readonly PyValue[])[Number(step)] as PyValue)
-      : ((cursor as Record<string, PyValue>)[step] as PyValue);
-    expect(cursor, `${where}: ${edit.pointer} names nothing`).toBeDefined();
-  }
-  const last = steps[steps.length - 1] as string;
-  if (Array.isArray(cursor)) {
-    const list = cursor as PyValue[];
-    if (edit.op === 'delete') list.splice(Number(last), 1);
-    else list[Number(last)] = fixtureValue(edit.value, where);
-    return;
-  }
-  const record = cursor as Record<string, PyValue>;
-  if (edit.op === 'delete') delete record[last];
-  else put(record, last, fixtureValue(edit.value, where));
-}
-
 /** The reading of an edited case, before normalisation. */
 function edited(one: EditedCase): PyValue {
   const read = toPython(parse(repositoryText(one.source)));
-  for (const edit of one.edits) applyEdit(read, edit, one.name);
+  applyEdits(read, one.edits, (value) => fixtureValue(value, one.name), one.name);
   return read;
 }
 
