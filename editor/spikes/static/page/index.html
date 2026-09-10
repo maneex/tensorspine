@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TensorSpine Editor — spike 0.6: the static build and the browser workspace</title>
+    <style>
+      /* The tokens of the component inventory §1, dark. The design pass owns the real ones
+         (feature 2.5); a spike carries the few it needs so the two states below read as the
+         artboards S17 and S18 draw them, and nothing more. */
+      :root {
+        --bg: #101317;
+        --bg-chrome: #0b0d10;
+        --bg-panel: #14181d;
+        --bg-raised: #1b2026;
+        --bg-tint: #222932;
+        --ink: #e3e8ef;
+        --ink-2: #c3cad4;
+        --ink-3: #9aa3b0;
+        --muted: #78828f;
+        --rule: #1f242b;
+        --rule-2: #2b323b;
+        --accent: #2ac3c1;
+        --struct: #4d9fd4;
+        --warn: #d9a441;
+        --bad: #e0645c;
+        --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 13px/1.5 var(--sans);
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 44px;
+        padding: 0 14px;
+        background: var(--bg-chrome);
+        border-bottom: 1px solid var(--rule);
+      }
+      .wordmark {
+        font-size: 15px;
+        letter-spacing: 0.01em;
+      }
+      .wordmark b {
+        font-weight: 600;
+        color: var(--struct);
+      }
+      .wordmark i {
+        font-style: normal;
+        font-weight: 600;
+        color: var(--accent);
+      }
+      .sitekind {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+      }
+      .banner {
+        display: flex;
+        gap: 10px;
+        padding: 9px 14px;
+        background: color-mix(in srgb, var(--warn) 12%, var(--bg-panel));
+        border-bottom: 1px solid var(--rule);
+        color: var(--ink-2);
+      }
+      .banner b {
+        color: var(--ink);
+      }
+      main {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      #empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 0 60px;
+        text-align: center;
+      }
+      #empty .lead {
+        font-size: 17px;
+        color: var(--ink-2);
+      }
+      .note {
+        color: var(--muted);
+        max-width: 420px;
+      }
+      #workspace {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .side {
+        width: 300px;
+        background: var(--bg-panel);
+        border-right: 1px solid var(--rule);
+        overflow: auto;
+        padding: 8px;
+      }
+      .side h2 {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        margin: 4px 6px 8px;
+      }
+      .row {
+        display: block;
+        width: 100%;
+        text-align: left;
+        font: 12px/1.6 var(--mono);
+        color: var(--ink-2);
+        background: none;
+        border: 0;
+        padding: 2px 6px;
+        cursor: pointer;
+      }
+      .row:hover {
+        background: var(--bg-tint);
+        color: var(--ink);
+      }
+      .ed {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      textarea {
+        flex: 1;
+        margin: 0;
+        border: 0;
+        padding: 12px 14px;
+        background: var(--bg);
+        color: var(--ink);
+        font: 12px/1.6 var(--mono);
+        resize: none;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--rule);
+      }
+      button {
+        font: 12px var(--sans);
+        color: var(--ink);
+        background: var(--bg-raised);
+        border: 1px solid var(--rule-2);
+        border-radius: 3px;
+        padding: 5px 11px;
+        cursor: pointer;
+      }
+      button:disabled {
+        color: var(--muted);
+        cursor: default;
+      }
+      button.pri {
+        background: color-mix(in srgb, var(--accent) 22%, var(--bg-raised));
+        border-color: var(--accent);
+      }
+      #recents {
+        display: flex;
+        gap: 8px;
+      }
+      .recent {
+        font-family: var(--mono);
+      }
+      .status {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        height: 28px;
+        padding: 0 14px;
+        background: var(--bg-chrome);
+        border-top: 1px solid var(--rule);
+        font: 11px/1 var(--mono);
+        color: var(--ink-3);
+      }
+      pre {
+        margin: 0;
+        max-height: 180px;
+        overflow: auto;
+        padding: 8px 14px;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--rule);
+        font: 11px/1.5 var(--mono);
+        color: var(--ink-3);
+        white-space: pre-wrap;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body data-state="loading">
+    <header class="bar">
+      <span class="wordmark"><b>Tensor</b><i>Spine</i></span>
+      <span class="sitekind">Editor</span>
+      <span class="sitekind">spike 0.6 · the static build and the browser workspace</span>
+    </header>
+
+    <div id="banner" class="banner" hidden data-testid="banner">
+      <span>▲</span>
+      <span
+        ><b>This folder is a read-only snapshot.</b> Your browser cannot write back to it, so
+        <b>Save</b> downloads the file for you to put back. Everything else — validation,
+        derivation, the checkpoint check — works exactly the same.</span
+      >
+    </div>
+
+    <main>
+      <div id="empty">
+        <div class="lead">No workspace is open.</div>
+        <p class="note">
+          A workspace is a folder laid out like <code>data/</code>: models anywhere below it,
+          library bases resolved from each document's <code>primitive_libraries</code>, the
+          schemas from the repository the editor was built with. Nothing is uploaded.
+        </p>
+        <div style="display: flex; gap: 10px; align-items: center">
+          <button id="open-folder" class="pri" type="button" data-testid="open-folder">Open Folder…</button>
+          <label class="note" for="upload">or a folder your browser can only copy:</label>
+          <input id="upload" type="file" webkitdirectory directory multiple data-testid="upload" />
+        </div>
+        <div>
+          <span class="sitekind">Recent</span>
+          <span id="recents" data-testid="recents" data-count="0"></span>
+        </div>
+      </div>
+
+      <div id="workspace" hidden>
+        <aside class="side">
+          <h2>Workspace</h2>
+          <div id="files" data-testid="files"></div>
+        </aside>
+        <div class="ed">
+          <textarea id="editor" spellcheck="false" data-testid="editor"></textarea>
+          <div class="actions">
+            <button id="save" class="pri" type="button" data-testid="save" disabled>Save</button>
+            <span class="note">The button says what it will actually do.</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="status"><span id="status" data-testid="status">no workspace</span></footer>
+    <pre id="log" data-testid="log"></pre>
+    <pre id="report" data-testid="report"></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -13,6 +13,14 @@ const port = 4173;
 const spikePort = 4174;
 export const spikeUrl = `http://${host}:${String(spikePort)}/`;
 
+// Feature 0.6's spike is the same idea one step further: a static build served **under a base
+// path**, as GitHub Pages serves the documentation site's pages. Its server answers nothing
+// outside that base, so a build that ignored it fails here instead of passing by accident.
+const staticPort = 4175;
+export const staticBase = '/editor/';
+export const staticOrigin = `http://${host}:${String(staticPort)}`;
+export const staticUrl = `${staticOrigin}${staticBase}`;
+
 // The browser layer of the implementation plan's §0.3: headless Chromium against the built
 // application, served by Vite's preview server as a static page.
 export default defineConfig({
@@ -39,6 +47,13 @@ export default defineConfig({
       reuseExistingServer: !inCI,
       stdout: 'ignore',
       // The spike's page is built by Vite when the server starts.
+      timeout: 120_000,
+    },
+    {
+      command: `node --experimental-strip-types ../../spikes/static/serve.ts --port ${String(staticPort)} --base ${staticBase}`,
+      url: staticUrl,
+      reuseExistingServer: !inCI,
+      stdout: 'ignore',
       timeout: 120_000,
     },
   ],

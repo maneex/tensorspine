@@ -8,6 +8,8 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
+      // Feature 0.6's runner builds the page once per base path (`spikes/static/run.ts`).
+      '**/dist-bases/**',
       '**/coverage/**',
       'tests/oracle/out/**',
       '**/test-results/**',

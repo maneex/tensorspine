@@ -1,0 +1,393 @@
+{
+  "measuredAt": "2026-09-10T15:54:01.102Z",
+  "node": "v22.22.3",
+  "cases": [
+    "base-path",
+    "directory-round-trip",
+    "directory-watch",
+    "revision-resolution",
+    "handle-persistence",
+    "snapshot-upload",
+    "snapshot-save"
+  ],
+  "bases": {
+    "editor": {
+      "base": "/editor/",
+      "script": "/editor/assets/index-DBTQhPCo.js",
+      "files": {
+        "assets/index-DBTQhPCo.js": 24669,
+        "index.html": 7765
+      }
+    },
+    "site": {
+      "base": "/tensorspine/editor/",
+      "script": "/tensorspine/editor/assets/index-DBTQhPCo.js",
+      "files": {
+        "assets/index-DBTQhPCo.js": 24669,
+        "index.html": 7777
+      }
+    },
+    "relative": {
+      "base": "./",
+      "script": "./assets/index-DBTQhPCo.js",
+      "files": {
+        "assets/index-DBTQhPCo.js": 24669,
+        "index.html": 7759
+      }
+    }
+  },
+  "engines": [
+    {
+      "engine": "chromium",
+      "available": true,
+      "report": {
+        "engine": "chromium",
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+        "startedAt": "2026-09-10T15:53:56.016Z",
+        "base": "/editor/",
+        "capabilities": {
+          "showDirectoryPicker": true,
+          "showOpenFilePicker": true,
+          "showSaveFilePicker": true,
+          "fileSystemHandles": true,
+          "fileSystemWritable": true,
+          "directoryIteration": true,
+          "handlePermissions": true,
+          "opfs": true,
+          "storagePersist": true,
+          "webkitdirectory": true,
+          "webkitGetAsEntry": true,
+          "dropHandles": true,
+          "downloadAttribute": true,
+          "objectUrls": true,
+          "indexedDB": true
+        },
+        "cases": [
+          {
+            "name": "base-path",
+            "ok": true,
+            "ms": 0,
+            "detail": {
+              "base": "/editor/",
+              "baseURI": "http://127.0.0.1:4175/editor/?cases=base-path,directory-round-trip,directory-watch,revision-resolution,handle-persistence,snapshot-upload,snapshot-save&engine=chromium",
+              "module": "/editor/assets/index-DBTQhPCo.js",
+              "pathname": "/editor/",
+              "underRoot": false
+            }
+          },
+          {
+            "name": "directory-round-trip",
+            "ok": true,
+            "ms": 75,
+            "detail": {
+              "files": [
+                "models/spike.json",
+                "primitive-library/primitive-library.json"
+              ],
+              "revisions": {
+                "first": "1789055635370:56",
+                "second": "1789055635386:63"
+              },
+              "conflict": "models/spike.json changed since it was read (1789055635386:63 is not 1789055635370:56)"
+            }
+          },
+          {
+            "name": "directory-watch",
+            "ok": true,
+            "ms": 440,
+            "detail": {
+              "pollMs": 30,
+              "msToChanged": 31,
+              "msToAdded": 30,
+              "msToRemoved": 30,
+              "events": 3,
+              "pollCostMs": 4.6,
+              "pollFiles": 1
+            }
+          },
+          {
+            "name": "revision-resolution",
+            "ok": true,
+            "ms": 89,
+            "detail": {
+              "immediate": {
+                "first": "1789055635846:64",
+                "second": "1789055635854:64"
+              },
+              "spaced": {
+                "first": "1789055635886:64",
+                "second": "1789055635918:64"
+              },
+              "distinguishableImmediately": true,
+              "distinguishableAfter20ms": true
+            }
+          },
+          {
+            "name": "handle-persistence",
+            "ok": true,
+            "ms": 73,
+            "detail": {
+              "name": "persisted",
+              "permission": "granted",
+              "granted": true,
+              "asked": false,
+              "state": "granted"
+            }
+          },
+          {
+            "name": "snapshot-upload",
+            "ok": true,
+            "ms": 8,
+            "detail": {
+              "source": "synthetic",
+              "folder": "data",
+              "files": 2,
+              "paths": [
+                "models/spike.json",
+                "primitive-library/primitive-library.json"
+              ],
+              "bytes": 56,
+              "resolved": "primitive-library",
+              "refusal": "this workspace is a read-only snapshot: primitive-library/primitives cannot be created. Open the folder in a browser with the writable picker, or create it on disk."
+            }
+          },
+          {
+            "name": "snapshot-save",
+            "ok": true,
+            "ms": 7,
+            "detail": {
+              "source": "synthetic",
+              "delivered": false,
+              "name": "spike.json",
+              "path": "models/spike.json",
+              "bytes": 56
+            }
+          }
+        ]
+      }
+    },
+    {
+      "engine": "firefox",
+      "available": true,
+      "report": {
+        "engine": "firefox",
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0",
+        "startedAt": "2026-09-10T15:54:00.634Z",
+        "base": "/editor/",
+        "capabilities": {
+          "showDirectoryPicker": false,
+          "showOpenFilePicker": false,
+          "showSaveFilePicker": false,
+          "fileSystemHandles": true,
+          "fileSystemWritable": true,
+          "directoryIteration": true,
+          "handlePermissions": false,
+          "opfs": true,
+          "storagePersist": true,
+          "webkitdirectory": true,
+          "webkitGetAsEntry": true,
+          "dropHandles": false,
+          "downloadAttribute": true,
+          "objectUrls": true,
+          "indexedDB": true
+        },
+        "cases": [
+          {
+            "name": "base-path",
+            "ok": true,
+            "ms": 0,
+            "detail": {
+              "base": "/editor/",
+              "baseURI": "http://127.0.0.1:4175/editor/?cases=base-path,directory-round-trip,directory-watch,revision-resolution,handle-persistence,snapshot-upload,snapshot-save&engine=firefox",
+              "module": "/editor/assets/index-DBTQhPCo.js",
+              "pathname": "/editor/",
+              "underRoot": false
+            }
+          },
+          {
+            "name": "directory-round-trip",
+            "ok": true,
+            "ms": 1155,
+            "detail": {
+              "files": [
+                "models/spike.json",
+                "primitive-library/primitive-library.json"
+              ],
+              "revisions": {
+                "first": "1789055638562:56",
+                "second": "1789055638818:63"
+              },
+              "conflict": "models/spike.json changed since it was read (1789055638818:63 is not 1789055638562:56)"
+            }
+          },
+          {
+            "name": "directory-watch",
+            "ok": true,
+            "ms": 1017,
+            "detail": {
+              "pollMs": 30,
+              "msToChanged": 30,
+              "msToAdded": 30,
+              "msToRemoved": 31,
+              "events": 3,
+              "pollCostMs": 0,
+              "pollFiles": 1
+            }
+          },
+          {
+            "name": "revision-resolution",
+            "ok": true,
+            "ms": 445,
+            "detail": {
+              "immediate": {
+                "first": "1789055639978:64",
+                "second": "1789055640066:64"
+              },
+              "spaced": {
+                "first": "1789055640190:64",
+                "second": "1789055640302:64"
+              },
+              "distinguishableImmediately": true,
+              "distinguishableAfter20ms": true
+            }
+          },
+          {
+            "name": "handle-persistence",
+            "ok": true,
+            "ms": 276,
+            "detail": {
+              "name": "persisted",
+              "permission": "unsupported",
+              "granted": true,
+              "asked": false,
+              "state": "unsupported"
+            }
+          },
+          {
+            "name": "snapshot-upload",
+            "ok": true,
+            "ms": 1,
+            "detail": {
+              "source": "synthetic",
+              "folder": "data",
+              "files": 2,
+              "paths": [
+                "models/spike.json",
+                "primitive-library/primitive-library.json"
+              ],
+              "bytes": 56,
+              "resolved": "primitive-library",
+              "refusal": "this workspace is a read-only snapshot: primitive-library/primitives cannot be created. Open the folder in a browser with the writable picker, or create it on disk."
+            }
+          },
+          {
+            "name": "snapshot-save",
+            "ok": true,
+            "ms": 1,
+            "detail": {
+              "source": "synthetic",
+              "delivered": false,
+              "name": "spike.json",
+              "path": "models/spike.json",
+              "bytes": 56
+            }
+          }
+        ]
+      }
+    },
+    {
+      "engine": "webkitgtk",
+      "available": true,
+      "report": {
+        "engine": "webkitgtk",
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+        "startedAt": "2026-09-10T15:54:01.100Z",
+        "base": "/editor/",
+        "capabilities": {
+          "showDirectoryPicker": false,
+          "showOpenFilePicker": false,
+          "showSaveFilePicker": false,
+          "fileSystemHandles": false,
+          "fileSystemWritable": false,
+          "directoryIteration": false,
+          "handlePermissions": false,
+          "opfs": false,
+          "storagePersist": false,
+          "webkitdirectory": true,
+          "webkitGetAsEntry": true,
+          "dropHandles": false,
+          "downloadAttribute": true,
+          "objectUrls": true,
+          "indexedDB": true
+        },
+        "cases": [
+          {
+            "name": "base-path",
+            "ok": true,
+            "ms": 0,
+            "detail": {
+              "base": "/editor/",
+              "baseURI": "http://127.0.0.1:4175/editor/?cases=base-path,directory-round-trip,directory-watch,revision-resolution,handle-persistence,snapshot-upload,snapshot-save&engine=webkitgtk",
+              "module": "/editor/assets/index-DBTQhPCo.js",
+              "pathname": "/editor/",
+              "underRoot": false
+            }
+          },
+          {
+            "name": "directory-round-trip",
+            "ok": false,
+            "skipped": "no navigator.storage.getDirectory",
+            "ms": 0
+          },
+          {
+            "name": "directory-watch",
+            "ok": false,
+            "skipped": "no navigator.storage.getDirectory",
+            "ms": 0
+          },
+          {
+            "name": "revision-resolution",
+            "ok": false,
+            "skipped": "no navigator.storage.getDirectory",
+            "ms": 0
+          },
+          {
+            "name": "handle-persistence",
+            "ok": false,
+            "skipped": "no navigator.storage.getDirectory",
+            "ms": 0
+          },
+          {
+            "name": "snapshot-upload",
+            "ok": true,
+            "ms": 5,
+            "detail": {
+              "source": "synthetic",
+              "folder": "data",
+              "files": 2,
+              "paths": [
+                "models/spike.json",
+                "primitive-library/primitive-library.json"
+              ],
+              "bytes": 56,
+              "resolved": "primitive-library",
+              "refusal": "this workspace is a read-only snapshot: primitive-library/primitives cannot be created. Open the folder in a browser with the writable picker, or create it on disk."
+            }
+          },
+          {
+            "name": "snapshot-save",
+            "ok": true,
+            "ms": 1,
+            "detail": {
+              "source": "synthetic",
+              "delivered": false,
+              "name": "spike.json",
+              "path": "models/spike.json",
+              "bytes": 56
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

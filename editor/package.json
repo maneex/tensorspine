@@ -10,7 +10,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p spikes/headers/page/tsconfig.json && pnpm -r run typecheck",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p spikes/headers/page/tsconfig.json && tsc --noEmit -p spikes/static/page/tsconfig.json && pnpm -r run typecheck",
     "lint": "eslint .",
     "test": "vitest run --project lang --project store --project ui --project snapshot",
     "test:unit": "vitest run --project lang --project store --project ui",
@@ -24,6 +24,7 @@
     "oracle": "python3 tests/oracle/generate.py",
     "spike:layout": "node --experimental-strip-types spikes/layout/render.ts",
     "spike:headers": "node --experimental-strip-types spikes/headers/run.ts",
+    "spike:static": "node --experimental-strip-types spikes/static/run.ts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:parity && pnpm run test:snapshot && pnpm run audit:rules && pnpm run test:e2e"
   },
   "devDependencies": {

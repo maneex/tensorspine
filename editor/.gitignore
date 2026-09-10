@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# Feature 0.6's runner builds the page once per base path, to record what each build names.
+dist-bases/
 coverage/
 *.tsbuildinfo
 
