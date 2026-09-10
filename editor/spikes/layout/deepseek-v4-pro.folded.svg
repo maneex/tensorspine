@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="809.7" height="4446" viewBox="0 0 809.7 4446" font-family="'IBM Plex Sans', system-ui, sans-serif">
+<defs>
+  <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0 0 L8 4 L0 8 z" fill="#4c5765"/>
+  </marker>
+</defs>
+<rect width="100%" height="100%" fill="#101317"/>
+<rect x="0" y="0" width="100%" height="54" fill="#14181d"/>
+<text x="24" y="24" font-size="13" fill="#e3e8ef">deepseek-v4-pro · folded document, every composition opened as a compound node</text>
+<text x="24" y="41" font-size="10.5" fill="#78828f">ELK layered, top to bottom · 42 boxes · 47 edges · 761.7 × 4344 px · 39 ms</text>
+<g transform="translate(24, 78)">
+<rect x="12" y="1881" width="483" height="770" rx="3" fill="#16222c" stroke="#4d9fd4" stroke-width="1"/>
+<text x="24" y="1904" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="14" fill="#4d9fd4">main</text>
+<text x="24" y="1925" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#d9a441">layer ∈ [0, 58) · ×58</text>
+<text x="24" y="1949" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#9aa3b0">7 sites per iteration · families decoder</text>
+<rect x="337.3" y="229" width="313.7" height="751" rx="3" fill="#16222c" stroke="#4d9fd4" stroke-width="1"/>
+<text x="349.3" y="252" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="14" fill="#4d9fd4">prologue_hca</text>
+<text x="349.3" y="273" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#d9a441">layer ∈ [0, 2) · ×2</text>
+<text x="349.3" y="297" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#9aa3b0">6 sites per iteration · families decoder, hash_la…</text>
+<rect x="291.7" y="1074" width="313.7" height="713" rx="3" fill="#16222c" stroke="#4d9fd4" stroke-width="1"/>
+<text x="303.7" y="1097" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="14" fill="#4d9fd4">prologue_csa</text>
+<text x="303.7" y="1118" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#d9a441">layer ∈ [0, 1) · ×1</text>
+<text x="303.7" y="1142" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#9aa3b0">6 sites per iteration · families decoder, hash_la…</text>
+<path d="M293.7 2039 L293.7 2049 L131 2049 L131 2091" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="37.8" y="2068" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">attn_hca.norm_in</text>
+<path d="M131 2168 L131 2210 L311.5 2210 L311.5 2220" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="83.4" y="2197" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">attn_r.b</text>
+<path d="M329.3 2297 L329.3 2307 L283.7 2307 L283.7 2349" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="236.1" y="2326" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">moe_n.in</text>
+<path d="M400.7 2297 L400.7 2569" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="403.7" y="2436" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">moe_r.a</text>
+<path d="M283.7 2407 L283.7 2459" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="219" y="2436" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">moe.norm_in</text>
+<path d="M283.7 2517 L283.7 2559 L329.3 2559 L329.3 2569" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="241.8" y="2546" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">moe_r.b</text>
+<path d="M365 2039 L365 2091" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="271.8" y="2068" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">attn_csa.norm_in</text>
+<path d="M365 2168 L365 2220" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="306" y="2197" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">attn_r.b_2</text>
+<path d="M456.3 387 L456.3 439" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="363.1" y="416" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">hca_attn.norm_in</text>
+<path d="M456.3 497 L456.3 549" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="385.9" y="526" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">hca_attn_r.b</text>
+<path d="M456.3 626 L456.3 678" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="385.9" y="655" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">hca_moe_n.in</text>
+<path d="M527.7 626 L527.7 636 L573.3 636 L573.3 888 L527.7 888 L527.7 898" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="576.3" y="765" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">hca_moe_r.a</text>
+<path d="M456.3 736 L456.3 788" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="368.8" y="765" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">hca_moe.norm_in</text>
+<path d="M456.3 846 L456.3 898" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="391.6" y="875" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">hca_moe_r.b</text>
+<path d="M410.7 1213 L410.7 1265" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="317.5" y="1242" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">csa_attn.norm_in</text>
+<path d="M410.7 1323 L410.7 1375" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="340.3" y="1352" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">csa_attn_r.b</text>
+<path d="M410.7 1433 L410.7 1485" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="340.3" y="1462" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">csa_moe_n.in</text>
+<path d="M482 1433 L482 1443 L527.7 1443 L527.7 1695 L482 1695 L482 1705" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="530.7" y="1572" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">csa_moe_r.a</text>
+<path d="M410.7 1543 L410.7 1595" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="323.2" y="1572" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">csa_moe.norm_in</text>
+<path d="M410.7 1653 L410.7 1705" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="346" y="1682" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">csa_moe_r.b</text>
+<path d="M502 140 L502 198 L456.3 198 L456.3 310" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="397.4" y="185" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">prologue_hca.entry</text>
+<path d="M573.3 140 L573.3 539 L527.7 539 L527.7 549" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="576.3" y="185" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">prologue_hca.entry.a</text>
+<path d="M456.3 956 L456.3 1043 L410.7 1043 L410.7 1155" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="351.7" y="1030" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">prologue_csa.entry</text>
+<path d="M527.7 956 L527.7 1365 L482 1365 L482 1375" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="530.7" y="1030" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">prologue_csa.entry.a</text>
+<path d="M410.7 1763 L410.7 1850 L329.3 1850 L329.3 1962" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="351.7" y="1837" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">main.entry</text>
+<path d="M482 1763 L482 2210 L418.5 2210 L418.5 2220" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="485" y="1837" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">main.entry.a</text>
+<path d="M365 2627 L365 2762" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="306" y="2712" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">final_n.in</text>
+<path d="M158.7 2962 L158.7 3046" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="99.7" y="3007" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">lm_head.in</text>
+<path d="M329.3 2820 L329.3 2830 L158.7 2830 L158.7 2904" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="65.5" y="2865" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">collapse.final_n</text>
+<path d="M642.7 2820 L642.7 2904" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="560.9" y="2865" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.embed_n.in</text>
+<path d="M400.7 2820 L400.7 2904" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="313.2" y="2865" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.hidden_n.in</text>
+<path d="M400.7 2962 L400.7 3020 L571.3 3020 L571.3 3046" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="307.5" y="3007" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.merge.hidden</text>
+<path d="M642.7 2962 L642.7 3046" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="560.9" y="3007" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.merge.next</text>
+<path d="M571.3 3104 L571.3 3114 L525.7 3114 L525.7 3210" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="449.6" y="3160" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.attn_n.in</text>
+<path d="M642.7 3104 L642.7 3494" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="645.7" y="3313" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.attn_r.a</text>
+<path d="M525.7 3268 L525.7 3352" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="432.5" y="3313" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.attn.norm_in</text>
+<path d="M525.7 3410 L525.7 3468 L571.3 3468 L571.3 3494" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="455.3" y="3455" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.attn_r.b</text>
+<path d="M571.3 3552 L571.3 3562 L525.7 3562 L525.7 3636" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="455.3" y="3597" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.moe_n.in</text>
+<path d="M642.7 3552 L642.7 3920" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="645.7" y="3739" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.moe_r.a</text>
+<path d="M525.7 3694 L525.7 3778" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="438.2" y="3739" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.moe.norm_in</text>
+<path d="M525.7 3836 L525.7 3894 L571.3 3894 L571.3 3920" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="461" y="3881" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.moe_r.b</text>
+<path d="M607 3978 L607 4062" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="525.2" y="4023" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.final_n.in</text>
+<path d="M607 4120 L607 4204" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="542.3" y="4165" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">mtp.head.in</text>
+<path d="M537.7 46 L537.7 82" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M642.7 2726 L642.7 2762" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M158.7 3104 L158.7 3140" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M607 4262 L607 4298" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="476.1" y="12" width="123.1" height="34" rx="3" fill="none" stroke="#333b45" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="487.1" y="35" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#9aa3b0">◁ tokens</text>
+<text x="487.1" y="55" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">token</text>
+<rect x="562.4" y="2692" width="160.6" height="34" rx="3" fill="none" stroke="#333b45" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="573.4" y="2715" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#9aa3b0">◁ next_tokens</text>
+<text x="573.4" y="2735" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">token</text>
+<rect x="91.5" y="3140" width="134.3" height="34" rx="3" fill="none" stroke="#333b45" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="102.5" y="3163" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#9aa3b0">main ▷</text>
+<text x="102.5" y="3183" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">generative</text>
+<rect x="506.1" y="4298" width="201.8" height="34" rx="3" fill="none" stroke="#333b45" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="517.1" y="4321" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#9aa3b0">next_plus_one ▷</text>
+<text x="517.1" y="4341" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">generative</text>
+<rect x="430.7" y="82" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="441.7" y="105" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">embed</text>
+<text x="441.7" y="125" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">embed@1.0.0</text>
+<rect x="51.7" y="2904" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="62.7" y="2927" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">final_n</text>
+<text x="62.7" y="2947" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="51.7" y="3046" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="62.7" y="3069" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">lm_head</text>
+<text x="62.7" y="3089" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">lm_head@1.0.0</text>
+<rect x="258" y="2762" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="269" y="2785" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">collapse</text>
+<text x="269" y="2805" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mix.collapse@1.0.0</text>
+<rect x="535.7" y="2762" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="546.7" y="2785" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_embed</text>
+<text x="546.7" y="2805" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">embed@1.0.0</text>
+<rect x="535.7" y="2904" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="546.7" y="2927" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_embed_n</text>
+<text x="546.7" y="2947" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="293.7" y="2904" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="304.7" y="2927" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_hidden_n</text>
+<text x="304.7" y="2947" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="500" y="3046" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="511" y="3069" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_merge</text>
+<text x="511" y="3089" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mtp.merge@1.0.0</text>
+<rect x="418.7" y="3210" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="429.7" y="3233" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_attn_n</text>
+<text x="429.7" y="3253" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="418.7" y="3352" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="429.7" y="3375" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_attn</text>
+<text x="429.7" y="3395" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">attention.latent_compressed@1.0.0</text>
+<rect x="500" y="3494" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="511" y="3517" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_attn_r</text>
+<text x="511" y="3537" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">residual.add@1.0.0</text>
+<rect x="418.7" y="3636" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="429.7" y="3659" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_moe_n</text>
+<text x="429.7" y="3679" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="418.7" y="3778" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="429.7" y="3801" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_moe</text>
+<text x="429.7" y="3821" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">moe@1.0.0</text>
+<rect x="500" y="3920" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="511" y="3943" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_moe_r</text>
+<text x="511" y="3963" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">residual.add@1.0.0</text>
+<rect x="500" y="4062" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="511" y="4085" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_final_n</text>
+<text x="511" y="4105" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="500" y="4204" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="511" y="4227" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">mtp_head</text>
+<text x="511" y="4247" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">lm_head@1.0.0</text>
+<rect x="222.3" y="1962" width="214" height="77" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="233.3" y="1985" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">attn_n</text>
+<text x="233.3" y="2005" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<text x="233.3" y="2024" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#d9a441">↺ carry from moe_r[layer=subtrac…</text>
+<rect x="24" y="2091" width="214" height="77" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="35" y="2114" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">attn_hca</text>
+<text x="35" y="2134" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">attention.latent_compressed@1.0.0</text>
+<text x="35" y="2153" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#d9a441">⚑ when all(equal(modulo(layer, 2…</text>
+<rect x="258" y="2220" width="214" height="77" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="269" y="2243" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">attn_r</text>
+<text x="269" y="2263" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mix.doubly_stochastic@1.0.0</text>
+<text x="269" y="2282" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#d9a441">↺ carry from moe_r[layer=subtrac…</text>
+<rect x="176.7" y="2349" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="187.7" y="2372" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">moe_n</text>
+<text x="187.7" y="2392" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="176.7" y="2459" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="187.7" y="2482" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">moe</text>
+<text x="187.7" y="2502" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">moe@1.0.0</text>
+<rect x="258" y="2569" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="269" y="2592" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">moe_r</text>
+<text x="269" y="2612" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mix.doubly_stochastic@1.0.0</text>
+<rect x="258" y="2091" width="214" height="77" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="269" y="2114" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">attn_csa</text>
+<text x="269" y="2134" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">attention.latent_compressed@1.0.0</text>
+<text x="269" y="2153" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#d9a441">⚑ when all(equal(modulo(layer, 2…</text>
+<rect x="349.3" y="310" width="214" height="77" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="360.3" y="333" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">hca_attn_n</text>
+<text x="360.3" y="353" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<text x="360.3" y="372" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#d9a441">↺ carry from hca_moe_r[layer=sub…</text>
+<rect x="349.3" y="439" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="360.3" y="462" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">hca_attn</text>
+<text x="360.3" y="482" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">attention.latent_compressed@1.0.0</text>
+<rect x="385" y="549" width="214" height="77" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="396" y="572" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">hca_attn_r</text>
+<text x="396" y="592" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mix.doubly_stochastic@1.0.0</text>
+<text x="396" y="611" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#d9a441">↺ carry from hca_moe_r[layer=sub…</text>
+<rect x="349.3" y="678" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="360.3" y="701" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">hca_moe_n</text>
+<text x="360.3" y="721" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="349.3" y="788" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="360.3" y="811" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">hca_moe</text>
+<text x="360.3" y="831" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">moe@1.0.0</text>
+<rect x="385" y="898" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="396" y="921" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">hca_moe_r</text>
+<text x="396" y="941" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mix.doubly_stochastic@1.0.0</text>
+<rect x="303.7" y="1155" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="314.7" y="1178" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">csa_attn_n</text>
+<text x="314.7" y="1198" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="303.7" y="1265" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="314.7" y="1288" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">csa_attn</text>
+<text x="314.7" y="1308" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">attention.latent_compressed@1.0.0</text>
+<rect x="339.3" y="1375" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="350.3" y="1398" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">csa_attn_r</text>
+<text x="350.3" y="1418" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mix.doubly_stochastic@1.0.0</text>
+<rect x="303.7" y="1485" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="314.7" y="1508" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">csa_moe_n</text>
+<text x="314.7" y="1528" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="303.7" y="1595" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="314.7" y="1618" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">csa_moe</text>
+<text x="314.7" y="1638" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">moe@1.0.0</text>
+<rect x="339.3" y="1705" width="214" height="58" rx="3" fill="#1b2026" stroke="#2b323b" stroke-width="1"/>
+<text x="350.3" y="1728" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">csa_moe_r</text>
+<text x="350.3" y="1748" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">mix.doubly_stochastic@1.0.0</text>
+</g>
+</svg>

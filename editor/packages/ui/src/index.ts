@@ -10,3 +10,11 @@
 
 /** The package's own name, as the workspace declares it. */
 export const packageName = '@tensorspine/ui';
+
+/**
+ * The canvas's automatic layout (plan §4.7, §4.9) — ELK's layered algorithm, top to bottom,
+ * compositions as compound nodes — is the package's second entry point, `@tensorspine/ui/layout`
+ * (`./src/layout/elk.ts`). It is deliberately not re-exported here: importing it pulls in a
+ * megabyte and a half of compiled ELK, which belongs in the worker that lays a canvas out (§5.6),
+ * never in the shell's first bundle.
+ */

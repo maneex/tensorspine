@@ -1,5 +1,13 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`@tensorspine/ui > exports the layout surface the snapshot records 1`] = `
+[
+  "LayoutError",
+  "defaultLayoutSettings",
+  "layout",
+]
+`;
+
 exports[`@tensorspine/ui > exports the surface the snapshot records 1`] = `
 [
   "packageName",

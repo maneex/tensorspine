@@ -5,9 +5,13 @@
   "type": "module",
   "description": "The interface: shell, activities, canvas, the generic schema walker and its forms, sheets, panels, the primitive editor. No platform import.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./layout": "./src/layout/elk.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "elkjs": "^0.12.0"
   }
 }

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="667.2" height="1133" viewBox="0 0 667.2 1133" font-family="'IBM Plex Sans', system-ui, sans-serif">
+<defs>
+  <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0 0 L8 4 L0 8 z" fill="#4c5765"/>
+  </marker>
+</defs>
+<rect width="100%" height="100%" fill="#101317"/>
+<rect x="0" y="0" width="100%" height="54" fill="#14181d"/>
+<text x="24" y="24" font-size="13" fill="#e3e8ef">gemma3n-kvshare · folded document, every composition collapsed to its boundary handles</text>
+<text x="24" y="41" font-size="10.5" fill="#78828f">ELK layered, top to bottom · 8 boxes · 8 edges · 331 × 1031 px · 8 ms</text>
+<g transform="translate(24, 78)">
+<path d="M140.7 140 L140.7 150 L76 150 L76 340 L112 340 L112 366" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="56.9" y="256" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">aux</text>
+<path d="M212 140 L212 224" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="215" y="185" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">expand</text>
+<path d="M212 282 L212 366" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="215" y="327" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">entry</text>
+<path d="M162 523 L162 607" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="120.1" y="568" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">unembed</text>
+<path d="M162 665 L162 749" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="131.5" y="710" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">final</text>
+<path d="M162 807 L162 891" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="137.2" y="852" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#58616d">head</text>
+<path d="M176.3 46 L176.3 82" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M162 949 L162 985" fill="none" stroke="#4c5765" stroke-width="1.2" marker-end="url(#arrow)"/>
+<rect x="114.8" y="12" width="123.1" height="34" rx="3" fill="none" stroke="#333b45" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="125.8" y="35" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#9aa3b0">◁ tokens</text>
+<text x="125.8" y="55" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">token</text>
+<rect x="94.9" y="985" width="134.3" height="34" rx="3" fill="none" stroke="#333b45" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="105.9" y="1008" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#9aa3b0">main ▷</text>
+<text x="105.9" y="1028" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">generative</text>
+<rect x="69.3" y="82" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="80.3" y="105" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">embed</text>
+<text x="80.3" y="125" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">embedding.token_auxiliary@1.0.0</text>
+<rect x="105" y="224" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="116" y="247" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">expand</text>
+<text x="116" y="267" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">residual.stream_expand@1.0.0</text>
+<rect x="55" y="607" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="66" y="630" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">unembed</text>
+<text x="66" y="650" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">residual.stream_collapse@1.0.0</text>
+<rect x="55" y="749" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="66" y="772" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">final_n</text>
+<text x="66" y="792" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">norm.rms@1.0.0</text>
+<rect x="55" y="891" width="214" height="58" rx="3" fill="#1b2026" stroke="#333b45" stroke-width="1"/>
+<text x="66" y="914" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="13.5" fill="#e3e8ef">lm_head</text>
+<text x="66" y="934" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#78828f">lm_head@1.0.0</text>
+<rect x="12" y="366" width="300" height="157" rx="3" fill="#16222c" stroke="#4d9fd4" stroke-width="1"/>
+<text x="23" y="389" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="14" fill="#4d9fd4">decoder</text>
+<text x="23" y="410" font-family="'IBM Plex Sans', system-ui, sans-serif" font-size="10.5" fill="#d9a441">layer ∈ [0, 30) · ×30</text>
+<text x="23" y="434" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#9aa3b0">predict[layer=0].input</text>
+<text x="23" y="458" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#9aa3b0">inject[layer=29].output</text>
+<text x="23" y="482" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#9aa3b0">aux_select.input</text>
+<text x="23" y="506" font-family="'IBM Plex Mono', ui-monospace, monospace" font-size="9.5" fill="#9aa3b0">17 sites per iteration</text>
+</g>
+</svg>

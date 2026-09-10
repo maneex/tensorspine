@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "TensorSpine Editor — the workspace root: the language core, the store, the interface and the static application.",
+  "description": "TensorSpine Editor \u2014 the workspace root: the language core, the store, the interface and the static application.",
   "license": "Apache-2.0",
   "packageManager": "pnpm@12.3.4",
   "engines": {
@@ -22,11 +22,13 @@
     "build": "pnpm run vendor && pnpm --filter @tensorspine/web run build",
     "dev": "pnpm --filter @tensorspine/web run dev",
     "oracle": "python3 tests/oracle/generate.py",
+    "spike:layout": "node --experimental-strip-types spikes/layout/render.ts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:parity && pnpm run test:snapshot && pnpm run audit:rules && pnpm run test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
+    "@tensorspine/ui": "workspace:*",
     "@types/node": "22.20.1",
     "eslint": "10.10.0",
     "typescript": "6.0.3",
