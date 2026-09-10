@@ -1,0 +1,121 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { COMPARISONS, OPERATORS } from '../../packages/lang/src/expr/index.js';
+import { loadSchemas, type Vocabulary } from '../../packages/lang/src/schema/index.js';
+import { editorRoot } from './tree.js';
+
+// The catching rule (d) of the implementation plan's §1: "The set-equality test of the core's
+// semantic tables against the schema enums."
+//
+// The plan admits a table keyed by a vocabulary item in `packages/lang` and nowhere else, and
+// only to attach semantics to the name: "an evaluator must say what `floor_divide` does". This
+// audit is what keeps the admission honest for the two tables feature 1.2 carries — the
+// operators of the algebra (§2.2 O0.1) and the comparison operators of the condition language
+// (§4.3) — on **both** sides of the language, since one implementation serves the model
+// expressions and the primitive expressions alike.
+//
+// The enumerations are not named here by their values. They are found by walking the grammar:
+// every alternative of the expression union that carries an `op`, and every alternative of the
+// condition union that carries a `compare`. A schema that gains an operator, or an alternative
+// that carries one, therefore reaches this audit without anyone remembering to add it — and a
+// second check requires that no enum written at a place named `op` or `operator`, anywhere in
+// the five schemas, has escaped the walk.
+
+const repositoryRoot = resolve(editorRoot, '..');
+
+/** The repository's own schemas, as the registry loads them at startup. */
+function vocabularyOfRepository(): Vocabulary {
+  const directory = join(repositoryRoot, 'schemas');
+  const files = readdirSync(directory)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => ({
+      path: `schemas/${name}`,
+      text: readFileSync(join(directory, name), 'utf8'),
+    }));
+  return loadSchemas(files, { origin: 'schemas' }).vocabulary();
+}
+
+const vocabulary = vocabularyOfRepository();
+
+const MODEL = 'https://tensorspine.dev/schema/2.0/model.json';
+const UNIT = 'https://tensorspine.dev/schema/2.0/primitive-library-unit.json';
+
+/** The union at that pointer, or a failure naming it: the anchor is part of the grammar. */
+function union(pointer: string): { alternatives: readonly { target: string | null }[] } {
+  const found = vocabulary.unionAt(pointer);
+  expect(found, `${pointer} is not a union of the loaded schemas`).toBeDefined();
+  return found as { alternatives: readonly { target: string | null }[] };
+}
+
+/** Every value of the enum at `<alternative>/<suffix>`, over the alternatives of one union. */
+function namesUnder(pointer: string, suffix: string): string[] {
+  const names = new Set<string>();
+  for (const alternative of union(pointer).alternatives) {
+    if (alternative.target === null) continue;
+    const found = vocabulary.enumAt(`${alternative.target}${suffix}`);
+    if (found === undefined) continue;
+    for (const value of found.values) names.add(String(value));
+  }
+  return [...names].sort();
+}
+
+/** The operator names an expression union admits, over every alternative that carries an `op`. */
+const operatorsOf = (pointer: string): string[] => namesUnder(pointer, '/properties/op');
+
+/** The comparison operators a condition union admits. */
+const comparisonsOf = (pointer: string): string[] =>
+  namesUnder(pointer, '/properties/compare/properties/operator');
+
+describe('the operator table of packages/lang/src/expr', () => {
+  const implemented = Object.keys(OPERATORS).sort();
+
+  it('has exactly one implementation per operator of the model grammar', () => {
+    const declared = operatorsOf(`${MODEL}#/$defs/scalar_expression`);
+    expect(declared.length).toBeGreaterThan(0);
+    expect(implemented).toEqual(declared);
+  });
+
+  it('has exactly one implementation per operator of the primitive grammar', () => {
+    const declared = operatorsOf(`${UNIT}#/$defs/expression`);
+    expect(declared.length).toBeGreaterThan(0);
+    expect(implemented).toEqual(declared);
+  });
+});
+
+describe('the comparison table of packages/lang/src/expr', () => {
+  const implemented = Object.keys(COMPARISONS).sort();
+
+  it('has exactly one implementation per comparison of the model condition language', () => {
+    const declared = comparisonsOf(`${MODEL}#/$defs/condition`);
+    expect(declared.length).toBeGreaterThan(0);
+    expect(implemented).toEqual(declared);
+  });
+
+  it('has exactly one implementation per comparison of the primitive condition language', () => {
+    const declared = comparisonsOf(`${UNIT}#/$defs/condition`);
+    expect(declared.length).toBeGreaterThan(0);
+    expect(implemented).toEqual(declared);
+  });
+});
+
+describe('the walk that finds them', () => {
+  it('leaves no `op` or `operator` enumeration of any schema unaccounted for', () => {
+    const walked = new Set([
+      ...operatorsOf(`${MODEL}#/$defs/scalar_expression`),
+      ...operatorsOf(`${UNIT}#/$defs/expression`),
+      ...comparisonsOf(`${MODEL}#/$defs/condition`),
+      ...comparisonsOf(`${UNIT}#/$defs/condition`),
+    ]);
+    const missed: string[] = [];
+    for (const one of vocabulary.enums) {
+      if (!/\/(op|operator)$/.test(one.place)) continue;
+      for (const value of one.values) {
+        if (!walked.has(String(value))) missed.push(`${one.pointer}: ${String(value)}`);
+      }
+    }
+    expect(missed).toEqual([]);
+  });
+});

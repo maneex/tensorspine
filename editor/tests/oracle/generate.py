@@ -23,6 +23,17 @@ What it writes (the implementation plan's §0.5):
     out/signatures/*.json             the signature suite's recorded signatures, copied
     out/structural/index.json         the schema stage's lines for every document and unit
     out/structural/mutations/*.json   documents mutated one place at a time, for the same
+    out/expressions/index.json        every expression and condition of the corpus and of the
+                                      reference base, with the environment it was evaluated in
+                                      and the value `tools/expr.py` answered
+
+The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
+the quantities, the index environment or the resolved arguments it was evaluated against, and
+the answer — so the parity suite replays them without a walk of its own, and a walk that moves
+(the validator's, D1's) cannot silently change what the evaluator is held to. Beside the
+corpus's own expressions it records a synthetic table over every operator and every comparison,
+because the corpus writes five of the eleven operators and no `divide`, `min`, `max`, `negate`
+or `absolute` at all.
 
 The structural stage is recorded on its own because it is read two different ways: a model
 document through `validate.structural`, which keeps every top-level error, and a library unit
@@ -287,6 +298,296 @@ def structural(out, derived):
     return cases
 
 
+# --- expressions and conditions, evaluated where they stand (feature 1.2) --
+
+EXPRESSION_TAGS = ({'literal'}, {'quantity'}, {'index'}, {'argument'}, {'op', 'args'},
+                   {'if', 'then', 'else'})
+CONDITION_TAGS = ({'boolean'}, {'not'}, {'all'}, {'any'}, {'present'}, {'compare'})
+
+# How many index environments of a grid are evaluated, and how many of a site's argument maps
+# are handed to the primitive side. The first few cover the residues a periodic guard tests
+# (`layer mod 5 = 4`), the last two the boundary a `layers - 1` override reaches.
+ENVIRONMENTS = 6
+LAST = 2
+ARGUMENT_ENVIRONMENTS = 3
+
+
+def encode(value):
+    """A value as the fixture carries it: tagged, and exact.
+
+    An integer is written in decimal digits and a float as `repr` writes it, both as text, so
+    that neither the fixture's own JSON nor the reader's number parsing can lose the distinction
+    the language reads (V3) — which is the whole point of comparing the two implementations
+    here."""
+    from expr import UNRESOLVED
+    if value is UNRESOLVED:
+        return {'unresolved': True}
+    if value is None:
+        return {'none': True}
+    if isinstance(value, bool):
+        return {'bool': value}
+    if isinstance(value, int):
+        return {'int': str(value)}
+    if isinstance(value, float):
+        return {'float': repr(value)}
+    if isinstance(value, str):
+        return {'str': value}
+    if isinstance(value, dict):
+        return {'record': {name: encode(one) for name, one in value.items()}}
+    if isinstance(value, (list, tuple)):
+        return {'list': [encode(one) for one in value]}
+    die(f"the expression fixture cannot encode {value!r}")
+
+
+def encode_map(mapping):
+    return {name: encode(one) for name, one in mapping.items()}
+
+
+def _classified(node):
+    """`expression`, `condition`, or None: what a node is, by the keys it carries.
+
+    The tags are the grammar's own — the required keys of the alternatives of `scalar_expression`
+    and of `condition`, on both sides of the language — and a node is one only when its key set
+    is exactly an alternative's, so a map whose names happen to include `literal` is not mistaken
+    for one."""
+    if not isinstance(node, dict):
+        return None
+    keys = set(node)
+    if keys == {'literal'} and not isinstance(node['literal'], (dict, list)):
+        return 'expression'
+    if keys in ({'quantity'}, {'index'}, {'argument'}) and isinstance(next(iter(node.values())), str):
+        return 'expression'
+    if keys in EXPRESSION_TAGS:
+        return 'expression'
+    if keys == {'present'} and isinstance(node['present'], str):
+        return 'condition'
+    if keys in CONDITION_TAGS:
+        return 'condition'
+    return None
+
+
+def _nodes(node, path=''):
+    """Every expression and condition of a subtree, outermost first; a node's own parts are left
+    to the evaluator, which recurses into them."""
+    kind = _classified(node)
+    if kind is not None:
+        yield path, kind, node
+        return
+    if isinstance(node, dict):
+        for name, one in node.items():
+            yield from _nodes(one, f"{path}/{name}")
+    elif isinstance(node, list):
+        for index, one in enumerate(node):
+            yield from _nodes(one, f"{path}/{index}")
+
+
+def _envs(names, ranges):
+    """The index environments of a grid that are evaluated, first few and last few."""
+    import itertools
+    combos = list(itertools.product(*ranges))
+    kept = combos[:ENVIRONMENTS] + combos[-LAST:] if len(combos) > ENVIRONMENTS else combos
+    seen, out = set(), []
+    for combo in kept:
+        if combo in seen:
+            continue
+        seen.add(combo)
+        out.append(dict(zip(names, combo)))
+    return out
+
+
+class Cases:
+    """The cases collected, deduplicated by what they are: form, expression, environment."""
+
+    def __init__(self):
+        self.cases = []
+        self.environments = []
+        self._interned = {}
+        self._seen = set()
+
+    def intern(self, arguments):
+        encoded = encode_map(arguments)
+        key = json.dumps(encoded, sort_keys=True)
+        if key not in self._interned:
+            self._interned[key] = len(self.environments)
+            self.environments.append(encoded)
+        return self._interned[key]
+
+    def add(self, where, form, node, result, **rest):
+        key = json.dumps([form, node, rest], sort_keys=True, default=str)
+        if key in self._seen:
+            return
+        self._seen.add(key)
+        self.cases.append({'where': where, 'form': form, 'expression': node,
+                           'result': result, **rest})
+
+
+def _model_cases(cases, name, quantities, subtree, env, where):
+    """Every expression and condition of a subtree, evaluated in one index environment."""
+    from expr import model_condition, model_value
+    for path, kind, node in _nodes(subtree):
+        form = 'model_value' if kind == 'expression' else 'model_condition'
+        answer = (model_value(node, quantities, env) if kind == 'expression'
+                  else model_condition(node, quantities, env))
+        cases.add(f"{name}{where}{path}", form, node, encode(answer),
+                  document=name, env=encode_map(env))
+
+
+def _arguments_cases(cases, name, quantities, arguments, env, where):
+    """`static_argument` over an instance's argument map, records included."""
+    from expr import static_argument
+    for argument, value in arguments.items():
+        cases.add(f"{name}{where}/arguments/{argument}", 'static_argument', value,
+                  encode(static_argument(value, quantities, env)),
+                  document=name, env=encode_map(env))
+
+
+def _primitive_cases(cases, name, definition, arguments, where):
+    """Every expression and condition of a primitive declaration, against resolved arguments."""
+    from expr import argument_references, primitive_condition, primitive_value
+    index = cases.intern(arguments)
+    for path, kind, node in _nodes(definition):
+        if kind == 'expression':
+            cases.add(f"{name}{where}{path}", 'primitive_value', node,
+                      encode(primitive_value(node, arguments)), arguments=index)
+            continue
+        try:
+            answer = encode(primitive_condition(node, arguments))
+        except TypeError as error:                       # this side does not catch what the
+            answer = {'error': f"TypeError: {error}"}    # model side catches; recorded as it is
+        cases.add(f"{name}{where}{path}", 'primitive_condition', node, answer, arguments=index)
+        cases.add(f"{name}{where}{path}", 'argument_references', node,
+                  sorted(argument_references(node)))
+
+
+def _literal(value):
+    return {'literal': value}
+
+
+def _algebra(cases):
+    """Every operator and every comparison over the kinds of value the algebra admits.
+
+    The corpus writes five of the eleven operators; this table writes all of them, over the
+    integers, the floats, the booleans and the strings, on both sides of zero — so that
+    `ceil_divide` on a negative, a division by zero and Python's numeric tower are held to the
+    tools rather than to a reading of them."""
+    from expr import model_condition, model_value
+    unary = ['negate', 'absolute']
+    binary = ['subtract', 'divide', 'floor_divide', 'ceil_divide', 'modulo']
+    nary = ['add', 'multiply', 'min', 'max']
+    comparisons = ['equal', 'not_equal', 'less', 'less_or_equal', 'greater', 'greater_or_equal']
+    scalars = [0, 1, 2, 7, -7, 32, 4096, True, False, 0.0, -0.0, 1.0, 1.5, -1.5, 7.5, -7.5,
+               2.0, 1e-05, 'ab', 'a']
+    for op in unary:
+        for value in scalars:
+            node = {'op': op, 'args': [_literal(value)]}
+            cases.add(f"algebra/{op}/{value!r}", 'model_value', node,
+                      encode(model_value(node, {})), document=None, env={})
+    for op in binary + nary:
+        for left in scalars:
+            for right in scalars:
+                node = {'op': op, 'args': [_literal(left), _literal(right)]}
+                cases.add(f"algebra/{op}/{left!r},{right!r}", 'model_value', node,
+                          encode(model_value(node, {})), document=None, env={})
+    for op in nary:
+        for third in scalars:
+            node = {'op': op, 'args': [_literal(3), _literal(-2), _literal(third)]}
+            cases.add(f"algebra/{op}/3,-2,{third!r}", 'model_value', node,
+                      encode(model_value(node, {})), document=None, env={})
+    for operator in comparisons:
+        for left in scalars:
+            for right in scalars:
+                node = {'compare': {'operator': operator, 'left': _literal(left),
+                                    'right': _literal(right)}}
+                cases.add(f"algebra/{operator}/{left!r},{right!r}", 'model_condition', node,
+                          encode(model_condition(node, {})), document=None, env={})
+    for truth in (True, False):
+        node = {'if': {'boolean': truth}, 'then': {'literal': 1}, 'else': {'literal': 2.0}}
+        cases.add(f"algebra/if/{truth}", 'model_value', node, encode(model_value(node, {})),
+                  document=None, env={})
+
+
+def expressions(assignments, corpus, name_of):
+    """Every expression of the corpus and of the reference base, where it stands."""
+    import model as model_mod
+    import primitive_library as primitive_library_mod
+    import validate as validate_mod
+    from expr import (index_grid, missing_assignment, resolve_quantities, static_argument)
+
+    cases = Cases()
+    documents = []
+    _algebra(cases)
+    for path in corpus():
+        name = name_of(path)
+        document = model_mod.load(path)
+        assignment = assignments.get(name)
+        quantities = resolve_quantities(document, assignment)
+        cat = primitive_library_mod.load_for(path, document)
+        grids = {}
+
+        # (a) the quantities themselves: derivations, declared defaults, domain bounds.
+        for quantity, declaration in document['quantities'].items():
+            _model_cases(cases, name, quantities, declaration, {},
+                         f"/quantities/{quantity}")
+        # (b) everything written at the top level in no index scope.
+        for section in ('constants', 'interfaces'):
+            _model_cases(cases, name, quantities, document.get(section, {}), {},
+                         f"/{section}")
+        # (c) the top-level instances, and their arguments through `static_argument`.
+        for instance, o in document['instances'].items():
+            _model_cases(cases, name, quantities, o, {}, f"/instances/{instance}")
+            _arguments_cases(cases, name, quantities, o['arguments'], {}, f"/instances/{instance}")
+        # (d) the compositions, at the index environments their grid unrolls to.
+        for composition, definition in document.get('compositions', {}).items():
+            names, ranges = index_grid(definition['indices'], quantities)
+            grids[composition] = {'names': names,
+                                  'ranges': [[encode(v) for v in r] for r in ranges]}
+            for env in _envs(names, ranges):
+                for site, o in definition['instances'].items():
+                    where = f"/compositions/{composition}/instances/{site}"
+                    _model_cases(cases, name, quantities, o, env, where)
+                    _arguments_cases(cases, name, quantities, o['arguments'], env, where)
+        # (e) the bindings, normalised, each under its own `for_each` grid.
+        for kind, rules in document['bindings'].items():
+            for rule, binding in rules.items():
+                where = f"/bindings/{kind}/{rule}"
+                if 'for_each' in binding:
+                    names, ranges = index_grid(binding['for_each'], quantities)
+                    envs = _envs(names, ranges)
+                else:
+                    envs = [{}]
+                for env in envs:
+                    _model_cases(cases, name, quantities, binding, env, where)
+
+        # (f) the primitive side: every declaration, against the arguments its instances give it.
+        sites = [('', instance, o) for instance, o in document['instances'].items()]
+        for composition, definition in document.get('compositions', {}).items():
+            names, ranges = index_grid(definition['indices'], quantities)
+            for env in _envs(names, ranges)[:ARGUMENT_ENVIRONMENTS]:
+                sites += [(env, f"{composition}.{site}", o)
+                          for site, o in definition['instances'].items()]
+        for env, instance, o in sites:
+            definition = primitive_library_mod.primitive(cat, o['primitive'])
+            if definition is None:
+                continue
+            try:
+                arguments, _problems = validate_mod.resolve_arguments(
+                    definition, o['arguments'],
+                    lambda v, _e=env: static_argument(v, quantities, _e))
+            except (ValueError, TypeError, KeyError):
+                continue                       # a document the validator refuses; not our case
+            _primitive_cases(cases, name, definition, arguments, f"/primitive/{instance}")
+
+        documents.append({
+            'name': name,
+            'path': os.path.relpath(path, ROOT),
+            'assignment': encode_map(assignment) if assignment else None,
+            'quantities': encode_map(quantities),
+            'missing': missing_assignment(document, assignment),
+            'grids': grids,
+        })
+    return {'documents': documents, 'environments': cases.environments, 'cases': cases.cases}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--out', default=os.path.join(HERE, 'out'),
@@ -382,6 +683,10 @@ def main():
     structural_cases = structural(out, derived_products)
     print(f"oracle: {len(structural_cases)} structural case(s)")
 
+    expression_cases = expressions(assignments, corpus, name_of)
+    print(f"oracle: {len(expression_cases['cases'])} expression case(s) over "
+          f"{len(expression_cases['documents'])} document(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -401,6 +706,13 @@ def main():
         },
         'signatures': [f"signatures/{name}" for name in
                        sorted(os.listdir(os.path.join(out, 'signatures')))],
+        'expressions': {
+            'index': 'expressions/index.json',
+            'note': ('every expression and condition where it stands, with the environment it '
+                     'was evaluated in and the value expr.py answered; values are tagged and '
+                     'written as text, so the integer/float distinction survives the fixture.'),
+            'cases': len(expression_cases['cases']),
+        },
         'structural': {
             'index': 'structural/index.json',
             'note': ('a model document is read through validate.structural, a library unit '
@@ -410,6 +722,8 @@ def main():
     }
     write(os.path.join(out, 'structural', 'index.json'),
           json.dumps({'cases': structural_cases}, indent=1) + '\n')
+    write(os.path.join(out, 'expressions', 'index.json'),
+          json.dumps(expression_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "
