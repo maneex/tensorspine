@@ -17,7 +17,7 @@ export {
   type RuleCode,
   type SemanticProblem,
 } from './problems.js';
-export { checkDomain, checkType, type BoundLimit, type RecordCheck } from './conformance.js';
+export { checkDomain, checkType, pyFloat, pyInt, type BoundLimit, type RecordCheck } from './conformance.js';
 export {
   checkArgumentDomain,
   checkInvariants,
@@ -76,3 +76,34 @@ export {
   variableQuantities,
   type AssignmentNeeded,
 } from './quantities.js';
+export {
+  analyse,
+  analyseText,
+  bindingsStage,
+  declaredMultiplicity,
+  dtypeValues,
+  evaluateLocation,
+  locationNames,
+  slotKeyOf,
+  storageShape,
+  wholeCount,
+  EMPTY_BINDINGS,
+  STORAGE_AXIS,
+  type Analysis,
+  type BindingsAnalysis,
+  type BindingsStage,
+  type EvaluatedLocation,
+  type EvaluatedParts,
+  type EvaluatedSlice,
+  type GraphStage,
+  type IdentityMember,
+  type LocationResult,
+  type LocationUse,
+  type LocationValue,
+  type PhysicalNames,
+  type PhysicalSlice,
+  type SlicedRegion,
+  type SlotBinding,
+  type StateInstance,
+  type TensorInstance,
+} from './bindings/index.js';

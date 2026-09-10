@@ -42,6 +42,11 @@ What it writes (the implementation plan's §0.5):
     out/graph/index.json              `analyse` as far as V19 over every model document: the
                                       refusals, the counters, the public interface ports, and the
                                       expanded graph — sites, guards, edges, domains, order
+    out/bindings/index.json           the whole `analyse` over the same documents, and over edited
+                                      ones: the refusals, the counters, the advisories, the
+                                      instance keys, what is carried, the physical names, the
+                                      bound slots and the identity instances
+    out/bindings/documents/*.json     each edited document as the tools were handed it
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -1386,6 +1391,227 @@ def graph(corpus, name_of, assignments):
         documents.append(record)
     return {'documents': documents}
 
+# --- the bindings: slots, identities, locations and states (feature 1.6c) ---
+
+
+def _where_of_analyse():
+    """`analyse`'s own `where(key)`, taken from its source.
+
+    The whole `analyse` does not return it, and the bindings step names every site with it. It
+    closes over nothing, so the block is lifted out of `inspect.getsource(validate.analyse)` and
+    executed as it stands — the tools' own four lines, not a transcription — and a `validate.py`
+    that moves or changes it makes the oracle die rather than record a half-truth.
+    """
+    import inspect
+    import textwrap
+    import validate as validate_mod
+
+    lines = inspect.getsource(validate_mod.analyse).splitlines()
+    starts = [i for i, line in enumerate(lines) if line.strip() == 'def where(key):']
+    if len(starts) != 1:
+        die(f"validate.analyse: `def where(key):` appears {len(starts)} time(s), expected once")
+    start = starts[0]
+    indent = len(lines[start]) - len(lines[start].lstrip())
+    end = start + 1
+    while end < len(lines) and (not lines[end].strip()
+                                or len(lines[end]) - len(lines[end].lstrip()) > indent):
+        end += 1
+    scope = {}
+    exec(textwrap.dedent('\n'.join(lines[start:end])), scope)          # noqa: S102 - the tools' own
+    where = scope['where']
+    if where(('root', 'embed')) != 'embed' or \
+            where(('gen', 'decoder', 'attn', (('layer', 3),))) != 'decoder/attn[layer=3]':
+        die('validate.analyse: `where` no longer names a site the way the fixture reads it')
+    return where
+
+
+def _location(evaluated):
+    """One evaluated location, its integers tagged: D3 writes them and V17 compares them."""
+    if evaluated is None:
+        return None
+    if 'tensor' in evaluated:
+        return {'tensor': evaluated['tensor']}
+    for form in ('stack', 'concat'):
+        if form in evaluated:
+            part = evaluated[form]
+            return {form: {'axis': part['axis'], 'dim': encode(part['dim']),
+                           'parts': [_location(one) for one in part['parts']]}}
+    part = evaluated['slice']
+    return {'slice': {'tensor': part['tensor'], 'axis': part['axis'],
+                      'dim': encode(part['dim']), 'offset': encode(part['offset']),
+                      'extent': encode(part['extent'])}}
+
+
+SENTINEL = re.compile(r'<object object at 0x[0-9a-f]+>')
+
+
+def _elide_sentinel(lines):
+    """`repr(expr.UNRESOLVED)` carries the sentinel's address, which changes between two runs of
+    the tools themselves (measured: three runs of `analyse` on
+    `tests/rejections/models/v3-streams-below-two.json` print three addresses). One line of the
+    bindings interpolates a value with `!r` and can be handed the sentinel — a slot whose
+    multiplicity reads an argument V3 refused — so the address is elided here and the port writes
+    `<object object>` on its side. The rest of the line is contract; the address is not.
+    """
+    written = [SENTINEL.sub('<object object>', line) for line in lines]
+    return written, written != list(lines)
+
+
+def _binding_facts(answer, where):
+    """What `analyse` answers about the bindings, with every site named rather than keyed.
+
+    `mine = next(iter(agree))` reads a Python *set* (feature 1.6b's finding), so an instance whose
+    inputs disagree takes a hash-seeded one of them as its own domain — and at *this* stage the
+    choice reaches the refusals themselves, not only the state behind them: measured on
+    `tests/rejections/models/v5-fusion-without-join.json`, `PYTHONHASHSEED=0` prints 131 lines with
+    26 of V16 where seed 3 prints 105 with none, because one reading puts the state on a fragmented
+    stream and the other does not. The three answers that follow the choice — the refusals, the
+    advisories and what is carried — are therefore not recorded for such a document; everything
+    else here is independent of it.
+    """
+    graph = answer['graph']
+    errors, elided = _elide_sentinel(answer['errors'])
+    advisories, elided_too = _elide_sentinel(answer['advisories'])
+    arbitrary = any('inputs in different domains' in line for line in errors)
+    settled = {} if arbitrary else {
+        'errors': errors,
+        'advisories': advisories,
+        'carried': [[rule, None if mine is None else [mine[0], mine[1]]]
+                    for rule, mine in answer['carried'].items()],
+    }
+    return {
+        **settled,
+        'arbitrary_own': arbitrary,
+        'elided_sentinel': elided or elided_too,
+        'stats': {name: encode(one) for name, one in answer['stats'].items()},
+        'instance_keys': [[key, list(axes)] for key, axes in answer['instance_keys'].items()],
+        'physical': {
+            'whole': [[name, identity] for name, identity in answer['physical']['whole'].items()],
+            'slices': [[name, [[encode(offset), encode(extent), identity]
+                               for offset, extent, identity in intervals]]
+                       for name, intervals in answer['physical']['slices'].items()],
+        },
+        'slots': [[where(key), slot, rule] for (key, slot), rule in graph['slots'].items()],
+        'state_slots': [[where(key), port, rule]
+                        for (key, port), rule in graph['state_slots'].items()],
+        'tensors': [{'identity': one['identity'], 'rule': one['rule'],
+                     'members': [[where(key), name] for key, name in one['members']],
+                     'dtype': one['dtype'], 'location': _location(one.get('location'))}
+                    for one in graph['tensor_instances']],
+        'states': [{'identity': one['identity'], 'rule': one['rule'],
+                    'members': [[where(key), name] for key, name in one['members']],
+                    'dtype': one['dtype'], 'indices': list(one['indices']),
+                    'writer': (None if one.get('writer') is None
+                               else [where(one['writer'][0]), one['writer'][1]])}
+                   for one in graph['state_instances']],
+    }
+
+
+def bindings(out, corpus, name_of, assignments):
+    """The whole `validate.analyse` over every model document of the repository, and over edited
+    ones reaching the branches nothing in the repository takes.
+
+    Feature 1.6b recorded `analyse` truncated at the parameter bindings; this records the function
+    itself, so the two together state that the port is the whole of it. Beside the refusals and
+    the counters it records what the bindings answer — the instance keys of §4.4, what is carried
+    across fragments (§5.3), the physical names, every bound slot and state port, and the identity
+    instances D3 and D4 will read.
+
+    The 73 documents of `tests/rejections/models/` are read under the reference base, which is
+    what `tests/run_rejections.py` hands `validate.semantic`: 21 of them declare
+    `../primitive-library/`, which from `tests/rejections/models/` names the directory of
+    rejection *bases* and gathers nothing (feature 1.6a's finding).
+    """
+    import model as model_mod
+    import primitive_library as primitive_library_mod
+    import validate as validate_mod
+    from binding_cases import CASES, LLAMA, SHORT, VOX, VOXTRAL
+
+    where = _where_of_analyse()
+    written = os.path.join(out, 'bindings', 'documents')
+    os.makedirs(written, exist_ok=True)
+
+    with open(os.path.join(REJECTIONS, 'models.json'), encoding='utf-8') as handle:
+        rejection_cases = json.load(handle)['cases']
+    named = {os.path.join('tests', 'rejections', case['document']): case.get('assign')
+             for case in rejection_cases}
+
+    paths = [(name_of(path), os.path.relpath(path, ROOT)) for path in corpus()]
+    paths += [(f"rejection-{name[:-len('.json')]}",
+               os.path.join('tests', 'rejections', 'models', name))
+              for name in sorted(os.listdir(os.path.join(REJECTIONS, 'models')))
+              if name.endswith('.json')]
+
+    gathered = {}
+
+    def catalogue(bases):
+        key = tuple(bases)
+        if key not in gathered:
+            gathered[key] = primitive_library_mod.load(
+                *[os.path.join(ROOT, base) for base in bases])
+        return gathered[key]
+
+    documents = []
+    for slug, relative in paths:
+        full = os.path.join(ROOT, relative)
+        assignment = assignments.get(slug, named.get(relative))
+        record = {'name': slug, 'path': relative,
+                  'assignment': None if assignment is None else encode_map(assignment),
+                  'error': None}
+        try:
+            document = model_mod.load(full)
+            bases = ([REFERENCE_BASE] if relative.startswith('tests/rejections/')
+                     else [os.path.relpath(base, ROOT)
+                           for base in primitive_library_mod.bases_of(full, document)])
+        except Exception:
+            bases = [REFERENCE_BASE]
+        record['bases'] = bases
+        try:
+            answer = validate_mod.analyse(full, catalogue(bases), assignment)
+        except Exception as error:                     # whatever it is, it is the answer
+            record['error'] = _raised(error)
+            documents.append(record)
+            continue
+        if 'graph' not in answer:
+            # `model.load` refused it: one line, and the empty answer beside it.
+            lines, elided = _elide_sentinel(answer['errors'])
+            record.update({'errors': lines, 'elided_sentinel': elided, 'arbitrary_own': False,
+                           'stats': {}, 'advisories': [], 'read': False})
+            documents.append(record)
+            continue
+        record.update(_binding_facts(answer, where))
+        record['read'] = True
+        documents.append(record)
+
+    cases = []
+    shortened = {LLAMA: SHORT, VOXTRAL: VOX}
+    for name, relative, edits in CASES:
+        applied = shortened[relative] + list(edits)
+        with open(os.path.join(ROOT, relative), encoding='utf-8') as handle:
+            document = json.load(handle)
+        for edit in applied:
+            _no_floats(edit.get('value'), f"{name} {edit['pointer']}")
+            _edit(document, edit['pointer'], edit['op'], edit.get('value'))
+        # `analyse` reads a path, so the edited document is written where the fixture can name it;
+        # the parity suite applies the same edits to the same source and never reads this file.
+        path = os.path.join(written, f"{name}.json")
+        with open(path, 'w', encoding='utf-8') as handle:
+            json.dump(document, handle, indent=2, ensure_ascii=False)
+        record = {'name': name, 'source': relative,
+                  'edits': [_encoded_edit(edit) for edit in applied], 'error': None}
+        try:
+            answer = validate_mod.analyse(path, catalogue([REFERENCE_BASE]))
+        except Exception as error:                     # whatever it is, it is the answer
+            record['error'] = _raised(error)
+            cases.append(record)
+            continue
+        record.update(_binding_facts(answer, where))
+        record['read'] = 'graph' in answer
+        cases.append(record)
+
+    return {'documents': documents, 'cases': cases}
+
+
 # --- the primitive library loader (feature 1.3) -----------------------------
 
 # What a mutation replaces a value by. A string keeps the shape it had — `attention.heads` becomes
@@ -1630,6 +1856,13 @@ def main():
           f"{sum(len(one.get('sites', [])) for one in graph_cases['documents'])} resolved site(s) "
           f"and {sum(len(one.get('edges', [])) for one in graph_cases['documents'])} edge(s)")
 
+    binding_cases = bindings(out, corpus, name_of, assignments)
+    print(f"oracle: {len(binding_cases['documents'])} document(s) analysed in full and "
+          f"{len(binding_cases['cases'])} edited case(s), "
+          f"{sum(len(one.get('tensors', [])) for one in binding_cases['documents'])} tensor "
+          f"identity instance(s) and "
+          f"{sum(len(one.get('states', [])) for one in binding_cases['documents'])} state one(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -1701,6 +1934,17 @@ def main():
                      'analyse own.'),
             'documents': len(graph_cases['documents']),
         },
+        'bindings': {
+            'index': 'bindings/index.json',
+            'note': ('the whole validate.analyse over every model document of the repository, and '
+                     'over edited ones reaching the branches nothing in the repository takes: the '
+                     'refusals, the counters, the advisories, the instance keys, what is carried '
+                     'across fragments, the physical names, the bound slots and the identity '
+                     'instances D3 and D4 read. Every site is named by analyse own `where`, '
+                     'lifted from its source.'),
+            'documents': len(binding_cases['documents']),
+            'cases': len(binding_cases['cases']),
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -1725,6 +1969,8 @@ def main():
           json.dumps(argument_cases, indent=1) + '\n')
     write(os.path.join(out, 'graph', 'index.json'),
           json.dumps(graph_cases, indent=1) + '\n')
+    write(os.path.join(out, 'bindings', 'index.json'),
+          json.dumps(binding_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

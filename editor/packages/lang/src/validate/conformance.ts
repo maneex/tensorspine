@@ -125,7 +125,7 @@ export function checkType(
     const unit = kind === 'physical' ? demand(declared, 'unit') : null;
     if (typeof value !== 'bigint' && typeof value !== 'number') {
       refuse(`= ${pyRepr(value)} is not a number` + (unit === null ? '' : ` of ${pyStr(unit)}`));
-    } else if (unit !== null && unit !== 'seconds' && !pyEqual(asFloat(value), asInteger(value))) {
+    } else if (unit !== null && unit !== 'seconds' && !pyEqual(pyFloat(value), pyInt(value))) {
       refuse(
         `= ${pyRepr(value)} is not a whole number of ${pyStr(unit)} (only seconds is real)`,
       );
@@ -240,7 +240,7 @@ function pyContains(container: PyValue, value: PyValue): boolean {
 }
 
 /** `float(v)` on a number the grammar admits: exact, or Python's refusal for a huge integer. */
-function asFloat(value: bigint | number): number {
+export function pyFloat(value: bigint | number): number {
   if (typeof value === 'number') return value;
   const asDouble = Number(value);
   if (!Number.isFinite(asDouble)) {
@@ -250,7 +250,7 @@ function asFloat(value: bigint | number): number {
 }
 
 /** `int(v)`: truncation towards zero, and Python's two refusals for a non-finite float. */
-function asInteger(value: bigint | number): bigint {
+export function pyInt(value: bigint | number): bigint {
   if (typeof value === 'bigint') return value;
   if (Number.isNaN(value)) throw new PyValueError('cannot convert float NaN to integer');
   if (!Number.isFinite(value)) {

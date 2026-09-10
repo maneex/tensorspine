@@ -69,6 +69,7 @@ import { comparePythonStrings } from '../schema/index.js';
 import type { PathSegment } from '../schema/types.js';
 
 import { describeArguments, type ArgumentDescription } from './arguments.js';
+import type { BindingsAnalysis, BindingsStage } from './bindings/analysis.js';
 import { semanticProblem, withMessage, type SemanticProblem } from './problems.js';
 import { checkQuantities } from './quantities.js';
 
@@ -404,6 +405,15 @@ export interface GraphAnalysis {
   readonly weightsPrefixes: ReadonlyMap<string, string>;
   /** The expansion of each template instance, by the key of its site. */
   readonly subResults: ReadonlyMap<string, GraphAnalysis>;
+  /**
+   * What the bindings stage answered, or `null` where it did not run.
+   *
+   * `analyse` is one function and this module is its first half: feature 1.6c's stage is hooked
+   * in through {@link GraphOptions.beyond}, and without it — the reading feature 1.6b's parity
+   * suite is held to — the walk stops where the tools' own source was cut. It is `null` too when
+   * the document could not be read at all, which is `empty`'s answer.
+   */
+  readonly bindings: BindingsAnalysis | null;
 }
 
 /** What a reading needs beside the document: the library, the assignment, and the expansion memo. */
@@ -414,6 +424,16 @@ export interface GraphOptions {
   readonly depth?: number;
   /** `_cache`: one analysis per (template, assignment), shared down the expansion. */
   readonly cache?: Map<string, GraphAnalysis>;
+  /**
+   * The bindings stage, run where `analyse` runs it: after V19, before the interface ports.
+   *
+   * `analyse` is one function, and the two halves of it are two features. Passing the stage here
+   * rather than calling it afterwards is what keeps the port faithful: its refusals land in the
+   * middle of the error list, its counters reach `stats` before the merge that closes the walk,
+   * and a template instance's expansion — which recurses through this same call — is analysed
+   * with the same stage, so the caller reads a sub-result that has one.
+   */
+  readonly beyond?: BindingsStage;
 }
 
 /**
@@ -494,6 +514,7 @@ function empty(): GraphAnalysis {
     consumed: new Map(),
     weightsPrefixes: new Map(),
     subResults: new Map(),
+    bindings: null,
   };
 }
 
@@ -830,6 +851,7 @@ function analyseNormalised(
             assignment: subAssignment,
             depth: depth + 1,
             cache,
+            ...(options.beyond === undefined ? {} : { beyond: options.beyond }),
           });
           cache.set(cacheKey, sub);
         }
@@ -1228,6 +1250,26 @@ function analyseNormalised(
     }
   }
 
+  // --- the bindings: parameters, the first derivation, states, V20 and V18 (feature 1.6c) ---
+  const bindings =
+    options.beyond === undefined
+      ? null
+      : options.beyond({
+          model,
+          library,
+          quantities,
+          problems,
+          advisories,
+          stats,
+          resolved,
+          absent,
+          own,
+          domains,
+          fragmented,
+          weightsPrefixes,
+          subResults,
+        });
+
   // What this document exposes to a caller: its interface ports, resolved.
   const exposedInputs = new Map<string, InterfacePort>();
   for (const [name, declared] of entries(inputs)) {
@@ -1293,6 +1335,7 @@ function analyseNormalised(
     consumed,
     weightsPrefixes,
     subResults,
+    bindings,
   };
 }
 

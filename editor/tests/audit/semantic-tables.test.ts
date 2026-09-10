@@ -11,7 +11,9 @@ import {
   analyseGraph,
   checkArgumentDomain,
   checkType,
+  evaluateLocation,
   formatSemanticProblems,
+  storageShape,
   type SemanticProblem,
 } from '../../packages/lang/src/validate/index.js';
 import { editorRoot } from './tree.js';
@@ -50,6 +52,12 @@ import { editorRoot } from './tree.js';
 // an interval — the tools' own two-branch reading, which has no fall-through at all, so a third
 // shape would be silently read as an interval. The audit asks each shape the grammar declares
 // which branch decides it, and requires the shapes and the branches to be the same two.
+//
+// The sixth is the *location forms* of §3.4, in `packages/lang/src/validate/bindings/locations.ts`:
+// `evaluate_location` is four `if`s over the form's own key, ending in "unknown location form", so
+// a form the grammar gained would be refused as unknown rather than evaluated. The audit reads the
+// forms off the `location` union's discriminating keys and asks the module which branch decides
+// each one; a form with no branch, or a branch with no form, fails the set equality.
 
 const repositoryRoot = resolve(editorRoot, '..');
 
@@ -71,10 +79,14 @@ const MODEL = 'https://tensorspine.dev/schema/2.0/model.json';
 const UNIT = 'https://tensorspine.dev/schema/2.0/primitive-library-unit.json';
 
 /** The union at that pointer, or a failure naming it: the anchor is part of the grammar. */
-function union(pointer: string): { alternatives: readonly { target: string | null }[] } {
+function union(pointer: string): {
+  alternatives: readonly { target: string | null; discriminating: readonly string[] }[];
+} {
   const found = vocabulary.unionAt(pointer);
   expect(found, `${pointer} is not a union of the loaded schemas`).toBeDefined();
-  return found as { alternatives: readonly { target: string | null }[] };
+  return found as {
+    alternatives: readonly { target: string | null; discriminating: readonly string[] }[];
+  };
 }
 
 /** Every value of the enum at `<alternative>/<suffix>`, over the alternatives of one union. */
@@ -368,5 +380,63 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
     for (const relation of relations()) {
       expect(readingOf(relation), relation).toBe(STATED[relation]);
     }
+  });
+});
+
+describe('the location forms of packages/lang/src/validate/bindings', () => {
+  const LOCATION = `${MODEL}#/$defs/location`;
+
+  /** The forms the grammar declares, from the `oneOf`'s own discriminating keys. */
+  function forms(): string[] {
+    return union(LOCATION).alternatives
+      .map((alternative) => {
+        expect(alternative.discriminating, 'a location alternative discriminates on one key')
+          .toHaveLength(1);
+        return alternative.discriminating[0] as string;
+      })
+      .sort();
+  }
+
+  /** A slot of one axis, `feature`, which every form below addresses. */
+  const SLOT = toPython(
+    parse(
+      '{"role": "norm.scale", "sharing": {"kind": "exclusive"}, "shape": {"axes": [' +
+        '{"name": "feature", "axis": "model.width", "nature": "feature", ' +
+        '"extent": {"literal": 2}}]}}',
+    ),
+  );
+
+  /** One location of each form, written so that it evaluates rather than refusing. */
+  const WRITTEN: Record<string, string> = {
+    tensor: '{"tensor": ["a"]}',
+    stack: '{"stack": {"axis": "feature", "part": {"tensor": ["a.", {"coordinate": "feature"}]}}}',
+    concat: '{"concat": {"axis": "feature", "parts": [{"tensor": ["a"]}, {"tensor": ["b"]}]}}',
+    slice: '{"slice": {"tensor": ["a"], "axis": "feature", "offset": {"literal": 0}}}',
+  };
+
+  /** Which branch of `evaluate_location` decided a form: the key of its answer, or `unknown`. */
+  function branchOf(form: string): string {
+    const answer = evaluateLocation(
+      toPython(parse(WRITTEN[form] as string)),
+      new Map(),
+      storageShape(SLOT),
+      {},
+      (expression) => (expression as { literal?: PyValue }).literal ?? null,
+    );
+    if (answer.evaluated === null) {
+      expect(answer.problems.join(' '), form).toContain('unknown location form');
+      return 'unknown';
+    }
+    expect(answer.problems, form).toEqual([]);
+    return Object.keys(answer.evaluated)[0] as string;
+  }
+
+  it('evaluates every form the grammar declares by its own branch, and has no fall-through', () => {
+    const declared = forms();
+    expect(declared.length).toBeGreaterThan(0);
+    // A form the schema gained would have no entry here, and one the module lost would answer
+    // `unknown`: the set equality catches both directions.
+    expect(Object.keys(WRITTEN).sort()).toEqual(declared);
+    for (const form of declared) expect(branchOf(form), form).toBe(form);
   });
 });
