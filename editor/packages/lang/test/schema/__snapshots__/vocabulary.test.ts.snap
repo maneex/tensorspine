@@ -1,0 +1,1057 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`vocabulary() > is the vocabulary the repository publishes 1`] = `
+{
+  "enums": [
+    {
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/domain/properties/kind",
+      "values": [
+        "sequence",
+        "token",
+        "position",
+        "patch",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d1/properties/interfaces/properties/inputs/additionalProperties/properties/kind",
+      "values": [
+        "sequence",
+        "token",
+        "position",
+        "patch",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/streams/additionalProperties/properties/kind",
+      "values": [
+        "sequence",
+        "token",
+        "position",
+        "patch",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/graph_splits/items/properties/kind",
+      "values": [
+        "layer",
+        "family",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d6/properties/graph_splits/items/properties/kind",
+      "values": [
+        "layer",
+        "family",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d6/properties/graph_splits/items/properties/separated_states/items/properties/writer_side",
+      "values": [
+        "first",
+        "second",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/documentation.json#/$defs/external_doc/properties/kind",
+      "values": [
+        "paper",
+        "reference_implementation",
+        "specification",
+        "discussion",
+        "other",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/fixture.json#/$defs/compute_dtype",
+      "values": [
+        "f32",
+        "bf16",
+        "f16",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/fixture.json#/properties/kind",
+      "values": [
+        "unit",
+        "integration",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/unary_operation/properties/op",
+      "values": [
+        "negate",
+        "absolute",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/binary_operation/properties/op",
+      "values": [
+        "subtract",
+        "divide",
+        "ceil_divide",
+        "floor_divide",
+        "modulo",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/nary_operation/properties/op",
+      "values": [
+        "add",
+        "multiply",
+        "min",
+        "max",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/comparison_condition/properties/compare/properties/operator",
+      "values": [
+        "equal",
+        "not_equal",
+        "less",
+        "less_or_equal",
+        "greater",
+        "greater_or_equal",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/argument_type/properties/kind",
+      "values": [
+        "cardinality",
+        "real",
+        "physical",
+        "boolean",
+        "enum",
+        "record",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/field_declaration/allOf/0/then/properties/type/properties/kind",
+      "values": [
+        "cardinality",
+        "real",
+        "physical",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/argument_declaration/allOf/0/then/properties/type/properties/kind",
+      "values": [
+        "cardinality",
+        "real",
+        "physical",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/axis_nature",
+      "values": [
+        "feature",
+        "structural",
+        "projection",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/port_domain/properties/kind",
+      "values": [
+        "inherit",
+        "sequence",
+        "token",
+        "position",
+        "patch",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/sharing_rule/properties/kind",
+      "values": [
+        "exclusive",
+        "shareable",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/state_operation/properties/effect",
+      "values": [
+        "read",
+        "append",
+        "evict",
+        "write",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/evolution_rule/properties/evolution",
+      "values": [
+        "append",
+        "window",
+        "fixed",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/evolution_rule/properties/access",
+      "values": [
+        "logical_position",
+        "ring",
+        "aggregate",
+        "selected",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/evolution_rule/properties/sharing",
+      "values": [
+        "by_position",
+        "by_source",
+        "within_span",
+        "at_fork_point",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/evolution_rule/allOf/1/if/properties/evolution",
+      "values": [
+        "append",
+        "fixed",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/communication",
+      "values": [
+        "none",
+        "all_reduce",
+        "all_gather",
+        "all_to_all",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/domain_transform/properties/relation",
+      "values": [
+        "merge",
+        "align",
+        "insert",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/axis_definition/properties/space",
+      "values": [
+        "value",
+        "instance",
+        "storage",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/precision_role_definition/properties/sensitivity",
+      "values": [
+        "quantizable",
+        "reduced",
+        "full_precision",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/cost_entry/properties/per",
+      "values": [
+        "element",
+        "cached_position",
+        "sequence",
+        "invocation",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/properties/kind",
+      "values": [
+        "primitive",
+        "axis",
+        "precision_role",
+        "base",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status",
+      "values": [
+        "exact",
+        "upper_bound",
+        "lower_bound",
+        "estimate",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/unary_operation_expression/properties/op",
+      "values": [
+        "negate",
+        "absolute",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/binary_operation_expression/properties/op",
+      "values": [
+        "subtract",
+        "divide",
+        "ceil_divide",
+        "floor_divide",
+        "modulo",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/nary_operation_expression/properties/op",
+      "values": [
+        "add",
+        "multiply",
+        "min",
+        "max",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/comparison_condition/properties/compare/properties/operator",
+      "values": [
+        "equal",
+        "not_equal",
+        "less",
+        "less_or_equal",
+        "greater",
+        "greater_or_equal",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/physical_type/properties/unit",
+      "values": [
+        "bytes",
+        "elements",
+        "tokens",
+        "seconds",
+        "operations",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype",
+      "values": [
+        "bool",
+        "u4",
+        "i4",
+        "u8",
+        "i8",
+        "i16",
+        "i32",
+        "i64",
+        "fp4",
+        "f8e4m3",
+        "f8e4m3fn",
+        "f8e5m2",
+        "bf16",
+        "f16",
+        "f32",
+        "f64",
+      ],
+    },
+    {
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/public_input/properties/kind",
+      "values": [
+        "sequence",
+        "token",
+        "position",
+        "patch",
+      ],
+    },
+  ],
+  "unions": [
+    {
+      "alternatives": [
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal",
+          "tags": [],
+        },
+        {
+          "ref": null,
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/argument_value",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/value_reference",
+          "tags": [],
+        },
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier",
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/values/items/properties/value",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/node_identifier",
+          "tags": [],
+        },
+        {
+          "ref": null,
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/peak_live/properties/node",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/value_reference",
+          "tags": [],
+        },
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/identifier",
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/peak_live/properties/values/items",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/evolution_rule/properties/evolution",
+          "tags": [],
+        },
+        {
+          "ref": null,
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/evolution",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/evolution_rule/properties/access",
+          "tags": [],
+        },
+        {
+          "ref": null,
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/access",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/evolution_rule/properties/sharing",
+          "tags": [],
+        },
+        {
+          "ref": null,
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/sharing",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "tensor",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "stack",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "concat",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "slice",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.1/derived.json#/$defs/location",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/literal_expression",
+          "tags": [
+            "literal",
+          ],
+        },
+        {
+          "ref": "#/$defs/argument_expression",
+          "tags": [
+            "argument",
+          ],
+        },
+        {
+          "ref": "#/$defs/unary_operation",
+          "tags": [
+            "op",
+            "args",
+          ],
+        },
+        {
+          "ref": "#/$defs/binary_operation",
+          "tags": [
+            "op",
+            "args",
+          ],
+        },
+        {
+          "ref": "#/$defs/nary_operation",
+          "tags": [
+            "op",
+            "args",
+          ],
+        },
+        {
+          "ref": "#/$defs/conditional_expression",
+          "tags": [
+            "if",
+            "then",
+            "else",
+          ],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/expression",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/boolean_condition",
+          "tags": [
+            "boolean",
+          ],
+        },
+        {
+          "ref": "#/$defs/not_condition",
+          "tags": [
+            "not",
+          ],
+        },
+        {
+          "ref": "#/$defs/all_condition",
+          "tags": [
+            "all",
+          ],
+        },
+        {
+          "ref": "#/$defs/any_condition",
+          "tags": [
+            "any",
+          ],
+        },
+        {
+          "ref": "#/$defs/present_condition",
+          "tags": [
+            "present",
+          ],
+        },
+        {
+          "ref": "#/$defs/comparison_condition",
+          "tags": [
+            "compare",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/condition",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "self",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "port",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/port_domain/properties/from",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "self",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "port",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/indexing_source",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "argument_axis",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "instance_key_axis",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "payload_axis",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "any_axis",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "none",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/partition_target",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/communication",
+          "tags": [],
+        },
+        {
+          "ref": null,
+          "tags": [],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/partition/properties/communication",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "argument",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "port",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "element",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/sparsity_unit/properties/policy",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "https://tensorspine.dev/schema/2.0/model.json#/$defs/literal_expression",
+          "tags": [
+            "literal",
+          ],
+        },
+        {
+          "ref": "#/$defs/argument_expression",
+          "tags": [
+            "argument",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/argument_domain_bound/properties/value",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/argument_interval_domain",
+          "tags": [
+            "kind",
+          ],
+        },
+        {
+          "ref": "#/$defs/argument_set_domain",
+          "tags": [
+            "values",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/argument_domain",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/literal_expression",
+          "tags": [
+            "literal",
+          ],
+        },
+        {
+          "ref": "#/$defs/quantity_expression",
+          "tags": [
+            "quantity",
+          ],
+        },
+        {
+          "ref": "#/$defs/index_expression",
+          "tags": [
+            "index",
+          ],
+        },
+        {
+          "ref": "#/$defs/unary_operation_expression",
+          "tags": [
+            "op",
+            "args",
+          ],
+        },
+        {
+          "ref": "#/$defs/binary_operation_expression",
+          "tags": [
+            "op",
+            "args",
+          ],
+        },
+        {
+          "ref": "#/$defs/nary_operation_expression",
+          "tags": [
+            "op",
+            "args",
+          ],
+        },
+        {
+          "ref": "#/$defs/conditional_expression",
+          "tags": [
+            "if",
+            "then",
+            "else",
+          ],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_expression",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/boolean_condition",
+          "tags": [
+            "boolean",
+          ],
+        },
+        {
+          "ref": "#/$defs/not_condition",
+          "tags": [
+            "not",
+          ],
+        },
+        {
+          "ref": "#/$defs/all_condition",
+          "tags": [
+            "all",
+          ],
+        },
+        {
+          "ref": "#/$defs/any_condition",
+          "tags": [
+            "any",
+          ],
+        },
+        {
+          "ref": "#/$defs/comparison_condition",
+          "tags": [
+            "compare",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/condition",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/scalar_expression",
+          "tags": [],
+        },
+        {
+          "ref": "#/$defs/record_argument",
+          "tags": [
+            "record",
+          ],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/argument_value",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/cardinality_type",
+          "tags": [
+            "kind",
+          ],
+        },
+        {
+          "ref": "#/$defs/real_type",
+          "tags": [
+            "kind",
+          ],
+        },
+        {
+          "ref": "#/$defs/physical_type",
+          "tags": [
+            "unit",
+          ],
+        },
+        {
+          "ref": "#/$defs/enum_type",
+          "tags": [
+            "values",
+          ],
+        },
+        {
+          "ref": "#/$defs/boolean_type",
+          "tags": [
+            "kind",
+          ],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/quantity_type",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/interval_domain",
+          "tags": [
+            "kind",
+          ],
+        },
+        {
+          "ref": "#/$defs/set_domain",
+          "tags": [
+            "values",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/quantity_domain",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/root_instance_selector",
+          "tags": [
+            "kind",
+            "instance",
+          ],
+        },
+        {
+          "ref": "#/$defs/generated_instance_selector",
+          "tags": [
+            "composition",
+            "indices",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/instance_selector",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/literal_source",
+          "tags": [
+            "value",
+          ],
+        },
+        {
+          "ref": "#/$defs/external_source",
+          "tags": [
+            "kind",
+          ],
+        },
+        {
+          "ref": "#/$defs/derived_source",
+          "tags": [
+            "expression",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/quantity_source",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": "#/$defs/dtype",
+          "tags": [],
+        },
+        {
+          "ref": "#/$defs/quantity_expression",
+          "tags": [
+            "quantity",
+          ],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/dtype_expression",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "site",
+          ],
+        },
+        {
+          "ref": "#/$defs/value_endpoint",
+          "tags": [
+            "instance",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scoped_value_endpoint",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "site",
+          ],
+        },
+        {
+          "ref": "#/$defs/parameter_endpoint",
+          "tags": [
+            "instance",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scoped_parameter_binding/properties/members/items",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "site",
+          ],
+        },
+        {
+          "ref": "#/$defs/state_endpoint",
+          "tags": [
+            "instance",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scoped_state_binding/properties/members/items",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "site",
+          ],
+        },
+        {
+          "ref": "#/$defs/constant_endpoint",
+          "tags": [
+            "instance",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/scoped_constant_binding/properties/members/items",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "index",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "coordinate",
+          ],
+        },
+      ],
+      "discriminated": false,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/physical_name/items",
+    },
+    {
+      "alternatives": [
+        {
+          "ref": null,
+          "tags": [
+            "tensor",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "stack",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "concat",
+          ],
+        },
+        {
+          "ref": null,
+          "tags": [
+            "slice",
+          ],
+        },
+      ],
+      "discriminated": true,
+      "pointer": "https://tensorspine.dev/schema/2.0/model.json#/$defs/location",
+    },
+  ],
+}
+`;

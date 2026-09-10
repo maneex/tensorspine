@@ -148,13 +148,31 @@ export function withoutMember(node: JsonObject, name: string): JsonObject {
  * This is the form Ajv validates and the algorithms of the core read (plan §5.3). It is lossy in
  * exactly the two ways the tree exists to avoid — an integer-like member name would enumerate out
  * of order, and `1.0` becomes `1` — so it is never a form anything is written back from.
+ *
+ * A member named `__proto__` is a member like any other to CPython's `json`, and the model
+ * schema's own `propertyNames` pattern admits it (`^[A-Za-z_][A-Za-z0-9_-]*$`), but plain
+ * assignment would set the object's prototype instead of adding a member and the member would
+ * disappear from the reading the schema stage validates. It is defined as a data property
+ * instead. The object keeps `Object.prototype` all the same, because a validator that reads
+ * `a.valueOf` — Ajv's deep equality does — crashes on an object without one.
  */
 export function toPlain(value: JsonValue): unknown {
   if (isJsonNumber(value)) return value.value;
   if (isJsonArray(value)) return value.map(toPlain);
   if (isJsonObject(value)) {
     const plain: Record<string, unknown> = {};
-    for (const member of value.members) plain[member.name] = toPlain(member.value);
+    for (const member of value.members) {
+      if (member.name === '__proto__') {
+        Object.defineProperty(plain, member.name, {
+          value: toPlain(member.value),
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      } else {
+        plain[member.name] = toPlain(member.value);
+      }
+    }
     return plain;
   }
   return value;

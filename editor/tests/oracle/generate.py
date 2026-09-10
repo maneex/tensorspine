@@ -21,6 +21,16 @@ What it writes (the implementation plan's §0.5):
     out/primitive-schema/<p>_<v>.json `--document primitive-schema` for the reference base
     out/rejections/*.json             the rejection suite's expectations, copied
     out/signatures/*.json             the signature suite's recorded signatures, copied
+    out/structural/index.json         the schema stage's lines for every document and unit
+    out/structural/mutations/*.json   documents mutated one place at a time, for the same
+
+The structural stage is recorded on its own because it is read two different ways: a model
+document through `validate.structural`, which keeps every top-level error, and a library unit
+through `schema.deepest`, which keeps the leaf behind each one — the two readings the tools
+themselves take (`validate.py` and `primitive_library._units`). Beside the repository's own
+documents it records *mutations*: one corpus document or unit with one value changed, deleted or
+added, a hundred at a time, so that the port's message mapping is held to more than the twenty
+cases `tests/rejections` happens to carry.
 
 `--validate` and `--lint` are read for a *set* of documents: the corpus in one invocation, as
 the repository itself runs them, and the template in another, since a template is read under an
@@ -34,6 +44,7 @@ Usage:  pnpm oracle            (from editor/)
         python3 tests/oracle/generate.py [--out DIR]
 """
 import argparse
+import glob
 import hashlib
 import json
 import os
@@ -66,6 +77,7 @@ def repository():
         import jsonschema                                          # noqa: F401
     except ImportError:
         die("the tools need jsonschema: python3 -m pip install 'jsonschema==4.25.0'")
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
     sys.path.insert(0, os.path.join(ROOT, 'tests'))
     try:
         from signature import ASSIGNMENTS, corpus, name_of
@@ -119,6 +131,160 @@ def commit():
 def jsonschema_version():
     import importlib.metadata
     return importlib.metadata.version('jsonschema')
+
+
+# --- the structural stage, recorded both ways (feature 1.1) -----------------
+
+SCHEMAS = os.path.join(ROOT, 'schemas')
+PRIMITIVE_LIBRARY = os.path.join(ROOT, 'data', 'primitive-library')
+
+# The documents whose mutations are recorded, and how many of each: a small model, a template, a
+# composite, and units of three sizes, so that every shape of the two schemas is reached.
+MUTATED = (
+    ('data/models/llama3-8b.json', 'model', 60),
+    ('data/models/shieldstral-3b-composite.json', 'model', 60),
+    ('data/primitive-library/primitives/norm/rms/1.0.0.json', 'primitive-library-unit', 40),
+    ('data/primitive-library/primitives/sequence/gated_delta/1.0.0.json',
+     'primitive-library-unit', 60),
+    ('data/primitive-library/primitives/attention/dense/1.0.0.json',
+     'primitive-library-unit', 60),
+    ('data/primitive-library/axes/attention/heads.json', 'primitive-library-unit', 20),
+    ('data/primitive-library/primitive-library.json', 'primitive-library-unit', 20),
+)
+
+MUTATIONS = ('delete', 'number', 'string', 'list', 'object', 'null', 'true', 'extra',
+             'duplicate', 'negative', 'empty', 'long')
+
+
+_UNIT_REGISTRY = {}
+
+
+def structural_lines(path, role):
+    """The schema stage's lines for one file, read the way the tools read that role.
+
+    A model document goes through `validate.structural` — the JSON layer first (V12), then every
+    top-level error of the grammar — and so does a derived document, which `d1.check` reads the
+    same way. A library unit goes through `schema.deepest`, which is what
+    `primitive_library._units` prints: the leaf behind each error rather than the branch point.
+    """
+    import schema as schema_mod
+    import validate as validate_mod
+    if role != 'primitive-library-unit':
+        return validate_mod.structural(path, SCHEMAS, role=role)
+    if role not in _UNIT_REGISTRY:
+        _UNIT_REGISTRY[role] = (schema_mod.locate(SCHEMAS, role), schema_mod.registry(SCHEMAS))
+    unit_schema, registry = _UNIT_REGISTRY[role]
+    return [schema_mod.format_error(e)
+            for e in schema_mod.deepest(schema_mod.check(unit_schema, path, registry))]
+
+
+def _places(node, path=()):
+    """Every place inside a document, depth first, the root left out."""
+    if isinstance(node, dict):
+        for name, value in node.items():
+            yield path + (name,)
+            yield from _places(value, path + (name,))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield path + (index,)
+            yield from _places(value, path + (index,))
+
+
+def _mutate(document, place, operation):
+    """One document with one place changed, or None when the operation does not apply there."""
+    document = json.loads(json.dumps(document))
+    parent = document
+    for step in place[:-1]:
+        parent = parent[step]
+    last = place[-1]
+    if operation == 'delete':
+        if isinstance(parent, dict):
+            del parent[last]
+        else:
+            parent.pop(last)
+        return document
+    if operation == 'extra':
+        target = parent[last]
+        if not isinstance(target, dict):
+            return None
+        target['zzz'] = 1
+        return document
+    if operation == 'duplicate':
+        if not isinstance(parent, list):
+            return None
+        parent.insert(last, json.loads(json.dumps(parent[last])))
+        return document
+    parent[last] = {'number': 7, 'string': 'mutant', 'list': [], 'object': {},
+                    'null': None, 'true': True, 'negative': -1, 'empty': '',
+                    'long': 'x' * 600}[operation]
+    return document
+
+
+def mutations(document, count):
+    """`count` mutations of one document, spread over its places, one operation each in turn."""
+    places = list(_places(document))
+    if not places:
+        return []
+    stride = max(1, len(places) // count)
+    made = []
+    for index, place in enumerate(places[::stride]):
+        if len(made) >= count:
+            break
+        operation = MUTATIONS[index % len(MUTATIONS)]
+        mutated = _mutate(document, place, operation)
+        if mutated is None:
+            continue
+        made.append(('/'.join(str(step) for step in place), operation, mutated))
+    return made
+
+
+def structural(out, derived):
+    """Every document and unit of the repository, and a spread of mutations, through the stage."""
+    cases = []
+    files = [(os.path.relpath(path, ROOT), 'model')
+             for path in sorted(glob.glob(os.path.join(MODELS, '**', '*.json'), recursive=True))]
+    files += [(os.path.relpath(path, ROOT), 'primitive-library-unit')
+              for path in sorted(glob.glob(os.path.join(PRIMITIVE_LIBRARY, '**', '*.json'),
+                                           recursive=True))]
+    files += [(os.path.join('tests', 'rejections', 'models', name), 'model')
+              for name in sorted(os.listdir(os.path.join(REJECTIONS, 'models')))
+              if name.endswith('.json')]
+    for base in sorted(os.listdir(os.path.join(REJECTIONS, 'primitive-library'))):
+        root = os.path.join(REJECTIONS, 'primitive-library', base)
+        if not os.path.isdir(root):
+            continue
+        files += [(os.path.relpath(path, ROOT), 'primitive-library-unit')
+                  for path in sorted(glob.glob(os.path.join(root, '**', '*.json'),
+                                               recursive=True))]
+    for relative, role in files:
+        cases.append({'document': relative, 'file': None, 'role': role,
+                      'lines': structural_lines(os.path.join(ROOT, relative), role)})
+
+    # The derived products, against the schema of their own role: the one place the cross-file
+    # references of `derived.json` — into the model schema and the unit schema — are exercised.
+    for relative in derived:
+        cases.append({'document': None, 'file': relative, 'role': 'derived',
+                      'lines': structural_lines(os.path.join(out, relative), 'derived')})
+
+    made = os.path.join(out, 'structural', 'mutations')
+    os.makedirs(made)
+    number = 0
+    for relative, role, count in MUTATED + tuple(
+            (name, 'derived', 40) for name in derived if name.startswith('d1/colbert')):
+        source = ROOT if os.path.exists(os.path.join(ROOT, relative)) else out
+        with open(os.path.join(source, relative), encoding='utf-8') as handle:
+            document = json.load(handle)
+        for place, operation, mutated in mutations(document, count):
+            number += 1
+            name = f"{number:04d}.json"
+            path = os.path.join(made, name)
+            with open(path, 'w', encoding='utf-8') as handle:
+                json.dump(mutated, handle)
+            cases.append({'document': None, 'file': f"structural/mutations/{name}",
+                          'role': role, 'source': relative, 'place': place,
+                          'mutation': operation,
+                          'lines': structural_lines(path, role)})
+    return cases
 
 
 def main():
@@ -210,6 +376,12 @@ def main():
         for name in os.listdir(os.path.join(REJECTIONS, 'primitive-library'))
         if os.path.isdir(os.path.join(REJECTIONS, 'primitive-library', name)))
 
+    derived_products = sorted(
+        [f"d1/{name}" for name in os.listdir(os.path.join(out, 'd1'))]
+        + [f"derive/{name}" for name in os.listdir(os.path.join(out, 'derive'))])
+    structural_cases = structural(out, derived_products)
+    print(f"oracle: {len(structural_cases)} structural case(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -229,7 +401,15 @@ def main():
         },
         'signatures': [f"signatures/{name}" for name in
                        sorted(os.listdir(os.path.join(out, 'signatures')))],
+        'structural': {
+            'index': 'structural/index.json',
+            'note': ('a model document is read through validate.structural, a library unit '
+                     'through schema.deepest, which is how the tools read each of them.'),
+            'cases': len(structural_cases),
+        },
     }
+    write(os.path.join(out, 'structural', 'index.json'),
+          json.dumps({'cases': structural_cases}, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

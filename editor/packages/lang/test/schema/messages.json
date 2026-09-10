@@ -1,0 +1,1185 @@
+{
+  "note": "The message `jsonschema` writes for every keyword of draft 2020-12, recorded from the tools themselves (`tools/schema.py`'s `check`, `deepest` and `format_error`) so that the core's mapping is held to a case per keyword rather than to the ones the corpus happens to reach. `lines` is the reading a model document gets, `deepest` the one a library unit gets.",
+  "recorded_from": {
+    "jsonschema": "4.25.0",
+    "generator": "tools/schema.py"
+  },
+  "schema_id": "https://tensorspine.dev/schema/test/probe.json",
+  "cases": [
+    {
+      "name": "type-single",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array"
+      },
+      "instance": "{\"a\": 1}",
+      "lines": [
+        "<root>: {'a': 1} is not of type 'array'"
+      ],
+      "deepest": [
+        "<root>: {'a': 1} is not of type 'array'"
+      ]
+    },
+    {
+      "name": "type-multi",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": [
+          "string",
+          "number"
+        ]
+      },
+      "instance": "{}",
+      "lines": [
+        "<root>: {} is not of type 'string', 'number'"
+      ],
+      "deepest": [
+        "<root>: {} is not of type 'string', 'number'"
+      ]
+    },
+    {
+      "name": "type-integer-on-real",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "integer"
+          }
+        }
+      },
+      "instance": "{\"n\": 1.5}",
+      "lines": [
+        "n: 1.5 is not of type 'integer'"
+      ],
+      "deepest": [
+        "n: 1.5 is not of type 'integer'"
+      ]
+    },
+    {
+      "name": "type-real-instance",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "string"
+          }
+        }
+      },
+      "instance": "{\"n\": 1.0}",
+      "lines": [
+        "n: 1.0 is not of type 'string'"
+      ],
+      "deepest": [
+        "n: 1.0 is not of type 'string'"
+      ]
+    },
+    {
+      "name": "type-whole-instance",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "string"
+          }
+        }
+      },
+      "instance": "{\"n\": 1}",
+      "lines": [
+        "n: 1 is not of type 'string'"
+      ],
+      "deepest": [
+        "n: 1 is not of type 'string'"
+      ]
+    },
+    {
+      "name": "type-exponent-instance",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "n": {
+            "type": "string"
+          }
+        }
+      },
+      "instance": "{\"n\": 1e-05}",
+      "lines": [
+        "n: 1e-05 is not of type 'string'"
+      ],
+      "deepest": [
+        "n: 1e-05 is not of type 'string'"
+      ]
+    },
+    {
+      "name": "enum",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "enum": [
+          "causal",
+          "chunked",
+          "none"
+        ]
+      },
+      "instance": "\"sideways\"",
+      "lines": [
+        "<root>: 'sideways' is not one of ['causal', 'chunked', 'none']"
+      ],
+      "deepest": [
+        "<root>: 'sideways' is not one of ['causal', 'chunked', 'none']"
+      ]
+    },
+    {
+      "name": "enum-mixed",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "enum": [
+          "a",
+          1,
+          true,
+          null
+        ]
+      },
+      "instance": "\"b\"",
+      "lines": [
+        "<root>: 'b' is not one of ['a', 1, True, None]"
+      ],
+      "deepest": [
+        "<root>: 'b' is not one of ['a', 1, True, None]"
+      ]
+    },
+    {
+      "name": "const",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "const": "append"
+      },
+      "instance": "\"apend\"",
+      "lines": [
+        "<root>: 'append' was expected"
+      ],
+      "deepest": [
+        "<root>: 'append' was expected"
+      ]
+    },
+    {
+      "name": "const-true",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "const": true
+      },
+      "instance": "false",
+      "lines": [
+        "<root>: True was expected"
+      ],
+      "deepest": [
+        "<root>: True was expected"
+      ]
+    },
+    {
+      "name": "required-one",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "required": [
+          "span"
+        ]
+      },
+      "instance": "{}",
+      "lines": [
+        "<root>: 'span' is a required property"
+      ],
+      "deepest": [
+        "<root>: 'span' is a required property"
+      ]
+    },
+    {
+      "name": "required-many",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "required": [
+          "name",
+          "summary",
+          "kind"
+        ]
+      },
+      "instance": "{\"summary\": \"x\"}",
+      "lines": [
+        "<root>: 'name' is a required property",
+        "<root>: 'kind' is a required property"
+      ],
+      "deepest": [
+        "<root>: 'name' is a required property",
+        "<root>: 'kind' is a required property"
+      ]
+    },
+    {
+      "name": "pattern",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$"
+      },
+      "instance": "\"9bad\"",
+      "lines": [
+        "<root>: '9bad' does not match '^[A-Za-z_][A-Za-z0-9_-]*$'"
+      ],
+      "deepest": [
+        "<root>: '9bad' does not match '^[A-Za-z_][A-Za-z0-9_-]*$'"
+      ]
+    },
+    {
+      "name": "minLength-1",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "string",
+        "minLength": 1
+      },
+      "instance": "\"\"",
+      "lines": [
+        "<root>: '' should be non-empty"
+      ],
+      "deepest": [
+        "<root>: '' should be non-empty"
+      ]
+    },
+    {
+      "name": "minLength-3",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "string",
+        "minLength": 3
+      },
+      "instance": "\"ab\"",
+      "lines": [
+        "<root>: 'ab' is too short"
+      ],
+      "deepest": [
+        "<root>: 'ab' is too short"
+      ]
+    },
+    {
+      "name": "maxLength-0",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "string",
+        "maxLength": 0
+      },
+      "instance": "\"a\"",
+      "lines": [
+        "<root>: 'a' is expected to be empty"
+      ],
+      "deepest": [
+        "<root>: 'a' is expected to be empty"
+      ]
+    },
+    {
+      "name": "maxLength-2",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "string",
+        "maxLength": 2
+      },
+      "instance": "\"abc\"",
+      "lines": [
+        "<root>: 'abc' is too long"
+      ],
+      "deepest": [
+        "<root>: 'abc' is too long"
+      ]
+    },
+    {
+      "name": "minItems-1",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "minItems": 1
+      },
+      "instance": "[]",
+      "lines": [
+        "<root>: [] should be non-empty"
+      ],
+      "deepest": [
+        "<root>: [] should be non-empty"
+      ]
+    },
+    {
+      "name": "minItems-3",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "minItems": 3
+      },
+      "instance": "[1, 2]",
+      "lines": [
+        "<root>: [1, 2] is too short"
+      ],
+      "deepest": [
+        "<root>: [1, 2] is too short"
+      ]
+    },
+    {
+      "name": "maxItems-0",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "maxItems": 0
+      },
+      "instance": "[1]",
+      "lines": [
+        "<root>: [1] is expected to be empty"
+      ],
+      "deepest": [
+        "<root>: [1] is expected to be empty"
+      ]
+    },
+    {
+      "name": "maxItems-2",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "maxItems": 2
+      },
+      "instance": "[1, 2, 3]",
+      "lines": [
+        "<root>: [1, 2, 3] is too long"
+      ],
+      "deepest": [
+        "<root>: [1, 2, 3] is too long"
+      ]
+    },
+    {
+      "name": "minProperties-1",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "minProperties": 1
+      },
+      "instance": "{}",
+      "lines": [
+        "<root>: {} should be non-empty"
+      ],
+      "deepest": [
+        "<root>: {} should be non-empty"
+      ]
+    },
+    {
+      "name": "minProperties-3",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "minProperties": 3
+      },
+      "instance": "{\"a\": 1}",
+      "lines": [
+        "<root>: {'a': 1} does not have enough properties"
+      ],
+      "deepest": [
+        "<root>: {'a': 1} does not have enough properties"
+      ]
+    },
+    {
+      "name": "maxProperties-0",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "maxProperties": 0
+      },
+      "instance": "{\"a\": 1}",
+      "lines": [
+        "<root>: {'a': 1} is expected to be empty"
+      ],
+      "deepest": [
+        "<root>: {'a': 1} is expected to be empty"
+      ]
+    },
+    {
+      "name": "maxProperties-1",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "maxProperties": 1
+      },
+      "instance": "{\"a\": 1, \"b\": 2}",
+      "lines": [
+        "<root>: {'a': 1, 'b': 2} has too many properties"
+      ],
+      "deepest": [
+        "<root>: {'a': 1, 'b': 2} has too many properties"
+      ]
+    },
+    {
+      "name": "minimum",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "number",
+        "minimum": 0
+      },
+      "instance": "-1",
+      "lines": [
+        "<root>: -1 is less than the minimum of 0"
+      ],
+      "deepest": [
+        "<root>: -1 is less than the minimum of 0"
+      ]
+    },
+    {
+      "name": "maximum",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "number",
+        "maximum": 10
+      },
+      "instance": "11",
+      "lines": [
+        "<root>: 11 is greater than the maximum of 10"
+      ],
+      "deepest": [
+        "<root>: 11 is greater than the maximum of 10"
+      ]
+    },
+    {
+      "name": "exclusiveMinimum",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "instance": "0",
+      "lines": [
+        "<root>: 0 is less than or equal to the minimum of 0"
+      ],
+      "deepest": [
+        "<root>: 0 is less than or equal to the minimum of 0"
+      ]
+    },
+    {
+      "name": "exclusiveMaximum",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "number",
+        "exclusiveMaximum": 10
+      },
+      "instance": "10",
+      "lines": [
+        "<root>: 10 is greater than or equal to the maximum of 10"
+      ],
+      "deepest": [
+        "<root>: 10 is greater than or equal to the maximum of 10"
+      ]
+    },
+    {
+      "name": "multipleOf-int",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "number",
+        "multipleOf": 2
+      },
+      "instance": "3",
+      "lines": [
+        "<root>: 3 is not a multiple of 2"
+      ],
+      "deepest": [
+        "<root>: 3 is not a multiple of 2"
+      ]
+    },
+    {
+      "name": "multipleOf-real",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "number",
+        "multipleOf": 0.5
+      },
+      "instance": "0.75",
+      "lines": [
+        "<root>: 0.75 is not a multiple of 0.5"
+      ],
+      "deepest": [
+        "<root>: 0.75 is not a multiple of 0.5"
+      ]
+    },
+    {
+      "name": "uniqueItems",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "uniqueItems": true
+      },
+      "instance": "[\"a\", \"b\", \"a\"]",
+      "lines": [
+        "<root>: ['a', 'b', 'a'] has non-unique elements"
+      ],
+      "deepest": [
+        "<root>: ['a', 'b', 'a'] has non-unique elements"
+      ]
+    },
+    {
+      "name": "dependentRequired",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "dependentRequired": {
+          "window": [
+            "span",
+            "axis"
+          ]
+        }
+      },
+      "instance": "{\"window\": true}",
+      "lines": [
+        "<root>: 'span' is a dependency of 'window'",
+        "<root>: 'axis' is a dependency of 'window'"
+      ],
+      "deepest": [
+        "<root>: 'span' is a dependency of 'window'",
+        "<root>: 'axis' is a dependency of 'window'"
+      ]
+    },
+    {
+      "name": "additional-one",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "model": {}
+        },
+        "additionalProperties": false
+      },
+      "instance": "{\"model\": \"x\", \"kernels\": 1}",
+      "lines": [
+        "<root>: Additional properties are not allowed ('kernels' was unexpected)"
+      ],
+      "deepest": [
+        "<root>: Additional properties are not allowed ('kernels' was unexpected)"
+      ]
+    },
+    {
+      "name": "additional-two",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "model": {}
+        },
+        "additionalProperties": false
+      },
+      "instance": "{\"zeta\": 1, \"alpha\": 2}",
+      "lines": [
+        "<root>: Additional properties are not allowed ('alpha', 'zeta' were unexpected)"
+      ],
+      "deepest": [
+        "<root>: Additional properties are not allowed ('alpha', 'zeta' were unexpected)"
+      ]
+    },
+    {
+      "name": "additional-patterns",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "patternProperties": {
+          "^a": {},
+          "^b": {}
+        },
+        "additionalProperties": false
+      },
+      "instance": "{\"zeta\": 1}",
+      "lines": [
+        "<root>: 'zeta' does not match any of the regexes: '^a', '^b'"
+      ],
+      "deepest": [
+        "<root>: 'zeta' does not match any of the regexes: '^a', '^b'"
+      ]
+    },
+    {
+      "name": "additional-patterns-two",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "patternProperties": {
+          "^a": {}
+        },
+        "additionalProperties": false
+      },
+      "instance": "{\"zeta\": 1, \"mu\": 2}",
+      "lines": [
+        "<root>: 'mu', 'zeta' do not match any of the regexes: '^a'"
+      ],
+      "deepest": [
+        "<root>: 'mu', 'zeta' do not match any of the regexes: '^a'"
+      ]
+    },
+    {
+      "name": "additional-schema",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "instance": "{\"k\": 1}",
+      "lines": [
+        "k: 1 is not of type 'string'"
+      ],
+      "deepest": [
+        "k: 1 is not of type 'string'"
+      ]
+    },
+    {
+      "name": "items-false",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "prefixItems": [
+          {}
+        ],
+        "items": false
+      },
+      "instance": "[1, 2, 3]",
+      "lines": [
+        "<root>: Expected at most 1 item but found 2 extra: [2, 3]"
+      ],
+      "deepest": [
+        "<root>: Expected at most 1 item but found 2 extra: [2, 3]"
+      ]
+    },
+    {
+      "name": "items-false-one-extra",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "prefixItems": [
+          {},
+          {}
+        ],
+        "items": false
+      },
+      "instance": "[1, 2, 3]",
+      "lines": [
+        "<root>: Expected at most 2 items but found 1 extra: 3"
+      ],
+      "deepest": [
+        "<root>: Expected at most 2 items but found 1 extra: 3"
+      ]
+    },
+    {
+      "name": "not",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "not": {
+          "type": "string"
+        }
+      },
+      "instance": "\"x\"",
+      "lines": [
+        "<root>: 'x' should not be valid under {'type': 'string'}"
+      ],
+      "deepest": [
+        "<root>: 'x' should not be valid under {'type': 'string'}"
+      ]
+    },
+    {
+      "name": "oneOf-none",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "literal"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "literal": {}
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "quantity"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "quantity": {}
+            }
+          }
+        ]
+      },
+      "instance": "{\"context\": \"analysis.heads\"}",
+      "lines": [
+        "<root>: {'context': 'analysis.heads'} is not valid under any of the given schemas"
+      ],
+      "deepest": [
+        "<root>: 'literal' is a required property"
+      ]
+    },
+    {
+      "name": "oneOf-several",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "minLength": 1
+          }
+        ]
+      },
+      "instance": "\"x\"",
+      "lines": [
+        "<root>: 'x' is valid under each of {'minLength': 1}, {'type': 'string'}"
+      ],
+      "deepest": [
+        "<root>: 'x' is valid under each of {'minLength': 1}, {'type': 'string'}"
+      ]
+    },
+    {
+      "name": "anyOf-none",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "anyOf": [
+          {
+            "required": [
+              "lower"
+            ]
+          },
+          {
+            "required": [
+              "upper"
+            ]
+          }
+        ]
+      },
+      "instance": "{\"middle\": 1}",
+      "lines": [
+        "<root>: {'middle': 1} is not valid under any of the given schemas"
+      ],
+      "deepest": [
+        "<root>: 'lower' is a required property"
+      ]
+    },
+    {
+      "name": "allOf",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "allOf": [
+          {
+            "type": "object"
+          },
+          {
+            "required": [
+              "a"
+            ]
+          }
+        ]
+      },
+      "instance": "{}",
+      "lines": [
+        "<root>: 'a' is a required property"
+      ],
+      "deepest": [
+        "<root>: 'a' is a required property"
+      ]
+    },
+    {
+      "name": "if-then",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "if": {
+          "properties": {
+            "k": {
+              "const": "window"
+            }
+          },
+          "required": [
+            "k"
+          ]
+        },
+        "then": {
+          "required": [
+            "span"
+          ]
+        }
+      },
+      "instance": "{\"k\": \"window\"}",
+      "lines": [
+        "<root>: 'span' is a required property"
+      ],
+      "deepest": [
+        "<root>: 'span' is a required property"
+      ]
+    },
+    {
+      "name": "if-else",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "if": {
+          "required": [
+            "k"
+          ]
+        },
+        "then": {
+          "required": [
+            "span"
+          ]
+        },
+        "else": {
+          "required": [
+            "other"
+          ]
+        }
+      },
+      "instance": "{}",
+      "lines": [
+        "<root>: 'other' is a required property"
+      ],
+      "deepest": [
+        "<root>: 'other' is a required property"
+      ]
+    },
+    {
+      "name": "propertyNames",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^[a-z]+$"
+        }
+      },
+      "instance": "{\"Bad\": 1}",
+      "lines": [
+        "<root>: 'Bad' does not match '^[a-z]+$'"
+      ],
+      "deepest": [
+        "<root>: 'Bad' does not match '^[a-z]+$'"
+      ]
+    },
+    {
+      "name": "patternProperties",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "patternProperties": {
+          "^a": {
+            "type": "string"
+          }
+        }
+      },
+      "instance": "{\"abc\": 1}",
+      "lines": [
+        "abc: 1 is not of type 'string'"
+      ],
+      "deepest": [
+        "abc: 1 is not of type 'string'"
+      ]
+    },
+    {
+      "name": "prefixItems",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      },
+      "instance": "[1, \"x\"]",
+      "lines": [
+        "0: 1 is not of type 'string'",
+        "1: 'x' is not of type 'number'"
+      ],
+      "deepest": [
+        "0: 1 is not of type 'string'",
+        "1: 'x' is not of type 'number'"
+      ]
+    },
+    {
+      "name": "false-schema",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "a": false
+        }
+      },
+      "instance": "{\"a\": 1}",
+      "lines": [
+        "<root>: False schema does not allow 1"
+      ],
+      "deepest": [
+        "<root>: False schema does not allow 1"
+      ]
+    },
+    {
+      "name": "dependentSchemas",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "dependentSchemas": {
+          "a": {
+            "required": [
+              "b"
+            ]
+          }
+        }
+      },
+      "instance": "{\"a\": 1}",
+      "lines": [
+        "<root>: 'b' is a required property"
+      ],
+      "deepest": [
+        "<root>: 'b' is a required property"
+      ]
+    },
+    {
+      "name": "nested-oneOf",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "x": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "op",
+                  "args"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "op": {
+                    "enum": [
+                      "add"
+                    ]
+                  },
+                  "args": {
+                    "type": "array",
+                    "minItems": 2
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "literal"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "literal": {}
+                }
+              }
+            ]
+          }
+        }
+      },
+      "instance": "{\"x\": {\"op\": \"sub\", \"args\": [1]}}",
+      "lines": [
+        "x: {'op': 'sub', 'args': [1]} is not valid under any of the given schemas"
+      ],
+      "deepest": [
+        "x/args: [1] is too short"
+      ]
+    },
+    {
+      "name": "repr-quotes",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "s": {
+            "type": "number"
+          }
+        }
+      },
+      "instance": "{\"s\": \"it's\"}",
+      "lines": [
+        "s: \"it's\" is not of type 'number'"
+      ],
+      "deepest": [
+        "s: \"it's\" is not of type 'number'"
+      ]
+    },
+    {
+      "name": "repr-both-quotes",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "s": {
+            "type": "number"
+          }
+        }
+      },
+      "instance": "{\"s\": \"both ' and \\\"\"}",
+      "lines": [
+        "s: 'both \\' and \"' is not of type 'number'"
+      ],
+      "deepest": [
+        "s: 'both \\' and \"' is not of type 'number'"
+      ]
+    },
+    {
+      "name": "repr-nonascii",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "s": {
+            "type": "number"
+          }
+        }
+      },
+      "instance": "{\"s\": \"pr\\u00e9cision \\u2014 \\u00e9\"}",
+      "lines": [
+        "s: 'précision — é' is not of type 'number'"
+      ],
+      "deepest": [
+        "s: 'précision — é' is not of type 'number'"
+      ]
+    },
+    {
+      "name": "repr-escape",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "s": {
+            "type": "number"
+          }
+        }
+      },
+      "instance": "{\"s\": \"tab\\there\\nand\\\\back\"}",
+      "lines": [
+        "s: 'tab\\there\\nand\\\\back' is not of type 'number'"
+      ],
+      "deepest": [
+        "s: 'tab\\there\\nand\\\\back' is not of type 'number'"
+      ]
+    },
+    {
+      "name": "repr-nested",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "string"
+      },
+      "instance": "{\"a\": [1, 2.5, true, null], \"b\": {\"c\": \"d\"}}",
+      "lines": [
+        "<root>: {'a': [1, 2.5, True, None], 'b': {'c': 'd'}} is not of type 'string'"
+      ],
+      "deepest": [
+        "<root>: {'a': [1, 2.5, True, None], 'b': {'c': 'd'}} is not of type 'string'"
+      ]
+    },
+    {
+      "name": "repr-empty",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "string"
+      },
+      "instance": "{}",
+      "lines": [
+        "<root>: {} is not of type 'string'"
+      ],
+      "deepest": [
+        "<root>: {} is not of type 'string'"
+      ]
+    },
+    {
+      "name": "deep-path",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://tensorspine.dev/schema/test/probe.json",
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "object",
+            "properties": {
+              "b": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "instance": "{\"a\": {\"b\": [\"ok\", 3]}}",
+      "lines": [
+        "a/b/1: 3 is not of type 'string'"
+      ],
+      "deepest": [
+        "a/b/1: 3 is not of type 'string'"
+      ]
+    }
+  ]
+}
