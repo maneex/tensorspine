@@ -43,9 +43,35 @@ pnpm exec playwright install chromium     # once, for the end-to-end layer
 ## Run
 
 ```sh
+pnpm vendor     # the schemas, corpus, reference base and generated artifacts, for the application
 pnpm dev        # the application on Vite's dev server
-pnpm build      # the static build, into apps/web/dist
+pnpm build      # the static build, into apps/web/dist (vendors first)
 ```
+
+## What the application ships
+
+There is no server and no interpreter behind the editor, so everything it reads is copied into
+`apps/web/public/vendor/` at build time, from the repository it is part of:
+
+| Under the vendor root | What it is |
+|---|---|
+| `schemas/` | the repository's `schemas/`, byte for byte, indexed at startup by `$id` |
+| `data/models/` | the corpus — the read-only **Examples** workspace |
+| `data/primitive-library/` | the reference base |
+| `generated/primitive-schema/` | one JSON Schema per non-template primitive version, as `--document primitive-schema` writes them |
+| `generated/primitive-library.md` | the library reference, as `--document primitive-library` writes it |
+| `vendor.json` | the manifest: the commit vendored, and every file with its length and its sha256 |
+
+`data/` keeps the repository's layout on purpose: a document resolves its bases relative to
+itself (`"base": "../primitive-library/"`) and a base manifest resolves its templates the same
+way, so the Examples workspace opens exactly as `data/` does.
+
+The two generated artifacts are the tools' own output, consumed and never regenerated in
+JavaScript, so `pnpm vendor` needs python3 and `jsonschema` as the oracle does. It refuses
+without them rather than ship a stale copy: what it needs is checked before anything is removed,
+a run that cannot finish leaves no half vendor behind, and the manifest is written last — a
+directory without `vendor.json` is not a vendor. `apps/web/public/vendor/` is gitignored: it is
+regenerated, never committed.
 
 ## Test
 
@@ -63,6 +89,10 @@ pnpm build      # the static build, into apps/web/dist
 
 `pnpm test` runs the unit and snapshot layers together, which is the loop to keep open while
 working. No test is ever disabled to make the suite pass.
+
+The audit layer also runs `pnpm vendor` into a temporary directory and holds what it wrote to
+the repository's own files, so a broken vendor fails `pnpm check` and CI needs no step of its
+own for it.
 
 ## The oracle
 
@@ -96,3 +126,7 @@ then `pnpm oracle` and `pnpm check`.
 TypeScript 6, Vite 8, Vitest 5, ESLint 10 with typescript-eslint 8, Playwright 1.63. TypeScript
 is held at 6 on purpose: typescript-eslint 8 refuses TypeScript 7, so the workspace stays on the
 line the linter supports until that changes.
+
+The build scripts under `scripts/` are TypeScript that Node runs itself, through type stripping
+(`--experimental-strip-types`, passed so that the Node 22 lines that still need the flag run
+them too); they are typechecked and linted with everything else.
