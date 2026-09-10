@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { COMPARISONS, OPERATORS, toPython, type PyValue } from '../../packages/lang/src/expr/index.js';
 import { loadSchemas, type Vocabulary } from '../../packages/lang/src/schema/index.js';
 import { parse } from '../../packages/lang/src/json/index.js';
+import type { Library } from '../../packages/lang/src/library/index.js';
 import {
+  analyseGraph,
   checkArgumentDomain,
   checkType,
   formatSemanticProblems,
@@ -37,6 +39,12 @@ import { editorRoot } from './tree.js';
 // real". It is written as the tools write it, an `if`/`else if` chain ending in "type '…' is
 // unknown to this validator", so the audit reads it the way a table cannot be read: by *asking*
 // it about every kind the grammar declares, and requiring that none falls through.
+//
+// The fifth is the transform relations of §5.3, in `packages/lang/src/validate/graph.ts`: the V5
+// block reads `merge` by name and lumps `align` and `insert`, so the audit states what §5.3 says
+// each relation does to the output's domain and asks the module, relation by relation, over a
+// synthetic primitive with two streams. A relation the grammar gained would have no stated
+// reading and fails the set equality; one whose reading changed fails the behaviour.
 //
 // The fourth is the *domain*'s, beside it: `domain['kind'] == 'set'` and everything else read as
 // an interval — the tools' own two-branch reading, which has no fall-through at all, so a third
@@ -230,5 +238,135 @@ describe('the domain table of packages/lang/src/validate', () => {
     // read as an interval without anyone saying so, and a branch with no shape would be dead.
     expect([...new Set(branches)].sort()).toEqual([...new Set(declared)].sort());
     expect(branches.length).toBe(new Set(branches).size);
+  });
+});
+
+describe('the transform relations of packages/lang/src/validate/graph', () => {
+  const RELATION = `${UNIT}#/$defs/domain_transform/properties/relation`;
+
+  // What §5.3 states each relation does to the output's indexing domain, name by name:
+  // "`merge` — the output carries the input port's stream at the output's kind"; "`align` — the
+  // input port carries another domain and the output stays in the instance's domain"; "`insert`
+  // — the input port's elements enter the instance's stream, which the output keeps". The V5
+  // block reads `merge` by name and lumps the rest, so a relation the grammar gained would be
+  // read as an `align` without anyone saying so. This is the set equality that stops it.
+  const STATED: Record<string, 'from_port' | 'own'> = {
+    merge: 'from_port',
+    align: 'own',
+    insert: 'own',
+  };
+
+  /** The relations the grammar declares, read from the schema and never typed here. */
+  function relations(): string[] {
+    const found = vocabulary.enumAt(RELATION);
+    expect(found, `${RELATION} is not an enumeration of the loaded schemas`).toBeDefined();
+    return (found as { values: readonly PyValue[] }).values
+      .map((one) => (typeof one === 'string' ? one : JSON.stringify(one)))
+      .sort();
+  }
+
+  /**
+   * A primitive with two inputs and one transformed output.
+   *
+   * `a` and `b` inherit their domains from the edges into them, so each carries the stream of the
+   * public input feeding it; `out` declares a kind, and a transform relates it to `b`. Nothing
+   * else is declared: the reading under test is the domain's, and a shape or a slot would only
+   * bring another rule into the answer.
+   */
+  function primitive(relation: string): PyValue {
+    const inherit = { domain: { kind: 'inherit', from: { self: true } }, role: 'activation.hidden' };
+    return toPython(
+      parse(
+        JSON.stringify({
+          version: '1.0.0',
+          arguments: {},
+          ports: {
+            inputs: { a: inherit, b: inherit },
+            outputs: {
+              out: { domain: { kind: 'token', from: { self: true } }, role: 'activation.hidden' },
+            },
+          },
+          parameters: {},
+          constants: {},
+          state_ports: {},
+          domain_transforms: [
+            { from_port: 'b', to_port: 'out', relation, factor: { literal: 1 } },
+          ],
+          effects: { reads: [], writes: [] },
+          partition_options: [],
+        }),
+      ),
+    );
+  }
+
+  /** A primitive library holding that one primitive, as `loadLibrary` would answer it. */
+  function libraryWith(definition: PyValue): Library {
+    return {
+      bases: [],
+      byId: new Map([
+        [
+          'audit.transform@1.0.0',
+          { name: 'audit.transform', version: '1.0.0', definition, file: '<audit>', base: '<audit>' },
+        ],
+      ]),
+      primitives: new Map([['audit.transform', definition]]),
+      axes: new Map(),
+      precision: new Map(),
+      templates: new Map(),
+      problems: [],
+    };
+  }
+
+  /**
+   * Whose stream the output carries: the transformed port's, or the instance's own.
+   *
+   * `a` is fed by the public input `first` and `b` by `second`, two streams; `a` is the only
+   * untransformed input, so the instance's own domain is `first`'s.
+   */
+  function readingOf(relation: string): string {
+    const endpoint = (port: string) => ({
+      instance: { kind: 'root', instance: 'x' },
+      port,
+    });
+    const document = toPython(
+      parse(
+        JSON.stringify({
+          schema: 'tensorspine/2.0',
+          model: 'audit_transform',
+          primitive_libraries: [{ base: './' }],
+          quantities: {},
+          constants: {},
+          instances: {
+            x: {
+              primitive: { name: 'audit.transform', version: '1.0.0' },
+              arguments: {},
+              families: ['audit'],
+            },
+          },
+          compositions: {},
+          bindings: { values: {}, parameters: {}, constants: {}, states: {} },
+          interfaces: {
+            inputs: {
+              first: { to: [endpoint('a')], kind: 'token' },
+              second: { to: [endpoint('b')], kind: 'token' },
+            },
+            outputs: { out: { from: endpoint('out'), generative: false } },
+          },
+        }),
+      ),
+    );
+    const answer = analyseGraph(document, libraryWith(primitive(relation)));
+    expect(formatSemanticProblems([...answer.problems]), relation).toEqual([]);
+    const stream = answer.ports.outputs.get('out')?.stream;
+    expect(stream, relation).toBeTypeOf('string');
+    return stream === 'second' ? 'from_port' : 'own';
+  }
+
+  it('reads every relation the grammar declares as §5.3 states it', () => {
+    // A relation the schema gained, or dropped, fails here rather than being read as an `align`.
+    expect(relations()).toEqual(Object.keys(STATED).sort());
+    for (const relation of relations()) {
+      expect(readingOf(relation), relation).toBe(STATED[relation]);
+    }
   });
 });

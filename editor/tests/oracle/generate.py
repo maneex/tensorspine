@@ -39,6 +39,9 @@ What it writes (the implementation plan's §0.5):
                                       argument sheet reads, per site of every model document and
                                       of every template it instantiates, plus the synthetic
                                       declarations of `argument_cases.py`
+    out/graph/index.json              `analyse` as far as V19 over every model document: the
+                                      refusals, the counters, the public interface ports, and the
+                                      expanded graph — sites, guards, edges, domains, order
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -1186,6 +1189,203 @@ def arguments(corpus, name_of, assignments):
 
     return {'documents': documents, 'cases': cases, 'synthetic': synthetic}
 
+# --- the graph: sites, edges, domains and interfaces (feature 1.6b) ---------
+
+
+def _partial_analyse():
+    """`validate.analyse` truncated at the parameter bindings: feature 1.6b's half of it.
+
+    The feature ports `analyse` as far as V19 — sites and guards, references, ports and shapes,
+    edges, interfaces, indexing domains — and feature 1.6c continues from there. The tools have
+    one function, so the expectation is built by *taking their own source* and cutting it at the
+    comment that opens the bindings, then appending the two blocks that close it: the interface
+    ports a caller reads back, and the merge of an expanded template's counters. Nothing is
+    transcribed but those two blocks, and both are copied from the same source.
+
+    The cut and the tail are found by their comments, so a `validate.py` that moves them makes
+    the oracle die rather than record a half-truth. What the truncation answers is held to the
+    whole function on every document: its errors are a subsequence of `analyse`'s, and the
+    counters and the interface ports it computes are `analyse`'s own.
+    """
+    import inspect
+    import validate as validate_mod
+
+    lines = inspect.getsource(validate_mod.analyse).splitlines()
+
+    def find(prefix):
+        hits = [i for i, line in enumerate(lines) if line.strip().startswith(prefix)]
+        if len(hits) != 1:
+            die(f"validate.analyse: {prefix!r} appears {len(hits)} time(s), expected once")
+        return hits[0]
+
+    cut = find('# --- V7/V14/V15: parameters')
+    ports = find('# What this document exposes to a caller')
+    ret = find("return {'errors': errors,")
+    if not (cut < ports < ret):
+        die('validate.analyse: the blocks feature 1.6b ends with are no longer in order')
+    body = lines[:cut] + lines[ports:ret] + [
+        "    return {'errors': errors, 'stats': stats, 'ports': ports,",
+        "            'advisories': advisories, 'where': where,",
+        "            'graph': {'resolved': resolved, 'edges': edges, 'domains': domains,",
+        "                      'own': own, 'absent': absent, 'order': order, 'sites': sites,",
+        "                      'seeds': seeds, 'fragmented': fragmented, 'producers': producers,",
+        "                      'consumed': consumed, 'weights_prefixes': weights_prefixes,",
+        "                      'sub_results': sub_results}}",
+    ]
+    scope = dict(validate_mod.__dict__)
+    exec('\n'.join(body), scope)                                   # noqa: S102 - the tools' own
+    return scope['analyse']
+
+
+def _subsequence(inner, outer):
+    """Every line of `inner`, in order, among the lines of `outer`."""
+    walk = iter(outer)
+    return all(any(line == one for one in walk) for line in inner)
+
+
+def _graph_facts(answer):
+    """The expanded graph as the fixture carries it: names, not tuples."""
+    where = answer['where']
+    graph = answer['graph']
+    return {
+        'sites': [where(key) for key in graph['resolved']],
+        'absent': sorted(where(key) for key in graph['absent']),
+        'edges': [[where(src), sp, where(dst), dp, bid]
+                  for src, sp, dst, dp, bid in graph['edges']],
+        'order': [where(key) for key in graph['order']],
+        'domains': [[where(key), port, kind, stream]
+                    for (key, port), (kind, stream) in graph['domains'].items()],
+        'own': [[where(key), None if mine is None else [mine[0], mine[1]]]
+                for key, mine in graph['own'].items()],
+        'seeds': [[where(key), port, kind, stream]
+                  for (key, port), (kind, stream) in graph['seeds'].items()],
+        'fragmented': sorted(graph['fragmented']),
+        'producers': [[where(key), port, bid]
+                      for (key, port), bid in graph['producers'].items()],
+        'consumed': sorted([where(key), port] for key, port in graph['consumed']),
+        'weights_prefixes': [[where(key), prefix]
+                             for key, prefix in graph['weights_prefixes'].items()],
+        'ports': _interface_ports(answer['ports']),
+        'stats': {name: encode(one) for name, one in answer['stats'].items()},
+        'advisories': list(answer['advisories']),
+    }
+
+
+def _interface_ports(ports):
+    """The public interface ports, with their evaluated shapes tagged."""
+    return {side: {name: {'kind': encode(entry['kind']), 'stream': encode(entry['stream']),
+                          'shape': (None if entry['shape'] is None
+                                    else [[axis, encode(extent)] for axis, extent in entry['shape']])}
+                   for name, entry in entries.items()}
+            for side, entries in ports.items()}
+
+
+def graph(corpus, name_of, assignments):
+    """`analyse` as far as V19, over every model document of the repository.
+
+    The corpus and the template under its documented assignment, and the 73 of
+    `tests/rejections/models/` — the last read under the reference base, which is what
+    `tests/run_rejections.py` hands `validate.semantic`: 21 of them declare
+    `../primitive-library/`, which from `tests/rejections/models/` names the directory of
+    rejection *bases* and gathers nothing (feature 1.6a's finding).
+
+    Recorded per document: the refusals, the counters, the public interface ports, and the graph
+    itself — the resolved sites, the sites a guard removed, the edges, the topological order, the
+    indexing domain of every port, what feeds and consumes each one. A template instance's own
+    expansion is recorded beside it, which is what makes the composite document's counts checkable
+    against the flat document's (`tests/run_templates.py`'s claim).
+    """
+    import model as model_mod
+    import primitive_library as primitive_library_mod
+    import validate as validate_mod
+
+    partial = _partial_analyse()
+
+    with open(os.path.join(REJECTIONS, 'models.json'), encoding='utf-8') as handle:
+        rejection_cases = json.load(handle)['cases']
+    named = {os.path.join('tests', 'rejections', case['document']): case.get('assign')
+             for case in rejection_cases}
+
+    paths = [(name_of(path), os.path.relpath(path, ROOT)) for path in corpus()]
+    paths += [(f"rejection-{name[:-len('.json')]}",
+               os.path.join('tests', 'rejections', 'models', name))
+              for name in sorted(os.listdir(os.path.join(REJECTIONS, 'models')))
+              if name.endswith('.json')]
+
+    gathered = {}
+    documents = []
+    for slug, relative in paths:
+        full = os.path.join(ROOT, relative)
+        assignment = assignments.get(slug, named.get(relative))
+        record = {'name': slug, 'path': relative,
+                  'assignment': None if assignment is None else encode_map(assignment),
+                  'error': None}
+        try:
+            document = model_mod.load(full)
+            bases = ([REFERENCE_BASE] if relative.startswith('tests/rejections/')
+                     else [os.path.relpath(base, ROOT)
+                           for base in primitive_library_mod.bases_of(full, document)])
+        except Exception:
+            bases = [REFERENCE_BASE]
+        record['bases'] = bases
+        key = tuple(bases)
+        if key not in gathered:
+            gathered[key] = primitive_library_mod.load(
+                *[os.path.join(ROOT, base) for base in bases])
+        cat = gathered[key]
+        try:
+            answer = partial(full, cat, assignment)
+        except Exception as error:                     # whatever it is, it is the answer
+            record['error'] = _raised(error)
+            documents.append(record)
+            continue
+        record['errors'] = list(answer['errors'])
+        if 'graph' not in answer:
+            # `model.load` refused the document: one line, and nothing else (`empty`).
+            record.update({'stats': {}, 'advisories': [],
+                           'ports': _interface_ports(answer['ports']),
+                           'read': False, 'whole': True, 'expansions': [],
+                           'arbitrary_own': False})
+            documents.append(record)
+            continue
+        record.update(_graph_facts(answer))
+        record['read'] = True
+        # `mine = next(iter(agree))` reads a Python *set*, so an instance whose inputs disagree
+        # takes an arbitrary one of them as its own domain — hash-seeded, and different between
+        # two runs of the tools themselves (`PYTHONHASHSEED=3` answers `audio` where 0, 1, 2 and
+        # 4 answer `tokens` on `v5-fusion-without-join.json`). The refusals are stable, since the
+        # V5 line sorts what it lists; what follows the choice is not, so it is not recorded.
+        record['arbitrary_own'] = any('inputs in different domains' in line
+                                      for line in answer['errors'])
+        record['expansions'] = [
+            [answer['where'](key), {name: encode(one) for name, one in sub['stats'].items()},
+             _interface_ports(sub['ports'])]
+            for key, sub in answer['graph']['sub_results'].items()]
+        # The truncation is held to the whole function: its lines are `analyse`'s, in order, and
+        # the counters and interface ports it computes are `analyse`'s own.
+        try:
+            whole = validate_mod.analyse(full, cat, assignment)
+        except Exception:
+            record['whole'] = False
+            documents.append(record)
+            continue
+        record['whole'] = True
+
+        if not _subsequence(answer['errors'], whole['errors']):
+            die(f"{relative}: the truncated analyse refuses a line validate.analyse does not")
+        for name, one in answer['stats'].items():
+            if whole['stats'].get(name) != one:
+                die(f"{relative}: the truncated analyse counts {name} = {one!r} where "
+                    f"validate.analyse counts {whole['stats'].get(name)!r}")
+        if json.dumps(_interface_ports(whole['ports']), sort_keys=True) != \
+                json.dumps(record['ports'], sort_keys=True):
+            die(f"{relative}: the truncated analyse exposes other interface ports")
+        if record['arbitrary_own']:
+            for name in ('own', 'domains', 'ports'):
+                record.pop(name)
+        documents.append(record)
+    return {'documents': documents}
+
 # --- the primitive library loader (feature 1.3) -----------------------------
 
 # What a mutation replaces a value by. A string keeps the shape it had — `attention.heads` becomes
@@ -1425,6 +1625,11 @@ def main():
           f"{len(argument_cases['documents'])} document(s), and "
           f"{len(argument_cases['synthetic'])} synthetic declaration(s)")
 
+    graph_cases = graph(corpus, name_of, assignments)
+    print(f"oracle: {len(graph_cases['documents'])} document(s) analysed as far as V19, "
+          f"{sum(len(one.get('sites', [])) for one in graph_cases['documents'])} resolved site(s) "
+          f"and {sum(len(one.get('edges', [])) for one in graph_cases['documents'])} edge(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -1486,6 +1691,16 @@ def main():
             'sites': len(argument_cases['cases']),
             'synthetic': len(argument_cases['synthetic']),
         },
+        'graph': {
+            'index': 'graph/index.json',
+            'note': ('validate.analyse truncated at the parameter bindings — its own source, cut '
+                     'at the comment that opens them and closed with the interface-port block and '
+                     'the merge of an expanded template counters — over every model document of '
+                     'the repository; held to the whole function on each: its lines are a '
+                     'subsequence of analyse own, and the counters and ports it computes are '
+                     'analyse own.'),
+            'documents': len(graph_cases['documents']),
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -1508,6 +1723,8 @@ def main():
           json.dumps(quantity_cases, indent=1) + '\n')
     write(os.path.join(out, 'arguments', 'index.json'),
           json.dumps(argument_cases, indent=1) + '\n')
+    write(os.path.join(out, 'graph', 'index.json'),
+          json.dumps(graph_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

@@ -19,6 +19,16 @@
  */
 import { pointerOf, type PathSegment } from '../schema/types.js';
 
+/**
+ * The exception the tools raise where they do not collect.
+ *
+ * The loader itself collects (above), but `primitive_library.template_path` raises out of
+ * `validate.analyse` on a template primitive whose document the load did not resolve — the one
+ * place a caller of a *gathered* library still meets a `PrimitiveLibraryError`. The port raises it
+ * there too, with the tools' words: where they raise, it raises (feature 1.5's rule).
+ */
+export class PrimitiveLibraryError extends Error {}
+
 /** The rule a refusal names, when its own text names one. */
 export type LibraryProblemCode = 'V1' | 'V12' | null;
 

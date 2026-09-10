@@ -23,11 +23,29 @@ import { PyKeyError, PyTypeError } from '../expr/errors.js';
 
 /** `d['name']`: the member, or the `KeyError` the tools raise for a document off the grammar. */
 export function demand(value: PyValue, name: string): PyValue {
-  if (!isRecord(value)) {
-    throw new PyTypeError(`'${pythonKind(value)}' object is not subscriptable`);
-  }
+  if (!isRecord(value)) throw notSubscriptable(value);
   if (!hasKey(value, name)) throw new PyKeyError(`'${name}'`);
   return member(value, name) as PyValue;
+}
+
+/**
+ * `v['name']` where `v` is not a dictionary, in CPython's own words.
+ *
+ * A string and a list *are* subscriptable — by an integer — so CPython names the index rather
+ * than the container there, and the wording is contract: `tests/rejections`'s
+ * `structural-interface-old-form.json` writes its `to` endpoint as an object, `for endpoint in
+ * decl['to']` then walks the member *names*, and `endpoint['instance']` raises `string indices
+ * must be integers, not 'str'` out of `validate.analyse` (feature 1.6a's note, feature 1.6b's
+ * reproduction).
+ */
+function notSubscriptable(value: PyValue): PyTypeError {
+  if (typeof value === 'string') {
+    return new PyTypeError("string indices must be integers, not 'str'");
+  }
+  if (Array.isArray(value)) {
+    return new PyTypeError('list indices must be integers or slices, not str');
+  }
+  return new PyTypeError(`'${pythonKind(value)}' object is not subscriptable`);
 }
 
 /** `d.get('name', fallback)`, on something the grammar makes a dictionary. */

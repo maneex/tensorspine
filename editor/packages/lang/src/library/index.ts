@@ -65,6 +65,7 @@ export {
   formatLibraryProblem,
   formatLibraryProblems,
   libraryProblem,
+  PrimitiveLibraryError,
   type LibraryDetail,
   type LibraryProblem,
   type LibraryProblemCode,
