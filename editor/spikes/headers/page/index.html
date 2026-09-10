@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TensorSpine Editor — spike 0.5: safetensors headers</title>
+    <style>
+      body {
+        font: 13px/1.5 ui-monospace, "IBM Plex Mono", monospace;
+        margin: 24px;
+        max-width: 100ch;
+      }
+      h1 {
+        font-size: 15px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      body[data-state="failed"] pre {
+        color: #b23b32;
+      }
+    </style>
+  </head>
+  <body data-state="loading">
+    <h1>Spike 0.5 — safetensors headers in the browser</h1>
+    <p>
+      Feature 0.5 of the TensorSpine Editor's implementation plan: header-only reading from a
+      file slice and from the Hub by range request. Load with
+      <code>?cases=synthetic-blob,synthetic-large&amp;engine=&lt;name&gt;</code> to run on load
+      and post the report back; otherwise call <code>window.spike.run([…])</code>.
+    </p>
+    <p><label for="local">A local <code>.safetensors</code> file: </label><input id="local" type="file" accept=".safetensors" /></p>
+    <pre id="out">idle</pre>
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>

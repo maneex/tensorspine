@@ -1,0 +1,982 @@
+{
+  "measuredAt": "2026-09-10T15:18:13.709Z",
+  "node": "v22.22.3",
+  "cases": [
+    "synthetic-blob",
+    "synthetic-large",
+    "opfs-file",
+    "hub-single",
+    "hub-sharded",
+    "hub-range"
+  ],
+  "bundle": {
+    "browser-DWOvAD9s.js": 58639,
+    "index-4uHsgeyc.js": 12856,
+    "index.html": 1292
+  },
+  "engines": [
+    {
+      "engine": "chromium",
+      "available": true,
+      "report": {
+        "engine": "chromium",
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.0.0 Safari/537.36",
+        "startedAt": "2026-09-10T15:18:04.414Z",
+        "capabilities": {
+          "blobSlice": true,
+          "readableByteStreams": true,
+          "opfs": true,
+          "showDirectoryPicker": true,
+          "fileSystemWritable": true,
+          "webkitdirectory": true
+        },
+        "cases": [
+          {
+            "name": "synthetic-blob",
+            "ok": true,
+            "ms": 6,
+            "bytesRead": 1002,
+            "detail": {
+              "fileBytes": 1362,
+              "headerBytes": 994,
+              "tensors": 13,
+              "dtypes": [
+                "bf16",
+                "bool",
+                "f16",
+                "f32",
+                "f64",
+                "f8e4m3",
+                "f8e5m2",
+                "i16",
+                "i32",
+                "i64",
+                "i8",
+                "u8",
+                "u16"
+              ],
+              "refusals": [
+                "broken.safetensors: the header length is zero",
+                "broken.safetensors: the header length 4096 runs past the end of a 16-byte file",
+                "broken.safetensors: 4 bytes is shorter than a header length"
+              ]
+            }
+          },
+          {
+            "name": "synthetic-large",
+            "ok": true,
+            "ms": 104.3,
+            "bytesRead": 84,
+            "detail": {
+              "fileBytes": 268435540,
+              "headerBytes": 76,
+              "tensors": 1,
+              "secondMs": 0.7
+            }
+          },
+          {
+            "name": "opfs-file",
+            "ok": true,
+            "ms": 1.5,
+            "bytesRead": 81,
+            "detail": {
+              "fileBytes": 67108945,
+              "headerBytes": 73,
+              "tensors": 1,
+              "writeMs": 198
+            }
+          },
+          {
+            "name": "hub-single",
+            "ok": true,
+            "ms": 1018,
+            "bytesRead": 34237,
+            "detail": {
+              "repo": "openai-community/gpt2",
+              "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+              "xet": true,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/raw/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 134
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 435
+                },
+                {
+                  "url": "https://huggingface.co/api/models/openai-community/gpt2/xet-read-token/607a30d783dfa663caf39e06633721c8d4cfcd7e",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 490
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/63bed80836ee0758c8fd4f8975d59bb0b864263ee2753547c358e8a37cde8758",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1043
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/3e9cecc0bbba57a239e30b9d9b9e1332ae866f7cfce32475f880d7302509bbe1",
+                  "range": "bytes=0-15545",
+                  "status": 206,
+                  "bytes": 15546
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/63bed80836ee0758c8fd4f8975d59bb0b864263ee2753547c358e8a37cde8758",
+                  "range": "bytes=8-14290",
+                  "status": 200,
+                  "bytes": 1043
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/3e9cecc0bbba57a239e30b9d9b9e1332ae866f7cfce32475f880d7302509bbe1",
+                  "range": "bytes=0-15545",
+                  "status": 206,
+                  "bytes": 15546
+                }
+              ],
+              "clientLoadMs": 5,
+              "sharded": false,
+              "files": 1,
+              "tensors": 160,
+              "sample": {
+                "name": "h.3.ln_2.bias",
+                "dtype": "f32",
+                "shape": [
+                  768
+                ],
+                "file": "model.safetensors"
+              }
+            }
+          },
+          {
+            "name": "hub-sharded",
+            "ok": true,
+            "ms": 1475,
+            "bytesRead": 384558,
+            "detail": {
+              "repo": "NousResearch/Meta-Llama-3-8B",
+              "revision": "315b20096dc791d381d514deb5f8bd9c8d6d3061",
+              "xet": true,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/raw/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors",
+                  "range": null,
+                  "status": 404,
+                  "bytes": 15
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/raw/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 23950
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": "bytes=0-0",
+                  "status": 206,
+                  "bytes": 1
+                },
+                {
+                  "url": "https://huggingface.co/api/resolve-cache/models/NousResearch/Meta-Llama-3-8B/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 23950
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00004-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00002-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00001-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00003-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/api/models/NousResearch/Meta-Llama-3-8B/xet-read-token/315b20096dc791d381d514deb5f8bd9c8d6d3061",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 490
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/ba9a476b258b62f3b254e850d0ae2b3fb4fd3f9375261c297b008758da1e84c2",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1037
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/08c21c7117a1933dac55c7df6179e02a06744c35bdf6aa83a54b9bdefb5a3095",
+                  "range": "bytes=0-22108",
+                  "status": 206,
+                  "bytes": 22109
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/34d602e0dee8ba12479be24804a800a3ffbf2cbc7683a405a12b45d1c0d49cf2",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1041
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/19d2c912fa68b2fe1c5dade44f0cdc24d532e4852ac1c8f07d097a0f75ea8140",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1038
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/54b42ee65e3e2bd4b4fdfe569082eefb596547ef0060bff8c0e50084242cb8e6",
+                  "range": "bytes=0-19801",
+                  "status": 206,
+                  "bytes": 19802
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/745b67d5b93fb84dac4ec9b7fb39bbb07242947d05e23b3aa6475e2f2d7188e7",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1035
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/5f71ac16ff02203b9cfc87f093007747625de2e9a1a967f459b6aedbeb1bc0ee",
+                  "range": "bytes=0-98848",
+                  "status": 206,
+                  "bytes": 98849
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/96033c610806d7e23040c42ffea2007ac88d9c11ac358950b0898bae8311a04c",
+                  "range": "bytes=0-22277",
+                  "status": 206,
+                  "bytes": 22278
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/745b67d5b93fb84dac4ec9b7fb39bbb07242947d05e23b3aa6475e2f2d7188e7",
+                  "range": "bytes=8-12127",
+                  "status": 200,
+                  "bytes": 1035
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/ba9a476b258b62f3b254e850d0ae2b3fb4fd3f9375261c297b008758da1e84c2",
+                  "range": "bytes=8-567",
+                  "status": 200,
+                  "bytes": 1039
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/96033c610806d7e23040c42ffea2007ac88d9c11ac358950b0898bae8311a04c",
+                  "range": "bytes=0-22277",
+                  "status": 206,
+                  "bytes": 22278
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/19d2c912fa68b2fe1c5dade44f0cdc24d532e4852ac1c8f07d097a0f75ea8140",
+                  "range": "bytes=8-11663",
+                  "status": 200,
+                  "bytes": 1038
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/34d602e0dee8ba12479be24804a800a3ffbf2cbc7683a405a12b45d1c0d49cf2",
+                  "range": "bytes=8-9519",
+                  "status": 200,
+                  "bytes": 1041
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/08c21c7117a1933dac55c7df6179e02a06744c35bdf6aa83a54b9bdefb5a3095",
+                  "range": "bytes=0-22108",
+                  "status": 206,
+                  "bytes": 22109
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/54b42ee65e3e2bd4b4fdfe569082eefb596547ef0060bff8c0e50084242cb8e6",
+                  "range": "bytes=0-19801",
+                  "status": 206,
+                  "bytes": 19802
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/5f71ac16ff02203b9cfc87f093007747625de2e9a1a967f459b6aedbeb1bc0ee",
+                  "range": "bytes=0-98848",
+                  "status": 206,
+                  "bytes": 98849
+                }
+              ],
+              "clientLoadMs": 0,
+              "sharded": true,
+              "files": 4,
+              "tensors": 291,
+              "sample": {
+                "name": "lm_head.weight",
+                "dtype": "bf16",
+                "shape": [
+                  128256,
+                  4096
+                ],
+                "file": "model-00004-of-00004.safetensors"
+              }
+            }
+          },
+          {
+            "name": "hub-range",
+            "ok": true,
+            "ms": 965,
+            "bytesRead": 14860,
+            "detail": {
+              "repo": "openai-community/gpt2",
+              "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+              "xet": false,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/raw/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 134
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 435
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-7",
+                  "status": 206,
+                  "bytes": 8
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=8-14290",
+                  "status": 206,
+                  "bytes": 14283
+                }
+              ],
+              "clientLoadMs": 0,
+              "sharded": false,
+              "files": 1,
+              "tensors": 160,
+              "sample": {
+                "name": "h.3.ln_2.bias",
+                "dtype": "f32",
+                "shape": [
+                  768
+                ],
+                "file": "model.safetensors"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "engine": "firefox",
+      "available": true,
+      "report": {
+        "engine": "firefox",
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0",
+        "startedAt": "2026-09-10T15:18:09.934Z",
+        "capabilities": {
+          "blobSlice": true,
+          "readableByteStreams": true,
+          "opfs": true,
+          "showDirectoryPicker": false,
+          "fileSystemWritable": true,
+          "webkitdirectory": true
+        },
+        "cases": [
+          {
+            "name": "synthetic-blob",
+            "ok": true,
+            "ms": 4,
+            "bytesRead": 1002,
+            "detail": {
+              "fileBytes": 1362,
+              "headerBytes": 994,
+              "tensors": 13,
+              "dtypes": [
+                "bf16",
+                "bool",
+                "f16",
+                "f32",
+                "f64",
+                "f8e4m3",
+                "f8e5m2",
+                "i16",
+                "i32",
+                "i64",
+                "i8",
+                "u8",
+                "u16"
+              ],
+              "refusals": [
+                "broken.safetensors: the header length is zero",
+                "broken.safetensors: the header length 4096 runs past the end of a 16-byte file",
+                "broken.safetensors: 4 bytes is shorter than a header length"
+              ]
+            }
+          },
+          {
+            "name": "synthetic-large",
+            "ok": true,
+            "ms": 4,
+            "bytesRead": 84,
+            "detail": {
+              "fileBytes": 268435540,
+              "headerBytes": 76,
+              "tensors": 1,
+              "secondMs": 1
+            }
+          },
+          {
+            "name": "opfs-file",
+            "ok": true,
+            "ms": 1,
+            "bytesRead": 81,
+            "detail": {
+              "fileBytes": 67108945,
+              "headerBytes": 73,
+              "tensors": 1,
+              "writeMs": 563
+            }
+          },
+          {
+            "name": "hub-single",
+            "ok": true,
+            "ms": 1028,
+            "bytesRead": 34227,
+            "detail": {
+              "repo": "openai-community/gpt2",
+              "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+              "xet": true,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/raw/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 134
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 435
+                },
+                {
+                  "url": "https://huggingface.co/api/models/openai-community/gpt2/xet-read-token/607a30d783dfa663caf39e06633721c8d4cfcd7e",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 490
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/63bed80836ee0758c8fd4f8975d59bb0b864263ee2753547c358e8a37cde8758",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1035
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/3e9cecc0bbba57a239e30b9d9b9e1332ae866f7cfce32475f880d7302509bbe1",
+                  "range": "bytes=0-15545",
+                  "status": 206,
+                  "bytes": 15546
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/63bed80836ee0758c8fd4f8975d59bb0b864263ee2753547c358e8a37cde8758",
+                  "range": "bytes=8-14290",
+                  "status": 200,
+                  "bytes": 1041
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/3e9cecc0bbba57a239e30b9d9b9e1332ae866f7cfce32475f880d7302509bbe1",
+                  "range": "bytes=0-15545",
+                  "status": 206,
+                  "bytes": 15546
+                }
+              ],
+              "clientLoadMs": 59,
+              "sharded": false,
+              "files": 1,
+              "tensors": 160,
+              "sample": {
+                "name": "h.3.ln_2.bias",
+                "dtype": "f32",
+                "shape": [
+                  768
+                ],
+                "file": "model.safetensors"
+              }
+            }
+          },
+          {
+            "name": "hub-sharded",
+            "ok": true,
+            "ms": 1253,
+            "bytesRead": 360612,
+            "detail": {
+              "repo": "NousResearch/Meta-Llama-3-8B",
+              "revision": "315b20096dc791d381d514deb5f8bd9c8d6d3061",
+              "xet": true,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/raw/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors",
+                  "range": null,
+                  "status": 404,
+                  "bytes": 15
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/raw/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 23950
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": "bytes=0-0",
+                  "status": 206,
+                  "bytes": 1
+                },
+                {
+                  "url": "https://huggingface.co/api/resolve-cache/models/NousResearch/Meta-Llama-3-8B/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 0
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00002-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00004-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00003-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00001-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/api/models/NousResearch/Meta-Llama-3-8B/xet-read-token/315b20096dc791d381d514deb5f8bd9c8d6d3061",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 490
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/19d2c912fa68b2fe1c5dade44f0cdc24d532e4852ac1c8f07d097a0f75ea8140",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1038
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/745b67d5b93fb84dac4ec9b7fb39bbb07242947d05e23b3aa6475e2f2d7188e7",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1035
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/5f71ac16ff02203b9cfc87f093007747625de2e9a1a967f459b6aedbeb1bc0ee",
+                  "range": "bytes=0-98848",
+                  "status": 206,
+                  "bytes": 98849
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/96033c610806d7e23040c42ffea2007ac88d9c11ac358950b0898bae8311a04c",
+                  "range": "bytes=0-22277",
+                  "status": 206,
+                  "bytes": 22278
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/ba9a476b258b62f3b254e850d0ae2b3fb4fd3f9375261c297b008758da1e84c2",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1035
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/08c21c7117a1933dac55c7df6179e02a06744c35bdf6aa83a54b9bdefb5a3095",
+                  "range": "bytes=0-22108",
+                  "status": 206,
+                  "bytes": 22109
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/34d602e0dee8ba12479be24804a800a3ffbf2cbc7683a405a12b45d1c0d49cf2",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1041
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/19d2c912fa68b2fe1c5dade44f0cdc24d532e4852ac1c8f07d097a0f75ea8140",
+                  "range": "bytes=8-11663",
+                  "status": 200,
+                  "bytes": 1040
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/745b67d5b93fb84dac4ec9b7fb39bbb07242947d05e23b3aa6475e2f2d7188e7",
+                  "range": "bytes=8-12127",
+                  "status": 200,
+                  "bytes": 1039
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/54b42ee65e3e2bd4b4fdfe569082eefb596547ef0060bff8c0e50084242cb8e6",
+                  "range": "bytes=0-19801",
+                  "status": 206,
+                  "bytes": 19802
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/5f71ac16ff02203b9cfc87f093007747625de2e9a1a967f459b6aedbeb1bc0ee",
+                  "range": "bytes=0-98848",
+                  "status": 206,
+                  "bytes": 98849
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/96033c610806d7e23040c42ffea2007ac88d9c11ac358950b0898bae8311a04c",
+                  "range": "bytes=0-22277",
+                  "status": 206,
+                  "bytes": 22278
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/ba9a476b258b62f3b254e850d0ae2b3fb4fd3f9375261c297b008758da1e84c2",
+                  "range": "bytes=8-567",
+                  "status": 200,
+                  "bytes": 1039
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/08c21c7117a1933dac55c7df6179e02a06744c35bdf6aa83a54b9bdefb5a3095",
+                  "range": "bytes=0-22108",
+                  "status": 206,
+                  "bytes": 22109
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/34d602e0dee8ba12479be24804a800a3ffbf2cbc7683a405a12b45d1c0d49cf2",
+                  "range": "bytes=8-9519",
+                  "status": 200,
+                  "bytes": 1041
+                },
+                {
+                  "url": "https://us.aws.cdn.hf.co/xorbs/default/54b42ee65e3e2bd4b4fdfe569082eefb596547ef0060bff8c0e50084242cb8e6",
+                  "range": "bytes=0-19801",
+                  "status": 206,
+                  "bytes": 19802
+                }
+              ],
+              "clientLoadMs": 1,
+              "sharded": true,
+              "files": 4,
+              "tensors": 291,
+              "sample": {
+                "name": "lm_head.weight",
+                "dtype": "bf16",
+                "shape": [
+                  128256,
+                  4096
+                ],
+                "file": "model-00004-of-00004.safetensors"
+              }
+            }
+          },
+          {
+            "name": "hub-range",
+            "ok": true,
+            "ms": 923,
+            "bytesRead": 14860,
+            "detail": {
+              "repo": "openai-community/gpt2",
+              "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+              "xet": false,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/raw/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 134
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 435
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-7",
+                  "status": 206,
+                  "bytes": 8
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=8-14290",
+                  "status": 206,
+                  "bytes": 14283
+                }
+              ],
+              "clientLoadMs": 0,
+              "sharded": false,
+              "files": 1,
+              "tensors": 160,
+              "sample": {
+                "name": "h.3.ln_2.bias",
+                "dtype": "f32",
+                "shape": [
+                  768
+                ],
+                "file": "model.safetensors"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "engine": "webkitgtk",
+      "available": true,
+      "report": {
+        "engine": "webkitgtk",
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+        "startedAt": "2026-09-10T15:18:13.702Z",
+        "capabilities": {
+          "blobSlice": true,
+          "readableByteStreams": false,
+          "opfs": false,
+          "showDirectoryPicker": false,
+          "fileSystemWritable": false,
+          "webkitdirectory": true
+        },
+        "cases": [
+          {
+            "name": "synthetic-blob",
+            "ok": true,
+            "ms": 5,
+            "bytesRead": 1002,
+            "detail": {
+              "fileBytes": 1362,
+              "headerBytes": 994,
+              "tensors": 13,
+              "dtypes": [
+                "bf16",
+                "bool",
+                "f16",
+                "f32",
+                "f64",
+                "f8e4m3",
+                "f8e5m2",
+                "i16",
+                "i32",
+                "i64",
+                "i8",
+                "u8",
+                "u16"
+              ],
+              "refusals": [
+                "broken.safetensors: the header length is zero",
+                "broken.safetensors: the header length 4096 runs past the end of a 16-byte file",
+                "broken.safetensors: 4 bytes is shorter than a header length"
+              ]
+            }
+          },
+          {
+            "name": "synthetic-large",
+            "ok": true,
+            "ms": 261,
+            "bytesRead": 84,
+            "detail": {
+              "fileBytes": 268435540,
+              "headerBytes": 76,
+              "tensors": 1,
+              "secondMs": 1
+            }
+          },
+          {
+            "name": "opfs-file",
+            "ok": false,
+            "skipped": "no navigator.storage.getDirectory",
+            "ms": 0
+          },
+          {
+            "name": "hub-single",
+            "ok": false,
+            "ms": 788,
+            "bytesRead": 2096,
+            "error": "TypeError: ReadableByteStreamController is not implemented",
+            "detail": {
+              "repo": "openai-community/gpt2",
+              "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+              "xet": true,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/raw/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 134
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 435
+                },
+                {
+                  "url": "https://huggingface.co/api/models/openai-community/gpt2/xet-read-token/607a30d783dfa663caf39e06633721c8d4cfcd7e",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 490
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/63bed80836ee0758c8fd4f8975d59bb0b864263ee2753547c358e8a37cde8758",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1037
+                }
+              ],
+              "clientLoadMs": 5
+            }
+          },
+          {
+            "name": "hub-sharded",
+            "ok": false,
+            "ms": 1047,
+            "bytesRead": 27263,
+            "error": "TypeError: ReadableByteStreamController is not implemented",
+            "detail": {
+              "repo": "NousResearch/Meta-Llama-3-8B",
+              "revision": "315b20096dc791d381d514deb5f8bd9c8d6d3061",
+              "xet": true,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/raw/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors",
+                  "range": null,
+                  "status": 404,
+                  "bytes": 15
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/raw/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 23950
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": "bytes=0-0",
+                  "status": 206,
+                  "bytes": 1
+                },
+                {
+                  "url": "https://huggingface.co/api/resolve-cache/models/NousResearch/Meta-Llama-3-8B/315b20096dc791d381d514deb5f8bd9c8d6d3061/model.safetensors.index.json",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 0
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00004-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00003-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00002-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/NousResearch/Meta-Llama-3-8B/resolve/315b20096dc791d381d514deb5f8bd9c8d6d3061/model-00001-of-00004.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 443
+                },
+                {
+                  "url": "https://huggingface.co/api/models/NousResearch/Meta-Llama-3-8B/xet-read-token/315b20096dc791d381d514deb5f8bd9c8d6d3061",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 490
+                },
+                {
+                  "url": "https://cas-server.xethub.hf.co/v2/reconstructions/ba9a476b258b62f3b254e850d0ae2b3fb4fd3f9375261c297b008758da1e84c2",
+                  "range": "bytes=0-7",
+                  "status": 200,
+                  "bytes": 1035
+                }
+              ],
+              "clientLoadMs": 0
+            }
+          },
+          {
+            "name": "hub-range",
+            "ok": true,
+            "ms": 1019,
+            "bytesRead": 14860,
+            "detail": {
+              "repo": "openai-community/gpt2",
+              "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+              "xet": false,
+              "requests": [
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/raw/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": null,
+                  "status": 200,
+                  "bytes": 134
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-0",
+                  "status": 200,
+                  "bytes": 435
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=0-7",
+                  "status": 206,
+                  "bytes": 8
+                },
+                {
+                  "url": "https://huggingface.co/openai-community/gpt2/resolve/607a30d783dfa663caf39e06633721c8d4cfcd7e/model.safetensors",
+                  "range": "bytes=8-14290",
+                  "status": 206,
+                  "bytes": 14283
+                }
+              ],
+              "clientLoadMs": 0,
+              "sharded": false,
+              "files": 1,
+              "tensors": 160,
+              "sample": {
+                "name": "h.3.ln_2.bias",
+                "dtype": "f32",
+                "shape": [
+                  768
+                ],
+                "file": "model.safetensors"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

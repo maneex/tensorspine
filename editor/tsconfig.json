@@ -6,6 +6,9 @@
     ],
     "allowImportingTsExtensions": true
   },
+  "exclude": [
+    "spikes/headers/page/**"
+  ],
   "include": [
     "vitest.config.ts",
     "scripts/**/*.ts",
