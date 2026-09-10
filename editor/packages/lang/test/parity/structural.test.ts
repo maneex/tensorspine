@@ -92,7 +92,10 @@ describe('the structural stage against the tools', () => {
       );
     }
     expect(wrong.join('\n\n')).toBe('');
-  });
+    // 616 cases through Ajv and the walk: 4.5 to 8 seconds on the development box, which the
+    // default five-second budget cuts into whenever another suite of the parity project is
+    // running beside it. The budget is the sibling's; nothing of the comparison changes.
+  }, 120_000);
 
   it.skipIf(!generated)('agrees with Ajv on every case, verdict and explanation', () => {
     // D4's catching rule: Ajv is the validator, the walk explains what Ajv refused, and the two

@@ -20,13 +20,30 @@ describe('no Python at runtime', () => {
     for (const path of python) expect(path.startsWith('tests/oracle/')).toBe(true);
   });
 
+  // Two refusals of `tools/primitive_library.py` name the conversion command inside their own
+  // text — "convert it with python3 tools/migrate.py INPUT -o OUTPUT" — and the core prints the
+  // tools' words (D2, the parity contract). That is a *message*, not a call, so the audit removes
+  // exactly that sentence before it looks; `spawn('python3', …)` and every other occurrence of the
+  // word still trip it, which is what this test was written to catch.
+  const TOOLS_ADVICE = 'python3 tools/migrate.py INPUT -o OUTPUT';
+
+  it('states the tools’ own conversion advice, so the exemption cannot go stale', () => {
+    const carriers = sources.filter(
+      (path) => /(^|\/)src\//.test(path) && readEditorFile(path).includes(TOOLS_ADVICE),
+    );
+    expect(carriers).toEqual([
+      'packages/lang/src/library/load.ts',
+      'packages/lang/src/library/read.ts',
+    ]);
+  });
+
   it('starts no interpreter and no child process from the shipped sources', () => {
     const forbidden = [/\bchild_process\b/, /\bpython3?\b/, /\bexecSync\b/, /\bspawnSync\b/];
     const offenders: string[] = [];
     for (const path of sources) {
       if (!/(^|\/)src\//.test(path)) continue;
       if (!/\.(ts|tsx|js|jsx|mjs|cjs|html)$/.test(path)) continue;
-      const text = readEditorFile(path);
+      const text = readEditorFile(path).split(TOOLS_ADVICE).join('<the tools’ own advice>');
       if (forbidden.some((pattern) => pattern.test(text))) offenders.push(path);
     }
     expect(offenders).toEqual([]);

@@ -28,5 +28,5 @@ export {
   type JsonValue,
 } from './tree.js';
 export { formatNumber, isNumberLexeme, lexemeDenotes, lexemeIsReal, NON_FINITE_LEXEMES } from './number.js';
-export { JsonParseError, parse } from './parse.js';
+export { JsonParseError, parse, type ParseOptions } from './parse.js';
 export { serialize } from './serialize.js';

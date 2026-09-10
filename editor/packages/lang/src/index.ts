@@ -18,3 +18,4 @@ export const packageName = '@tensorspine/lang';
 export * from './json/index.js';
 export * from './schema/index.js';
 export * from './expr/index.js';
+export * from './library/index.js';

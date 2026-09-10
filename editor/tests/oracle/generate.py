@@ -26,6 +26,9 @@ What it writes (the implementation plan's §0.5):
     out/expressions/index.json        every expression and condition of the corpus and of the
                                       reference base, with the environment it was evaluated in
                                       and the value `tools/expr.py` answered
+    out/library/index.json            the reference base gathered, the 33 library rejection cases
+                                      refused word for word, and `primitive_references` over one
+                                      mutation at a time of every unit of the reference base
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -59,6 +62,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -588,6 +592,129 @@ def expressions(assignments, corpus, name_of):
     return {'documents': documents, 'environments': cases.environments, 'cases': cases.cases}
 
 
+# --- the primitive library loader (feature 1.3) -----------------------------
+
+# What a mutation replaces a value by. A string keeps the shape it had — `attention.heads` becomes
+# `attention.headsz`, which is the fixtures' own idiom (`attention.headz`) — and a second pass puts
+# an axis the base *does* hold in its place, which is what reaches the checks that ask what an
+# existing name is (a key axis that is a value axis, a unit axis that is not an axis of its slot).
+IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_.-]*$')
+UNMUTATED = {'description', 'summary', 'note', 'title', 'url'}
+SWAP_FOR = 'model.width'
+
+
+def _mutation_sites(node, path='', parent=None, out=None):
+    """Every place in a definition a mutation can change without changing its shape: a string that
+    reads as a name, and a boolean. Documentation text is left alone — it is not a reference."""
+    if out is None:
+        out = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            _mutation_sites(value, f"{path}/{key}", key, out)
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            _mutation_sites(value, f"{path}/{index}", parent, out)
+    elif isinstance(node, bool):
+        out.append(('flip', path, not node))
+    elif isinstance(node, str) and parent not in UNMUTATED and IDENTIFIER.match(node):
+        out.append(('suffix', path, node + 'z'))
+        if node != SWAP_FOR:
+            out.append(('swap', path, SWAP_FOR))
+    return out
+
+
+def _apply(node, pointer, value):
+    """The value at a JSON pointer, replaced. The pointer is the fixture's own, so the port applies
+    the same change to the same file and the two run on one input."""
+    parts = pointer.split('/')[1:]
+    cursor = node
+    for step in parts[:-1]:
+        cursor = cursor[int(step)] if isinstance(cursor, list) else cursor[step]
+    last = parts[-1]
+    if isinstance(cursor, list):
+        cursor[int(last)] = value
+    else:
+        cursor[last] = value
+
+
+def library():
+    """The loader's answers: the reference base gathered, the rejection suite's refusals word for
+    word, `primitive_references` over thousands of one-value mutations, and the interface the one
+    template primitive presents.
+
+    The mutations are what makes this more than the 33 cases the rejection suite carries: those
+    reach about fifteen of the checker's forty message sites, and one substitution per name reaches
+    ninety-six of them. Each is recorded as a *pointer into a repository file*, so the port applies
+    the same change to the same bytes and neither side owns the input."""
+    import copy
+    import primitive_library as pl
+    import validate as validate_mod
+    import model as model_mod
+
+    cat = pl.load(PRIMITIVE_LIBRARY)
+    origin = {}
+    for section, _kind in pl.SECTIONS:
+        root = os.path.join(PRIMITIVE_LIBRARY, section)
+        for path in sorted(glob.glob(os.path.join(root, '**', '*.json'), recursive=True)):
+            parts = os.path.relpath(path, root)[:-len('.json')].split(os.sep)
+            key = ('.'.join(parts[:-1]), parts[-1]) if section == 'primitives' \
+                else ('.'.join(parts), None)
+            origin[(section, key)] = os.path.relpath(path, ROOT)
+
+    reference = {
+        'base': os.path.relpath(PRIMITIVE_LIBRARY, ROOT),
+        'by_id': [[name, version] for name, version in sorted(cat['by_id'])],
+        'axes': list(cat['axes']),
+        'precision': list(cat['precision']),
+        'primitives': {name: d['version'] for name, d in cat['primitives'].items()},
+        'templates': {f"{name}@{version}": os.path.relpath(path, ROOT)
+                      for (name, version), path in cat['templates'].items()},
+        'files': {f"{section}:{key[0]}@{key[1]}" if key[1] else f"{section}:{key[0]}": path
+                  for (section, key), path in origin.items()},
+    }
+
+    cases = []
+    with open(os.path.join(REJECTIONS, 'primitive-library.json'), encoding='utf-8') as handle:
+        manifest = json.load(handle)
+    for case in manifest['cases']:
+        base = os.path.join(REJECTIONS, case['base'])
+        try:
+            pl.load(base, PRIMITIVE_LIBRARY)
+        except pl.PrimitiveLibraryError as refusal:
+            # The paths are the ones `load` was given, so they are recorded relative to the root
+            # and the reader puts its own prefix back.
+            text = str(refusal).replace(ROOT + os.sep, '')
+            cases.append({'base': case['base'], 'match': case['match'], 'error': text})
+        else:
+            die(f"{case['base']} was accepted; the rejection suite says it must not be")
+
+    mutations = []
+    for (name, version), definition in sorted(cat['by_id'].items()):
+        unit = origin[('primitives', (name, version))]
+        # The unmutated definition first: the checker must say nothing about the base as it stands.
+        mutations.append({'unit': unit, 'pointer': None, 'kind': 'none', 'value': None,
+                          'lines': pl.primitive_references(definition, cat)})
+        for kind, pointer, value in _mutation_sites(definition):
+            mutated = copy.deepcopy(definition)
+            _apply(mutated, pointer, value)
+            try:
+                lines = pl.primitive_references(mutated, cat)
+            except Exception as exc:                                   # pragma: no cover
+                die(f"{name}@{version} {pointer} ({kind}) raised {type(exc).__name__}: {exc}")
+            mutations.append({'unit': unit, 'pointer': pointer, 'kind': kind, 'value': value,
+                              'lines': lines})
+
+    interfaces = {}
+    for (name, version), path in cat['templates'].items():
+        definition = cat['by_id'][(name, version)]
+        template = model_mod.load(path)
+        interfaces[f"{name}@{version}"] = encode(
+            validate_mod.template_interface(definition, template))
+
+    return {'reference': reference, 'cases': cases, 'mutations': mutations,
+            'template_interfaces': interfaces}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--out', default=os.path.join(HERE, 'out'),
@@ -687,6 +814,10 @@ def main():
     print(f"oracle: {len(expression_cases['cases'])} expression case(s) over "
           f"{len(expression_cases['documents'])} document(s)")
 
+    library_cases = library()
+    print(f"oracle: {len(library_cases['cases'])} library rejection case(s) and "
+          f"{len(library_cases['mutations'])} cross-reference case(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -719,11 +850,22 @@ def main():
                      'through schema.deepest, which is how the tools read each of them.'),
             'cases': len(structural_cases),
         },
+        'library': {
+            'index': 'library/index.json',
+            'note': ('the reference base gathered, the rejection suite refused word for word, and '
+                     'primitive_references over one-value mutations of every unit — each recorded '
+                     'as a pointer into a repository file, so both implementations read the same '
+                     'bytes and apply the same change.'),
+            'cases': len(library_cases['cases']),
+            'mutations': len(library_cases['mutations']),
+        },
     }
     write(os.path.join(out, 'structural', 'index.json'),
           json.dumps({'cases': structural_cases}, indent=1) + '\n')
     write(os.path.join(out, 'expressions', 'index.json'),
           json.dumps(expression_cases, indent=1) + '\n')
+    write(os.path.join(out, 'library', 'index.json'),
+          json.dumps(library_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

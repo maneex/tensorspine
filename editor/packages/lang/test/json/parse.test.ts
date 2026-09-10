@@ -221,3 +221,21 @@ describe('a syntax error reads as CPython prints it', () => {
     expect(error.message).toBe("Expecting ':' delimiter: line 3 column 7 (char 18)");
   });
 });
+
+describe('the reading a plain `json.load` gives, for the one caller that needs it', () => {
+  // `tools/schema.py`'s `check` reads a file with no `object_pairs_hook`, and the library loader
+  // runs the schema stage before `read_json` — so a unit that is both off-schema and holds a
+  // duplicate is refused for being off-schema (feature 1.3). This is that reading.
+  it('keeps the last value of a repeated name, at the place of the first', () => {
+    const tree = parse('{"b": 1, "a": 2, "b": 3}', { duplicates: 'last' }) as JsonObject;
+    expect(memberNames(tree)).toEqual(['b', 'a']);
+    expect(toPlain(tree)).toEqual({ b: 3, a: 2 });
+  });
+
+  it('folds a duplicate at every depth, and leaves the strict reading alone', () => {
+    const text = '{"a": {"x": 1, "x": 2}}';
+    expect(toPlain(parse(text, { duplicates: 'last' }))).toEqual({ a: { x: 2 } });
+    expect(() => parse(text)).toThrow(JsonParseError);
+    expect(() => parse(text, { duplicates: 'refuse' })).toThrow(JsonParseError);
+  });
+});

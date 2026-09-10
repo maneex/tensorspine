@@ -3,11 +3,10 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { formatNumber, parse } from '../../src/json/index.js';
+import { parse } from '../../src/json/index.js';
 import {
   argumentReferences,
   indexGrid,
-  isRecord,
   member,
   missingAssignment,
   modelCondition,
@@ -18,11 +17,11 @@ import {
   resolveQuantities,
   staticArgument,
   toPython,
-  UNRESOLVED,
   type PyRecord,
   type PyValue,
 } from '../../src/expr/index.js';
 import { comparePythonStrings } from '../../src/schema/index.js';
+import { decodeMap, decodeRecord, encode } from './encoding.js';
 import { oracleGenerated, oracleOut, repositoryRoot } from './oracle.js';
 
 // Parity of the evaluators (feature 1.2): every expression and condition of the corpus and of
@@ -66,64 +65,6 @@ interface Recorded {
 function recorded(): Recorded {
   const text = readFileSync(join(oracleOut, 'expressions', 'index.json'), 'utf8');
   return toPython(parse(text)) as unknown as Recorded;
-}
-
-/** `repr(float)`, which is what the fixture writes; the three non-finite names included. */
-function pythonRepr(value: number): string {
-  if (Number.isFinite(value)) return formatNumber(value, true);
-  if (Number.isNaN(value)) return 'nan';
-  return value > 0 ? 'inf' : '-inf';
-}
-
-/** A value as the fixture encodes one — the comparison is over these, never over the values. */
-function encode(value: PyValue): unknown {
-  if (value === UNRESOLVED) return { unresolved: true };
-  if (value === null) return { none: true };
-  if (typeof value === 'boolean') return { bool: value };
-  if (typeof value === 'bigint') return { int: value.toString() };
-  if (typeof value === 'number') return { float: pythonRepr(value) };
-  if (typeof value === 'string') return { str: value };
-  if (Array.isArray(value)) return { list: value.map(encode) };
-  const record: Record<string, unknown> = {};
-  for (const [name, one] of Object.entries(value as PyRecord)) record[name] = encode(one);
-  return { record };
-}
-
-/** The value an encoding stands for. */
-function decode(encoded: PyValue): PyValue {
-  if (!isRecord(encoded)) throw new Error(`not an encoded value: ${JSON.stringify(encoded)}`);
-  const text = (name: string): string => member(encoded, name) as string;
-  if (member(encoded, 'unresolved') !== undefined) return UNRESOLVED;
-  if (member(encoded, 'none') !== undefined) return null;
-  if (member(encoded, 'bool') !== undefined) return member(encoded, 'bool') as boolean;
-  if (member(encoded, 'int') !== undefined) return BigInt(text('int'));
-  if (member(encoded, 'float') !== undefined) {
-    const written = text('float');
-    if (written === 'nan') return Number.NaN;
-    if (written === 'inf') return Number.POSITIVE_INFINITY;
-    if (written === '-inf') return Number.NEGATIVE_INFINITY;
-    return Number(written);
-  }
-  if (member(encoded, 'str') !== undefined) return text('str');
-  if (member(encoded, 'list') !== undefined) {
-    return (member(encoded, 'list') as readonly PyValue[]).map(decode);
-  }
-  const values = member(encoded, 'record') as PyRecord;
-  const record: Record<string, PyValue> = {};
-  for (const [name, one] of Object.entries(values)) record[name] = decode(one);
-  return record;
-}
-
-/** An encoded map as the evaluators take one. */
-function decodeMap(encoded: PyRecord): Map<string, PyValue> {
-  return new Map(Object.entries(encoded).map(([name, one]) => [name, decode(one)]));
-}
-
-/** An encoded map as a record, which is the shape an assignment and an argument map have. */
-function decodeRecord(encoded: PyRecord): PyRecord {
-  const record: Record<string, PyValue> = {};
-  for (const [name, one] of Object.entries(encoded)) record[name] = decode(one);
-  return record;
 }
 
 describe('the evaluators against the tools', () => {

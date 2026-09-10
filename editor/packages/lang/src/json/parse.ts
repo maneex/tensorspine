@@ -30,6 +30,11 @@
  * The parser keeps every number's source text and reads its float-ness from the token's own
  * spelling (V3: a fraction or an exponent makes a real), so that an unedited document written
  * back is written byte for byte as it was read.
+ *
+ * There is one reading beside V12's, and it has one caller: `duplicates: 'last'` is the plain
+ * `json.load`, which `tools/schema.py`'s `check` uses. The library loader runs the schema stage
+ * before `read_json` and therefore needs that reading, so that a unit which is both off-schema and
+ * holds a duplicate is refused for being off-schema, as the tools refuse it (feature 1.3).
  */
 import { NON_FINITE_LEXEMES } from './number.js';
 import type { JsonMember, JsonObject, JsonValue } from './tree.js';
@@ -92,13 +97,28 @@ const NUMBER = /-?(?:0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?/y;
 
 const HEX = /^[0-9a-fA-F]{4}$/;
 
+/** How a duplicate member name is read. */
+export interface ParseOptions {
+  /**
+   * `refuse` (the default) is V12: `json.load(object_pairs_hook=…)`, which both `model.py` and
+   * `primitive_library.py` install. `last` is the plain `json.load` — the first occurrence's
+   * place, the last occurrence's value, as `dict(pairs)` builds it.
+   *
+   * The lenient reading exists for one place and is named there: `primitive_library._units` runs
+   * `schema.check` on a unit *before* `read_json`, and `schema.check` reads the file with a plain
+   * `json.load`. So a unit that is both off-schema and holds a duplicate is refused for being
+   * off-schema, and the library loader needs that reading to say so.
+   */
+  readonly duplicates?: 'refuse' | 'last';
+}
+
 /**
  * The text as an ordered tree, with every number's lexeme and float-ness kept.
  *
  * Throws {@link JsonParseError} for a text the tools would refuse, with the tools' wording.
  */
-export function parse(text: string): JsonValue {
-  const state = new Scanner(text);
+export function parse(text: string, options: ParseOptions = {}): JsonValue {
+  const state = new Scanner(text, options.duplicates ?? 'refuse');
   const value = state.value(state.skipWhitespace(0));
   const end = state.skipWhitespace(state.index);
   if (end !== text.length) state.fail('Extra data', end);
@@ -107,11 +127,13 @@ export function parse(text: string): JsonValue {
 
 class Scanner {
   readonly text: string;
+  readonly duplicates: 'refuse' | 'last';
   /** Where the last value read ended. */
   index = 0;
 
-  constructor(text: string) {
+  constructor(text: string, duplicates: 'refuse' | 'last' = 'refuse') {
     this.text = text;
+    this.duplicates = duplicates;
   }
 
   /**
@@ -239,8 +261,13 @@ class Scanner {
   /**
    * The object, once its members are read: the duplicate check runs here, at the closing brace,
    * where `json.load`'s `object_pairs_hook` runs it.
+   *
+   * Under `duplicates: 'last'` the members are folded as `dict(pairs)` folds them instead — a
+   * repeated name keeps the place of its first occurrence and the value of its last, which is
+   * what assigning into a dictionary does.
    */
   closed(members: JsonMember[], nameAt: number[]): JsonObject {
+    if (this.duplicates === 'last') return { kind: 'object', members: folded(members) };
     const seen = new Set<string>();
     for (const [position, member] of members.entries()) {
       if (seen.has(member.name)) {
@@ -269,4 +296,20 @@ class Scanner {
       i = this.skipWhitespace(i + 1);
     }
   }
+}
+
+/** `dict(pairs)`: one member per name, at its first place, with its last value. */
+function folded(members: readonly JsonMember[]): JsonMember[] {
+  const at = new Map<string, number>();
+  const out: JsonMember[] = [];
+  for (const member of members) {
+    const known = at.get(member.name);
+    if (known === undefined) {
+      at.set(member.name, out.length);
+      out.push(member);
+    } else {
+      out[known] = member;
+    }
+  }
+  return out;
 }
