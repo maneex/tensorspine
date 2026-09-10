@@ -14,3 +14,5 @@
 
 /** The package's own name, as the workspace declares it. */
 export const packageName = '@tensorspine/lang';
+
+export * from './json/index.js';
