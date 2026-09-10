@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`@tensorspine/ui > exports the surface the snapshot records 1`] = `
+[
+  "packageName",
+]
+`;

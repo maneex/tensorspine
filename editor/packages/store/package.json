@@ -1,0 +1,13 @@
+{
+  "name": "@tensorspine/store",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The document store: the ordered tree, commands and undo, the reference index, the layout and preview sidecars, drafts.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

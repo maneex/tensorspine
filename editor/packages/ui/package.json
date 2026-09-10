@@ -1,0 +1,13 @@
+{
+  "name": "@tensorspine/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The interface: shell, activities, canvas, the generic schema walker and its forms, sheets, panels, the primitive editor. No platform import.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

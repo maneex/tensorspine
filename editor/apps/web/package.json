@@ -1,0 +1,22 @@
+{
+  "name": "@tensorspine/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The static application: the browser workspace, the vendored schemas, reference base and generated artifacts, served as a page.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:e2e": "vite build && playwright test"
+  },
+  "dependencies": {
+    "@tensorspine/lang": "workspace:*",
+    "@tensorspine/store": "workspace:*",
+    "@tensorspine/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "8.2.2"
+  }
+}

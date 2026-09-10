@@ -1,0 +1,13 @@
+{
+  "name": "@tensorspine/lang",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The language core: lexeme-preserving JSON, the schema registry, expressions, the library loader, validation, expansion, derivation, the checkpoint check, lint, describe and check. No DOM: it runs in a worker or in Node.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

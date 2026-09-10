@@ -1,0 +1,43 @@
+name: Editor
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  editor:
+    # The TensorSpine Editor's workspace: typecheck, lint, unit, parity, snapshot, audit and
+    # end-to-end suites, all of them `pnpm check`. Python is here for one reason — the parity
+    # oracle runs the repository's own tools and records what the language core must reproduce
+    # (the editor's implementation plan, §0.5); nothing of the editor itself runs Python.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: editor/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: editor/pnpm-lock.yaml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install jsonschema for the oracle
+        run: python3 -m pip install "jsonschema==4.25.0"
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Oracle
+        run: pnpm oracle
+      - name: Check
+        run: pnpm check
