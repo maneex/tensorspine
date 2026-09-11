@@ -45,15 +45,43 @@ interface Measurement {
 
 const RUNS = 3;
 
+/**
+ * One layout, asked of the worker thread.
+ *
+ * A worker answers in three ways and all three have to settle the promise: the reply, a throw
+ * that escaped the worker's own handler (`error`), and the thread simply ending (`exit`) — an
+ * out-of-memory on the largest expanded graph being the one that matters here. Waiting on
+ * `message` alone would leave `pnpm spike:layout` hanging with nothing printed instead of failing
+ * with the reason.
+ */
 function ask(worker: Worker, request: LayoutRequest): Promise<Layout> {
   return new Promise((resolve, reject) => {
+    const done = (settle: () => void): void => {
+      worker.off('message', onMessage);
+      worker.off('error', onError);
+      worker.off('exit', onExit);
+      settle();
+    };
     const onMessage = (response: LayoutResponse): void => {
       if (response.id !== request.id) return;
-      worker.off('message', onMessage);
-      if ('failure' in response) reject(new Error(response.failure));
-      else resolve(response.layout);
+      done(() => {
+        if ('failure' in response) reject(new Error(response.failure));
+        else resolve(response.layout);
+      });
+    };
+    const onError = (error: Error): void => {
+      done(() => {
+        reject(error);
+      });
+    };
+    const onExit = (code: number): void => {
+      done(() => {
+        reject(new Error(`the layout worker exited with code ${String(code)} before it answered`));
+      });
     };
     worker.on('message', onMessage);
+    worker.once('error', onError);
+    worker.once('exit', onExit);
     worker.postMessage(request);
   });
 }
