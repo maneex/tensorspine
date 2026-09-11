@@ -89,6 +89,14 @@ export interface OutlineRow {
   readonly container: boolean;
   /** Whether those children are on screen. */
   readonly open: boolean;
+  /**
+   * Whether they would be, with nothing toggled.
+   *
+   * `toggled` is a *deviation* from the default, so a caller that has to make a place visible —
+   * the Problems panel, navigating to the row a problem names — cannot know which way to flip an
+   * ancestor without it. {@link revealing} is what reads it.
+   */
+  readonly openByDefault: boolean;
   /** How the row's swatch is tinted: what it holds decides, never what it is called. */
   readonly tint?: 'group' | 'figure';
   /** What the container this row is an entry of declares — the word a command uses (§4.4). */
@@ -440,7 +448,8 @@ export function outlineOf(request: OutlineRequest): OutlineRow[] {
     const named = typeof step === 'string';
     const label = named ? step : (summaryOf(value) ?? String(step));
     const declaring = inside(shape, value);
-    const open = isOpen(pointer, declaring.length > 0);
+    const openByDefault = declaring.length > 0;
+    const open = isOpen(pointer, openByDefault);
     const figure = figures.get(pointer);
     const held = heldBy(shapes, shape, value);
     // The first member of the node's face is what identifies the declaration — an instance's
@@ -470,6 +479,7 @@ export function outlineOf(request: OutlineRequest): OutlineRow[] {
       problem: problemUnder(problems, pointer),
       container: declaring.length > 0,
       open,
+      openByDefault,
       ...(declaring.length > 0
         ? { tint: 'group' as const }
         : figure === undefined
@@ -493,6 +503,7 @@ export function outlineOf(request: OutlineRequest): OutlineRow[] {
         problem: false,
         container: false,
         open: false,
+        openByDefault: false,
       });
     }
     for (const one of declaring) {
@@ -531,7 +542,8 @@ export function outlineOf(request: OutlineRequest): OutlineRow[] {
     // Open by default when it is a non-empty map of the document's own names — which is the
     // state S1 draws: the quantities, the instances and the compositions open, the libraries (a
     // list), the empty constants, the bindings and the interfaces closed.
-    const open = isOpen(pointer, isNamedMap(facts) && held.length > 0);
+    const openByDefault = isNamedMap(facts) && held.length > 0;
+    const open = isOpen(pointer, openByDefault);
     const tail = open
       ? undefined
       : counted
@@ -550,6 +562,7 @@ export function outlineOf(request: OutlineRequest): OutlineRow[] {
       problem: problemUnder(problems, pointer),
       container: true,
       open,
+      openByDefault,
     });
     if (!open) return;
     if (counted) {
@@ -596,6 +609,7 @@ export function outlineOf(request: OutlineRequest): OutlineRow[] {
     problem: problemUnder(problems, ''),
     container: true,
     open: rootOpen,
+    openByDefault: true,
   });
   if (rootOpen) {
     for (const member of shapes.propertyOrder(root)) {
@@ -629,4 +643,37 @@ function filtered(rows: readonly OutlineRow[], filter: string): OutlineRow[] {
     above.push(at);
   }
   return rows.filter((_, at) => keep.has(at));
+}
+
+/**
+ * The toggles that have to change so that every ancestor of a place is on screen.
+ *
+ * `toggled` is a deviation from the outline's own default (`isOpen` reads it that way), so making
+ * a place visible is not "add every ancestor": an ancestor that opens by default must be *out* of
+ * the set and one that does not must be *in* it. The rows are the whole outline — computed with
+ * `openAll`, so that an ancestor under a closed one is there to be read.
+ *
+ * It answers the next set, and the set it was given where nothing has to change.
+ */
+export function revealing(
+  rows: readonly OutlineRow[],
+  toggled: readonly string[],
+  pointer: string,
+): readonly string[] {
+  const wanted = new Set(toggled);
+  let moved = false;
+  for (const row of rows) {
+    if (!row.container) continue;
+    if (!pointer.startsWith(`${row.pointer}/`) && row.pointer !== '') continue;
+    if (row.pointer !== '' && row.pointer === pointer) continue;
+    const held = wanted.has(row.pointer);
+    // Open is `toggled ? !byDefault : byDefault`, so the set has to hold exactly the ancestors
+    // the default would have left shut.
+    const shouldHold = !row.openByDefault;
+    if (held === shouldHold) continue;
+    if (shouldHold) wanted.add(row.pointer);
+    else wanted.delete(row.pointer);
+    moved = true;
+  }
+  return moved ? [...wanted] : toggled;
 }

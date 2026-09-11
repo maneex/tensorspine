@@ -115,6 +115,15 @@ export function wireDocuments(wiring: DocumentsWiring): {
     'model.derive-now': () => {
       now().validateNow();
     },
+    // `Model ▸ Lint`: the advisories, over the workspace's own model documents. It is a command
+    // and not part of the debounced run because `--lint`'s answer is a function of the set
+    // (feature 1.10) and the set is the workspace — fourteen documents cost 781 ms, one `analyse`
+    // each, against the 300 ms a keystroke's validation is given (§5.6). The rows land in
+    // Problems, which is where the reader will be looking.
+    'model.lint': () => {
+      shell.getState().revealPanel('panel.problems');
+      now().lint();
+    },
     // §4.4's Edit menu, on whatever is selected in the document (§4.5). The tree answers the
     // same two keys while it has the focus; these are what the menu and the palette reach.
     'edit.rename': edit.rename,

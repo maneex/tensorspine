@@ -21,6 +21,7 @@
  */
 import type { JSX } from 'react';
 
+import { useShellStore } from '../shell/context.js';
 import { useDocuments } from './context.js';
 import { countsOf, type DerivationState, type Reading } from './pipeline.js';
 import type { OpenDocument } from './store.js';
@@ -45,8 +46,10 @@ export function useOpenDocument(): boolean {
 /** What the first pill says, and the class that colours it. */
 export function validationPill(reading: Reading): { text: string; tone: string } {
   if (reading.checking) return { text: text('checking…'), tone: 'stale' };
-  if (reading.verdict === null) return { text: text('not checked'), tone: 'stale' };
-  const { errors, warnings } = countsOf(reading.verdict);
+  if (reading.verdict === null && (reading.structural ?? []).length === 0) {
+    return { text: text('not checked'), tone: 'stale' };
+  }
+  const { errors, warnings } = countsOf(reading);
   if (errors > 0) return { text: textWith('{} problems', String(errors + warnings)), tone: 'bad' };
   if (warnings > 0) return { text: textWith('{} warnings', String(warnings)), tone: 'der' };
   return { text: text('no problems'), tone: 'ok' };
@@ -100,18 +103,33 @@ export function useDocumentState(): { problems: string; derivation: string; wher
   };
 }
 
-/** The bar's two pills, shown only with a document open (inventory §2). */
+/**
+ * The bar's two pills, shown only with a document open (inventory §2).
+ *
+ * The validation pill is a **button**: §4.17 puts the count in the status bar and a count nobody
+ * can act on is a count that sends the reader hunting for the panel. It reveals Problems, which is
+ * the same thing `View ▸ Problems` does — a second way in, never the only one (§4.4).
+ */
 export function BarPills(): JSX.Element | null {
+  const shell = useShellStore();
   const one = useCurrentDocument();
   if (one === undefined) return null;
   const validation = validationPill(one.reading);
   const derivation = derivationPill(one.reading);
   return (
     <>
-      <span className={`pill ${validation.tone}`} data-pill="validation">
+      <button
+        type="button"
+        className={`pill ${validation.tone}`}
+        data-pill="validation"
+        title={text('Show the Problems panel')}
+        onClick={() => {
+          shell.getState().revealPanel('panel.problems');
+        }}
+      >
         <i aria-hidden="true" />
         {validation.text}
-      </span>
+      </button>
       <span className={`pill ${derivation.tone}`} data-pill="derivation">
         <i aria-hidden="true" />
         {derivation.text}
@@ -128,6 +146,7 @@ export function BarPills(): JSX.Element | null {
  * here. The four figures are whatever the presentation file marked, in its own order.
  */
 export function StatusFields(): JSX.Element | null {
+  const shell = useShellStore();
   const one = useCurrentDocument();
   if (one === undefined) return null;
   const validation = validationPill(one.reading);
@@ -142,9 +161,17 @@ export function StatusFields(): JSX.Element | null {
           {one.tag}
         </span>
       )}
-      <span className={validation.tone === 'ok' ? 'ok' : validation.tone === 'bad' ? 'bad' : ''} data-validation={validation.tone}>
+      <button
+        type="button"
+        className={`asfield ${validation.tone === 'ok' ? 'ok' : validation.tone === 'bad' ? 'bad' : ''}`}
+        data-validation={validation.tone}
+        title={text('Show the Problems panel')}
+        onClick={() => {
+          shell.getState().revealPanel('panel.problems');
+        }}
+      >
         {validation.text}
-      </span>
+      </button>
       <span className="der" data-derivation={derivation.tone}>
         {derivation.text}
       </span>

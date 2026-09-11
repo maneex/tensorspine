@@ -33,6 +33,7 @@ import {
   DocumentSession,
   draftStanding,
   FIRST_VERSION,
+  fixedTag,
   gatherBases,
   gatherSchemas,
   isUnder,
@@ -57,11 +58,25 @@ import {
   type WorkspacePath,
   type ZipEntry,
 } from '@tensorspine/store';
-import { BASE_MANIFEST, loadSchemas, templatePrimitives, type SchemaRegistry } from '@tensorspine/lang';
+import {
+  BASE_MANIFEST,
+  isJsonObject,
+  loadSchemas,
+  parse,
+  templatePrimitives,
+  type SchemaRegistry,
+} from '@tensorspine/lang';
 import type { Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
-import { presentation, type Presentation } from '../presentation/index.js';
+import { outlineOf, revealing } from '../explorer/outline.js';
+import { presentation, startPresentation, type Presentation } from '../presentation/index.js';
+import {
+  droppedKeys,
+  schemaMismatches,
+  unusedQuantities,
+  type DroppedSidecarKey,
+} from '../problems/notices.js';
 import { statusFigures, type FigureShapes, type StatusFigure } from './figures.js';
 import { noReading, Pipeline, type Reading } from './pipeline.js';
 import { shapesFor } from './shapes.js';
@@ -119,6 +134,14 @@ export interface OpenDocument {
    * the others rather than staying shut because nobody had said anything about it.
    */
   readonly toggled: readonly string[];
+  /**
+   * The sidecar keys this document's edits dropped (D6), for §4.17's `editor` notices.
+   *
+   * A drop is an *event* — "a sidecar key that names a path the document no longer has is dropped
+   * with a log line" — so it cannot be read back off the tree the way an unused quantity can; it
+   * is kept here and the panel shows it until the document is closed.
+   */
+  readonly dropped: readonly DroppedSidecarKey[];
 }
 
 /** How the library and the schemas stand for the open workspace. */
@@ -188,6 +211,13 @@ export interface DocumentsState {
   /** Every `.json` of the workspace that is not under a library base — what Open Model… offers. */
   readonly documents: readonly WorkspacePath[];
   /**
+   * The editor's own rows about the **workspace** — §4.17's `editor` source.
+   *
+   * A schema the workspace carries that the build's own does not match is one (§1). They are the
+   * workspace's and not a document's, so they stand whichever tab is open.
+   */
+  readonly notices: readonly Problem[];
+  /**
    * The Model explorer's filter box (§4.5), kept here rather than in the component.
    *
    * The side bar is unmounted whenever another activity is shown, and a filter that was typed and
@@ -225,6 +255,26 @@ export interface Documents extends DocumentsState {
   togglePlace(pointer: string, id?: string): void;
   /** What the explorer's filter box holds (§4.5). */
   setFilter(filter: string): void;
+  /**
+   * Select a place **and open the tree down to it** — what clicking a row of Problems does.
+   *
+   * `selectPlace` writes the selection and every projection reads it; a place under a group the
+   * reader closed is selected and invisible, which is no navigation at all. So this opens the
+   * ancestors first, against the outline's own default (2.7's `toggled` is a deviation from it,
+   * not the open set), and then selects.
+   */
+  revealPlace(path: Path, id?: string): void;
+  /**
+   * `Model ▸ Lint` (§4.4): the advisories, over the workspace's own model documents.
+   *
+   * The set is this feature's decision and it is the set the repository lints itself with:
+   * `--lint`'s answer is a function of it (feature 1.10), a document linted **alone** reports
+   * every primitive of the base as called by nobody, and the only set under which the corpus lints
+   * clean is the whole of it. It is not part of §5.4's debounced run because linting fourteen
+   * documents costs 781 ms — one `analyse` each — against the 300 ms a keystroke's validation is
+   * given (§5.6), so it is a command, and its rows stand until it is run again.
+   */
+  lint(id?: string): void;
   /**
    * Make a gesture on the document — the one way a projection edits the tree (D1, D13).
    *
@@ -400,8 +450,18 @@ export function createDocuments(options: DocumentsOptions): {
         );
         shapes = new SchemaShapes(registry);
         figureShapes = shapesFor(registry);
+        // §1's catching rule (a), the startup half: every binding resolved against the schemas
+        // that were actually loaded, and everything they leave to the generic widget listed. It
+        // *logs* rather than refuses — the repository's own schemas are held to the stricter rule
+        // by `tests/audit/presentation.test.ts` — and it belongs here because here is where the
+        // registry the bindings resolve against comes into being (feature 2.2 built it and left
+        // it unwired).
+        startPresentation(registry, note);
         if (gathered.fromWorkspace) {
-          for (const difference of schemaDifferences(gathered.files, vendored)) note(difference.message);
+          const differences = schemaDifferences(gathered.files, vendored);
+          for (const difference of differences) note(difference.message);
+          // The Log says it happened; the panel says it is still true (§4.17's `editor` rows).
+          set({ notices: schemaMismatches(differences) });
         }
       }
       const indexed = clock();
@@ -450,8 +510,16 @@ export function createDocuments(options: DocumentsOptions): {
       const applied = one.session.store.apply(command);
       if (!applied.changed) return applied;
       if (applied.moves.length > 0) one.session.layout.follow(applied.moves);
-      for (const dropped of one.session.layout.prune(one.session.store.tree)) {
-        note(`layout: ${dropped.key} names nothing the document has; dropped`);
+      const dropped = one.session.layout.prune(one.session.store.tree);
+      for (const key of dropped) {
+        note(`layout: ${key.key} names nothing the document has; dropped`);
+      }
+      // The Log keeps the line; the panel keeps the standing fact (§4.17's `editor` notices).
+      if (dropped.length > 0) {
+        patch(one.id, (open) => ({
+          ...open,
+          dropped: [...open.dropped, ...dropped.map((key) => ({ where: key.where, key: key.key }))],
+        }));
       }
       const selection = get().open.find((open) => open.id === one.id)?.selection;
       if (selection !== undefined) {
@@ -480,6 +548,7 @@ export function createDocuments(options: DocumentsOptions): {
       const id = tabId(session.workspace, session.path);
       const tag = tagOf(session.store.shapes, session.store.tree, session.store.role);
       const one: OpenDocument = {
+        dropped: [],
         id,
         path: session.path,
         workspace: session.workspace,
@@ -508,6 +577,92 @@ export function createDocuments(options: DocumentsOptions): {
       startPipeline(id);
     };
 
+    /**
+     * The editor's own rows about one document — §4.17's `editor` source, at `notice`.
+     *
+     * Computed where the verdict is and for the same revision, over the outline and the reference
+     * index the tree and the sheet already read. They name no rule of §6: an unused quantity is a
+     * question about references, and a dropped sidecar key is the editor's own event.
+     */
+    const noticesOf = (id: string): readonly Problem[] => {
+      const one = get().open.find((open) => open.id === id);
+      if (one === undefined || shapes === null) return [];
+      const rows = outlineOf({
+        tree: one.session.store.tree,
+        shapes,
+        bindings,
+        role: one.session.store.role,
+        openAll: true,
+      });
+      return [
+        ...unusedQuantities({ rows, index: one.session.store.context.index, file: one.path }),
+        ...droppedKeys(one.dropped, one.path),
+      ];
+    };
+
+    /**
+     * The documents `Model ▸ Lint` is read over: every model document of the workspace.
+     *
+     * Which set is this feature's decision, and the reason is measured rather than argued.
+     * `--lint`'s answer is a **function of the set** (feature 1.10): "called by none of the N
+     * model(s) linted" names its size, and what the set calls decides which primitives are
+     * reported — so one document linted alone reports thirty-two of the reference base's
+     * primitives as uncalled, which is a wall of advice about the base rather than about the
+     * document. The corpus of fourteen lints **clean**, and that is the set the repository lints
+     * itself with.
+     *
+     * A *model* document and not every `.json`: `uncalled_primitives` indexes `instances` and
+     * `compositions` before the grammar is checked, so a library unit handed to it crashes the
+     * command (feature 1.10's finding). The filter is the tag the **schema** fixes, read off each
+     * file — never a revision written here (feature 2.1's refusal, kept).
+     *
+     * An open document is read as the editor holds it, unsaved edits and all: a lint run is about
+     * what is on the screen, not about what is on disk.
+     */
+    const lintSet = async (): Promise<{ path: string; text: string }[]> => {
+      const held = shapes;
+      if (held === null) return [];
+      const wanted = fixedTag(held);
+      const workspace = platform.workspace;
+      const open = new Map(get().open.map((one) => [one.path, one]));
+      // At once where the workspace can (feature 2.4 measured 131 files at 167–215 ms one after
+      // another and 82–90 ms together), and what the editor holds in place of what is on disk.
+      const unopened = get().documents.filter((path) => !open.has(path));
+      const bulk =
+        workspace.readMany === undefined
+          ? await Promise.all(
+              unopened.map(async (path) => {
+                try {
+                  return [path, (await workspace.read(path)).text] as const;
+                } catch {
+                  return null;
+                }
+              }),
+            ).then((read) => new Map(read.filter((one) => one !== null)))
+          : new Map(
+              Object.entries(await workspace.readMany(unopened)).map(
+                ([path, one]) => [path, one.text] as const,
+              ),
+            );
+      const found: { path: string; text: string }[] = [];
+      for (const path of get().documents) {
+        const text = open.get(path)?.session.text ?? bulk.get(path);
+        if (text === undefined) continue;
+        const one = { path, text };
+        try {
+          const tree = parse(one.text);
+          if (!isJsonObject(tree)) continue;
+          if (wanted !== null && tagOf(held, tree) !== wanted) continue;
+          found.push(one);
+        } catch {
+          // A text that is not JSON at all is not a document to lint: `--lint` would raise on it
+          // (feature 1.10's second hole), and `--validate` is where its refusal belongs.
+          continue;
+        }
+      }
+      return found;
+    };
+
     const startPipeline = (id: string): void => {
       const one = get().open.find((open) => open.id === id);
       const handle = get().library.handle;
@@ -519,6 +674,10 @@ export function createDocuments(options: DocumentsOptions): {
         path: one.path,
         read: () => ({ tree: one.session.store.tree, revision: one.session.store.revision }),
         publish: publishing(id),
+        registry,
+        role: one.session.store.role,
+        lintSet,
+        notices: () => noticesOf(id),
         ...(options.debounceMs === undefined ? {} : { debounceMs: options.debounceMs }),
       });
       pipelines.set(id, pipeline);
@@ -574,6 +733,7 @@ export function createDocuments(options: DocumentsOptions): {
         banner: bannerFor(reference),
         dialog: null,
         documents: [],
+        notices: [],
       });
       settings.set(WORKSPACE_SETTING, { id: reference.id, kind: reference.kind });
       note(`workspace: ${reference.name} · ${reference.kind}${reference.writable ? '' : ' · read-only'}`);
@@ -615,6 +775,7 @@ export function createDocuments(options: DocumentsOptions): {
       toast: null,
       dialog: null,
       documents: [],
+      notices: [],
       filter: '',
 
       async start(): Promise<void> {
@@ -798,6 +959,30 @@ export function createDocuments(options: DocumentsOptions): {
         const one = current(id);
         if (one === undefined) return;
         patch(one.id, (open) => (path === null ? withoutSelection(open) : { ...open, selection: path }));
+      },
+
+      revealPlace(path: Path, id?: string): void {
+        const one = current(id);
+        if (one === undefined || shapes === null) return;
+        const rows = outlineOf({
+          tree: one.session.store.tree,
+          shapes,
+          bindings,
+          role: one.session.store.role,
+          openAll: true,
+        });
+        const toggled = revealing(rows, one.toggled, pointerOf(path));
+        patch(one.id, (open) => ({ ...open, toggled: [...toggled], selection: path }));
+      },
+
+      lint(id?: string): void {
+        const one = documentOf(get(), id ?? tabs.current());
+        if (one === undefined) {
+          note('there is no document open to lint.');
+          return;
+        }
+        note(`lint: ${String(get().documents.length)} candidate file(s) in the workspace`);
+        pipelines.get(one.id)?.lint();
       },
 
       togglePlace(pointer: string, id?: string): void {

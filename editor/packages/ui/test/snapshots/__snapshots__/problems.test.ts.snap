@@ -1,0 +1,73 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the panel > has nothing to say about a corpus document 1`] = `
+[
+  "0 row(s) in 0 group(s)",
+]
+`;
+
+exports[`the panel > says what a primitive the base does not carry costs 1`] = `
+[
+  "455 row(s) in 19 group(s)",
+  "final_n (1) @ /instances/final_n",
+  "  error semantic V1 [V1] primitive absent from primitive library: norm.rmz @ /instances/final_n/primitive",
+  "attn_n (32) @ /compositions/decoder/instances/attn_n",
+  "  error semantic V1 [V1] primitive absent from primitive library: norm.rmz × 32 @ /compositions/decoder/instances/attn_n/primitive",
+  "ffn_n (32) @ /compositions/decoder/instances/ffn_n",
+  "  error semantic V1 [V1] primitive absent from primitive library: norm.rmz × 32 @ /compositions/decoder/instances/ffn_n/primitive",
+  "decoder.entry (1) @ /bindings/values/decoder.entry",
+  "  error semantic V1 [V1] decoder.entry{}: to instance does not exist decoder/attn_n[layer=0] @ /bindings/values/decoder.entry",
+  "final_n.in (1) @ /bindings/values/final_n.in",
+  "  error semantic V1 [V1] final_n.in{}: to instance does not exist final_n @ /bindings/values/final_n.in",
+  "lm_head.in (1) @ /bindings/values/lm_head.in",
+  "  error semantic V1 [V1] lm_head.in{}: from instance does not exist final_n @ /bindings/values/lm_head.in",
+  "attn_n.carry (31) @ /compositions/decoder/bindings/values/attn_n.carry",
+  "  error semantic V1 [V1] decoder.attn_n.carry{'layer': 1}: to instance does not exist decoder/attn_n[layer=1] (+30 more) @ /compositions/decoder/bindings/values/attn_n.carry",
+  "attn.norm_in (32) @ /compositions/decoder/bindings/values/attn.norm_in",
+  "  error semantic V1 [V1] decoder.attn.norm_in{'layer': 0}: from instance does not exist decoder/attn_n[layer=0] (+31 more) @ /compositions/decoder/bindings/values/attn.norm_in",
+  "ffn_n.in (32) @ /compositions/decoder/bindings/values/ffn_n.in",
+  "  error semantic V1 [V1] decoder.ffn_n.in{'layer': 0}: to instance does not exist decoder/ffn_n[layer=0] (+31 more) @ /compositions/decoder/bindings/values/ffn_n.in",
+  "ffn.norm_in (32) @ /compositions/decoder/bindings/values/ffn.norm_in",
+  "  error semantic V1 [V1] decoder.ffn.norm_in{'layer': 0}: from instance does not exist decoder/ffn_n[layer=0] (+31 more) @ /compositions/decoder/bindings/values/ffn.norm_in",
+  "lm_head (2) @ /instances/lm_head",
+  "  error semantic V7 [V7] input port with no producer: lm_head@lm_head.input (+1 more) @ /instances/lm_head",
+  "attn (64) @ /compositions/decoder/instances/attn",
+  "  error semantic V7 [V7] input port with no producer: attention.dense@decoder/attn[layer=0].input (+63 more) @ /compositions/decoder/instances/attn",
+  "ffn (64) @ /compositions/decoder/instances/ffn",
+  "  error semantic V7 [V7] input port with no producer: ffn.gated@decoder/ffn[layer=0].input (+63 more) @ /compositions/decoder/instances/ffn",
+  "ffn_r (1) @ /compositions/decoder/instances/ffn_r",
+  "  error semantic V13 [V13] output consumed by nothing: residual.add@decoder/ffn_r[layer=31].output @ /compositions/decoder/instances/ffn_r",
+  "attn_r.b (32) @ /compositions/decoder/bindings/values/attn_r.b",
+  "  error semantic V5 [V5] decoder.attn_r.b: the domain of decoder/attn[layer=0].output is undetermined (+31 more) @ /compositions/decoder/bindings/values/attn_r.b",
+  "ffn_r.b (32) @ /compositions/decoder/bindings/values/ffn_r.b",
+  "  error semantic V5 [V5] decoder.ffn_r.b: the domain of decoder/ffn[layer=0].output is undetermined (+31 more) @ /compositions/decoder/bindings/values/ffn_r.b",
+  "final_n.weight (1) @ /bindings/parameters/final_n.weight",
+  "  error semantic V1 [V1] parameter final_n.weight: instance does not exist final_n @ /bindings/parameters/final_n.weight",
+  "attn_n.weight (32) @ /compositions/decoder/bindings/parameters/attn_n.weight",
+  "  error semantic V1 [V1] parameter decoder.attn_n.weight: instance does not exist decoder/attn_n[layer=0] (+31 more) @ /compositions/decoder/bindings/parameters/attn_n.weight",
+  "ffn_n.weight (32) @ /compositions/decoder/bindings/parameters/ffn_n.weight",
+  "  error semantic V1 [V1] parameter decoder.ffn_n.weight: instance does not exist decoder/ffn_n[layer=0] (+31 more) @ /compositions/decoder/bindings/parameters/ffn_n.weight",
+]
+`;
+
+exports[`the panel > says what a slot the primitive has not costs, at the place it was written 1`] = `
+[
+  "64 row(s) in 2 group(s)",
+  "ffn.gate (32) @ /compositions/decoder/bindings/parameters/ffn.gate",
+  "  error semantic V7 [V7] parameter decoder.ffn.gate: ffn.gated has no parameter 'gatez' × 32 @ /compositions/decoder/bindings/parameters/ffn.gate",
+  "ffn (32) @ /compositions/decoder/instances/ffn",
+  "  error semantic V7 [V7] unbound parameter slot: ffn.gated@decoder/ffn[layer=0].gate (+31 more) @ /compositions/decoder/instances/ffn",
+]
+`;
+
+exports[`the panel > says what an argument that resolves to nothing costs 1`] = `
+[
+  "65 row(s) in 3 group(s)",
+  "final_n (1) @ /instances/final_n",
+  "  error semantic V3 [V3] norm.rms @final_n: argument 'eps' does not resolve to a value @ /instances/final_n/arguments/eps",
+  "attn_n (32) @ /compositions/decoder/instances/attn_n",
+  "  error semantic V3 [V3] norm.rms @decoder/attn_n[layer=0]: argument 'eps' does not resolve to a value (+31 more) @ /compositions/decoder/instances/attn_n/arguments/eps",
+  "ffn_n (32) @ /compositions/decoder/instances/ffn_n",
+  "  error semantic V3 [V3] norm.rms @decoder/ffn_n[layer=0]: argument 'eps' does not resolve to a value (+31 more) @ /compositions/decoder/instances/ffn_n/arguments/eps",
+]
+`;

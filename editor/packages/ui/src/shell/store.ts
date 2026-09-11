@@ -37,7 +37,11 @@ import type {
 } from '@tensorspine/store/platform';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
+import type { ProblemSeverity, ProblemSource } from '@tensorspine/lang/api';
+
+import { SPECIFICATION_ANCHORS } from './anchors.js';
 import { COMMANDS, commandById, type Command } from './commands.js';
+import { NO_FILTER, type Grouping } from '../problems/rows.js';
 import {
   ACTIVITIES,
   clampSize,
@@ -114,6 +118,35 @@ export interface ShellState {
   readonly session: Session | null;
   readonly workspace: WorkspaceRef;
   readonly log: readonly LogLine[];
+  /**
+   * How the Problems panel is showing its rows — §4.17's filter and grouping.
+   *
+   * Chrome, and here for the reason feature 2.6 gave the explorer's filter box: the panel is
+   * unmounted whenever another of the bottom panel's three tabs is showing, and a filter that was
+   * typed and then lost because the reader looked at the Derived panel is a filter they have to
+   * type again. The state's own keys are snapshotted (a reviewed diff), which is what stops a
+   * field from quietly starting to hold a document's facts.
+   */
+  readonly problems: ProblemView;
+  /**
+   * Where the documentation site is, relative to this page.
+   *
+   * The Help menu resolves its links against it and so does a problem's code (§4.17): the editor
+   * is deployed *beside* the site (D11), the page reads its own address, and no host is written
+   * into any component.
+   */
+  readonly docsBase: string;
+}
+
+/** What the Problems panel is showing (§4.17). */
+export interface ProblemView {
+  /** The sources kept; every one of them when it is empty. */
+  readonly sources: readonly ProblemSource[];
+  /** The severities kept; every one of them when it is empty. */
+  readonly severities: readonly ProblemSeverity[];
+  /** What the filter box holds. */
+  readonly text: string;
+  readonly group: Grouping;
 }
 
 /** What a command does. */
@@ -132,6 +165,8 @@ export interface Shell extends ShellState {
   dockPanel(panel: PanelId, region: RegionId): void;
   /** Select a panel's tab and open its region, wherever it sits — `View ▸ Problems` and its kin. */
   revealPanel(panel: PanelId): void;
+  /** Change how the Problems panel is showing its rows (§4.17). */
+  setProblemView(view: Partial<ProblemView>): void;
   /**
    * `View ▸ Toggle Properties`.
    *
@@ -202,9 +237,31 @@ const ZOOM = { step: 1.2, min: 0.2, max: 4, fit: 1 } as const;
 /** How many lines the Log keeps. */
 const LOG_LIMIT = 500;
 
+/** The specification's own page, as `tools/site.sh` writes it. */
+export const SPECIFICATION_PAGE = 'spec/specification.html';
+
+/**
+ * Where the specification states an identifier, as a link — §4.17's "a problem's code links to
+ * its anchor in the specification (generated map, §1)".
+ *
+ * The map is generated from `docs/SPECIFICATION.md` at build time (`pnpm anchors`) and held to it
+ * by `tests/audit/anchors.test.ts`, so a rule renumbered or a section re-anchored fails the audit
+ * rather than shipping as a link that lands nowhere. `null` for a code the specification does not
+ * state — the empty code every lint finding and most of the loader's refusals carry, and the
+ * `schema` and `registry` codes, which are the editor's own words for a stage.
+ */
+export function specificationLink(
+  id: string,
+  docsBase: string,
+): { readonly href: string; readonly title: string } | null {
+  const found = SPECIFICATION_ANCHORS[id];
+  if (found === undefined) return null;
+  return { href: `${docsBase}${SPECIFICATION_PAGE}#${found.anchor}`, title: found.section };
+}
+
 /** The pages of the documentation site the Help menu names, as `tools/site.sh` writes them. */
 export const HELP_PAGES: Readonly<Record<string, string>> = {
-  'help.specification': 'spec/specification.html',
+  'help.specification': SPECIFICATION_PAGE,
   'help.model-guide': 'spec/tensorspine-model_json.html',
   'help.unit-guide': 'spec/tensorspine-primitive-library-unit.html',
   'help.library-reference': 'primitive-library/index.html',
@@ -462,6 +519,12 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
       session: platform.auth.current(),
       workspace: platform.workspace.root(),
       log: [],
+      problems: { ...NO_FILTER, group: 'node' },
+      docsBase,
+
+      setProblemView: (view) => {
+        set((state) => ({ problems: { ...state.problems, ...view } }));
+      },
 
       setActivity: (activity) => {
         set((state) => ({ side: { ...state.side, activity, open: true } }));

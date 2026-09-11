@@ -52,6 +52,7 @@ import {
   type LibraryContext,
 } from '../library/load.js';
 import { dirname, normalise } from '../library/paths.js';
+import { hoistingOf, type Hoisting } from '../model/index.js';
 import { pyRepr } from '../library/repr.js';
 import { memorySource, type LibrarySource } from '../library/source.js';
 import { validateUnit as validateUnitOf, type UnitLocation } from '../library/unit.js';
@@ -133,6 +134,16 @@ export interface ValidateArguments extends DocumentOptions {
   readonly lint?: readonly LintDocument[] | undefined;
 }
 
+/**
+ * The one member of a document a hoisted place can sit under: `normalise` writes every scoped
+ * rule into `bindings`, and nowhere else.
+ *
+ * It is the guard that keeps the map off the hot path, not a reading of the rule — `writtenPlace`
+ * answers `null` for every pointer the hoist did not write, so a row that skips the question is a
+ * row the map would have left alone.
+ */
+const HOISTED_UNDER = '/bindings/';
+
 /** The schemas, held because they cannot be sent. */
 interface HeldSchemas {
   readonly handle: SchemasHandle;
@@ -163,6 +174,17 @@ interface HeldLibrary {
   readonly bases: readonly HeldBase[];
   readonly library: Library;
   readonly context: LibraryContext;
+  /**
+   * The refusals the *gather* carried, beside the ones the loaded library carries.
+   *
+   * A base that is not there is one: `load_for` raises it before the loader reads a file, so the
+   * gathered library is empty and carries no refusal of its own — and a `validate` against it
+   * would otherwise report every primitive as absent with nothing saying why. The tools load the
+   * library **from the document** on every run and print that refusal as the document's, so
+   * reporting it at every `validate` is their reading, not an invention; the API gathers once a
+   * session (§5.6's 300 ms) and this is what keeps the two the same.
+   */
+  readonly refusals: readonly Problem[];
 }
 
 /** What one document's last reading left behind, for the next call on the same revision. */
@@ -263,20 +285,29 @@ export class LangSession {
     if (absent.length > 0) {
       const handle: LibraryHandle = { kind: 'library', id: this.identity('library') };
       const empty = loadLibraryOf([], context);
+      const refusals = absent.map((one) => libraryRow(one));
       this.libraries.set(handle.id, {
         handle,
         schemas: held,
         bases: paths.map((path) => ({ path, root: normalise(path) })),
         library: empty,
         context,
+        refusals,
       });
-      return { handle, library: empty, problems: absent.map((one) => libraryRow(one)) };
+      return { handle, library: empty, problems: refusals };
     }
     // The loader is given the caller's own spellings, which is what its refusals name.
     const library = loadLibraryOf(paths, context);
     const handle: LibraryHandle = { kind: 'library', id: this.identity('library') };
     const heldBases = paths.map((path) => ({ path, root: normalise(path) }));
-    this.libraries.set(handle.id, { handle, schemas: held, bases: heldBases, library, context });
+    this.libraries.set(handle.id, {
+      handle,
+      schemas: held,
+      bases: heldBases,
+      library,
+      context,
+      refusals: [],
+    });
     return { handle, library, problems: library.problems.map((one) => libraryRow(one)) };
   }
 
@@ -377,7 +408,8 @@ export class LangSession {
     const document = recordOf(tree);
 
     stage('library');
-    const refused = held.library.problems.length > 0;
+    const refused = held.library.problems.length > 0 || held.refusals.length > 0;
+    for (const one of held.refusals) problems.push(one);
     for (const one of held.library.problems) problems.push(libraryRow(one));
     for (const one of basesMissing(held, document, path)) problems.push(one);
 
@@ -396,8 +428,20 @@ export class LangSession {
     await yieldToTasks();
     watch(control);
     const analysis = this.analyse(document, path, options, held, reading);
+    // §5.2 rule 7, read backwards: the stage's own pointers name the *normalised* document, and a
+    // panel navigates in the one the editor holds. The hoist's record is asked for once, and only
+    // where a row could name a hoisted place at all — a document with no scoped binding pays
+    // nothing, and neither does one whose refusals are all about quantities or interfaces.
+    let record: Hoisting | null = null;
+    const mapping = (): Hoisting => (record ??= hoistingOf(document));
     for (const one of analysis.problems) {
-      problems.push(semanticRow(one, { file: path, afterRefusal: refused }));
+      problems.push(
+        semanticRow(one, {
+          file: path,
+          afterRefusal: refused,
+          ...(one.path.startsWith(HOISTED_UNDER) ? { hoisting: mapping() } : {}),
+        }),
+      );
     }
 
     if (options.lint !== undefined) {

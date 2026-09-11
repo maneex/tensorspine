@@ -7,4 +7,14 @@
  * the linter read one form and the denotation has one definition".
  */
 export { ModelError, type ModelErrorKind } from './errors.js';
-export { loadModel, normalise } from './normalise.js';
+export { hoistingOf, loadModel, normalise } from './normalise.js';
+export {
+  hoisted,
+  HoistRecorder,
+  NO_HOISTING,
+  writtenPlace,
+  type HoistedPlace,
+  type Hoisting,
+  type HoistKind,
+  type WrittenPlace,
+} from './hoisting.js';

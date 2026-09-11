@@ -16,6 +16,7 @@
 import type { CheckpointProblem } from '../artifact/check.js';
 import type { LibraryProblem } from '../library/problems.js';
 import type { LintFinding } from '../lint/lint.js';
+import { writtenPlace, type Hoisting } from '../model/hoisting.js';
 import { formatProblem, type StructuralProblem } from '../schema/registry.js';
 import { formatSemanticProblem, type SemanticProblem } from '../validate/problems.js';
 import { formatCheckpointProblem } from '../artifact/check.js';
@@ -60,15 +61,31 @@ export function libraryRow(problem: LibraryProblem): Problem {
   };
 }
 
-/** The semantic stage's row: `[V8] …`, and the pointer beside it. */
+/**
+ * The semantic stage's row: `[V8] …`, and the pointer beside it — in the document as written.
+ *
+ * The stage reads the document `model.normalise` answers, so a refusal about a
+ * composition-scoped binding names the hoisted rule (`/bindings/values/decoder.attn.norm_in`) and
+ * not the place the author typed. Given the hoist's own record the place is written back here, in
+ * the one function that turns a `SemanticProblem` into the row every panel reads, and the core's
+ * own pointer is kept beside it. Without the record — a caller that did not ask for one — the
+ * pointer is answered as the stage named it, which is what it has always been.
+ */
 export function semanticRow(
   problem: SemanticProblem,
-  options: { readonly file?: string; readonly afterRefusal?: boolean } = {},
+  options: {
+    readonly file?: string;
+    readonly afterRefusal?: boolean;
+    readonly hoisting?: Hoisting;
+  } = {},
 ): Problem {
+  const written = options.hoisting === undefined ? null : writtenPlace(options.hoisting, problem.path);
   return {
     code: problem.code,
     message: formatSemanticProblem(problem),
-    path: problem.path,
+    path: written === null ? problem.path : written.path,
+    ...(written === null ? {} : { normalisedPath: problem.path }),
+    ...(written === null || written.exact ? {} : { approximate: true }),
     ...(options.file === undefined ? {} : { file: options.file }),
     severity: 'error',
     source: 'semantic',

@@ -57,11 +57,13 @@ import {
   type PyValue,
 } from '../expr/value.js';
 import { put } from '../json/tree.js';
+import type { PathSegment } from '../schema/types.js';
 import { JsonParseError, parse } from '../json/parse.js';
 import { demand, entries, has, optional } from '../library/access.js';
 import { pyStr } from '../library/repr.js';
 
 import { ModelError } from './errors.js';
+import { HoistRecorder, NO_HOISTING, type Hoisting } from './hoisting.js';
 
 /** The member of a top-level rule that names the slot, per kind of binding. */
 const SLOT: PyRecord = {
@@ -103,8 +105,15 @@ function selector(
   composition: PyValue,
   endpoint: PyValue,
   ruleName: string,
+  where: Where,
 ): PyValue {
-  if (has(endpoint, 'instance')) return demand(endpoint, 'instance');
+  // Where the selector lands in the hoisted rule, and where the endpoint it denotes was written.
+  const at = [...where.at, 'instance'];
+  if (has(endpoint, 'instance')) {
+    // An explicit selector is copied as it stands, so its whole subtree corresponds.
+    where.record?.copy(at, [...where.from, 'instance']);
+    return demand(endpoint, 'instance');
+  }
   const site = demand(endpoint, 'site');
   const instances = demand(composition, 'instances');
   // `site not in comp['instances']`: a dictionary answers by key, and every key of an instance map
@@ -122,6 +131,7 @@ function selector(
     );
   }
   let indices = current(composition);
+  const overridden = new Set<string>();
   for (const [name, expression] of entries(optional(endpoint, 'indices', {}))) {
     if (!hasKey(indices, name)) {
       throw new ModelError(
@@ -132,8 +142,36 @@ function selector(
     }
     // An override keeps the index's place, as assigning an existing key of a dictionary does.
     indices = withKey(indices, name, expression);
+    overridden.add(name);
+  }
+  if (where.record !== undefined) {
+    // The selector itself is built out of the endpoint; the site name and every overridden index
+    // expression inside it are the endpoint's own text, and the rest is the composition's.
+    where.record.invent(at, where.from);
+    where.record.copy([...at, 'instance'], [...where.from, 'site']);
+    for (const [name] of entries(indices)) {
+      if (overridden.has(name)) {
+        where.record.copy([...at, 'indices', name], [...where.from, 'indices', name]);
+      } else {
+        where.record.invent([...at, 'indices', name], [...where.compositionAt, 'indices', name]);
+      }
+    }
   }
   return { kind: 'generated', composition: compositionName, instance: site, indices };
+}
+
+/**
+ * Where one hoisted rule sits, and where it was written: what the recorder is told about.
+ *
+ * `at` is the place of the rule in the *normalised* document, `from` the place of the scoped rule
+ * in the document as written, and `compositionAt` the composition itself — the `for_each` a hoist
+ * writes is the composition's own `indices` and nothing of the rule's.
+ */
+interface Where {
+  readonly at: readonly PathSegment[];
+  readonly from: readonly PathSegment[];
+  readonly compositionAt: readonly PathSegment[];
+  readonly record: HoistRecorder | undefined;
 }
 
 /**
@@ -151,17 +189,35 @@ function hoist(
   kind: string,
   ruleName: string,
   rule: PyValue,
+  where: Where,
 ): PyRecord {
+  const record = where.record;
+  // The rule as a whole is rebuilt: it denotes the rule the author wrote, member for member it
+  // is not, so a pointer below it falls back to it unless one of the members below answers.
+  record?.rebuild(where.at, where.from);
   // `copy.deepcopy(comp['indices'])`: the copy is Python's defence against a shared mutable, and
   // there is nothing to defend here — a value of the reading is never written into.
   let top: PyRecord = { for_each: demand(composition, 'indices') };
-  if (has(rule, 'when')) top = withKey(top, 'when', demand(rule, 'when'));
+  record?.copy([...where.at, 'for_each'], [...where.compositionAt, 'indices']);
+  if (has(rule, 'when')) {
+    top = withKey(top, 'when', demand(rule, 'when'));
+    record?.copy([...where.at, 'when'], [...where.from, 'when']);
+  }
   const qualified = `${compositionName}.${ruleName}`;
   if (kind === 'values') {
     for (const side of ['from', 'to'] as const) {
       const endpoint = demand(rule, side);
+      const endpointAt = [...where.at, side];
+      const endpointFrom = [...where.from, side];
+      // The endpoint is rebuilt around the selector; its port is the written one.
+      record?.rebuild(endpointAt, endpointFrom);
+      record?.copy([...endpointAt, 'port'], [...endpointFrom, 'port']);
       top = withKey(top, side, {
-        instance: selector(compositionName, composition, endpoint, ruleName),
+        instance: selector(compositionName, composition, endpoint, ruleName, {
+          ...where,
+          at: endpointAt,
+          from: endpointFrom,
+        }),
         port: demand(endpoint, 'port'),
       });
     }
@@ -174,18 +230,32 @@ function hoist(
     throw new PyTypeError(`'${pythonTypeName(declared)}' object is not iterable`);
   }
   const members = declared as readonly PyValue[];
+  record?.rebuild([...where.at, 'members'], [...where.from, 'members']);
   top = withKey(
     top,
     'members',
-    members.map((one) => ({
-      instance: selector(compositionName, composition, one, ruleName),
-      [slot]: demand(one, slot),
-    })),
+    members.map((one, index) => {
+      const memberAt = [...where.at, 'members', index];
+      const memberFrom = [...where.from, 'members', index];
+      record?.rebuild(memberAt, memberFrom);
+      record?.copy([...memberAt, slot], [...memberFrom, slot]);
+      return {
+        instance: selector(compositionName, composition, one, ruleName, {
+          ...where,
+          at: memberAt,
+          from: memberFrom,
+        }),
+        [slot]: demand(one, slot),
+      };
+    }),
   );
   // Parameter and state identities select a dtype. A constant rule carries none on the grammar,
   // and the tools copy one all the same when a document holds it: the line is theirs, not the
   // schema's, so the port copies it too.
-  if (has(rule, 'dtype')) top = withKey(top, 'dtype', demand(rule, 'dtype'));
+  if (has(rule, 'dtype')) {
+    top = withKey(top, 'dtype', demand(rule, 'dtype'));
+    record?.copy([...where.at, 'dtype'], [...where.from, 'dtype']);
+  }
   if (kind === 'parameters') {
     // "A scoped parameter or state rule without a declared `tensor` / `identity` names it `C.R`,
     // indexed by the composition's indices" (§5.2 rule 7).
@@ -196,8 +266,12 @@ function hoist(
         ? demand(rule, 'tensor')
         : { name: qualified, indices: current(composition) },
     );
+    named(record, where, 'tensor', has(rule, 'tensor'));
     // Where the identity's tensor is stored (§3.4).
-    if (has(rule, 'location')) top = withKey(top, 'location', demand(rule, 'location'));
+    if (has(rule, 'location')) {
+      top = withKey(top, 'location', demand(rule, 'location'));
+      record?.copy([...where.at, 'location'], [...where.from, 'location']);
+    }
   } else if (kind === 'states') {
     top = withKey(
       top,
@@ -206,10 +280,30 @@ function hoist(
         ? demand(rule, 'identity')
         : { name: qualified, indices: current(composition) },
     );
+    named(record, where, 'identity', has(rule, 'identity'));
   } else {
     top = withKey(top, 'constant', demand(rule, 'constant'));
+    record?.copy([...where.at, 'constant'], [...where.from, 'constant']);
   }
   return top;
+}
+
+/**
+ * The identity a parameter or state rule names, recorded.
+ *
+ * Declared, it is the written member and its subtree corresponds; undeclared, §5.2 rule 7 names it
+ * `C.R` indexed by the composition's indices — a value the hoist builds, which stands for the rule
+ * that did not write one.
+ */
+function named(
+  record: HoistRecorder | undefined,
+  where: Where,
+  member: string,
+  declared: boolean,
+): void {
+  if (record === undefined) return;
+  if (declared) record.copy([...where.at, member], [...where.from, member]);
+  else record.invent([...where.at, member], where.from);
 }
 
 /**
@@ -220,7 +314,7 @@ function hoist(
  * before they ask: a composition writing `"bindings": {}` — which the grammar refuses,
  * `scoped_bindings` requiring one member — normalises to a composition without one.
  */
-export function normalise(model: PyValue): PyRecord {
+export function normalise(model: PyValue, record?: HoistRecorder): PyRecord {
   // `model.get('compositions', {})`, which is where a document that is not a document is refused.
   const declared = optional(model, 'compositions', {});
   let compositions: PyRecord | null = null;
@@ -256,7 +350,16 @@ export function normalise(model: PyValue): PyRecord {
         bindings = withKey(
           bindings,
           kind,
-          withKey(map, qualified, hoist(compositionName, composition, kind, ruleName, rule)),
+          withKey(
+            map,
+            qualified,
+            hoist(compositionName, composition, kind, ruleName, rule, {
+              at: ['bindings', kind, qualified],
+              from: ['compositions', compositionName, 'bindings', kind, ruleName],
+              compositionAt: ['compositions', compositionName],
+              record,
+            }),
+          ),
         );
       }
     }
@@ -265,6 +368,24 @@ export function normalise(model: PyValue): PyRecord {
   if (compositions !== null) result = withKey(result, 'compositions', compositions);
   if (bindings !== null) result = withKey(result, 'bindings', bindings);
   return result;
+}
+
+/**
+ * What `normalise` expanded, and where each expanded place was written (§5.2 rule 7, backwards).
+ *
+ * The hoist is run for its record: `normalise` is the one implementation of the rule, so the map
+ * cannot say something the expansion does not do. A document that carries no composition-scoped
+ * binding answers {@link NO_HOISTING}, which every lookup misses — the ordinary case, and the
+ * cheap one.
+ *
+ * It raises what `normalise` raises, because it *is* `normalise`: a caller that has not yet been
+ * able to read the document has nothing to map either.
+ */
+export function hoistingOf(model: PyValue): Hoisting {
+  const record = new HoistRecorder();
+  normalise(model, record);
+  const hoisting = record.hoisting();
+  return hoisting.places.size === 0 ? NO_HOISTING : hoisting;
 }
 
 /**

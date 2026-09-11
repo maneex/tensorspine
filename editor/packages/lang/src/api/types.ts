@@ -27,6 +27,29 @@ export type ProblemSource =
   | 'editor';
 
 /**
+ * Every {@link ProblemSource}, as a value each and as the order a panel lists them in.
+ *
+ * The order is §4.17's table: the four stages a document crosses, then the checkpoint, then the
+ * interface's own rows, then a refusal only a derivation can raise. `satisfies` is what holds the
+ * two in step — a member added to the union without a value here, or a value here the union does
+ * not carry, fails to compile — so a component that lists the sources reads them rather than
+ * writing them out (plan §1 (b): the same discipline the schemas' own vocabulary is held to, one
+ * type along).
+ */
+export const PROBLEM_SOURCE = {
+  schema: 'schema',
+  library: 'library',
+  semantic: 'semantic',
+  lint: 'lint',
+  checkpoint: 'checkpoint',
+  editor: 'editor',
+  derivation: 'derivation',
+} as const satisfies Readonly<Record<ProblemSource, ProblemSource>>;
+
+/** The sources, in §4.17's own order. */
+export const PROBLEM_SOURCES: readonly ProblemSource[] = Object.values(PROBLEM_SOURCE);
+
+/**
  * How much a problem weighs (plan Appendix C).
  *
  * `error` is a refusal: the document is not valid, and nothing downstream of the stage runs.
@@ -36,6 +59,16 @@ export type ProblemSource =
  * the editor's own rows.
  */
 export type ProblemSeverity = 'error' | 'warning' | 'notice';
+
+/** Every {@link ProblemSeverity}, heaviest first — §4.17's legend reads in this order. */
+export const PROBLEM_SEVERITY = {
+  error: 'error',
+  warning: 'warning',
+  notice: 'notice',
+} as const satisfies Readonly<Record<ProblemSeverity, ProblemSeverity>>;
+
+/** The severities, heaviest first. */
+export const PROBLEM_SEVERITIES: readonly ProblemSeverity[] = Object.values(PROBLEM_SEVERITY);
 
 /** One line under a problem's head, with the place in the document it names. */
 export interface ProblemDetail {
@@ -80,8 +113,35 @@ export interface Problem {
   readonly code: string;
   /** The tools' line, word for word, as their own printer writes it. */
   readonly message: string;
-  /** Where in the document or the unit, as a JSON pointer (RFC 6901); `''` at the root. */
+  /**
+   * Where in the document or the unit, as a JSON pointer (RFC 6901); `''` at the root.
+   *
+   * **The place in the document as it was written.** The semantic stage reads the document
+   * `model.normalise` answers — §5.2 rule 7 expands every composition-scoped binding into one
+   * top-level rule "before any other rule applies" — so its own pointers name places a file does
+   * not have (`/bindings/values/decoder.attn.norm_in` for a rule written at
+   * `/compositions/decoder/bindings/values/attn.norm_in`). A panel navigates by this, and a
+   * pointer into a document nobody holds is no pointer at all, so the hoist's own record is read
+   * backwards here and {@link normalisedPath} keeps what the core's reading named.
+   */
   readonly path: string;
+  /**
+   * The place the core's own reading named, where {@link path} was written back from it.
+   *
+   * Present only where the two differ, which is only for a hoisted binding. It is what a parity
+   * comparison against the tools' normalised reading would use, and what a log line says when a
+   * navigation lands somewhere a reader did not expect.
+   */
+  readonly normalisedPath?: string;
+  /**
+   * True where {@link path} is the nearest written place rather than the place itself.
+   *
+   * The hoist invents three things — the generated instance selector, an index selecting itself,
+   * an identity §5.2 rule 7 names after the rule — and a pointer into one of them has no written
+   * counterpart. The nearest place that has one is answered, and this says so rather than letting
+   * a component believe it has the exact node.
+   */
+  readonly approximate?: boolean;
   /**
    * The identifier of the derived thing the row is about: a D1 node, or the D3 identity instance
    * a checkpoint row names (`wq[layer=3]`).
@@ -106,11 +166,38 @@ export interface Problem {
   readonly afterRefusal?: boolean;
   /** The lines under the head, in the tools' order: the loader's refusals carry them. */
   readonly detail?: readonly ProblemDetail[];
-  readonly fix?: FixAction;
+  /**
+   * The mechanical repairs offered beside the row (§4.17, plan §3).
+   *
+   * A list and not one, because S10 draws two on a row (`Rebind q → q_gated`, `Remove binding`)
+   * and because "a fix action exists only where the fix is *one creation*" is a rule about each of
+   * them, not about how many there are. **No stage of the core produces one**: a verdict is what
+   * the core answers and a repair is what the editor offers, so the producer is feature 2.8's fix
+   * framework and this is where it hangs them.
+   */
+  readonly fixes?: readonly FixAction[];
 }
 
 /** A stage of {@link Lang.validate}, and the unit progress is reported in. */
 export type Stage = 'schema' | 'library' | 'assignment' | 'semantic' | 'lint';
+
+/**
+ * Every {@link Stage}, in the order `validate` runs them.
+ *
+ * Held to the union by `satisfies`, as {@link PROBLEM_SOURCE} is: a caller that asks which stages
+ * ran — the Problems panel's banner, which says what a refusal stopped — reads the names rather
+ * than writing them out.
+ */
+export const STAGE = {
+  schema: 'schema',
+  library: 'library',
+  assignment: 'assignment',
+  semantic: 'semantic',
+  lint: 'lint',
+} as const satisfies Readonly<Record<Stage, Stage>>;
+
+/** The stages, in the order `validate` runs them. */
+export const STAGES: readonly Stage[] = Object.values(STAGE);
 
 /**
  * What a long call reports as it crosses a stage boundary.
@@ -321,8 +408,11 @@ export interface ValidateOptions extends CallOptions {
    * therefore names the set — the open document alone, or the whole workspace — and the stage
    * does not run when it names none. Measured: one document 27.5 ms, the corpus 781 ms.
    */
-  readonly lint?: readonly import('../lint/lint.js').LintDocument[];
+  readonly lint?: LintDocuments;
 }
+
+/** The set `--lint` is read over: every document, with the path each was named by. */
+export type LintDocuments = readonly import('../lint/lint.js').LintDocument[];
 
 /**
  * What a checkpoint check answers (plan §5.3, `checkCheckpoint`).

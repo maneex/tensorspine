@@ -30,6 +30,7 @@ export {
   FIRST_VERSION,
   nameMember,
   newDocument,
+  fixedTag,
   tagOf,
   versionMember,
   type NewDocument,

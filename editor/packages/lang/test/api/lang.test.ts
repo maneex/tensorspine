@@ -15,6 +15,26 @@ import { corpus, corpusPath, loaded, referenceBase, schemaFiles, open, type Depl
 
 const DEPLOYMENTS: Deployment[] = ['in-process', 'worker'];
 
+/** Whether an RFC 6901 pointer names a place of a plain reading of a document. */
+function resolves(document: unknown, pointer: string): boolean {
+  let node: unknown = document;
+  if (pointer === '') return true;
+  for (const step of pointer.slice(1).split('/')) {
+    const name = step.replace(/~1/g, '/').replace(/~0/g, '~');
+    if (Array.isArray(node)) {
+      const index = Number(name);
+      if (!Number.isInteger(index) || index < 0 || index >= node.length) return false;
+      node = node[index];
+      continue;
+    }
+    if (node === null || typeof node !== 'object') return false;
+    const held = (node as Record<string, unknown>)[name];
+    if (held === undefined) return false;
+    node = held;
+  }
+  return true;
+}
+
 // `tests/signature.py`'s documented assignment for `decoder-causal-yarn@1.0.0`, which is what the
 // template's own suites read it under (feature 0.1's finding).
 const TEMPLATE_ASSIGNMENT: PyRecord = {
@@ -176,6 +196,39 @@ for (const deployment of DEPLOYMENTS) {
       expect(first.message).toContain('primitive absent from primitive library');
       expect(first.path).toMatch(/^\/(instances|compositions)\//);
       expect(first.file).toBe(corpusPath('llama3-8b'));
+    });
+
+    it('names the place a scoped binding was written, not the place the hoist gave it', async () => {
+      // §5.2 rule 7 expands a composition's bindings into top-level rules "before any other rule
+      // applies", so the semantic stage's own pointers name a document no file holds. Feature 2.7
+      // found the consequence — a red dot on the root's Bindings for a rule written inside
+      // `decoder` — and this is the answer: the row names the written place, and keeps the core's
+      // own reading beside it.
+      const broken = corpus('llama3-8b').replaceAll('"parameter": "gate"', '"parameter": "gatez"');
+      const tree = await lang.parse(broken);
+      const verdict = await lang.validate(tree, corpusPath('llama3-8b'), { library });
+      const rows = verdict.problems.filter((one) => one.source === 'semantic');
+      const rewritten = rows.filter((one) => one.normalisedPath !== undefined);
+      expect(rewritten.length).toBeGreaterThan(0);
+      for (const row of rewritten) {
+        expect(row.code).toBe('V7');
+        expect(row.path).toBe('/compositions/decoder/bindings/parameters/ffn.gate');
+        expect(row.normalisedPath).toBe('/bindings/parameters/decoder.ffn.gate');
+        expect(row.approximate).toBeUndefined();
+      }
+      // And every row of every stage names a place the document *has* — which is the whole
+      // point, and the thing a pointer into the normalised reading could not promise.
+      for (const row of verdict.problems) {
+        expect(resolves(JSON.parse(broken) as unknown, row.path), row.message).toBe(true);
+      }
+
+      // A refusal about a rule the author wrote at the top level is left exactly as the stage
+      // named it: there is nothing to write back.
+      const top = await lang.parse(corpus('llama3-8b').replace('"norm.rms"', '"norm.rmz"'));
+      const other = await lang.validate(top, corpusPath('llama3-8b'), { library });
+      const named = other.problems.filter((one) => one.source === 'semantic');
+      expect(named.length).toBeGreaterThan(0);
+      expect(named.every((one) => one.normalisedPath === undefined)).toBe(true);
     });
 
     it('skips the semantic stage where an external quantity has no value', async () => {

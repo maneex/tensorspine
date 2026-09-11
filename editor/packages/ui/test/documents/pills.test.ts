@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { derivationRow } from '@tensorspine/lang/api';
 import type { Verdict } from '@tensorspine/lang/api';
 
 import { derivationPill, validationPill } from '../../src/documents/Pills.js';
@@ -80,7 +81,8 @@ describe('the derivation state (§4.18’s fresh / stale / failed)', () => {
   });
 
   it('says a refusal is a refusal, whichever revision it was for', () => {
-    expect(derivationPill(reading({ derivation: 'failed', failure: 'no' })).tone).toBe('bad');
+    const refusal = derivationRow(new Error('not valid, no products'), 'x.json');
+    expect(derivationPill(reading({ derivation: 'failed', failure: refusal })).tone).toBe('bad');
     expect(
       derivationPill(reading({ derivation: 'failed', derived: {}, derivedAt: 1, revision: 2 })).text,
     ).toBe('derivation failed');

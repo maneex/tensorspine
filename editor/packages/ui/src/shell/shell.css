@@ -538,3 +538,119 @@ body { margin: 0; }
 .insp .frow > .fk { width: 72px; }
 /* A pointer is long and is worth reading whole: it wraps rather than being cut. */
 .insp .frow > .fv { min-width: 0; overflow-wrap: anywhere; }
+
+/* ── the Problems panel (feature 2.8, S10) ──────────────────────────────────
+   The design's `.prow`, `.pgrp`, `.sev`, `.src`, `.code`, `.msg`, `.loc` and
+   `.fix`, with four departures and their reasons:
+
+     1. a board is a picture: the message and every fix are buttons here (the
+        row navigates, the pill offers an edit), so the resets, the hover and
+        the focus ring are added and `.msg` keeps the row's own baseline;
+     2. `--faint` carries no text (§4.21, feature 2.5's measurement), so the
+        location steps up to `--ink-3` and the design's value is left where it
+        colours a rule;
+     3. a row computed for an older revision is dimmed with a badge — §5.4's
+        freshness, which the board does not draw for this panel but draws for
+        the node card (`.n-der.stale`), whose two rules are reused;
+     4. the controls of the tab strip are four rather than three: a severity
+        segment joins the sources, the grouping and the filter, because §4.17
+        asks for "filter by source/severity/text" and the segment is also the
+        legend the board puts at the foot of the sheet.                      */
+.pgroup { display: contents; }
+.prow {
+  display: flex; align-items: baseline; gap: 12px; padding: 6px 0;
+  border-bottom: 1px solid var(--rule); font-size: 11.5px;
+}
+.prow .sev { flex-shrink: 0; width: 13px; text-align: center; }
+.prow .sev.e { color: var(--bad); }
+.prow .sev.w { color: var(--warn); }
+.prow .sev.n { color: var(--ink-3); }
+.prow .src {
+  flex-shrink: 0; width: 74px; font-family: var(--mono); font-size: 9.5px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+}
+.prow .code { flex-shrink: 0; width: 46px; font-family: var(--mono); font-size: 10.5px; color: var(--accent); }
+.prow .code a { color: inherit; text-decoration: none; }
+.prow .code a:hover { text-decoration: underline; }
+.prow .msg {
+  flex: 1 1 auto; min-width: 0; padding: 0; border: 0; background: none;
+  font-family: var(--sans); font-size: 11.5px; line-height: inherit; text-align: left;
+  color: var(--ink-2); overflow-wrap: anywhere;
+}
+.prow .msg:hover { color: var(--ink); }
+.prow .msg .times {
+  margin-left: 6px; padding: 0 5px; border-radius: 999px; background: var(--bg-tint);
+  font-family: var(--mono); font-size: 9.5px; font-style: normal; color: var(--ink-3);
+}
+.prow .msg .stalebdg {
+  margin-left: 6px; padding: 0 5px; border: 1px solid var(--chip); border-radius: 999px;
+  font-size: 8.5px; font-style: normal; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.prow .loc {
+  flex-shrink: 0; max-width: 40%; font-family: var(--mono); font-size: 10.5px;
+  color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.prow .pdetail {
+  flex-basis: 100%; padding-left: 145px; font-family: var(--mono); font-size: 10.5px;
+  color: var(--ink-3);
+}
+.prow.stale { opacity: 0.72; }
+.prow .fix {
+  flex-shrink: 0; padding: 1px 7px; border: 1px solid var(--accent-dim); border-radius: 999px;
+  background: none; font-family: var(--sans); font-size: 10px; color: var(--accent); white-space: nowrap;
+}
+.prow .fix:hover { background: var(--bg-tint); }
+.pgrp {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 5px 0;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.pgroup:first-child .pgrp { margin-top: 0; }
+.pgrp .n {
+  padding: 0 5px; border-radius: 999px; background: var(--bg-tint);
+  font-size: 9.5px; letter-spacing: 0; color: var(--ink-3);
+}
+/* The tab's own count, and the three the severity segment carries. */
+.panel-tabs .ptab .n.bad { background: var(--bad-bg); color: var(--bad); }
+.panel-right .seg { display: inline-flex; padding: 2px; background: var(--bg-raised); border: 1px solid var(--rule-2); border-radius: 2px; }
+.panel-right .seg button {
+  display: flex; align-items: center; gap: 4px; padding: 2px 7px; border: 0; border-radius: 1px;
+  background: none; font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+}
+.panel-right .seg button.on { background: var(--bg-tint); color: var(--ink); }
+.panel-right .seg button .sev { font-style: normal; }
+.panel-right .seg button .sev.e { color: var(--bad); }
+.panel-right .seg button .sev.w { color: var(--warn); }
+.panel-right .seg button .sev.n { color: var(--ink-3); }
+.panel-right .ctl {
+  display: inline-flex; align-items: center; gap: 7px; height: 22px; padding: 0 8px;
+  background: var(--bg-raised); border: 1px solid var(--rule-2); border-radius: 2px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink);
+}
+.panel-right .ctl.sel::after { content: "▾"; margin-left: auto; font-size: 8px; color: var(--ink-3); }
+.panel-right .ctl select,
+.panel-right .ctl input {
+  border: 0; outline: 0; background: transparent; font-family: var(--mono); font-size: 11px;
+  color: var(--ink); appearance: none; max-width: 120px;
+}
+.panel-right .ctl input::placeholder { color: var(--ink-3); }
+/* A status-bar field that acts: the count of §4.17, which reveals the panel. */
+.status .asfield { padding: 0; border: 0; background: none; font: inherit; color: inherit; }
+.status .asfield:hover { color: var(--ink); }
+button.pill { font-family: var(--sans); }
+/* The tab strip carries the panel's own controls beside its tabs (S10), and at 1280 the
+   four of them plus the region's move button are wider than the bottom region. It
+   scrolls rather than dropping or cutting one — feature 2.6's answer for the status
+   bar's ten fields, taken again for the same reason and with the same two lines. */
+.panel-tabs { overflow-x: auto; scrollbar-width: none; }
+.panel-tabs::-webkit-scrollbar { width: 0; height: 0; }
+.panel-tabs > * { flex-shrink: 0; }
+/* A banner about a reading the document has moved past — §5.4's freshness, the same
+   badge the rows carry. */
+.panel-body .banner.stale { opacity: 0.72; }
+.panel-body .banner .stalebdg {
+  margin-left: 8px; padding: 0 5px; border: 1px solid var(--chip); border-radius: 999px;
+  font-size: 8.5px; font-style: normal; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-3);
+}

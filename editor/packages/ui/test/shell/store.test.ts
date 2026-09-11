@@ -39,14 +39,19 @@ describe('what the shell’s state holds', () => {
       .filter((key) => typeof state[key as keyof typeof state] !== 'function')
       .sort();
     // A snapshot rather than a list, so a field that started holding a quantity, an instance or a
-    // problem is a reviewed diff. "There is no second graph model" is the rule it guards.
+    // problem is a reviewed diff. "There is no second graph model" is the rule it guards, and
+    // `problems` is the reviewed diff feature 2.8 made: it holds the panel's *filter and
+    // grouping* — which sources, which severities, which text, grouped how — and no row of the
+    // panel, which is the document's and lives with the document.
     expect(held).toMatchInlineSnapshot(`
       [
         "activeTab",
+        "docsBase",
         "draggingPanel",
         "log",
         "menu",
         "palette",
+        "problems",
         "regions",
         "scheme",
         "session",

@@ -156,15 +156,29 @@ export function nameMember(shapes: SchemaShapes, role: string = MODEL_ROLE): str
 }
 
 /**
- * The tag a document carries because its schema fixes it — `tensorspine/2.0`, read off the tree.
+ * The tag a document of this role carries because its schema fixes it — `tensorspine/2.0`.
  *
  * §4.2 puts it in the status bar, second field, and feature 2.1 refused to write it: "the store
  * writes no `const` of the language". It does not have to. The schema fixes exactly one member of
- * the root, `newDocument` writes whatever that member's `const` is, and this reads back what the
- * document holds there — so a workspace carrying a schema of another revision shows *its* tag.
+ * the root, `newDocument` writes whatever that member's `const` is, and this is that value —
+ * which is what a caller compares a file's own tag against to ask "is this a model document at
+ * all?" without naming the revision anywhere.
  *
- * `null` where the schema fixes no member of its root, or where the document carries no text at
- * the one it fixes.
+ * `null` where the schema fixes no member of its root.
+ */
+export function fixedTag(shapes: SchemaShapes, role: string = MODEL_ROLE): string | null {
+  const root = shapes.root(role);
+  for (const name of shapes.propertyOrder(root)) {
+    const facts = mergeFacts(shapes.member(root, name).direct.map((place) => place.node));
+    if (facts.fixed && typeof facts.constant === 'string') return facts.constant;
+  }
+  return null;
+}
+
+/**
+ * The tag a document carries because its schema fixes it, read off the tree.
+ *
+ * See {@link fixedTag} for the value the schema fixes; this is what the *document* wrote there.
  */
 export function tagOf(shapes: SchemaShapes, tree: JsonObject, role: string = MODEL_ROLE): string | null {
   const root = shapes.root(role);

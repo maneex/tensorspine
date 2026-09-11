@@ -91,6 +91,7 @@ export {
   readSidecar,
   schemaDifferences,
   sidecarOf,
+  fixedTag,
   tagOf,
   versionMember,
   WORKSPACE_SCHEMAS,

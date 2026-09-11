@@ -24,6 +24,7 @@ import type { DragEvent, JSX } from 'react';
 
 import { useDocumentState } from '../documents/Pills.js';
 import { SelectionSheet } from '../explorer/Sheet.js';
+import { ProblemControls, ProblemsPanel, useProblemCount } from '../problems/index.js';
 import { useShell, useShellStore } from './context.js';
 import { BOUNDS, PANELS, panelById, type PanelId, type RegionId } from './regions.js';
 import { Splitter } from './Splitter.js';
@@ -81,10 +82,38 @@ function PanelBody({ panel }: { panel: PanelId }): JSX.Element {
     // sheet as well as by clicking the thing.
     return <SelectionSheet />;
   }
+  if (panel === 'panel.problems') {
+    // §4.17's message log — feature 2.8. Every row but the editor's own notices is a verdict of
+    // the core, and the panel arranges them; it decides nothing about a document.
+    return <ProblemsPanel />;
+  }
   // With a document open, the panel says what the core has said about it and nothing more: the
   // rows of §4.17 are feature 2.8's and the six products of §4.18 are feature 2.15's, and a panel
   // that went on saying "no document is open" over an open one would be saying something false.
   return <PanelState panel={panel} />;
+}
+
+/** The controls a panel puts in the tab strip — S10 gives Problems three of them. */
+function PanelExtras({ panel }: { panel: PanelId }): JSX.Element | null {
+  if (panel !== 'panel.problems') return null;
+  return <ProblemControls />;
+}
+
+/**
+ * The count a panel's tab carries — S10's `PROBLEMS 11`, tinted when any row is a refusal.
+ *
+ * Two components, because a hook cannot be skipped: the tab strip draws one of these per panel,
+ * and counting the rows four times over for the three that have none is work nobody asked for.
+ */
+function PanelCount({ panel }: { panel: PanelId }): JSX.Element | null {
+  if (panel !== 'panel.problems') return null;
+  return <ProblemCount />;
+}
+
+function ProblemCount(): JSX.Element | null {
+  const count = useProblemCount();
+  if (count === null || count.total === 0) return null;
+  return <i className={`n${count.errors > 0 ? ' bad' : ''}`}>{count.total}</i>;
 }
 
 /** What a panel with nothing of its own to draw yet says, truthfully. */
@@ -177,11 +206,13 @@ export function PanelRegion({ region }: { region: RegionId }): JSX.Element | nul
                 }}
               >
                 {text(panel.label)}
+                <PanelCount panel={id} />
               </button>
             );
           })}
         </div>
         <span className="panel-right">
+          {active === null ? null : <PanelExtras panel={active} />}
           {active === null ? null : (
             <button
               type="button"
