@@ -490,6 +490,117 @@ for (const deployment of DEPLOYMENTS) {
       ).rejects.toThrow(/no reading is held/);
     });
 
+    // --- what a call in flight may leave behind ------------------------------
+
+    it('does not let a superseded validation publish its reading over a newer one', async () => {
+      // `validate` yields between the grammar and the semantic stage — that is what makes a
+      // cancel deliverable at all — and the editor's next keystroke lands in that gap. What the
+      // session must hold afterwards is the *newer* reading: `check` answers from what it holds,
+      // and here the newer document is off the grammar, where nothing about a candidate edit is
+      // decidable at all.
+      const path = corpusPath('llama3-8b');
+      await lang.forget(path);
+      const older = await lang.parse(corpus('llama3-8b'));
+      const newer = await lang.parse('{}');
+
+      const pending = lang.validate(older, path, { library, revision: 1 });
+      const latest = await lang.describe(newer, path, { library, revision: 2 });
+      expect(latest.conforms).toBe(false);
+      // The superseded call still answers — the caller asked, and the answer is a true reading of
+      // the document it was handed. What it may not do is leave that reading behind.
+      expect((await pending).problems).toEqual([]);
+
+      const decision = await lang.check(path, {
+        location: { identity: 'not_an_identity', location: { tensor: 'x' } },
+      });
+      expect(decision.unknown).toContain('off the grammar');
+      await lang.forget(path);
+    });
+
+    it('keeps the newer reading when one validation supersedes another', async () => {
+      const path = corpusPath('llama3-8b');
+      await lang.forget(path);
+      const older = await lang.parse(corpus('llama3-8b'));
+      const newer = await lang.parse('{}');
+      const pending = lang.validate(older, path, { library, revision: 1 });
+      const second = await lang.validate(newer, path, { library, revision: 2 });
+      expect(second.stagesRun).toEqual(['schema']);
+      await pending;
+      const decision = await lang.check(path, {
+        location: { identity: 'not_an_identity', location: { tensor: 'x' } },
+      });
+      expect(decision.unknown).toContain('off the grammar');
+      await lang.forget(path);
+    });
+
+    it('leaves no reading where the document was forgotten while it was being validated', async () => {
+      const path = corpusPath('llama3-8b');
+      await lang.forget(path);
+      const tree = await lang.parse(corpus('llama3-8b'));
+      const pending = lang.validate(tree, path, { library, revision: 1 });
+      await lang.forget(path);
+      await pending;
+      await expect(
+        lang.check(path, { location: { identity: 'wq[layer=0]', location: { tensor: 'x' } } }),
+      ).rejects.toThrow(/no reading is held/);
+    });
+
+    it('does not answer a reopened document from the call that outlived its forget', async () => {
+      // A closed tab reopened counts from 1 again, so the revision cannot be what tells the two
+      // readings apart: it is the same number for a different document.
+      const path = corpusPath('llama3-8b');
+      await lang.forget(path);
+      const older = await lang.parse(corpus('llama3-8b'));
+      const newer = await lang.parse('{}');
+      const pending = lang.validate(older, path, { library, revision: 1 });
+      await lang.forget(path);
+      const reopened = await lang.validate(newer, path, { library, revision: 1 });
+      expect(reopened.problems.length).toBeGreaterThan(0);
+      await pending;
+      const decision = await lang.check(path, {
+        location: { identity: 'not_an_identity', location: { tensor: 'x' } },
+      });
+      expect(decision.unknown).toContain('off the grammar');
+      await lang.forget(path);
+    });
+
+    it('still reads one analysis per revision, and never across assignments', async () => {
+      // The memo of feature 1.6d, which the guard above must not have closed: `validate` and
+      // `describe` on one `(path, revision, library, assignment)` read one `analyse`. The
+      // assignment is part of that key because it decides the graph — a template under `layers =
+      // 2` and under `layers = 26` are different documents (§4.6) — and the sites say so.
+      const path = 'data/models/decoder-causal-yarn/1.0.0.json';
+      await lang.forget(path);
+      const tree = await lang.parse(corpus('decoder-causal-yarn/1.0.0'));
+      const verdict = await lang.validate(tree, path, {
+        library,
+        revision: 5,
+        assignment: TEMPLATE_ASSIGNMENT,
+      });
+      expect(verdict.problems).toEqual([]);
+      // The analysis `validate` left: `describe` on the same revision reads it, and `check` after
+      // it decides — which is only possible if it is still there.
+      const same = await lang.describe(tree, path, {
+        library,
+        revision: 5,
+        assignment: TEMPLATE_ASSIGNMENT,
+      });
+      const [site] = [...same.sites.values()];
+      if (site === undefined) throw new Error('the sites are missing');
+      const decided = await lang.check(path, {
+        edge: { from: { site: site.key, port: 'output' }, to: { site: site.key, port: 'input' } },
+      });
+      expect(decided.unknown).toBeNull();
+
+      const fewer = await lang.describe(tree, path, {
+        library,
+        revision: 5,
+        assignment: { ...TEMPLATE_ASSIGNMENT, layers: 2n },
+      });
+      expect(fewer.sites.size).toBeLessThan(same.sites.size);
+      await lang.forget(path);
+    });
+
     it('answers nothing once it is closed', async () => {
       const other = open(deployment);
       other.close();

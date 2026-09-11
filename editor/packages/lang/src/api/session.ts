@@ -163,6 +163,20 @@ interface HeldLibrary {
 
 /** What one document's last reading left behind, for the next call on the same revision. */
 interface HeldReading {
+  /**
+   * Which *installation* this is: a number nothing else in the session ever carries again.
+   *
+   * `validate` yields to the task queue between its grammar stage and its semantic one — that is
+   * the whole reason a cancel can be delivered at all — and a keystroke's `describe`, a second
+   * `validate` or a `forget` lands in that gap. The call that resumes therefore has to ask whether
+   * the reading it installed is still the reading the session holds, and no field of the reading
+   * itself can answer that: a revision can be *reused* — a document closed and reopened counts
+   * from 1 again — and two calls can legitimately share one. So the installation is numbered, and
+   * publishing an analysis is allowed only under the number it was read for. A completed copy
+   * keeps the number, which is what lets two calls of one revision share the analysis rather than
+   * each computing it (feature 1.6d).
+   */
+  readonly generation: number;
   /** The revision the caller named, or `-1` where it named none. */
   readonly revision: number;
   /** The library handle it was read against, so a different one is not answered from this. */
@@ -178,6 +192,8 @@ interface HeldReading {
 /** The session: one per worker, one per in-process proxy. */
 export class LangSession {
   private next = 0;
+  /** The counter behind {@link HeldReading.generation}: it only ever goes up. */
+  private generations = 0;
   private readonly schemas = new Map<string, HeldSchemas>();
   private readonly libraries = new Map<string, HeldLibrary>();
   private readonly readings = new Map<string, HeldReading>();
@@ -581,7 +597,9 @@ export class LangSession {
     const kept = this.kept(path, options, held);
     if (kept !== null) return kept;
     const structural = held.schemas.registry.structural(tree, 'model');
+    this.generations += 1;
     const reading: HeldReading = {
+      generation: this.generations,
       revision: options.revision ?? -1,
       library: held.handle.id,
       assignment: assignmentKey(options.assignment),
@@ -593,7 +611,19 @@ export class LangSession {
     return reading;
   }
 
-  /** The semantic stage, from the memo where one was kept for this very revision. */
+  /**
+   * The semantic stage, from the memo where one was kept for this very revision.
+   *
+   * **What this publishes into may not be what its caller read.** `validate` suspends before it
+   * gets here, and in that gap the session can have been given a newer document under the same
+   * path — a keystroke's `describe`, a second `validate` — or told to drop it entirely by
+   * `forget`. So the analysis is published only while the reading it was read for is still the
+   * one held ({@link HeldReading.generation}). A superseded call still *answers*: its result is
+   * a true reading of the document it was handed, and the caller asked for it. What it may not do
+   * is leave that reading behind as the session's, because `check` reads what the session holds
+   * and would then judge a candidate edit against a graph the editor has moved on from — and,
+   * where the newer document is off the grammar, would decide what nothing can decide.
+   */
   private analyse(
     document: PyRecord,
     path: string,
@@ -602,12 +632,18 @@ export class LangSession {
     reading: HeldReading,
   ): Analysis {
     if (reading.analysis !== null) return reading.analysis;
+    const current = this.readings.get(path);
+    const mine =
+      current !== undefined && current.generation === reading.generation ? current : null;
+    // The same installation, analysed while this call was suspended: a second call of one
+    // revision reads the first's work rather than repeating it.
+    if (mine !== null && mine.analysis !== null) return mine.analysis;
     const analysis = analyse(document, held.library, {
       ...(options.assignment === undefined ? {} : { assignment: options.assignment }),
     });
     // Kept whether or not a revision was named: `check` reads the analysis the session holds, and
     // a reading with no revision is simply never *reused* — `kept` refuses it.
-    this.readings.set(path, { ...reading, analysis });
+    if (mine !== null) this.readings.set(path, { ...reading, analysis });
     return analysis;
   }
 
