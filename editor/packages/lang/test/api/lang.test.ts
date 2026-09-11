@@ -15,6 +15,19 @@ import { corpus, corpusPath, loaded, referenceBase, schemaFiles, open, type Depl
 
 const DEPLOYMENTS: Deployment[] = ['in-process', 'worker'];
 
+// `tests/signature.py`'s documented assignment for `decoder-causal-yarn@1.0.0`, which is what the
+// template's own suites read it under (feature 0.1's finding).
+const TEMPLATE_ASSIGNMENT: PyRecord = {
+  width: 3072n,
+  layers: 26n,
+  heads: 32n,
+  kv_heads: 8n,
+  head_dim: 128n,
+  inner: 9216n,
+  eps: 1e-5,
+  precision: 'bf16',
+};
+
 for (const deployment of DEPLOYMENTS) {
   describe(`the Lang API (${deployment})`, () => {
     let lang: Lang;
@@ -254,21 +267,85 @@ for (const deployment of DEPLOYMENTS) {
     it('describes a template under an assignment', async () => {
       const path = 'data/models/decoder-causal-yarn/1.0.0.json';
       const tree = await lang.parse(corpus('decoder-causal-yarn/1.0.0'));
-      // `tests/signature.py`'s documented assignment for `decoder-causal-yarn@1.0.0`, which is
-      // what the template's own suites read it under (feature 0.1's finding).
-      const assignment = {
-        width: 3072n,
-        layers: 26n,
-        heads: 32n,
-        kv_heads: 8n,
-        head_dim: 128n,
-        inner: 9216n,
-        eps: 1e-5,
-        precision: 'bf16',
-      };
-      const facts = await lang.describe(tree, path, { library, assignment });
+      const facts = await lang.describe(tree, path, { library, assignment: TEMPLATE_ASSIGNMENT });
       expect(facts.needsAssignment).toBeUndefined();
       expect(facts.sites.size).toBeGreaterThan(0);
+    });
+
+    it('refuses an inadmissible assignment rather than raising out of the expansion', async () => {
+      // The gate beside `needsAssignment`, and the one `validate` has always taken: a value
+      // *present* is not a value *admissible*. `layers = 1.5` is read as the extent of the
+      // decoder's index range, so without the gate the call rejects with `'float' object cannot
+      // be interpreted as an integer` — out of `range`, on a keystroke of the assignment sheet.
+      const path = 'data/models/decoder-causal-yarn/1.0.0.json';
+      const tree = await lang.parse(corpus('decoder-causal-yarn/1.0.0'));
+      const options = { library, assignment: { ...TEMPLATE_ASSIGNMENT, layers: 1.5 } };
+
+      const verdict = await lang.validate(tree, path, options);
+      const facts = await lang.describe(tree, path, options);
+      // The same rows from the same `checkAssignment`: the two calls cannot disagree.
+      expect(facts.assignmentRefused).toEqual(verdict.problems);
+      expect(facts.assignmentRefused?.map((one) => one.message)).toEqual([
+        "[V3] assignment: argument 'layers' = 1.5 is not a cardinality (non-negative integer)",
+      ]);
+      expect(facts.conforms).toBe(true);
+      expect(facts.structural).toEqual([]);
+      expect(facts.sites.size).toBe(0);
+      expect(facts.needsAssignment).toBeUndefined();
+    });
+
+    it('refuses a value its domain excludes as readily as one its type excludes', async () => {
+      const path = 'data/models/decoder-causal-yarn/1.0.0.json';
+      const tree = await lang.parse(corpus('decoder-causal-yarn/1.0.0'));
+      const options = {
+        library,
+        assignment: { ...TEMPLATE_ASSIGNMENT, layers: 0n, precision: 'int8' },
+      };
+      const facts = await lang.describe(tree, path, options);
+      expect(facts.sites.size).toBe(0);
+      expect(facts.assignmentRefused?.map((one) => one.message)).toEqual(
+        (await lang.validate(tree, path, options)).problems.map((one) => one.message),
+      );
+      // Both a bound and a set, and both in `check_assignment`'s own V3 wording: a domain is not
+      // a weaker gate than a type, and neither may reach the expansion.
+      expect(facts.assignmentRefused?.map((one) => one.message)).toEqual([
+        "[V3] assignment: argument 'layers' = 0 is below the domain bound 1 (inclusive)",
+        "[V3] assignment: argument 'precision' = 'int8' is not among ['bf16', 'f16', 'f32']",
+      ]);
+    });
+
+    it('leaves check undecidable once the assignment is refused, on the same revision', async () => {
+      const path = 'data/models/decoder-causal-yarn/1.0.0.json';
+      const tree = await lang.parse(corpus('decoder-causal-yarn/1.0.0'));
+      const good = await lang.describe(tree, path, {
+        library,
+        revision: 11,
+        assignment: TEMPLATE_ASSIGNMENT,
+      });
+      const sites = [...good.sites.values()];
+      const [first, second] = sites;
+      if (first === undefined || second === undefined) throw new Error('the sites are missing');
+      const decided = await lang.check(path, {
+        edge: { from: { site: first.key, port: 'output' }, to: { site: second.key, port: 'input' } },
+      });
+      // Decided — whatever the verdict is, it is one: the analysis of the valid assignment is
+      // there to decide it.
+      expect(decided.unknown).toBeNull();
+
+      // The document has not changed — the revision is the same — but the assignment has, and it
+      // is the assignment that decides the graph (§4.6). The analysis of the old one must not
+      // answer for the new one.
+      const refused = await lang.describe(tree, path, {
+        library,
+        revision: 11,
+        assignment: { ...TEMPLATE_ASSIGNMENT, layers: 1.5 },
+      });
+      expect(refused.assignmentRefused?.length).toBe(1);
+      const decision = await lang.check(path, {
+        edge: { from: { site: first.key, port: 'output' }, to: { site: second.key, port: 'input' } },
+      });
+      expect(decision.ok).toBe(false);
+      expect(decision.unknown).toContain('its assignment is incomplete or refused');
     });
 
     it('answers the schema’s problems and no facts for a document off the grammar', async () => {

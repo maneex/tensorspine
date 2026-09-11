@@ -271,6 +271,23 @@ export interface Facts {
    * sheet is generated from what this carries.
    */
   readonly needsAssignment?: AssignmentNeeded;
+  /**
+   * Present where an assignment supplies a value the document's own declaration refuses, with no
+   * facts beside it: `check_assignment`'s rows, in `--validate`'s wording.
+   *
+   * The gate beside {@link needsAssignment}, and for the same reason: a value *present* is not a
+   * value *admissible*, and `analyse` reads an assigned quantity as the extent of an index range
+   * — a `1.5` where a cardinality is declared reaches `range` and raises `'float' object cannot be
+   * interpreted as an integer` out of the expansion. `validate` takes this gate before its
+   * semantic stage (§4.6); `describe` is called on every keystroke of the assignment sheet, which
+   * is precisely where a half-typed value lives, so it takes the same one and reports it rather
+   * than raising. The rows are the same rows, from the same `checkAssignment`: the two calls
+   * cannot disagree about an assignment.
+   *
+   * They are **not** {@link structural}: the document is on the grammar, and it is the assignment
+   * that is refused.
+   */
+  readonly assignmentRefused?: readonly Problem[];
 }
 
 /** What {@link Lang.describe} takes beside a document. */

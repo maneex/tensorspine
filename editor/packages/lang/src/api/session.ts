@@ -340,11 +340,18 @@ export class LangSession {
    * costs 45 ms to clone and its sites alone 25 (`editor/spikes/timings.md`), so what travels is
    * what §5.3 lists and nothing else — and `check` reads the analysis that stayed.
    *
-   * Two gates before it, not one. Feature 1.6d's — the grammar, because "meaning assumes grammar"
-   * and the editor calls this on every keystroke — and the assignment's, because every call site
-   * of the tools checks `missing_assignment` before it analyses and a template read without one
-   * raises `Unassigned` out of the expansion of its own index ranges. Neither is a verdict this
-   * invents: both are reported, as {@link Facts.structural} and {@link Facts.needsAssignment}.
+   * Three gates before it, not one. Feature 1.6d's — the grammar, because "meaning assumes
+   * grammar" and the editor calls this on every keystroke — and the assignment's two, because
+   * every call site of the tools checks `missing_assignment` before it analyses and a template
+   * read without one raises `Unassigned` out of the expansion of its own index ranges, and
+   * because a value the document's own declaration refuses raises out of the same expansion:
+   * `layers = 1.5` reaches `range` as `'float' object cannot be interpreted as an integer`.
+   *
+   * All three are {@link validate}'s own gates, in its order, and none is a verdict this invents:
+   * they are reported, as {@link Facts.structural}, {@link Facts.needsAssignment} and
+   * {@link Facts.assignmentRefused}. The last matters because the assignment sheet is edited while
+   * this is called: what a half-typed value must produce is a row under the field, not an
+   * exception out of the graph.
    */
   describe(
     tree: JsonValue,
@@ -368,6 +375,18 @@ export class LangSession {
     const needs = assignmentNeeded(document, options.assignment);
     if (needs.unset.length > 0) {
       return { conforms: true, structural: [], sites: new Map(), needsAssignment: needs };
+    }
+    // And the gate `validate` takes next, with the same call and the same wording: `analyse`
+    // expands the document's index ranges with the assigned values, so a value the declaration
+    // refuses is a refusal here and not an exception out of `range`.
+    const wrong = checkAssignment(document, options.assignment);
+    if (wrong.length > 0) {
+      return {
+        conforms: true,
+        structural: [],
+        sites: new Map(),
+        assignmentRefused: wrong.map((one) => semanticRow(one, { file: path })),
+      };
     }
     const analysis = this.analyse(document, path, options, held, reading);
     const description = describeAnalysis(analysis, options.only);
