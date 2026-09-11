@@ -164,6 +164,11 @@ function verdict(problems: readonly SemanticProblem[], unknown: string | null = 
   return { ok: problems.length === 0 && unknown === null, problems, unknown };
 }
 
+/** Whether an edge's end names a site the document's own guards removed (§5.2 rule 3). */
+function absentEnd(analysis: Analysis, end: PortRef): boolean {
+  return analysis.absent.has(keyOf(end.site));
+}
+
 // --- an edge ----------------------------------------------------------------
 
 function checkEdge(analysis: Analysis, candidate: EdgeCandidate): Verdict {
@@ -171,6 +176,14 @@ function checkEdge(analysis: Analysis, candidate: EdgeCandidate): Verdict {
   const at: PathSegment[] = ['bindings', 'values', rule];
   const problems: SemanticProblem[] = [];
   const empty: Env = new Map();
+
+  // §5.2 rule 3 first, as the validator takes it: `if src_key in absent or dst_key in absent:
+  // continue`. A guarded site that did not fire is not a missing instance — it is a declared one
+  // the document's own guard removed — and a binding naming it is skipped whole, in silence. So a
+  // wire drawn onto it carries no line: neither the V1 below, which would name a declaration the
+  // document does have, nor the shape and domain checks after it, which the validator never
+  // reaches for that binding either.
+  if (absentEnd(analysis, candidate.from) || absentEnd(analysis, candidate.to)) return verdict([]);
 
   // `for end in ((src, 'from', 'outputs'), (dst, 'to', 'inputs'))`: V1 on each end, in order.
   const ends = [
@@ -350,6 +363,10 @@ function domainProblems(
 // --- a member ---------------------------------------------------------------
 
 function checkMember(analysis: Analysis, candidate: MemberCandidate): Verdict {
+  // §5.2 rule 3 again, and here the validator skips the *whole binding*: `if any(key in absent
+  // for key, _ in members): continue`. A member on a site the guards removed therefore silences
+  // the identity rather than refusing it, so the candidate carries no line.
+  if (analysis.absent.has(keyOf(candidate.slot.site))) return verdict([]);
   const site = analysis.resolved.get(keyOf(candidate.slot.site));
   const parameter = candidate.kind === 'parameter';
   const held = identityOf(analysis, candidate, parameter);

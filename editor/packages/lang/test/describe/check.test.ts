@@ -15,6 +15,7 @@ import {
   type Verdict,
 } from '../../src/index.js';
 import { corpus, describedCorpus, library, schemas } from './source.js';
+import { fixture } from '../derive/source.js';
 
 // `check` (feature 1.6d): the verdict on one candidate edit, and its reason.
 //
@@ -537,6 +538,91 @@ describe('a candidate location', () => {
     ]);
   });
 });
+
+describe('a candidate onto a site the guards removed', () => {
+  // §5.2 rule 3: "a guarded site that does not fire is not an instance, and is remembered as
+  // absent: a binding naming it is not emitted". The validator skips such a binding in silence —
+  // no V1, no line of any kind — because the site *is* declared; it is the document's own guard
+  // that removed it. `check` must therefore say nothing about a gesture onto one, rather than
+  // refusing a drop the document would accept without a word.
+  //
+  // The fixture is feature 1.13's `root-level-when`: `variant` is `small`, so `probe` does not
+  // fire, and `probe.weight` already binds it — which is why the document validates clean.
+  const text = fixture('root-level-when');
+  const described = describeDocument(parse(text), { schemas, library });
+
+  /** The lines `analyse` gives for the fixture, edited. */
+  function linesOf(edited: string): string[] {
+    return formatSemanticProblems([...analyse(toPython(parse(edited)), library, {}).problems]);
+  }
+
+  it('is the guard that removed it, so the document itself is clean', () => {
+    expect(linesOf(text)).toEqual([]);
+    expect(analyse(toPython(parse(text)), library, {}).absent.size).toBe(1);
+  });
+
+  it('says nothing about an edge drawn from one', () => {
+    const verdict = check(described, {
+      edge: {
+        from: { site: rootSite('probe'), port: 'output' },
+        to: { site: rootSite('exit'), port: 'input' },
+        rule: 'exit.from_probe',
+      },
+    });
+    expect(verdict.problems).toEqual([]);
+    expect(verdict.unknown).toBeNull();
+    expect(verdict.ok).toBe(true);
+    // And the document the drop would make carries nothing either — not even the V7 about an
+    // input already fed, because the binding is never emitted.
+    expect(linesOf(withEdgeFromProbe(text))).toEqual([]);
+  });
+
+  it('says nothing about a member added from one', () => {
+    const verdict = check(described, {
+      member: {
+        kind: 'parameter',
+        slot: { site: rootSite('probe'), name: 'weight' },
+        into: { identity: 'entry.weight' },
+      },
+    });
+    expect(verdict.problems).toEqual([]);
+    expect(verdict.unknown).toBeNull();
+    // What the applied document carries is **not** a word about `probe`: the binding is skipped
+    // whole, which is also what leaves `entry`'s own slot with nothing binding it. That last line
+    // is a consequence of the *document*, counted over every slot once the bindings are read, and
+    // no candidate-local reading produces it — `check` predicts the lines its own binding would
+    // carry, and the skip means there are none.
+    const applied = linesOf(withProbeInEntryWeight(text));
+    expect(applied.filter((row) => row.includes('does not exist'))).toEqual([]);
+    expect(applied).toEqual(['[V7] unbound parameter slot: norm.rms@entry.weight']);
+  });
+});
+
+/** The fixture with a value binding drawn from the absent `probe` to `exit`. */
+function withEdgeFromProbe(text: string): string {
+  const anchor = '"values": {\n      ';
+  const added =
+    '"exit.from_probe": {\n        "from": {\n          "instance": {\n            "kind": "root",\n' +
+    '            "instance": "probe"\n          },\n          "port": "output"\n        },\n' +
+    '        "to": {\n          "instance": {\n            "kind": "root",\n            "instance": "exit"\n' +
+    '          },\n          "port": "input"\n        }\n      },\n      ';
+  if (!text.includes(anchor)) throw new Error('the fixture no longer writes its value bindings that way');
+  return text.replace(anchor, anchor + added);
+}
+
+/** The fixture with the absent `probe`'s weight slot added to the identity `entry.weight`. */
+function withProbeInEntryWeight(text: string): string {
+  const anchor =
+    '"members": [\n          {\n            "instance": {\n              "kind": "root",\n' +
+    '              "instance": "entry"\n            },\n            "parameter": "weight"\n          }\n        ],';
+  const added =
+    '"members": [\n          {\n            "instance": {\n              "kind": "root",\n' +
+    '              "instance": "entry"\n            },\n            "parameter": "weight"\n          },\n' +
+    '          {\n            "instance": {\n              "kind": "root",\n' +
+    '              "instance": "probe"\n            },\n            "parameter": "weight"\n          }\n        ],';
+  if (!text.includes(anchor)) throw new Error('the fixture no longer writes entry.weight that way');
+  return text.replace(anchor, added);
+}
 
 describe('a document off the grammar', () => {
   it('decides nothing about a candidate', () => {
