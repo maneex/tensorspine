@@ -61,6 +61,14 @@ What it writes (the implementation plan's §0.5):
     out/lint/documents/*.json         each edited or hand-written document a set lints
     out/lint/bases/lab/**.json        the base one set adds, so that an axis and a precision role
                                       no primitive cites exist at all
+    out/fixtures/index.json           the editor's acceptance fixtures (F8) — documents and bases
+                                      using grammar no file of the repository uses — through
+                                      --validate, --d1, --derive and artifact.check, the one whose
+                                      derivation raises recorded as the exception it raised
+    out/fixtures/d1/*.d1.json         each of them expanded, as --d1 writes one
+    out/fixtures/derive/*.derived.json  each of them derived, as --derive writes one
+    out/fixtures/validate/fixtures.txt  --validate over the whole set, in one invocation
+    out/fixtures/headers/*.json       a checkpoint synthesised from each fixture's own D3
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -2053,6 +2061,18 @@ def _place(ev, logical, dtype, out, sliced, identity):
         inner = logical[:dim] + logical[dim + 1:]
         for part in ev['stack']['parts']:
             _place(part, inner, dtype, out, sliced, identity)
+    elif 'concat' in ev:
+        # A concat lays its parts consecutively along one axis, so the checkpoint holds each of
+        # them with its own share of that extent: equal shares, the last one taking the remainder.
+        # No corpus document writes a concat (feature 1.8a), so this branch is reached by the
+        # acceptance fixtures alone (feature 1.13).
+        dim = ev['concat']['dim']
+        parts = ev['concat']['parts']
+        share = logical[dim] // len(parts)
+        for i, part in enumerate(parts):
+            extent = logical[dim] - share * (len(parts) - 1) if i == len(parts) - 1 else share
+            _place(part, list(logical[:dim]) + [extent] + list(logical[dim + 1:]),
+                   dtype, out, sliced, identity)
     elif 'slice' in ev:
         s = ev['slice']
         want = artifact_mod.squeeze(logical)
@@ -2250,6 +2270,140 @@ def artifact(out, corpus, name_of, assignments):
     return {'documents': documents, 'cases': cases, 'forms': _artifact_forms()}
 
 
+# --- the acceptance fixtures of feature 1.13 (finding F8) ------------------
+#
+# `editor/tests/fixtures/` holds documents and bases written for one reason: they use grammar no
+# file of the repository uses, so the port has nothing to be held to there. The plan's §3 names
+# four constructs — a composition of several indices, a top-level `for_each`, `constants`, a
+# root-level `when` — and no unit of the reference base declares a constant slot; features 1.8a,
+# 1.8c and 1.8e added three more documents whose answers had to be read off `tools/derive.py` by
+# hand, for want of an oracle. This step is that oracle: the tools are run over every fixture
+# document exactly as they are run over the corpus, and what they answer is what the parity suite
+# compares with.
+#
+# One document of the set does not derive at all: `scratch-blank.json`, whose *input* port's extent
+# cites an argument nobody supplies, reaches the one place `derive` takes a byte size unguarded and
+# raises a `TypeError` out of the whole derivation (feature 1.8c's finding, 1.8e's end to end,
+# 1.11's refusal). A raise is as much the tools' answer as a document is, so it is recorded as one
+# and `--d1` and `--derive` are run over the rest.
+
+FIXTURES = os.path.join(EDITOR, 'tests', 'fixtures')
+FIXTURE_MODELS = os.path.join(FIXTURES, 'models')
+
+# The header edits every located fixture is checked under: `tests/run_artifact.py`'s own five as
+# the corpus step applies them, and a sixth of the fixtures' own — a `concat` part made one element
+# short along the concatenated axis, which is the only way a checkpoint can make a concat fail and
+# is reachable from no document of the repository, none of which writes a concat.
+def _concat_part(d3):
+    """The first part of the first `concat` a D3 locates, and the axis position it is laid along."""
+    for tensor in d3['tensors']:
+        ev = tensor.get('location') or {}
+        if 'concat' not in ev:
+            continue
+        part = ev['concat']['parts'][0]
+        if 'tensor' not in part:
+            continue
+        logical = [a['extent'] for a in tensor['shape']]
+        dim = ev['concat']['dim']
+        return part['tensor'], [i for i, d in enumerate(logical) if d != 1].index(dim)
+    return None
+
+
+def _fixture_edits(headers, d3):
+    first = sorted(headers)[0]
+    entry = headers[first]
+    other = 'f64' if entry['dtype'] == 'f32' else 'f32'
+    concat = _concat_part(d3)
+    extra = []
+    if concat is not None:
+        name, position = concat
+        shape = list(headers[name]['shape'])
+        shape[position] -= 1
+        extra.append(('concat-short', [{'op': 'set', 'tensor': name,
+                                        'entry': dict(headers[name], shape=shape)}]))
+    return extra + [
+        ('absent', [{'op': 'delete', 'tensor': first}]),
+        ('shape-wrong', [{'op': 'set', 'tensor': first,
+                          'entry': dict(entry, shape=[n + 1 for n in entry['shape']])}]),
+        ('dtype-wrong', [{'op': 'set', 'tensor': first, 'entry': dict(entry, dtype=other)}]),
+        ('unit-axes', [{'op': 'set', 'tensor': first,
+                        'entry': dict(entry, shape=[1] + list(entry['shape']) + [1])}]),
+        ('unnamed', [{'op': 'set', 'tensor': 'oracle.unused.weight',
+                      'entry': {'dtype': 'f32', 'shape': [64], 'file': ARTIFACT_FILE}}]),
+    ]
+
+
+def fixtures(out):
+    """Every fixture document through `--validate`, `--d1`, `--derive` and `artifact.check`.
+
+    The `--validate` output is read for the whole set in one invocation, as the corpus is, because
+    its header and footer name the set (feature 1.10). `--d1` and `--derive` are run over the
+    documents that derive; the one that raises is recorded as the exception it raised, read in
+    process because the command line prints a traceback rather than a line.
+    """
+    import derive as derive_mod
+    import primitive_library as primitive_library_mod
+
+    paths = sorted(glob.glob(os.path.join(FIXTURE_MODELS, '*.json')))
+    if not paths:
+        die(f"{FIXTURE_MODELS} holds no fixture document")
+    written = os.path.join(out, 'fixtures', 'headers')
+    os.makedirs(written, exist_ok=True)
+
+    write(os.path.join(out, 'fixtures', 'validate', 'fixtures.txt'),
+          run(['--validate', *paths], capture=True))
+
+    documents, derives, cases = [], [], []
+    for path in paths:
+        slug = os.path.basename(path)[:-5]
+        relative = os.path.relpath(path, ROOT)
+        with open(path, encoding='utf-8') as handle:
+            document = json.load(handle)
+        cat = primitive_library_mod.load_for(path, document, None)
+        record = {'name': slug, 'path': relative,
+                  'bases': sorted(os.path.relpath(b, ROOT)
+                                  for b in primitive_library_mod.bases_of(path, document, None))}
+        try:
+            product = derive_mod.products(path, cat)
+        except Exception as exc:                       # the refusal is the answer, recorded as one
+            record['raised'] = {'type': type(exc).__name__, 'message': str(exc)}
+            documents.append(record)
+            continue
+        derives.append(path)
+        record['d1'] = f"fixtures/d1/{slug}.d1.json"
+        record['derived'] = f"fixtures/derive/{slug}.derived.json"
+        d3 = product['d3']
+        record['tensors'] = len(d3['tensors'])
+        record['located'] = sum(1 for t in d3['tensors'] if 'location' in t)
+        headers, sliced = _synthesise(d3)
+        record['physical'] = len(headers)
+        if headers:
+            record['headers'] = f"fixtures/headers/{slug}.json"
+            write(os.path.join(written, f"{slug}.json"),
+                  json.dumps(headers, separators=(',', ':')) + '\n')
+            clean = _artifact_case(f"{slug}/clean", d3, headers, document=slug, headers_of=slug,
+                                   edits=[])
+            if clean['errors'] or clean['advisories']:
+                die(f"{slug}: the synthesised checkpoint does not satisfy its own D3 "
+                    f"({(clean['errors'] + clean['advisories'])[:1]})")
+            cases.append(clean)
+            for suffix, edits in _fixture_edits(headers, d3):
+                cases.append(_artifact_case(f"{slug}/{suffix}", d3, _edited(headers, edits),
+                                            document=slug, headers_of=slug, edits=edits))
+        documents.append(record)
+
+    for directory in ('d1', 'derive'):
+        os.makedirs(os.path.join(out, 'fixtures', directory), exist_ok=True)
+    run(['--d1', '-o', os.path.join(out, 'fixtures', 'd1'), *derives], capture=False)
+    run(['--derive', '-o', os.path.join(out, 'fixtures', 'derive'), *derives], capture=False)
+
+    units = sorted(os.path.relpath(path, FIXTURES)
+                   for path in glob.glob(os.path.join(FIXTURES, '**', '*.json'), recursive=True)
+                   if os.path.relpath(path, FIXTURE_MODELS).startswith('..'))
+    return {'documents': documents, 'units': units, 'cases': cases,
+            'validate': 'fixtures/validate/fixtures.txt'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--out', default=os.path.join(HERE, 'out'),
@@ -2397,6 +2551,12 @@ def main():
           f"tensor(s), {len(artifact_cases['cases'])} case(s) and "
           f"{len(artifact_cases['forms'])} location form(s)")
 
+    fixture_cases = fixtures(out)
+    print(f"oracle: {len(fixture_cases['documents'])} acceptance fixture(s) over "
+          f"{len(fixture_cases['units'])} unit(s) of their own bases, "
+          f"{sum(1 for one in fixture_cases['documents'] if 'raised' in one)} refused, "
+          f"{len(fixture_cases['cases'])} checkpoint case(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -2512,6 +2672,18 @@ def main():
             'sets': len(lint_cases['sets']),
             'base': 'lint/bases/lab',
         },
+        'fixtures': {
+            'index': 'fixtures/index.json',
+            'note': ('the editor acceptance fixtures of feature 1.13 (F8): documents and bases '
+                     'using grammar no file of the repository uses — a composition of several '
+                     'indices, a top-level for_each, constants with a slot to bind, a root-level '
+                     'when, a caller whose interfaces name a template instance, and a port shape '
+                     'that does not resolve — each through --validate, --d1, --derive and '
+                     'artifact.check, the one whose derivation raises recorded as the exception.'),
+            'documents': len(fixture_cases['documents']),
+            'cases': len(fixture_cases['cases']),
+            'validate': fixture_cases['validate'],
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -2544,6 +2716,8 @@ def main():
           json.dumps(artifact_cases, indent=1) + '\n')
     write(os.path.join(out, 'lint', 'index.json'),
           json.dumps(lint_cases, indent=1) + '\n')
+    write(os.path.join(out, 'fixtures', 'index.json'),
+          json.dumps(fixture_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

@@ -27,7 +27,7 @@ import {
 //     `schemas/` checked by CI against staleness"); this recomputes both and requires them to
 //     match the working tree. It is the one check that makes "the tools run in CI as the oracle"
 //     true of a developer's run as well.
-//   * **A recorded answer is read by nobody.** The generator writes seventeen products; a product
+//   * **A recorded answer is read by nobody.** The generator writes eighteen products; a product
 //     no suite opens is an expectation that does not exist. Every one is required to be named by
 //     a suite of this layer, or to be declared below with the reason and the feature that will
 //     read it.
@@ -100,7 +100,7 @@ function paritySources(): { path: string; text: string }[] {
 /**
  * Which suite of this layer reads each product the generator writes.
  *
- * A product no suite opens is an expectation that does not exist, so the seventeen are listed
+ * A product no suite opens is an expectation that does not exist, so the eighteen are listed
  * against their readers rather than left to be noticed. A row with no reader carries the reason it
  * has none and who will give it one — the only such row today is the generated argument schemas,
  * which are a **vendored artifact the editor consumes and never regenerates** (plan §7 F5): the
@@ -124,6 +124,7 @@ const READERS: readonly Reader[] = [
   { product: 'derive', suites: ['derived.ts'] },
   { product: 'expansion', suites: ['d1.test.ts', 'signatures.test.ts'] },
   { product: 'expressions', suites: ['expressions.test.ts'] },
+  { product: 'fixtures', suites: ['fixtures.test.ts'] },
   { product: 'graph', suites: ['graph.test.ts'] },
   { product: 'library', suites: ['library.test.ts'] },
   { product: 'lint', suites: ['lint.test.ts'] },

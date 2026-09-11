@@ -16,7 +16,7 @@ import {
   type PyRecord,
 } from '../../src/index.js';
 import { corpus, library, schemas } from '../describe/source.js';
-import { oneInstance } from './source.js';
+import { oneInstance, oneInstanceDtype } from './source.js';
 
 // The expansion of §5.1 (feature 1.8a): `derive._expand`, the analysis graph with every template
 // instance expanded in place.
@@ -105,9 +105,12 @@ describe('a template instance, expanded in place', () => {
   });
 });
 
-// A model whose *interfaces* name a template instance: `oneInstance`, in `source.ts`, which D2's
-// unit suite reads too. No document of the repository has one, so its answers were taken from
-// `tools/derive.py` itself on that document (this feature's finding, feature 1.8c's after it).
+// A model whose *interfaces* name a template instance: `editor/tests/fixtures/models/
+// one-template-instance.json`, which D2's unit suite reads too. No document of the repository has
+// one (this feature's finding, feature 1.8c's after it), so feature 1.13 made it an acceptance
+// fixture: the oracle derives it with the tools like any corpus document and
+// `test/parity/fixtures.test.ts` compares its whole derived document. What is asserted here is the
+// expansion's own reading of it.
 describe('a model whose interfaces name a template instance', () => {
   it('resolves its public input into the instance and its output out of it', () => {
     const graph = oneInstance();
@@ -133,7 +136,7 @@ describe('a model whose interfaces name a template instance', () => {
     // `{"quantity": "precision"}`; here the caller's `precision` is `f32`, the template's own
     // resolves to `f16`, and the role's default is `bf16`, so the three readings are told apart:
     // the tools answer `f32` for all eighteen tensors, and so does this.
-    const graph = oneInstance('"f32"', '{"literal": "f16"}');
+    const graph = oneInstanceDtype();
     const rows = d3(graph, library)['tensors'] as readonly PyRecord[];
     expect(new Set(rows.map((row) => row['dtype']))).toEqual(new Set(['f32']));
     expect(rows).toHaveLength(18);

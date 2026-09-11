@@ -1,0 +1,547 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "fixture-grid-composition",
+  "primitive_libraries": [
+    {
+      "base": "../../../../data/primitive-library/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 12
+      }
+    },
+    "rows": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 2
+      }
+    },
+    "cols": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 3
+      }
+    },
+    "cells": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "derived",
+        "expression": {
+          "op": "multiply",
+          "args": [
+            {
+              "quantity": "rows"
+            },
+            {
+              "quantity": "cols"
+            }
+          ]
+        }
+      }
+    },
+    "shorter": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "derived",
+        "expression": {
+          "op": "min",
+          "args": [
+            {
+              "quantity": "rows"
+            },
+            {
+              "quantity": "cols"
+            }
+          ]
+        }
+      }
+    },
+    "longer": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "derived",
+        "expression": {
+          "op": "max",
+          "args": [
+            {
+              "quantity": "rows"
+            },
+            {
+              "quantity": "cols"
+            }
+          ]
+        }
+      }
+    },
+    "lopsided": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "derived",
+        "expression": {
+          "op": "absolute",
+          "args": [
+            {
+              "op": "subtract",
+              "args": [
+                {
+                  "quantity": "rows"
+                },
+                {
+                  "quantity": "cols"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "share": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "derived",
+        "expression": {
+          "op": "divide",
+          "args": [
+            {
+              "quantity": "d"
+            },
+            {
+              "quantity": "cells"
+            }
+          ]
+        }
+      }
+    },
+    "drift": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "derived",
+        "expression": {
+          "op": "negate",
+          "args": [
+            {
+              "quantity": "share"
+            }
+          ]
+        }
+      }
+    },
+    "eps": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-05
+      }
+    },
+    "precision": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16",
+          "f32"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {},
+  "instances": {
+    "entry": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "input",
+        "norm"
+      ]
+    },
+    "exit": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "output",
+        "norm"
+      ]
+    }
+  },
+  "compositions": {
+    "grid": {
+      "indices": {
+        "row": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "quantity": "shorter"
+          },
+          "step": {
+            "quantity": "lopsided"
+          }
+        },
+        "col": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "quantity": "longer"
+          },
+          "step": {
+            "quantity": "lopsided"
+          }
+        }
+      },
+      "families": [
+        "grid"
+      ],
+      "instances": {
+        "cell": {
+          "primitive": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        }
+      },
+      "bindings": {
+        "values": {
+          "cell.prev_col": {
+            "from": {
+              "site": "cell",
+              "indices": {
+                "col": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "col"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "cell",
+              "port": "input"
+            },
+            "when": {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "col"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          },
+          "cell.prev_row": {
+            "from": {
+              "site": "cell",
+              "indices": {
+                "row": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "row"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                },
+                "col": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "quantity": "cols"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "cell",
+              "port": "input"
+            },
+            "when": {
+              "all": [
+                {
+                  "compare": {
+                    "operator": "equal",
+                    "left": {
+                      "index": "col"
+                    },
+                    "right": {
+                      "literal": 0
+                    }
+                  }
+                },
+                {
+                  "compare": {
+                    "operator": "greater_or_equal",
+                    "left": {
+                      "index": "row"
+                    },
+                    "right": {
+                      "literal": 1
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "parameters": {
+          "cell.weight": {
+            "members": [
+              {
+                "site": "cell",
+                "parameter": "weight"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "grid.",
+                {
+                  "index": "row"
+                },
+                ".",
+                {
+                  "index": "col"
+                },
+                ".weight"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "grid.entry": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "entry"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "generated",
+            "composition": "grid",
+            "instance": "cell",
+            "indices": {
+              "row": {
+                "literal": 0
+              },
+              "col": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "grid.exit": {
+        "from": {
+          "instance": {
+            "kind": "generated",
+            "composition": "grid",
+            "instance": "cell",
+            "indices": {
+              "row": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "rows"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              },
+              "col": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "cols"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "entry.weight": {
+        "tensor": {
+          "name": "entry.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "entry.weight"
+          ]
+        }
+      },
+      "exit.weight": {
+        "tensor": {
+          "name": "exit.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "exit"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "concat": {
+            "axis": "feature",
+            "parts": [
+              {
+                "tensor": [
+                  "exit.weight.lower"
+                ]
+              },
+              {
+                "tensor": [
+                  "exit.weight.upper"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "x": {
+        "to": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "port": "input"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "y": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "output"
+        },
+        "generative": false
+      }
+    }
+  }
+}

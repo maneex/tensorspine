@@ -1,0 +1,386 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "fixture-top-level-for-each",
+  "primitive_libraries": [
+    {
+      "base": "../../../../data/primitive-library/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "first": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1
+      }
+    },
+    "last": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 7
+      }
+    },
+    "step": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 2
+      }
+    },
+    "eps": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-05
+      }
+    },
+    "precision": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16",
+          "f32"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {},
+  "instances": {
+    "entry": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "input",
+        "norm"
+      ]
+    },
+    "exit": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "output",
+        "norm"
+      ]
+    }
+  },
+  "compositions": {
+    "stack": {
+      "indices": {
+        "layer": {
+          "start": {
+            "quantity": "first"
+          },
+          "stop": {
+            "quantity": "last"
+          },
+          "step": {
+            "quantity": "step"
+          }
+        }
+      },
+      "families": [
+        "stack"
+      ],
+      "instances": {
+        "cell": {
+          "primitive": {
+            "name": "norm.rms",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "eps": {
+              "quantity": "eps"
+            }
+          },
+          "families": [
+            "norm"
+          ]
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "stack.entry": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "entry"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "generated",
+            "composition": "stack",
+            "instance": "cell",
+            "indices": {
+              "layer": {
+                "quantity": "first"
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "stack.chain": {
+        "from": {
+          "instance": {
+            "kind": "generated",
+            "composition": "stack",
+            "instance": "cell",
+            "indices": {
+              "layer": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "index": "i"
+                  },
+                  {
+                    "quantity": "step"
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "generated",
+            "composition": "stack",
+            "instance": "cell",
+            "indices": {
+              "layer": {
+                "index": "i"
+              }
+            }
+          },
+          "port": "input"
+        },
+        "for_each": {
+          "i": {
+            "start": {
+              "op": "add",
+              "args": [
+                {
+                  "quantity": "first"
+                },
+                {
+                  "quantity": "step"
+                }
+              ]
+            },
+            "stop": {
+              "quantity": "last"
+            },
+            "step": {
+              "quantity": "step"
+            }
+          }
+        }
+      },
+      "stack.exit": {
+        "from": {
+          "instance": {
+            "kind": "generated",
+            "composition": "stack",
+            "instance": "cell",
+            "indices": {
+              "layer": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "last"
+                  },
+                  {
+                    "quantity": "step"
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "entry.weight": {
+        "tensor": {
+          "name": "entry.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "entry.weight"
+          ]
+        }
+      },
+      "exit.weight": {
+        "tensor": {
+          "name": "exit.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "exit"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "exit.weight"
+          ]
+        }
+      },
+      "stack.weight": {
+        "for_each": {
+          "i": {
+            "start": {
+              "quantity": "first"
+            },
+            "stop": {
+              "quantity": "last"
+            },
+            "step": {
+              "quantity": "step"
+            }
+          }
+        },
+        "tensor": {
+          "name": "stack.weight",
+          "indices": {
+            "layer": {
+              "index": "i"
+            }
+          }
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "generated",
+              "composition": "stack",
+              "instance": "cell",
+              "indices": {
+                "layer": {
+                  "index": "i"
+                }
+              }
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "stack.",
+            {
+              "index": "i"
+            },
+            ".weight"
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "x": {
+        "to": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "port": "input"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "y": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "output"
+        },
+        "generative": false
+      }
+    }
+  }
+}

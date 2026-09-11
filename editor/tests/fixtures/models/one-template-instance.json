@@ -1,0 +1,161 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "fixture-one-template-instance",
+  "primitive_libraries": [
+    {
+      "base": "../../../../data/primitive-library/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 64
+      }
+    },
+    "layers": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 2
+      }
+    },
+    "heads": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 4
+      }
+    },
+    "kv_heads": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 2
+      }
+    },
+    "hd": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 16
+      }
+    },
+    "ffn": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 128
+      }
+    },
+    "eps": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-05
+      }
+    },
+    "precision": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16",
+          "f16",
+          "f32"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {},
+  "instances": {
+    "text": {
+      "primitive": {
+        "name": "decoder.causal_yarn",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "layers": {
+          "quantity": "layers"
+        },
+        "heads": {
+          "quantity": "heads"
+        },
+        "kv_heads": {
+          "quantity": "kv_heads"
+        },
+        "head_dim": {
+          "quantity": "hd"
+        },
+        "inner": {
+          "quantity": "ffn"
+        },
+        "eps": {
+          "quantity": "eps"
+        },
+        "precision": {
+          "quantity": "precision"
+        }
+      },
+      "families": [
+        "decoder"
+      ]
+    }
+  },
+  "compositions": {},
+  "bindings": {
+    "values": {},
+    "parameters": {},
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "hidden": {
+        "to": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "text"
+            },
+            "port": "hidden"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "hidden_out": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "text"
+          },
+          "port": "hidden_out"
+        },
+        "generative": false
+      }
+    }
+  }
+}

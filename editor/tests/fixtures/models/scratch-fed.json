@@ -1,0 +1,75 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "fixture-scratch-fed",
+  "primitive_libraries": [
+    {
+      "base": "../../../../data/primitive-library/"
+    },
+    {
+      "base": "../scratch/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    }
+  },
+  "constants": {},
+  "instances": {
+    "only": {
+      "primitive": {
+        "name": "scratch.fed",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        }
+      },
+      "families": [
+        "scratch"
+      ]
+    }
+  },
+  "compositions": {},
+  "bindings": {
+    "values": {},
+    "parameters": {},
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "in": {
+        "to": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "only"
+            },
+            "port": "input"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "out": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "only"
+          },
+          "port": "output"
+        },
+        "generative": false
+      }
+    }
+  }
+}

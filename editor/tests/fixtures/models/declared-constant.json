@@ -1,0 +1,496 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "fixture-declared-constant",
+  "primitive_libraries": [
+    {
+      "base": "../../../../data/primitive-library/"
+    },
+    {
+      "base": "../base/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "positions": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 16
+      }
+    },
+    "layers": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 2
+      }
+    },
+    "eps": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-05
+      }
+    },
+    "precision": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16",
+          "f32"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {
+    "table": {
+      "identity": {
+        "digest": "sha256:7b44f9769072ac40fe8e5a5880949dd4ee8819cd4b49998e26ff7c94be7d0faa",
+        "uri": "editor/tests/fixtures/models/declared-constant.json#/constants/table"
+      },
+      "shape": {
+        "axes": [
+          {
+            "name": "position",
+            "axis": "sequence.position",
+            "extent": {
+              "quantity": "positions"
+            }
+          },
+          {
+            "name": "feature",
+            "axis": "model.width",
+            "extent": {
+              "quantity": "d"
+            }
+          }
+        ]
+      },
+      "dtype": "f32"
+    }
+  },
+  "instances": {
+    "entry": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "input",
+        "norm"
+      ]
+    },
+    "bias": {
+      "primitive": {
+        "name": "fixture.position_bias",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "positions": {
+          "quantity": "positions"
+        }
+      },
+      "families": [
+        "position"
+      ]
+    },
+    "exit": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "output",
+        "norm"
+      ]
+    }
+  },
+  "compositions": {
+    "stack": {
+      "indices": {
+        "layer": {
+          "start": {
+            "literal": 0
+          },
+          "stop": {
+            "quantity": "layers"
+          },
+          "step": {
+            "literal": 1
+          }
+        }
+      },
+      "families": [
+        "stack"
+      ],
+      "instances": {
+        "b": {
+          "primitive": {
+            "name": "fixture.position_bias",
+            "version": "1.0.0"
+          },
+          "arguments": {
+            "width": {
+              "quantity": "d"
+            },
+            "positions": {
+              "quantity": "positions"
+            }
+          },
+          "families": [
+            "position"
+          ]
+        }
+      },
+      "bindings": {
+        "values": {
+          "b.prev": {
+            "from": {
+              "site": "b",
+              "indices": {
+                "layer": {
+                  "op": "subtract",
+                  "args": [
+                    {
+                      "index": "layer"
+                    },
+                    {
+                      "literal": 1
+                    }
+                  ]
+                }
+              },
+              "port": "output"
+            },
+            "to": {
+              "site": "b",
+              "port": "input"
+            },
+            "when": {
+              "compare": {
+                "operator": "greater_or_equal",
+                "left": {
+                  "index": "layer"
+                },
+                "right": {
+                  "literal": 1
+                }
+              }
+            }
+          }
+        },
+        "parameters": {
+          "b.scale": {
+            "members": [
+              {
+                "site": "b",
+                "parameter": "scale"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "location": {
+              "tensor": [
+                "stack.",
+                {
+                  "index": "layer"
+                },
+                ".scale"
+              ]
+            }
+          },
+          "b.bias": {
+            "members": [
+              {
+                "site": "b",
+                "parameter": "bias"
+              }
+            ],
+            "dtype": {
+              "quantity": "precision"
+            },
+            "location": {
+              "stack": {
+                "axis": "position",
+                "part": {
+                  "tensor": [
+                    "stack.",
+                    {
+                      "index": "layer"
+                    },
+                    ".bias.",
+                    {
+                      "coordinate": "position"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "constants": {
+          "b.table": {
+            "constant": "table",
+            "members": [
+              {
+                "site": "b",
+                "constant": "table"
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "bindings": {
+    "values": {
+      "bias.in": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "entry"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "bias"
+          },
+          "port": "input"
+        }
+      },
+      "stack.entry": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "bias"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "generated",
+            "composition": "stack",
+            "instance": "b",
+            "indices": {
+              "layer": {
+                "literal": 0
+              }
+            }
+          },
+          "port": "input"
+        }
+      },
+      "stack.exit": {
+        "from": {
+          "instance": {
+            "kind": "generated",
+            "composition": "stack",
+            "instance": "b",
+            "indices": {
+              "layer": {
+                "op": "subtract",
+                "args": [
+                  {
+                    "quantity": "layers"
+                  },
+                  {
+                    "literal": 1
+                  }
+                ]
+              }
+            }
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "input"
+        }
+      }
+    },
+    "parameters": {
+      "entry.weight": {
+        "tensor": {
+          "name": "entry.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "entry.weight"
+          ]
+        }
+      },
+      "exit.weight": {
+        "tensor": {
+          "name": "exit.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "exit"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "exit.weight"
+          ]
+        }
+      },
+      "bias.scale": {
+        "tensor": {
+          "name": "bias.scale"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "bias"
+            },
+            "parameter": "scale"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "bias.scale"
+          ]
+        }
+      },
+      "bias.bias": {
+        "tensor": {
+          "name": "bias.bias"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "bias"
+            },
+            "parameter": "bias"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "stack": {
+            "axis": "feature",
+            "part": {
+              "tensor": [
+                "bias.bias.",
+                {
+                  "coordinate": "feature"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "constants": {
+      "bias.table": {
+        "constant": "table",
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "bias"
+            },
+            "constant": "table"
+          }
+        ]
+      }
+    },
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "x": {
+        "to": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "port": "input"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "y": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "output"
+        },
+        "generative": false
+      }
+    }
+  }
+}

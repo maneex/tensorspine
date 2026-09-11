@@ -1,0 +1,199 @@
+{
+  "schema": "tensorspine-primitive-library-unit/2.0",
+  "kind": "primitive",
+  "name": "fixture.position_bias",
+  "definition": {
+    "version": "1.0.0",
+    "summary": "Adds a position table that is given, not learned.",
+    "description": "Reads the residual stream and adds the row of a **constant** table at the position of the element, then scales by a learned weight. The table is a constant slot: its contents come with the document (§3.4), it is not a parameter, and the derived inventory of parameter tensors does not carry it.\n\nIt declares a two-axis parameter slot beside the table so that a document can locate one as a `stack` along an axis that is **not** the first: every stack of the corpus is at dimension 0.",
+    "arguments": {
+      "width": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Feature width of the stream and of a row of the table.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      },
+      "positions": {
+        "type": {
+          "kind": "cardinality"
+        },
+        "required": true,
+        "structural": true,
+        "description": "Rows of the table: the positions it holds.",
+        "domain": {
+          "kind": "interval",
+          "lower": {
+            "value": {
+              "literal": 1
+            },
+            "inclusive": true
+          }
+        }
+      }
+    },
+    "ports": {
+      "inputs": {
+        "input": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The value to bias."
+        }
+      },
+      "outputs": {
+        "output": {
+          "shape": {
+            "axes": [
+              {
+                "name": "feature",
+                "axis": "model.width",
+                "nature": "feature",
+                "extent": {
+                  "argument": "width"
+                }
+              }
+            ]
+          },
+          "domain": {
+            "kind": "inherit",
+            "from": {
+              "self": true
+            }
+          },
+          "role": "activation.hidden",
+          "description": "The biased value."
+        }
+      }
+    },
+    "parameters": {
+      "scale": {
+        "role": "norm.scale",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "Per-channel scale applied to the table's row."
+      },
+      "bias": {
+        "role": "embedding.position",
+        "sharing": {
+          "kind": "exclusive"
+        },
+        "shape": {
+          "axes": [
+            {
+              "name": "position",
+              "axis": "sequence.position",
+              "nature": "structural",
+              "extent": {
+                "argument": "positions"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "A learned offset per position and channel, beside the constant table: a two-axis slot, so a document may stack it along either of its axes."
+      }
+    },
+    "constants": {
+      "table": {
+        "role": "embedding.position",
+        "shape": {
+          "axes": [
+            {
+              "name": "position",
+              "axis": "sequence.position",
+              "nature": "structural",
+              "extent": {
+                "argument": "positions"
+              }
+            },
+            {
+              "name": "feature",
+              "axis": "model.width",
+              "nature": "feature",
+              "extent": {
+                "argument": "width"
+              }
+            }
+          ]
+        },
+        "description": "The table itself: given with the document, never trained."
+      }
+    },
+    "state_ports": {},
+    "effects": {
+      "reads": [
+        "input"
+      ],
+      "writes": [
+        "output"
+      ]
+    },
+    "logical_cost": [
+      {
+        "expression": {
+          "argument": "positions"
+        },
+        "status": "exact",
+        "per": "invocation",
+        "description": "Reading the table's rows once per invocation, whatever the number of elements."
+      }
+    ],
+    "partition_options": [
+      {
+        "target": {
+          "argument_axis": "model.width"
+        },
+        "communication": "none",
+        "description": "Elementwise along the feature axis: a shard biases the channels it holds."
+      }
+    ],
+    "note": "Editor fixture: the one unit of the repository declaring a constant slot, and the one declaring a cost entry per invocation."
+  }
+}

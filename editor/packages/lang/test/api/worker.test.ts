@@ -9,7 +9,7 @@ import {
   type Progress,
 } from '../../src/api/index.js';
 import { createLang, serveLang, type LangHost } from '../../src/api/engine.js';
-import { BLANK_MODEL, SCRATCH } from '../derive/source.js';
+import { BLANK_MODEL, SCRATCH, SCRATCH_BASE, fixturePath } from '../derive/source.js';
 import { corpus, corpusPath, referenceBase, schemaFiles } from './source.js';
 
 // The worker: request ids, cancellation, one in-flight derivation per document, progress.
@@ -31,12 +31,12 @@ interface Connected {
 /**
  * Where the scratch document is opened from.
  *
- * Its `primitive_libraries` are written relative to `data/models/`, as every corpus document's
- * are: `../primitive-library/` resolves to the reference base and `../../scratch/base/` to the
- * base the case adds. Opening it anywhere else resolves them elsewhere, which is exactly what
- * the session's own bases guard reports.
+ * It is an acceptance fixture (feature 1.13), so its `primitive_libraries` are written relative to
+ * `editor/tests/fixtures/models/`: `../../../../data/primitive-library/` resolves to the reference
+ * base and `../scratch/` to the base beside it. Opening it anywhere else resolves them elsewhere,
+ * which is exactly what the session's own bases guard reports.
  */
-const SCRATCH_MODEL_PATH = 'data/models/scratch-blank.json';
+const SCRATCH_MODEL_PATH = fixturePath('scratch-blank');
 
 const open: Connected[] = [];
 
@@ -204,7 +204,7 @@ describe('a refusal the tools themselves raise', () => {
     const schemas = await lang.loadSchemas(schemaFiles(), { origin: 'schemas' });
     const base = referenceBase();
     const library = await lang.loadLibrary(
-      [base, { base: 'scratch/base', files: SCRATCH }],
+      [base, { base: SCRATCH_BASE, files: SCRATCH }],
       schemas.handle,
     );
     expect(library.problems).toEqual([]);
@@ -233,7 +233,7 @@ describe('a refusal the tools themselves raise', () => {
     const lang = createLang();
     const schemas = await lang.loadSchemas(schemaFiles(), { origin: 'schemas' });
     const library = await lang.loadLibrary(
-      [referenceBase(), { base: 'scratch/base', files: SCRATCH }],
+      [referenceBase(), { base: SCRATCH_BASE, files: SCRATCH }],
       schemas.handle,
     );
     const tree = await lang.parse(BLANK_MODEL);

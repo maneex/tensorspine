@@ -1,0 +1,12 @@
+{
+  "schema": "tensorspine-primitive-library-unit/2.0",
+  "kind": "base",
+  "name": "tensorspine.scratch.derive",
+  "definition": {
+    "primitive_library": "tensorspine/scratch-derive",
+    "title": "A base whose port shapes may not resolve",
+    "summary": "Two primitives, each leaving one port's extent to an argument nobody supplies.",
+    "description": "No port shape of the reference base cites an argument that may be absent, so no document of the repository reaches the place where an extent does not resolve — and a primitive declared in the editor (D15) can. `scratch.blank` leaves its **input** port's extent to the optional argument, which is where `derive` takes a byte size unguarded and raises; `scratch.fed` leaves its **output** port's, where the same figure is guarded and the derived document carries the blank its schema admits.\n\nThe loader admits both: an *expression* may cite an optional argument, only a *condition* needing a `present` test.",
+    "note": "Editor test material for the derivation's two readings of an extent that does not resolve."
+  }
+}

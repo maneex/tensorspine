@@ -1,0 +1,441 @@
+{
+  "schema": "tensorspine/2.0",
+  "model": "fixture-root-level-when",
+  "primitive_libraries": [
+    {
+      "base": "../../../../data/primitive-library/"
+    }
+  ],
+  "quantities": {
+    "d": {
+      "type": {
+        "kind": "cardinality"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 8
+      }
+    },
+    "eps": {
+      "type": {
+        "kind": "real"
+      },
+      "source": {
+        "kind": "literal",
+        "value": 1e-05
+      }
+    },
+    "centered": {
+      "type": {
+        "kind": "boolean"
+      },
+      "source": {
+        "kind": "literal",
+        "value": true
+      }
+    },
+    "budget": {
+      "type": {
+        "kind": "physical",
+        "unit": "tokens"
+      },
+      "domain": {
+        "kind": "interval",
+        "lower": {
+          "value": {
+            "literal": 0
+          },
+          "inclusive": true
+        },
+        "upper": {
+          "value": {
+            "literal": 4096
+          },
+          "inclusive": true
+        }
+      },
+      "source": {
+        "kind": "literal",
+        "value": 4096
+      }
+    },
+    "variant": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "small",
+          "large"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "small"
+      }
+    },
+    "precision": {
+      "type": {
+        "kind": "enum",
+        "values": [
+          "bf16",
+          "f32"
+        ]
+      },
+      "source": {
+        "kind": "literal",
+        "value": "bf16"
+      }
+    }
+  },
+  "constants": {},
+  "instances": {
+    "entry": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        },
+        "zero_centered": {
+          "quantity": "centered"
+        }
+      },
+      "families": [
+        "input",
+        "norm"
+      ]
+    },
+    "tap": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ],
+      "when": {
+        "all": [
+          {
+            "compare": {
+              "operator": "greater",
+              "left": {
+                "quantity": "budget"
+              },
+              "right": {
+                "literal": 0
+              }
+            }
+          },
+          {
+            "not": {
+              "compare": {
+                "operator": "equal",
+                "left": {
+                  "quantity": "variant"
+                },
+                "right": {
+                  "literal": "large"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "probe": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "norm"
+      ],
+      "when": {
+        "any": [
+          {
+            "compare": {
+              "operator": "equal",
+              "left": {
+                "quantity": "variant"
+              },
+              "right": {
+                "literal": "large"
+              }
+            }
+          },
+          {
+            "boolean": false
+          }
+        ]
+      }
+    },
+    "exit": {
+      "primitive": {
+        "name": "norm.rms",
+        "version": "1.0.0"
+      },
+      "arguments": {
+        "width": {
+          "quantity": "d"
+        },
+        "eps": {
+          "quantity": "eps"
+        }
+      },
+      "families": [
+        "output",
+        "norm"
+      ]
+    }
+  },
+  "compositions": {},
+  "bindings": {
+    "values": {
+      "tap.in": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "entry"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "tap"
+          },
+          "port": "input"
+        }
+      },
+      "probe.in": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "entry"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "probe"
+          },
+          "port": "input"
+        }
+      },
+      "exit.in": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "tap"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "input"
+        },
+        "when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "quantity": "variant"
+            },
+            "right": {
+              "literal": "small"
+            }
+          }
+        }
+      },
+      "exit.in_large": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "probe"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "input"
+        },
+        "when": {
+          "compare": {
+            "operator": "equal",
+            "left": {
+              "quantity": "variant"
+            },
+            "right": {
+              "literal": "large"
+            }
+          }
+        }
+      },
+      "exit.in_direct": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "entry"
+          },
+          "port": "output"
+        },
+        "to": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "input"
+        },
+        "when": {
+          "boolean": false
+        }
+      }
+    },
+    "parameters": {
+      "entry.weight": {
+        "tensor": {
+          "name": "entry.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "entry.weight"
+          ]
+        }
+      },
+      "tap.weight": {
+        "tensor": {
+          "name": "tap.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "tap"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "tap.weight"
+          ]
+        }
+      },
+      "probe.weight": {
+        "tensor": {
+          "name": "probe.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "probe"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "probe.weight"
+          ]
+        }
+      },
+      "exit.weight": {
+        "tensor": {
+          "name": "exit.weight"
+        },
+        "members": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "exit"
+            },
+            "parameter": "weight"
+          }
+        ],
+        "dtype": {
+          "quantity": "precision"
+        },
+        "location": {
+          "tensor": [
+            "exit.weight"
+          ]
+        }
+      }
+    },
+    "constants": {},
+    "states": {}
+  },
+  "interfaces": {
+    "inputs": {
+      "x": {
+        "to": [
+          {
+            "instance": {
+              "kind": "root",
+              "instance": "entry"
+            },
+            "port": "input"
+          }
+        ],
+        "kind": "token"
+      }
+    },
+    "outputs": {
+      "y": {
+        "from": {
+          "instance": {
+            "kind": "root",
+            "instance": "exit"
+          },
+          "port": "output"
+        },
+        "generative": false
+      }
+    }
+  }
+}

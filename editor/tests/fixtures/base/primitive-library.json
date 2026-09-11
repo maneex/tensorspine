@@ -1,0 +1,12 @@
+{
+  "schema": "tensorspine-primitive-library-unit/2.0",
+  "kind": "base",
+  "name": "tensorspine.editor-fixtures",
+  "definition": {
+    "primitive_library": "tensorspine/editor-fixtures",
+    "title": "TensorSpine Editor acceptance fixtures",
+    "summary": "The one primitive the editor's acceptance fixtures need and the reference base does not declare.",
+    "description": "A base of the editor's test material, never of a model anybody ships. It exists for a single reason: no unit of the reference base declares a **constant** slot, so the whole `constants` half of the grammar — a slot in a primitive, a `constants` entry in a document, a `bindings.constants` rule and its scoped form — is reachable by no file of the repository. This base declares one primitive that has one, and `editor/tests/fixtures/models/declared-constant.json` instantiates it.\n\nIts axes and its precision roles are the reference base's: a document that reads this base declares both, which is how a laboratory's own base sits beside the shared vocabulary.",
+    "note": "Editor test material. Not a released primitive library: it carries no witness and nothing outside editor/tests/fixtures/ reads it."
+  }
+}

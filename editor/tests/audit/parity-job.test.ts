@@ -318,9 +318,14 @@ describe('the semantic-table audits', () => {
  * generated from the repository's own files. These do not: each was read off the tools **once**,
  * by hand, for a document, a unit or a schema no file of the repository carries — so nothing
  * regenerates them and a change in the tools would not move them. They are listed rather than
- * left to be noticed, because that is the difference between a recorded fact and an assumption;
- * feature 1.13 (finding F8) is where the documents behind them become editor-side fixtures the
- * oracle owns.
+ * left to be noticed, because that is the difference between a recorded fact and an assumption.
+ *
+ * Feature 1.13 (finding F8) emptied most of it: the documents behind four of the seven rows are
+ * files of `editor/tests/fixtures/` now, the oracle runs `--validate`, `--d1`, `--derive` and
+ * `artifact.check` over them as it does over the corpus, and `test/parity/fixtures.test.ts`
+ * compares. What may not leave is an expectation whose *input* is not a document — a schema built
+ * per keyword, a label `--view` prints, a D3 written by hand — because no fixture can produce one;
+ * each such row says so, and says what would own it.
  */
 interface Recorded {
   readonly path: string;
@@ -349,30 +354,16 @@ const NOT_THE_ORACLE: readonly Recorded[] = [
     owner: 'feature 1.8c; the labels move into the editor when `view.py` goes',
   },
   {
-    path: 'packages/lang/test/derive/source.ts',
-    subject:
-      'the one-instance caller whose interfaces name a template instance, and the scratch base ' +
-      'whose port shape does not resolve',
-    from: 'tools/derive.py run on those documents',
-    owner: 'feature 1.13 (F8)',
-  },
-  {
-    path: 'packages/lang/test/derive/expand.test.ts',
-    subject: "the expansion's interface paths through a template instance, and D3's totals",
-    from: 'tools/derive.py run on the one-instance caller',
-    owner: 'feature 1.13 (F8)',
-  },
-  {
-    path: 'packages/lang/test/derive/d2.test.ts',
-    subject: "D2's streams, values, splits and peak on the same caller",
-    from: 'tools/derive.py run on the one-instance caller',
-    owner: 'feature 1.13 (F8)',
-  },
-  {
     path: 'packages/lang/test/artifact/check.test.ts',
     subject: "V17's lines on `tests/run_artifact.py`'s cases, over hand-built D3s",
     from: 'artifact.check run on the same input',
-    owner: 'feature 1.13 (F8)',
+    owner:
+      'nobody: a D3 written by hand under the identity `t` is not a document, so no fixture ' +
+      'produces it. Every *shape* it pins is the oracle’s — `out/artifact/index.json`’s `forms` ' +
+      'carry the stack, concat, slice and multiplicity branches and `fixtures` now carry a ' +
+      'concat and a stack at a dimension that is not 0, both from a document (feature 1.13) — ' +
+      'and what is left here is the wording over those literal inputs. Giving it one means ' +
+      'adding cases to `_artifact_forms`, which is feature 1.9’s step and not a fixture',
   },
 ];
 
@@ -395,7 +386,12 @@ describe('the expectations that are not the oracle’s', () => {
       expect(row.from.length, row.path).toBeGreaterThan(10);
       expect(row.owner.length, row.path).toBeGreaterThan(8);
     }
-    expect(NOT_THE_ORACLE.filter((row) => row.owner.includes('1.13'))).toHaveLength(4);
+    // Feature 1.13 (F8) gave four of the seven an oracle: the one-instance caller and the scratch
+    // base became documents of `editor/tests/fixtures/`, which the oracle runs the tools over, so
+    // `derive/source.ts`, `derive/expand.test.ts` and `derive/d2.test.ts` left this register with
+    // them. What is left of the fourth is stated in its own row.
+    expect(NOT_THE_ORACLE).toHaveLength(4);
+    expect(NOT_THE_ORACLE.filter((row) => row.owner.startsWith('nobody'))).toHaveLength(1);
   });
 
   it('accounts for every fixture the workspace commits beside a suite', () => {
@@ -414,8 +410,15 @@ describe('the expectations that are not the oracle’s', () => {
     const saying = filesUnder('packages')
       .filter((path) => /\/test\//.test(path) && path.endsWith('.ts'))
       .filter((path) => TAKEN_BY_HAND.test(prose(path)));
+    // Both directions, since feature 1.13 emptied most of the register: nothing says it without a
+    // row, and every suite the register still names says it — so a suite that stopped being
+    // hand-recorded and stayed listed is as visible as one that started and did not.
     expect(saying.filter((path) => !declared.has(path))).toEqual([]);
-    expect(saying.length).toBeGreaterThan(2);
+    expect([...saying].sort()).toEqual(
+      NOT_THE_ORACLE.filter((row) => row.path.endsWith('.ts'))
+        .map((row) => row.path)
+        .sort(),
+    );
   });
 
   it('names no suite of the parity layer, which is held to the oracle by construction', () => {

@@ -12,7 +12,6 @@ import {
   formatProblems,
   loadLibrary,
   loadSchemas,
-  memorySource,
   parse,
   serialize,
   toJsonValue,
@@ -26,9 +25,9 @@ import {
 } from '../../src/index.js';
 import { PyTypeError, PyValueError } from '../../src/expr/errors.js';
 import { corpus, library, schemas } from '../describe/source.js';
-import { BLANK_MODEL, FED_MODEL, SCRATCH } from './source.js';
+import { BLANK_MODEL, FED_MODEL, SCRATCH_BASE } from './source.js';
 import { repositoryRoot } from '../json/repository.js';
-import { nodeSource, overlay } from '../library/source.js';
+import { nodeSource } from '../library/source.js';
 
 // What every derivation crosses (feature 1.8a): `derive.products`' two refusals, and the agreement
 // between the two expansions the repository carries.
@@ -254,10 +253,13 @@ describe('a port shape a primitive leaves undetermined', () => {
   // and `derive` neither catches it nor turns it into a blank — the products would be a fiction
   // either way. A finding for the tools; the editor's worker (feature 1.11) is what catches it.
 
+  // The base and the two documents are acceptance fixtures since feature 1.13
+  // (`editor/tests/fixtures/`), so the tools read the same files: the oracle records the raise and
+  // the blank, and `test/parity/fixtures.test.ts` compares them.
   const scratch = (): Library =>
-    loadLibrary(['data/primitive-library', 'scratch/base'], {
+    loadLibrary(['data/primitive-library', SCRATCH_BASE], {
       schemas,
-      source: overlay(memorySource(SCRATCH), nodeSource(repositoryRoot)),
+      source: nodeSource(repositoryRoot),
     });
 
   it('raises out of the derivation in Python’s own words', () => {
@@ -272,7 +274,7 @@ describe('a port shape a primitive leaves undetermined', () => {
     // would answer if it were guarded too.
     const answer = derive(parse(FED_MODEL), { schemas, library: scratch() });
     const values = (answer['d2'] as PyRecord)['values'] as PyRecord[];
-    const produced = values.find((one) => one['value'] === 'blank.output') as PyRecord;
+    const produced = values.find((one) => one['value'] === 'only.output') as PyRecord;
     expect([produced['elements'], produced['bytes_per_element']]).toEqual([null, null]);
   });
 });

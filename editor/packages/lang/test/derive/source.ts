@@ -1,8 +1,12 @@
+import { readFileSync, readdirSync } from 'node:fs';
+
 import { parse } from '../../src/json/index.js';
 import {
+  basesOf,
   derivationGraph,
   expandedKeyOf,
   expandedPortKeyOf,
+  loadLibrary,
   rootSite,
   toPython,
   type ExpandedEdge,
@@ -13,10 +17,13 @@ import {
   type ExpandedStateInstance,
   type ExpandedTensorInstance,
   type Indexing,
+  type Library,
   type PyRecord,
   type PyValue,
 } from '../../src/index.js';
-import { library, schemas } from '../describe/source.js';
+import { schemas } from '../describe/source.js';
+import { repositoryRoot } from '../json/repository.js';
+import { nodeSource } from '../library/source.js';
 
 /**
  * A hand-built expanded graph, for the branches of D3 no corpus document reaches.
@@ -177,61 +184,6 @@ function edge(from: string, to: string): ExpandedEdge {
   };
 }
 
-// A model whose *interfaces* name a template instance. No document of the repository has one —
-// `shieldstral-3b-composite`'s public input feeds `embed` and its output comes from `lm_head`, so
-// the expansion's `inputs_at` and `outputs_at` reach a template instance through no corpus
-// document, and only the edges do. This is the smallest caller that reaches them: one instance of
-// `decoder.causal_yarn` at two layers, the template's own input as the public input and its own
-// output as the public output.
-//
-// Its answers are taken from `tools/derive.py` itself, run on this very document (feature 1.8a's
-// finding, and D2 reads the same two paths). It belongs in `editor/tests/fixtures/` when feature
-// 1.13 lands (F8), where the oracle would own the expectation instead of a hand-recorded one.
-const ONE_INSTANCE = `{
-  "schema": "tensorspine/2.0",
-  "model": "one_template_instance",
-  "primitive_libraries": [{"base": "../primitive-library/"}],
-  "quantities": {
-    "d": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 64}},
-    "layers": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 2}},
-    "heads": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 4}},
-    "kv_heads": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 2}},
-    "hd": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 16}},
-    "ffn": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 128}},
-    "eps": {"type": {"kind": "real"}, "source": {"kind": "literal", "value": 1e-05}},
-    "precision": {"type": {"kind": "enum", "values": ["bf16", "f16", "f32"]},
-                  "source": {"kind": "literal", "value": PRECISION}}
-  },
-  "constants": {},
-  "instances": {
-    "text": {
-      "primitive": {"name": "decoder.causal_yarn", "version": "1.0.0"},
-      "arguments": {
-        "width": {"quantity": "d"}, "layers": {"quantity": "layers"},
-        "heads": {"quantity": "heads"}, "kv_heads": {"quantity": "kv_heads"},
-        "head_dim": {"quantity": "hd"}, "inner": {"quantity": "ffn"},
-        "eps": {"quantity": "eps"}, "precision": ARGUMENT
-      },
-      "families": ["decoder"]
-    }
-  },
-  "compositions": {},
-  "bindings": {"values": {}, "parameters": {}, "constants": {}, "states": {}},
-  "interfaces": {
-    "inputs": {"hidden": {"to": [{"instance": {"kind": "root", "instance": "text"},
-                                  "port": "hidden"}], "kind": "token"}},
-    "outputs": {"hidden_out": {"from": {"instance": {"kind": "root", "instance": "text"},
-                                        "port": "hidden_out"}, "generative": false}}
-  }
-}`;
-
-/** The caller above, with the precision its quantity declares and the one its argument supplies. */
-export function oneInstance(precision = '"bf16"', argument = '{"quantity": "precision"}'): ExpandedGraph {
-  const text = ONE_INSTANCE.replace('PRECISION', precision).replace('ARGUMENT', argument);
-  return derivationGraph(parse(text), { schemas, library }).graph;
-}
-
-
 /** One parameter identity instance over one node's slot, with whatever the case needs beside. */
 export function tensorInstance(
   identity: string,
@@ -268,109 +220,100 @@ export function stateInstance(
   };
 }
 
-// --- a scratch base, for the derivation branches the reference base cannot reach ----------------
+// --- the acceptance fixtures of `editor/tests/fixtures/` (feature 1.13, finding F8) ------------
 
 /**
- * Two primitives, each leaving one port's extent to an argument nobody supplies, and the
- * one-instance documents that instantiate them.
+ * A model whose **interfaces** name a template instance.
  *
- * Feature 1.8c found the asymmetry and feature 1.8e reached it end to end: a *produced* value's
- * byte size is guarded (`n * BYTES[dtype] if n is not None else None`) and a *public input's* is
- * not, so a port shape that does not resolve raises `TypeError: unsupported operand type(s) for
- * *: 'NoneType' and 'int'` out of the whole derivation. No port shape of the reference base cites
- * an argument that may be absent, so no document of the repository reaches it — and a primitive
- * declared in the editor (D15, feature 3.3) can.
+ * No document of the repository has one — `shieldstral-3b-composite`'s public input feeds `embed`
+ * and its output comes from `lm_head`, so `inputs_at` and `outputs_at` reach a template instance
+ * through no corpus document, and only the edges do. `fixture-one-template-instance` is the
+ * smallest caller that reaches them: one instance of `decoder.causal_yarn` at two layers, the
+ * template's own input as the public input and its own output as the public output.
  *
- * It lives here rather than in one suite because two of them read it: the derivation's own, which
- * pins the raise and the blank beside it, and feature 1.11's worker suite, which is where the
- * decision that raise forced is proved — `derive` neither catches it nor blanks it, and the
- * worker answers it as a refusal instead of dying on it. Feature 1.13 (F8) is where the two
- * documents become editor-side fixtures the oracle owns.
+ * It was a string in this file until feature 1.13, and its answers had been read off
+ * `tools/derive.py` by hand. It is a fixture document now (`editor/tests/fixtures/models/`), the
+ * oracle runs the tools over it like any corpus document, and `test/parity/fixtures.test.ts` is
+ * where its D1, its derived document and its `--validate` line are compared. What is asserted in
+ * the unit layer is behaviour, not a recorded figure.
  */
-/** A port shape over `model.width`, with whatever extent the case wants. */
-function shapeOf(extent: unknown): unknown {
-  return {
-    axes: [{ name: 'feature', axis: 'model.width', nature: 'feature', extent }],
+export function oneInstance(): ExpandedGraph {
+  return fixtureGraph('one-template-instance');
+}
+
+/**
+ * The same caller with the three readings of a dtype selector told apart: the caller declares
+ * `precision = f32`, the instance's argument supplies `f16`, and the role's default is `bf16`.
+ * `_dtype` looks the selector's quantity up in the **caller's** quantities at every level, so the
+ * tools answer `f32` for all eighteen tensors.
+ */
+export function oneInstanceDtype(): ExpandedGraph {
+  return fixtureGraph('one-template-instance-dtype');
+}
+
+/** The base of the two primitives whose port shapes may not resolve, as a path the loader takes. */
+export const SCRATCH_BASE = 'editor/tests/fixtures/scratch';
+
+/**
+ * The same base as files, for the callers that hand a library over rather than name a directory.
+ *
+ * The worker API takes texts, never paths (§5.3: "the core is pure — the UI reads files through
+ * `Platform` and hands the core texts and trees"), so feature 1.11's suite needs the base as a
+ * map; it is read off the fixture directory so that both readings are the same bytes.
+ */
+export const SCRATCH: Record<string, string> = Object.fromEntries(
+  scratchFiles().map((path) => [path, readFileSync(`${repositoryRoot}/${path}`, 'utf8')]),
+);
+
+/** Every unit of the scratch base, by its repository-relative path. */
+function scratchFiles(): string[] {
+  const out: string[] = [];
+  const walk = (relative: string): void => {
+    for (const entry of readdirSync(`${repositoryRoot}/${relative}`, { withFileTypes: true })) {
+      const path = `${relative}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.json')) out.push(path);
+    }
   };
+  walk(SCRATCH_BASE);
+  return out.sort();
 }
 
-/** One primitive whose two ports carry those extents, with no parameter and no state. */
-function portsOnly(input: unknown, output: unknown): unknown {
-  const port = (extent: unknown) => ({
-    shape: shapeOf(extent),
-    domain: { kind: 'inherit', from: { self: true } },
-    role: 'activation.hidden',
-  });
-  return {
-    version: '1.0.0',
-    arguments: {
-      width: { type: { kind: 'cardinality' }, required: true, structural: true },
-      hidden: { type: { kind: 'cardinality' }, required: false, structural: true },
-    },
-    ports: { inputs: { input: port(input) }, outputs: { output: port(output) } },
-    parameters: {},
-    constants: {},
-    state_ports: {},
-    effects: { reads: ['input'], writes: ['output'] },
-    partition_options: [{ target: { any_axis: true }, communication: 'none' }],
-  };
+/** The path a fixture document is opened under, which is what its bases resolve against. */
+export function fixturePath(name: string): string {
+  return `editor/tests/fixtures/models/${name}.json`;
 }
 
-/** A base of two primitives, each leaving one port's extent to an argument nobody supplies. */
-export const SCRATCH: Record<string, string> = {
-  'scratch/base/primitive-library.json': JSON.stringify({
-    schema: 'tensorspine-primitive-library-unit/2.0',
-    kind: 'base',
-    name: 'tensorspine.scratch.derive',
-    definition: {
-      primitive_library: 'tensorspine/scratch-derive',
-      title: 'A base for the derivation tests',
-    },
-  }),
-  // Its *input* port's extent is the optional argument: the public input that feeds it has no
-  // element count, and the byte size the tools take of it is unguarded.
-  'scratch/base/primitives/scratch/blank/1.0.0.json': JSON.stringify({
-    schema: 'tensorspine-primitive-library-unit/2.0',
-    kind: 'primitive',
-    name: 'scratch.blank',
-    definition: portsOnly({ argument: 'hidden' }, { argument: 'hidden' }),
-  }),
-  // Its *output* port's is: the value it produces has no element count either, and there the tools
-  // write the blank the schema admits.
-  'scratch/base/primitives/scratch/fed/1.0.0.json': JSON.stringify({
-    schema: 'tensorspine-primitive-library-unit/2.0',
-    kind: 'primitive',
-    name: 'scratch.fed',
-    definition: portsOnly({ argument: 'width' }, { argument: 'hidden' }),
-  }),
-};
-
-/** A model of one instance, its input public and its output exposed. */
-export function scratchModel(primitive: string): string {
-  const bound = { kind: 'root', instance: 'blank' };
-  return JSON.stringify({
-    schema: 'tensorspine/2.0',
-    model: 'scratch_blank',
-    primitive_libraries: [{ base: '../primitive-library/' }, { base: '../../scratch/base/' }],
-    quantities: {
-      d: { type: { kind: 'cardinality' }, source: { kind: 'literal', value: 8 } },
-    },
-    constants: {},
-    instances: {
-      blank: {
-        primitive: { name: primitive, version: '1.0.0' },
-        arguments: { width: { quantity: 'd' } },
-        families: ['scratch'],
-      },
-    },
-    compositions: {},
-    bindings: { values: {}, parameters: {}, constants: {}, states: {} },
-    interfaces: {
-      inputs: { in: { to: [{ instance: bound, port: 'input' }], kind: 'token' } },
-      outputs: { out: { from: { instance: bound, port: 'output' }, generative: false } },
-    },
-  });
+/** The text of one fixture document, as the file holds it. */
+export function fixture(name: string): string {
+  return readFileSync(`${repositoryRoot}/${fixturePath(name)}`, 'utf8');
 }
 
-export const BLANK_MODEL = scratchModel('scratch.blank');
-export const FED_MODEL = scratchModel('scratch.fed');
+/** One fixture document, expanded under the bases it declares. */
+function fixtureGraph(name: string): ExpandedGraph {
+  return derivationGraph(parse(fixture(name)), { schemas, library: fixtureLibrary(name) }).graph;
+}
+
+const fixtureLibraries = new Map<string, Library>();
+
+/** The library one fixture document resolves from, gathered once per set of bases. */
+function fixtureLibrary(name: string): Library {
+  const path = fixturePath(name);
+  const bases = [...basesOf(path, toPython(parse(fixture(name)))).bases];
+  const key = bases.join('|');
+  const held = fixtureLibraries.get(key);
+  if (held !== undefined) return held;
+  const gathered = loadLibrary(bases, { schemas, source: nodeSource(repositoryRoot) });
+  fixtureLibraries.set(key, gathered);
+  return gathered;
+}
+
+/**
+ * The one-instance document whose **input** port's extent cites an argument nobody supplies: the
+ * public input that feeds it has no element count, and the byte size the tools take of it is
+ * unguarded, so the whole derivation raises (features 1.8c, 1.8e, 1.11).
+ */
+export const BLANK_MODEL = fixture('scratch-blank');
+
+/** Its sibling, whose **output** port's extent does: there the tools write the blank. */
+export const FED_MODEL = fixture('scratch-fed');

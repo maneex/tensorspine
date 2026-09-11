@@ -26,8 +26,9 @@ import { oneInstance, record, syntheticGraph, type SyntheticExtra } from './sour
 // library and of nothing else.
 //
 // Beside them, the two interface paths that reach *through* a template instance: `inputs_at` and
-// `outputs_at` (feature 1.8a's finding), read here from the same one-instance caller, whose
-// answers were taken from `tools/derive.py` itself.
+// `outputs_at` (feature 1.8a's finding), read here from the same one-instance caller — an
+// acceptance fixture since feature 1.13, so the oracle derives it and the parity layer compares
+// the whole of what it answers.
 
 /** A port of the given shape, in the role whose default dtype is `bf16`. */
 function port(extent: string | null, axis = 'model.width'): string {
@@ -79,9 +80,10 @@ function values(product: PyRecord): Map<string, PyRecord> {
 const ONE_INPUT = `{"interfaces": {"inputs": {"a": {"kind": "token"}}, "outputs": {}}}`;
 
 describe('a model whose interfaces name a template instance', () => {
-  // The answers below are `tools/derive.py`'s own on that document, recorded by hand: no
-  // repository document resolves a public interface *through* a template instance, so there is no
-  // oracle for them until the acceptance fixtures of feature 1.13 (F8).
+  // No repository document resolves a public interface *through* a template instance, so the
+  // document this reads is `editor/tests/fixtures/models/one-template-instance.json` — where the
+  // oracle derives it and `test/parity/fixtures.test.ts` holds every figure below to the tools'
+  // own answer, this suite reading them as the behaviour they stand for.
   const product = (): PyRecord => d2(oneInstance(), library);
 
   it('names the instance’s stream after the caller’s and counts one per element', () => {
