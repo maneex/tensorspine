@@ -55,6 +55,12 @@ What it writes (the implementation plan's §0.5):
                                       checkpoint synthesised from its own D3, over mutations of
                                       those headers, and over synthetic D3s for every location form
     out/artifact/headers/*.json       each synthesised checkpoint, recorded literally
+    out/lint/index.json               `lint.run` over whole sets of documents — the corpus, the
+                                      template, single models, edited ones and a base of its own
+                                      — each recorded as the lines it printed
+    out/lint/documents/*.json         each edited or hand-written document a set lints
+    out/lint/bases/lab/**.json        the base one set adds, so that an axis and a precision role
+                                      no primitive cites exist at all
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -1865,6 +1871,134 @@ def library():
             'template_interfaces': interfaces}
 
 
+# --- lint, the hygiene command (feature 1.10) -------------------------------
+
+def _lint_unit(source, edits):
+    """One unit of the lint base: a repository unit with a few values changed."""
+    with open(os.path.join(ROOT, source), encoding='utf-8') as handle:
+        unit = json.load(handle)
+    for pointer, value in edits:
+        _edit(unit, pointer, 'set', value)
+    return unit
+
+
+def _lint_base(out):
+    """The base one lint set adds, written where the tools can load it and the port can read it.
+
+    Every unit is a copy of a reference unit with a few values changed, so that the base is on the
+    unit schema and its shapes resolve against the reference base's own axes and roles; both
+    implementations then read the same bytes.
+    """
+    from lint_cases import LAB, LAB_MANIFEST
+    root = os.path.join(out, 'lint', 'bases', 'lab')
+    files = {'primitive-library.json': LAB_MANIFEST}
+    for relative, source, edits in LAB:
+        files[relative] = _lint_unit(source, edits)
+    for relative, unit in files.items():
+        path = os.path.join(root, relative)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as handle:
+            json.dump(unit, handle, indent=2, ensure_ascii=False)
+            handle.write('\n')
+    return root, sorted(files)
+
+
+def _lint_document(out, entry):
+    """One document of a set: where the tools open it, and how the port gets the same one."""
+    kind = entry[0]
+    if kind == 'repository':
+        relative = entry[1]
+        return os.path.join(ROOT, relative), {'kind': 'repository', 'path': relative}
+    written = os.path.join(out, 'lint', 'documents')
+    os.makedirs(written, exist_ok=True)
+    if kind == 'edit':
+        _, source, name, edits = entry
+        with open(os.path.join(ROOT, source), encoding='utf-8') as handle:
+            document = json.load(handle)
+        for edit in edits:
+            _no_floats(edit.get('value'), f"{name} {edit['pointer']}")
+            _edit(document, edit['pointer'], edit['op'], edit.get('value'))
+        path = os.path.join(written, f"{name}.json")
+        with open(path, 'w', encoding='utf-8') as handle:
+            json.dump(document, handle, indent=2, ensure_ascii=False)
+        return path, {'kind': 'edit', 'path': os.path.relpath(path, out), 'source': source,
+                      'edits': [_encoded_edit(edit) for edit in edits]}
+    _, name, text = entry
+    path = os.path.join(written, f"{name}.json")
+    with open(path, 'w', encoding='utf-8') as handle:
+        handle.write(text)
+    return path, {'kind': 'raw', 'path': os.path.relpath(path, out), 'text': text}
+
+
+def lint(out, corpus, name_of, recorded):
+    """`lint.run` over a spread of document sets, each recorded as the lines it printed.
+
+    The answer is a function of the *set*: "called by none of the N model(s) linted" names its
+    size, and what the set calls decides which primitives are reported. So a case here is a whole
+    invocation, not a document — which is the reading feature 0.1 gave the two files this step
+    stands beside (`lint/corpus.txt` and the template's), and those two are recomputed here and
+    required to agree with them, so that the in-process reading is the command line's own.
+
+    `tests/oracle/lint_cases.py` says which branch each set is for, and which branches no edit of
+    a repository file can reach.
+    """
+    import contextlib
+    import io
+    import lint as lint_mod
+    from lint_cases import CASES
+
+    base_root, base_files = _lint_base(out)
+    corpus_models = [path for path in corpus() if os.path.dirname(path) == MODELS]
+
+    sets = []
+    for name, entries, bases in CASES:
+        if entries == 'corpus':
+            entries = [('repository', os.path.relpath(path, ROOT)) for path in corpus_models]
+        paths, written = [], []
+        for entry in entries:
+            path, record = _lint_document(out, entry)
+            paths.append(path)
+            written.append(record)
+        resolved = None if bases is None else [
+            base_root if base == 'lab' else os.path.join(ROOT, base) for base in bases]
+        buffer = io.StringIO()
+        error = None
+        try:
+            with contextlib.redirect_stdout(buffer):
+                status = lint_mod.run(paths, resolved, relative_to=ROOT, schema_dir=SCHEMAS)
+        except Exception as raised:                    # whatever it is, it is the answer
+            error = _raised(raised)
+            status = None
+        else:
+            if status != 0:
+                die(f"lint set {name!r} exited {status}; --lint always exits 0")
+        sets.append({
+            'name': name,
+            'documents': written,
+            'bases': None if bases is None else list(bases),
+            'output': buffer.getvalue().splitlines(),
+            'error': error,
+        })
+
+    # The two sets the command line already wrote: the in-process reading must be the same lines
+    # the tool printed, its own first line ("lint  N document(s)") left aside as the driver's.
+    by_name = {one['name']: one for one in sets}
+    only = by_name['template']['documents'][0]['path']
+    held = (('corpus', 'lint/corpus.txt'),
+            ('template', recorded[name_of(os.path.join(ROOT, only))]))
+    for name, relative in held:
+        with open(os.path.join(out, relative), encoding='utf-8') as handle:
+            lines = handle.read().splitlines()
+        head, rest = lines[0], lines[1:]
+        expected = f"lint  {len(by_name[name]['documents'])} document(s)"
+        if head != expected:
+            die(f"lint set {name!r}: {relative} opens with {head!r}, not {expected!r}")
+        if rest != by_name[name]['output']:
+            die(f"lint set {name!r}: the in-process reading differs from {relative}")
+
+    return {'sets': sets, 'base': {'directory': 'lint/bases/lab', 'files': base_files}}
+
+
 # --- the checkpoint check, V17 against safetensors headers (feature 1.9) ---------
 
 # A checkpoint the corpus can be checked against does not exist in the repository — the weights
@@ -2108,6 +2242,7 @@ def main():
     models = [path for path in corpus() if os.path.dirname(path) == MODELS]
     templates = [path for path in corpus() if os.path.dirname(path) != MODELS]
     documents = []
+    lint_files = {}
 
     print(f"oracle: {len(models)} model(s) and {len(templates)} template(s) -> {out}")
 
@@ -2153,6 +2288,7 @@ def main():
             'validate': f"validate/{name}.txt",
             'lint': f"lint/{name}.txt",
         })
+        lint_files[name] = f"lint/{name}.txt"
 
     # The generated artifacts the editor consumes and never regenerates (plan §7 F5): here as
     # the parity material for the argument sheet's schemas.
@@ -2223,6 +2359,11 @@ def main():
           f"{sum(len(one.get('tensors', [])) for one in binding_cases['documents'])} tensor "
           f"identity instance(s) and "
           f"{sum(len(one.get('states', [])) for one in binding_cases['documents'])} state one(s)")
+
+    lint_cases = lint(out, corpus, name_of, lint_files)
+    print(f"oracle: {len(lint_cases['sets'])} lint set(s) over "
+          f"{sum(len(one['documents']) for one in lint_cases['sets'])} document reading(s), "
+          f"{len(lint_cases['base']['files'])} unit(s) in the base one of them adds")
 
     artifact_cases = artifact(out, corpus, name_of, assignments)
     print(f"oracle: {len(artifact_cases['documents'])} document(s) checked against a synthesised "
@@ -2334,6 +2475,16 @@ def main():
             'cases': len(artifact_cases['cases']),
             'forms': len(artifact_cases['forms']),
         },
+        'lint': {
+            'index': 'lint/index.json',
+            'note': ('lint.run over whole sets of documents, each recorded as the lines it '
+                     'printed: the answer names the size of the set and depends on what the set '
+                     'calls, so a comparison must lint the same set. The corpus and the template '
+                     'sets are recomputed in process and required to equal the files --lint '
+                     'wrote, their driver line aside.'),
+            'sets': len(lint_cases['sets']),
+            'base': 'lint/bases/lab',
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -2364,6 +2515,8 @@ def main():
           json.dumps(expansion_cases, indent=1) + '\n')
     write(os.path.join(out, 'artifact', 'index.json'),
           json.dumps(artifact_cases, indent=1) + '\n')
+    write(os.path.join(out, 'lint', 'index.json'),
+          json.dumps(lint_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

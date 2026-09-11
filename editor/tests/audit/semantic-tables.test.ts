@@ -23,6 +23,7 @@ import {
   type ExpandedGraph,
   type ExpandedSite,
 } from '../../packages/lang/src/derive/index.js';
+import { unreferencedVocabulary } from '../../packages/lang/src/lint/index.js';
 import { rootSite } from '../../packages/lang/src/validate/index.js';
 import type { PyRecord } from '../../packages/lang/src/expr/index.js';
 import { loadSchemas, type Vocabulary } from '../../packages/lang/src/schema/index.js';
@@ -122,6 +123,13 @@ import { editorRoot } from './tree.js';
 // a form the grammar gained would be refused as unknown rather than evaluated. The audit reads the
 // forms off the `location` union's discriminating keys and asks the module which branch decides
 // each one; a form with no branch, or a branch with no form, fails the set equality.
+//
+// The seventeenth is the **axis spaces** of `packages/lang/src/lint/lint.ts`: the one value
+// `unreferenced_vocabulary` treats apart — "a `storage` axis is cited by the derivation (D3's
+// storage axis, §3.4), never by a primitive shape" — against the three the grammar declares. It
+// is not a table but a single `continue` with a fall-through, so it is asked of the module space
+// by space, over a library carrying one uncited axis of each: a space the grammar gained would
+// be reported as uncited without anyone deciding that it should be.
 //
 // The sixteenth is the **safetensors dtype table** of `packages/lang/src/artifact/dtypes.ts`, and
 // it is the one table of the core whose *keys* are not a schema's vocabulary — plan §1 states the
@@ -1139,5 +1147,50 @@ describe('the decomposition vocabularies of packages/lang/src/derive/d6', () => 
     expect(
       losses({ extent: product, factors: [{ axis: 'audit.a', extent: { literal: 6 } }] }),
     ).toBe(0);
+  });
+});
+
+describe('the axis spaces of packages/lang/src/lint', () => {
+  const SPACE = `${UNIT}#/$defs/axis_definition/properties/space`;
+
+  /**
+   * What `unreferenced_vocabulary` does with an axis of each space, stated.
+   *
+   * The rule is one `continue` over one value — "a `storage` axis is cited by the derivation
+   * (D3's storage axis, §3.4), never by a primitive shape" — and everything else falls through
+   * to the citation test. A fall-through is exactly what plan §1 (d) exists to catch: a space the
+   * grammar gained would be reported as uncited without anyone having decided that it should be.
+   */
+  const REPORTED: Record<string, boolean> = {
+    value: true,
+    instance: true,
+    storage: false,
+  };
+
+  /** A library carrying one axis of that space, cited by no primitive. */
+  function libraryWithAxis(space: string): Library {
+    return {
+      bases: [],
+      byId: new Map(),
+      primitives: new Map(),
+      axes: new Map([['audit.axis', toPython(parse(JSON.stringify({ space })))]]),
+      precision: new Map(),
+      templates: new Map(),
+      problems: [],
+    };
+  }
+
+  it('states every space the grammar declares, and skips exactly the one with a reason', () => {
+    const found = vocabulary.enumAt(SPACE);
+    expect(found, `${SPACE} is not an enumeration of the loaded schemas`).toBeDefined();
+    const declared = (found as { values: readonly unknown[] }).values.map(String).sort();
+    expect(declared.length).toBeGreaterThan(0);
+    // A space the schema gained would have no entry here, and one the module started to skip
+    // would answer the other way: the set equality catches the first, the behaviour the second.
+    expect(Object.keys(REPORTED).sort()).toEqual(declared);
+    for (const space of declared) {
+      const findings = unreferencedVocabulary(libraryWithAxis(space));
+      expect(findings.length, space).toBe(REPORTED[space] === true ? 1 : 0);
+    }
   });
 });

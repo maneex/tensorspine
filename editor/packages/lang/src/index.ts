@@ -25,3 +25,4 @@ export * from './d1/index.js';
 export * from './describe/index.js';
 export * from './derive/index.js';
 export * from './artifact/index.js';
+export * from './lint/index.js';
