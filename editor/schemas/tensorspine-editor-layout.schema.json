@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tensorspine.dev/schema/editor/layout.json",
+  "title": "TensorSpine Editor Layout Sidecar 1",
+  "description": "What the editor's canvas knows about a model document and the document may not carry: positions, collapsed groups, the viewport, a template's preview assignment and the expanded view's filters. It is the editor's own file, written beside the document as `<model>.layout.json`; no tool of the repository reads it, and a document shared without it lays out automatically.",
+  "type": "object",
+  "required": ["schema", "positions", "collapsed"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "tensorspine-editor-layout/1",
+      "description": "The format of this file, as a tagged constant, so that a later revision is told from this one by reading rather than by guessing."
+    },
+    "positions": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/document_path" },
+      "additionalProperties": { "$ref": "#/$defs/position" },
+      "description": "A manual move, by the document path of the node it is about. Automatic layout is the default, so an entry here is an override; a key that names a place the document no longer has is dropped when the document is opened, with a line in the log."
+    },
+    "collapsed": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/document_path" },
+      "description": "The document paths of the groups drawn collapsed. A composition is collapsed by default at the top level, so this list records what the user changed, not what is on screen."
+    },
+    "viewport": {
+      "$ref": "#/$defs/viewport",
+      "description": "Where the canvas was looking when the document was last open."
+    },
+    "preview_assignment": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/identifier" },
+      "additionalProperties": { "$ref": "#/$defs/scalar_literal" },
+      "description": "The assignment a template document is previewed under: a value per external quantity, in the shape the tools' `--assign` takes. It is the editor's preview and not part of the document, which is saved without it. It is not dropped against the document: a name the document does not declare is ignored by the tools' own assignment check, so a stale entry costs nothing and a quantity that comes back finds its value."
+    },
+    "expanded_view": {
+      "$ref": "#/$defs/expanded_view",
+      "description": "What the read-only expanded view (the D1 graph) shows."
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$",
+      "description": "A name of the language, as the model schema writes one."
+    },
+    "document_path": {
+      "type": "string",
+      "pattern": "^[^/]+(/[^/]+)*$",
+      "description": "A place in the document, as its steps joined by slashes: `instances/embed`, `compositions/decoder/instances/attn`, `interfaces/inputs/tokens`. A step is a member name or an array index; the document's root has no key, since nothing is positioned at the document itself."
+    },
+    "position": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "description": "A place on the canvas, in the canvas's own coordinates."
+    },
+    "viewport": {
+      "type": "object",
+      "required": ["x", "y", "zoom"],
+      "additionalProperties": false,
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "zoom": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "description": "The canvas's pan and zoom."
+    },
+    "scalar_literal": {
+      "type": ["string", "number", "boolean"],
+      "description": "A value of a quantity, of the three kinds a literal source admits."
+    },
+    "index_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "integer" },
+        "to": { "type": "integer" }
+      },
+      "description": "A range of one composition index, both bounds optional: what the expanded view is filtered to."
+    },
+    "expanded_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "filters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "families": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": { "type": "string" },
+              "description": "The families the view is restricted to; absent, every family is shown."
+            },
+            "indices": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/identifier" },
+              "additionalProperties": { "$ref": "#/$defs/index_range" },
+              "description": "A range per composition index the view is restricted to."
+            }
+          }
+        }
+      }
+    }
+  }
+}

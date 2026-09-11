@@ -165,7 +165,14 @@ importers:
         specifier: 8.17.1
         version: 8.17.1
 
-  packages/store: {}
+  packages/store:
+    dependencies:
+      '@tensorspine/lang':
+        specifier: workspace:*
+        version: link:../lang
+      immer:
+        specifier: 11.1.18
+        version: 11.1.18
 
   packages/ui:
     dependencies:
@@ -659,6 +666,9 @@ packages:
   ignore@7.0.9:
     resolution: {integrity: sha512-brTTsvFRt5C1gGHtPst/281UjPD5t9fBqbgoMPlVWy11ZLTPfu7HxK4ZYqO9H7o/yC9rSTCI85EaQ4OoY12qYw==}
     engines: {node: '>= 4'}
+
+  immer@11.1.18:
+    resolution: {integrity: sha512-EQyQtLiYW029lyoczMl/Hh4Xu7cDecSc58JRYpHyL4tIAu3eqd1yJzQX04d2BZHDkzFFvm6qJEJWOtfDSWAXbQ==}
 
   imurmurhash@0.1.4:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
@@ -1490,6 +1500,8 @@ snapshots:
   ignore@5.3.2: {}
 
   ignore@7.0.9: {}
+
+  immer@11.1.18: {}
 
   imurmurhash@0.1.4: {}
 

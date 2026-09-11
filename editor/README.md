@@ -25,6 +25,7 @@ editor/
 ├── packages/store    the document store: the ordered tree, commands and undo, the sidecars
 ├── packages/ui       React: shell, activities, canvas, generated forms, sheets, panels
 ├── apps/web          the static application built by Vite
+├── schemas/          the editor's own schemas — the layout sidecar — with their companion notes
 └── tests/            the audits (tests/audit) and the parity oracle (tests/oracle)
 ```
 

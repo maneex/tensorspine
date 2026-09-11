@@ -9,5 +9,9 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "immer": "11.1.18",
+    "@tensorspine/lang": "workspace:*"
   }
 }
