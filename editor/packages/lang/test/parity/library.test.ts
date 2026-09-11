@@ -18,6 +18,7 @@ import { repositorySchemas } from '../schema/repository.js';
 import { nodeSource } from '../library/source.js';
 import { encode } from './encoding.js';
 import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from './oracle.js';
+import { movedMessage } from './wording.js';
 
 // Parity of the primitive library loader (feature 1.3): the refusals `tools/primitive_library.py`
 // raises, word for word, and the cross-references it resolves, case by case.
@@ -171,7 +172,7 @@ describe('the library loader against the tools', () => {
         continue;
       }
       // The suite's own contract: the refusal carries the substring the manifest matches on.
-      if (!text.includes(one.match)) wrong.push(`${one.base}: does not carry ${one.match}`);
+      if (!text.includes(one.match)) wrong.push(movedMessage(one.base, one.match, [text]));
       // A refusal names the file it is about (`PrimitiveLibraryError` "carries the file path").
       if (first !== undefined && !text.startsWith(first.file)) {
         wrong.push(`${one.base}: the text does not begin with the file it names`);

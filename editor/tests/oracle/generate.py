@@ -184,6 +184,32 @@ def jsonschema_version():
     return importlib.metadata.version('jsonschema')
 
 
+def hash_seed():
+    """What `PYTHONHASHSEED` was, because two places in the tools depend on it.
+
+    `validate.analyse` reads a Python *set* at `mine = next(iter(agree))` (feature 1.6b), so an
+    instance whose inputs disagree takes a hash-seeded one of them, and over the whole function
+    the number of refusals follows the coin flip (feature 1.6c: 131 lines under seed 0, 105 under
+    seed 3, on `tests/rejections/models/v5-fusion-without-join.json`). Neither this generator nor
+    any port can make that reproducible; what it does instead is *drop* the fields the choice
+    decides, for the documents where it fires, and record that it fired — `arbitrary_own` and
+    `elided_sentinel` on the case. The parity suites then assert the exact set of documents where
+    that happened, so a third one is a failure rather than a flake between two runs.
+
+    The seed is recorded here so that a flake, if one ever appears, can be told from a defect by
+    reading the manifest: the answer to "was this oracle generated under a different seed?" is a
+    line, not a rerun. `None` means the interpreter randomised it, which is CPython's default and
+    what CI and a developer machine both do.
+
+    Measured on 11 Sep 2026, three whole runs of this generator — unseeded (CI's own condition),
+    `PYTHONHASHSEED=0` and `PYTHONHASHSEED=7` — over 682 files and 88 MB: **byte-identical**, this
+    line excepted. So the job generates the oracle once and compares once, and does not flake; the
+    dropping is what makes that true, and `packages/lang/test/parity/job.test.ts` is what keeps it
+    true by requiring the places where it fires to stay the two documents named above.
+    """
+    return os.environ.get('PYTHONHASHSEED')
+
+
 # --- the structural stage, recorded both ways (feature 1.1) -----------------
 
 SCHEMAS = os.path.join(ROOT, 'schemas')
@@ -2377,6 +2403,7 @@ def main():
         'tools_sha256': digest(os.path.join(ROOT, 'tools'), ('.py', 'tensorspine')),
         'schemas_sha256': digest(os.path.join(ROOT, 'schemas'), ('.json',)),
         'python': '.'.join(str(part) for part in sys.version_info[:3]),
+        'python_hash_seed': hash_seed(),
         'jsonschema': jsonschema_version(),
         'note': ('--validate and --lint are read for a set of documents: lint findings name the '
                  'set they were computed over, so a comparison must use the same set.'),

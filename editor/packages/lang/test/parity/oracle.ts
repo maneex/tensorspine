@@ -47,9 +47,13 @@ export interface OracleDocument {
 export interface OracleManifest {
   generated_by: string;
   repository_commit: string | null;
+  /** A digest over `tools/`, so that a recorded oracle can be told stale (plan §9 Q2). */
   tools_sha256: string;
+  /** The same over `schemas/`. */
   schemas_sha256: string;
   python: string;
+  /** `PYTHONHASHSEED` as the generator saw it; `null` when the interpreter randomised it. */
+  python_hash_seed: string | null;
   jsonschema: string;
   documents: OracleDocument[];
   primitive_schemas: { directory: string; files: string[] };

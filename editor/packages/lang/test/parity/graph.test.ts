@@ -27,6 +27,7 @@ import { nodeSource } from '../library/source.js';
 import { decodeRecord, encode } from './encoding.js';
 import { raisedAs, type Raised } from './raised.js';
 import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from './oracle.js';
+import { movedMessage } from './wording.js';
 
 // Parity of the graph (feature 1.6b): `analyse` from the quantities to V19 — the sites its guards
 // keep, the primitives and arguments they resolve to, the value edges, the public interfaces, the
@@ -501,7 +502,7 @@ describe('the graph, its edges and its interfaces against the tools', () => {
       expect(decided.length, path).toBeGreaterThan(0);
       expect(
         decided.some((line) => line.includes((rejection as RejectionCase).match)),
-        `${path}: ${(rejection as RejectionCase).match}`,
+        movedMessage(path, (rejection as RejectionCase).match, decided),
       ).toBe(true);
     }
     // Every model case of the suite the earlier features do not decide is one of these, or is

@@ -24,6 +24,7 @@ import { applyEdits, type Edit } from './edits.js';
 import { decode, decodeRecord, encode } from './encoding.js';
 import { raisedAs, type Raised } from './raised.js';
 import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from './oracle.js';
+import { movedMessage } from './wording.js';
 
 // Parity of the bindings (feature 1.6c): the whole of `validate.analyse`, which feature 1.6b left
 // open at the comment that opens the parameter bindings. What is compared here is what the tools
@@ -630,7 +631,7 @@ describe('the bindings against the tools', () => {
       }
       expect(
         lines.some((line) => line.includes(one.match)),
-        `${one.document} (${one.expect}): ${one.match}`,
+        movedMessage(`${one.document} (${one.expect})`, one.match, lines),
       ).toBe(true);
     }
   }, 300_000);
