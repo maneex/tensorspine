@@ -118,6 +118,9 @@ importers:
       '@playwright/test':
         specifier: 1.63.0
         version: 1.63.0
+      '@tensorspine/lang':
+        specifier: workspace:*
+        version: link:packages/lang
       '@tensorspine/ui':
         specifier: workspace:*
         version: link:packages/ui

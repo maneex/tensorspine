@@ -5,7 +5,9 @@
   "type": "module",
   "description": "The language core: lexeme-preserving JSON, the schema registry, expressions, the library loader, validation, expansion, derivation, the checkpoint check, lint, describe and check. No DOM: it runs in a worker or in Node.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./api": "./src/api/index.ts",
+    "./api/engine": "./src/api/engine.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

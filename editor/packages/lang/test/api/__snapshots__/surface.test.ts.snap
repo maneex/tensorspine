@@ -1,0 +1,35 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`@tensorspine/lang/api > exports the engine’s surface the snapshot records 1`] = `
+[
+  "LangSession",
+  "UNWATCHED",
+  "createLang",
+  "serveLang",
+  "yieldToTasks",
+]
+`;
+
+exports[`@tensorspine/lang/api > exports the surface the snapshot records 1`] = `
+[
+  "CALLS",
+  "LangCancelled",
+  "LangFailure",
+  "LangHandleError",
+  "checkpointRow",
+  "connectLang",
+  "decode",
+  "derivationRow",
+  "encode",
+  "encodeFailure",
+  "isRequest",
+  "isResponse",
+  "libraryRow",
+  "lintRow",
+  "listen",
+  "schemaProblem",
+  "semanticRow",
+  "stripped",
+  "strippedDescribe",
+]
+`;

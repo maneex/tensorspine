@@ -8,6 +8,7 @@
   },
   "exclude": [
     "spikes/headers/page/**",
+    "spikes/lang/page/**",
     "spikes/static/page/**"
   ],
   "include": [

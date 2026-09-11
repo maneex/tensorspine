@@ -21,6 +21,14 @@ export const staticBase = '/editor/';
 export const staticOrigin = `http://${host}:${String(staticPort)}`;
 export const staticUrl = `${staticOrigin}${staticBase}`;
 
+// Feature 1.11's page: the `Lang` API over a **real** `Worker`, which is the only place three of
+// its claims can be asked — that a derivation does not block the page's thread, that a cancel
+// message overtakes the work it cancels, and that the core reaches the worker's chunk and not the
+// page's. The page imports the application's own `startLang`, so what Vite emits there is the
+// worker the static build emits.
+const langPort = 4176;
+export const langUrl = `http://${host}:${String(langPort)}/`;
+
 // The browser layer of the implementation plan's §0.3: headless Chromium against the built
 // application, served by Vite's preview server as a static page.
 export default defineConfig({
@@ -52,6 +60,13 @@ export default defineConfig({
     {
       command: `node --experimental-strip-types ../../spikes/static/serve.ts --port ${String(staticPort)} --base ${staticBase}`,
       url: staticUrl,
+      reuseExistingServer: !inCI,
+      stdout: 'ignore',
+      timeout: 120_000,
+    },
+    {
+      command: `node --experimental-strip-types ../../spikes/lang/serve.ts --port ${String(langPort)}`,
+      url: langUrl,
       reuseExistingServer: !inCI,
       stdout: 'ignore',
       timeout: 120_000,

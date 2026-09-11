@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TensorSpine Editor — the language core in a worker</title>
+    <style>
+      body {
+        font: 13px/1.5 ui-monospace, "IBM Plex Mono", monospace;
+        margin: 24px;
+        max-width: 100ch;
+      }
+      h1 {
+        font-size: 15px;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Feature 1.11 — the language core in a Web Worker</h1>
+    <p>
+      The <code>Lang</code> API of the plan's Appendix C, behind a real worker: request ids,
+      cancellation, one in-flight derivation per document, progress. The browser layer drives it
+      through <code>window.langProbe</code>; the page runs nothing on its own.
+    </p>
+    <pre id="out" data-state="loading">loading…</pre>
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>

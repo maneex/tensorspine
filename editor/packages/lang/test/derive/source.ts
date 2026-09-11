@@ -267,3 +267,110 @@ export function stateInstance(
     ...extra,
   };
 }
+
+// --- a scratch base, for the derivation branches the reference base cannot reach ----------------
+
+/**
+ * Two primitives, each leaving one port's extent to an argument nobody supplies, and the
+ * one-instance documents that instantiate them.
+ *
+ * Feature 1.8c found the asymmetry and feature 1.8e reached it end to end: a *produced* value's
+ * byte size is guarded (`n * BYTES[dtype] if n is not None else None`) and a *public input's* is
+ * not, so a port shape that does not resolve raises `TypeError: unsupported operand type(s) for
+ * *: 'NoneType' and 'int'` out of the whole derivation. No port shape of the reference base cites
+ * an argument that may be absent, so no document of the repository reaches it — and a primitive
+ * declared in the editor (D15, feature 3.3) can.
+ *
+ * It lives here rather than in one suite because two of them read it: the derivation's own, which
+ * pins the raise and the blank beside it, and feature 1.11's worker suite, which is where the
+ * decision that raise forced is proved — `derive` neither catches it nor blanks it, and the
+ * worker answers it as a refusal instead of dying on it. Feature 1.13 (F8) is where the two
+ * documents become editor-side fixtures the oracle owns.
+ */
+/** A port shape over `model.width`, with whatever extent the case wants. */
+function shapeOf(extent: unknown): unknown {
+  return {
+    axes: [{ name: 'feature', axis: 'model.width', nature: 'feature', extent }],
+  };
+}
+
+/** One primitive whose two ports carry those extents, with no parameter and no state. */
+function portsOnly(input: unknown, output: unknown): unknown {
+  const port = (extent: unknown) => ({
+    shape: shapeOf(extent),
+    domain: { kind: 'inherit', from: { self: true } },
+    role: 'activation.hidden',
+  });
+  return {
+    version: '1.0.0',
+    arguments: {
+      width: { type: { kind: 'cardinality' }, required: true, structural: true },
+      hidden: { type: { kind: 'cardinality' }, required: false, structural: true },
+    },
+    ports: { inputs: { input: port(input) }, outputs: { output: port(output) } },
+    parameters: {},
+    constants: {},
+    state_ports: {},
+    effects: { reads: ['input'], writes: ['output'] },
+    partition_options: [{ target: { any_axis: true }, communication: 'none' }],
+  };
+}
+
+/** A base of two primitives, each leaving one port's extent to an argument nobody supplies. */
+export const SCRATCH: Record<string, string> = {
+  'scratch/base/primitive-library.json': JSON.stringify({
+    schema: 'tensorspine-primitive-library-unit/2.0',
+    kind: 'base',
+    name: 'tensorspine.scratch.derive',
+    definition: {
+      primitive_library: 'tensorspine/scratch-derive',
+      title: 'A base for the derivation tests',
+    },
+  }),
+  // Its *input* port's extent is the optional argument: the public input that feeds it has no
+  // element count, and the byte size the tools take of it is unguarded.
+  'scratch/base/primitives/scratch/blank/1.0.0.json': JSON.stringify({
+    schema: 'tensorspine-primitive-library-unit/2.0',
+    kind: 'primitive',
+    name: 'scratch.blank',
+    definition: portsOnly({ argument: 'hidden' }, { argument: 'hidden' }),
+  }),
+  // Its *output* port's is: the value it produces has no element count either, and there the tools
+  // write the blank the schema admits.
+  'scratch/base/primitives/scratch/fed/1.0.0.json': JSON.stringify({
+    schema: 'tensorspine-primitive-library-unit/2.0',
+    kind: 'primitive',
+    name: 'scratch.fed',
+    definition: portsOnly({ argument: 'width' }, { argument: 'hidden' }),
+  }),
+};
+
+/** A model of one instance, its input public and its output exposed. */
+export function scratchModel(primitive: string): string {
+  const bound = { kind: 'root', instance: 'blank' };
+  return JSON.stringify({
+    schema: 'tensorspine/2.0',
+    model: 'scratch_blank',
+    primitive_libraries: [{ base: '../primitive-library/' }, { base: '../../scratch/base/' }],
+    quantities: {
+      d: { type: { kind: 'cardinality' }, source: { kind: 'literal', value: 8 } },
+    },
+    constants: {},
+    instances: {
+      blank: {
+        primitive: { name: primitive, version: '1.0.0' },
+        arguments: { width: { quantity: 'd' } },
+        families: ['scratch'],
+      },
+    },
+    compositions: {},
+    bindings: { values: {}, parameters: {}, constants: {}, states: {} },
+    interfaces: {
+      inputs: { in: { to: [{ instance: bound, port: 'input' }], kind: 'token' } },
+      outputs: { out: { from: { instance: bound, port: 'output' }, generative: false } },
+    },
+  });
+}
+
+export const BLANK_MODEL = scratchModel('scratch.blank');
+export const FED_MODEL = scratchModel('scratch.fed');

@@ -27,7 +27,9 @@ import { pointerOf, type PathSegment } from '../schema/types.js';
  * place a caller of a *gathered* library still meets a `PrimitiveLibraryError`. The port raises it
  * there too, with the tools' words: where they raise, it raises (feature 1.5's rule).
  */
-export class PrimitiveLibraryError extends Error {}
+export class PrimitiveLibraryError extends Error {
+  override name = 'PrimitiveLibraryError';
+}
 
 /** The rule a refusal names, when its own text names one. */
 export type LibraryProblemCode = 'V1' | 'V12' | null;

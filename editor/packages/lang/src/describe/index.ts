@@ -35,7 +35,7 @@ import { toPython, type PyRecord } from '../expr/value.js';
 import type { JsonValue } from '../json/index.js';
 import type { Library } from '../library/index.js';
 import type { SchemaRegistry, StructuralProblem } from '../schema/index.js';
-import { analyse, type Analysis } from '../validate/index.js';
+import { analyse, whereOfSite, type Analysis } from '../validate/index.js';
 
 import { attachCompatibility } from './compatibility.js';
 import { checkCandidate, type Candidate, type Verdict } from './check.js';
@@ -75,6 +75,19 @@ export interface DescribeOptions {
   readonly library: Library;
   /** The assignment the external quantities are read under (§4.6); absent for a closed document. */
   readonly assignment?: PyRecord;
+  /**
+   * Describe only these sites, by the identifier §5.2 rule 2 gives them (`whereOfSite`).
+   *
+   * Plan §3 asks for `describe` "for the selected instance", which is what a sheet needs and what
+   * its 20 ms round trip is budgeted for; a site nobody is looking at costs its ports, its slots,
+   * its states, its shapes and its compatibility lists to describe and the same again to carry
+   * out of the worker (feature 1.11, `editor/spikes/timings.md`). The analysis is the whole
+   * document's either way — a compatibility list is answered from every identity of the graph —
+   * so what this narrows is the describing, not the reading.
+   *
+   * Absent, every resolved site is described, which is what the corpus suites read.
+   */
+  readonly only?: readonly string[];
 }
 
 /** Everything the interface asks of one document (plan §5.3, `describe`). */
@@ -107,7 +120,12 @@ export function describe(tree: JsonValue, options: DescribeOptions): Description
   const analysis = analyse(toPython(tree), options.library, {
     ...(options.assignment === undefined ? {} : { assignment: options.assignment }),
   });
-  return { conforms: true, structural, analysis, sites: describedSites(analysis) };
+  return {
+    conforms: true,
+    structural,
+    analysis,
+    sites: describedSites(analysis, options.only),
+  };
 }
 
 /**
@@ -116,8 +134,11 @@ export function describe(tree: JsonValue, options: DescribeOptions): Description
  * The validation pipeline of §5.4 runs `validate` and `describe` on the same revision; this is
  * what lets the second read the first's answer instead of analysing twice.
  */
-export function describeAnalysis(analysis: Analysis): Description {
-  return { conforms: true, structural: [], analysis, sites: describedSites(analysis) };
+export function describeAnalysis(
+  analysis: Analysis,
+  only?: readonly string[],
+): Description {
+  return { conforms: true, structural: [], analysis, sites: describedSites(analysis, only) };
 }
 
 /**
@@ -139,10 +160,22 @@ export function check(description: Description, candidate: Candidate): Verdict {
   return checkCandidate(description.analysis, candidate);
 }
 
-/** Every resolved site described, with the compatibility lists filled in. */
-function describedSites(analysis: Analysis): ReadonlyMap<string, SiteDescription> {
+/**
+ * Every resolved site described, with the compatibility lists filled in — or only the named ones.
+ *
+ * The filter is applied on `whereOfSite`, which is what the identifiers a caller has are: §5.2
+ * rule 2's, the ones D1 lists and every refusal prints. `attachCompatibility` reads the identity
+ * instances off the analysis and fills whatever map it is given, so a narrowed map is filled from
+ * the whole graph exactly as the full one is.
+ */
+function describedSites(
+  analysis: Analysis,
+  only?: readonly string[],
+): ReadonlyMap<string, SiteDescription> {
+  const wanted = only === undefined ? null : new Set(only);
   const sites = new Map<string, Mutable<SiteDescription>>();
   for (const [id, site] of analysis.resolved) {
+    if (wanted !== null && !wanted.has(whereOfSite(site.key))) continue;
     sites.set(id, describeSite(analysis, site));
   }
   attachCompatibility(analysis, sites);
