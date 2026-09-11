@@ -40,6 +40,58 @@ export {
 } from './presentation/index.js';
 
 /**
+ * The generic schema walker and the form model (plan §1, D7, §4.11, §4.12).
+ *
+ * "Every form is generated": one walker renders any `$def` of any of the schemas, and every
+ * sheet, dialog and editor of the interface is that walker with a different anchor.
+ */
+export {
+  type Alternation,
+  alternationAt,
+  type Alternative,
+  AMBIGUOUS,
+  CHOOSER,
+  chosenOf,
+  editsOneValue,
+  FIXED,
+  type Form,
+  type FormBounds,
+  type FormCondition,
+  formContext,
+  type FormContext,
+  type FormKeys,
+  formLines,
+  type FormMode,
+  type FormNote,
+  formOf,
+  type FormOption,
+  type FormProblem,
+  type FormRequest,
+  type FormRow,
+  JSON_EDITOR,
+  lineOf,
+  LIST,
+  MAP,
+  memberOrder,
+  noteLines,
+  NOTHING,
+  NUMBER,
+  SCALAR,
+  SECTION,
+  SELECT,
+  TEXT,
+  TOGGLE,
+  UNDECLARED,
+  UNDISCRIMINATED,
+  UNREADABLE,
+  UNTAGGED,
+  WHOLE,
+  type Widget,
+  widgetOf,
+  WIDGETS,
+} from './forms/index.js';
+
+/**
  * The canvas's automatic layout (plan §4.7, §4.9) — ELK's layered algorithm, top to bottom,
  * compositions as compound nodes — is the package's second entry point, `@tensorspine/ui/layout`
  * (`./src/layout/elk.ts`). It is deliberately not re-exported here: importing it pulls in a

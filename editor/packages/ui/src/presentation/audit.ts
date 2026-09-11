@@ -23,7 +23,13 @@
  * Nothing here reads a keyword of a schema by name except `properties`: the enumerations and the
  * unions come from the core's `vocabulary()`, which is the one reading of them (plan §1, D3).
  */
-import { followAnchor, parseAnchor, type SchemaRegistry, type Vocabulary } from '@tensorspine/lang';
+import {
+  alternativeLabel,
+  followAnchor,
+  parseAnchor,
+  type SchemaRegistry,
+  type Vocabulary,
+} from '@tensorspine/lang';
 
 import type { Binding, Presentation } from './types.js';
 
@@ -236,21 +242,9 @@ function genericConstructs(
         bindings.at(anchor) !== undefined ||
         (alternative.target !== null && bindings.at(alternative.target) !== undefined);
       if (named) continue;
-      // What a chooser would label it by: its tags, failing that its declared type, failing that
-      // what its `$ref` names. An alternative with no required key at all — the string form of a
-      // `physical_name` item, the `null` an optional figure takes, the bare reference to an
-      // enumeration — carries no tag, because feature 1.1's vocabulary answers none rather than
-      // inventing one, and those three are the only labels there are.
-      const declared = alternative.type;
-      const typed =
-        declared === null ? '' : typeof declared === 'string' ? declared : declared.join(' | ');
-      const name =
-        alternative.tags.length > 0
-          ? alternative.tags.join(' | ')
-          : typed !== ''
-            ? typed
-            : (alternative.target ?? '');
-      found.push({ kind: ALTERNATIVE, anchor, name });
+      // What a chooser would label it by — the core's own formula (`alternativeLabel`), so that
+      // this list and the chooser a form generates say the same thing about the same alternative.
+      found.push({ kind: ALTERNATIVE, anchor, name: alternativeLabel(alternative) });
     }
   }
   return found;

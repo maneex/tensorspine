@@ -30,6 +30,7 @@ import type { JsonValue } from '../json/tree.js';
 import type { AssertionEngine } from './assertions.js';
 import { absolutePath, deepest, sortByPlace, type SchemaError } from './errors.js';
 import { pythonRegExp } from './pattern.js';
+import { nodeAtPointer, parseAnchor } from './pointer.js';
 import {
   instanceOf,
   pointerOf,
@@ -111,6 +112,20 @@ export interface SchemaRegistry {
   locate(role: string): LoadedSchema | undefined;
   /** Ajv's verdict on a tree against the schema of that role. */
   conforms(tree: JsonValue, role?: string): boolean;
+  /**
+   * Ajv's verdict on a tree against *one place* of one schema, named by its anchor.
+   *
+   * The same validator, asked a smaller question. A generated form needs it twice, and both
+   * times the answer has to be the grammar's rather than a resemblance: **which alternative of a
+   * union a value is** — `{"op": "add", …}` is an `nary_operation_expression` and not a
+   * `unary_operation_expression`, and only the operator its `op` admits says so (feature 1.1) —
+   * and **whether a conditional branch applies**, so that the `domain` a `quantity_definition`
+   * requires when its source is external is shown as required exactly when it is (plan §1).
+   *
+   * One compiled validator per anchor, built lazily and kept, so a form that asks per row pays
+   * the compilation once per place of the schema and nothing per render.
+   */
+  accepts(tree: JsonValue, anchor: string): boolean;
   /** The verdict explained: the problems `--validate`'s schema stage would print. */
   structural(tree: JsonValue, role?: string, options?: StructuralOptions): StructuralProblem[];
   /** `structural`, but the walk always runs: the reading a parity test holds Ajv's against. */
@@ -324,6 +339,7 @@ export function loadSchemas(
     },
   };
 
+  let vocabulary: Vocabulary | undefined;
   const compiled = new Map<string, ValidateFunction>();
   const validatorFor = (schema: LoadedSchema): ValidateFunction => {
     const known = compiled.get(schema.id);
@@ -338,6 +354,27 @@ export function loadSchemas(
 
   const locate = (role: string): LoadedSchema | undefined =>
     schemas.find((schema) => schema.id.endsWith(`/${role}.json`));
+
+  const atAnchor = new Map<string, ValidateFunction>();
+  const validatorAt = (anchor: string): ValidateFunction => {
+    const known = atAnchor.get(anchor);
+    if (known !== undefined) return known;
+    const parsed = parseAnchor(anchor);
+    if (parsed === null) throw new SchemaLoadError(`'${anchor}' is not a schema anchor`);
+    const schema = byId.get(parsed.schema);
+    if (schema === undefined) {
+      throw new SchemaLoadError(`'${anchor}' names a schema the registry does not hold`);
+    }
+    if (nodeAtPointer(schema.document, parsed.pointer) === null) {
+      throw new SchemaLoadError(`'${anchor}' names nothing in ${parsed.schema}`);
+    }
+    // The anchor is an absolute URI with a fragment, which is what a `$ref` takes: Ajv resolves
+    // it against the schemas already added under their own `$id`, so the compiled validator is
+    // the one place of the one grammar and not a copy of it.
+    const made = ajv.compile({ $ref: anchor });
+    atAnchor.set(anchor, made);
+    return made;
+  };
 
   const missingRole = (role: string): StructuralProblem[] => [
     {
@@ -369,6 +406,9 @@ export function loadSchemas(
       if (schema === undefined) return false;
       // No schema of the registry is asynchronous, so the verdict is a boolean and not a promise.
       return validatorFor(schema)(instanceOf(tree).plain) === true;
+    },
+    accepts(tree, anchor) {
+      return validatorAt(anchor)(instanceOf(tree).plain) === true;
     },
     explain(tree, role = 'model', options_ = {}) {
       const schema = locate(role);
@@ -413,7 +453,12 @@ export function loadSchemas(
       }
       return registry.structural(tree, role, options_);
     },
-    vocabulary: () => vocabularyOf(schemas),
+    // Read once and kept. The schemas of a registry never change — a workspace that carries its
+    // own builds a new registry (plan §1) — so the walk is a pure function of them, and feature
+    // 2.2 measured it at 1.05–2.45 ms: harmless at startup, a trap for a generated form that
+    // asks per render (feature 2.3). Memoised here rather than in each caller, so that every
+    // reader of the vocabulary gets the same object and the same cost.
+    vocabulary: () => (vocabulary ??= vocabularyOf(schemas)),
   };
   return registry;
 }

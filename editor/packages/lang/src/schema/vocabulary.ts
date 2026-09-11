@@ -212,6 +212,28 @@ function alternativesOf(
   });
 }
 
+/**
+ * What a chooser labels one alternative by, and what the log calls it when nothing binds it.
+ *
+ * Its tags — the required keys no sibling requires, or its `const` — failing those its declared
+ * type, failing that what its `$ref` names. An alternative with no required key at all (the
+ * string form of a `physical_name` item, the `null` an optional figure takes) has no tag,
+ * because the vocabulary answers none rather than inventing one, and those three are the only
+ * labels there are.
+ *
+ * One formula, because two readers need the same answer: the presentation audit's "rendered
+ * generically" list (plan §1 (a)) and the generated chooser (§1, "a chooser labelled by the
+ * alternative's discriminating required key or `const`").
+ */
+export function alternativeLabel(alternative: VocabularyAlternative): string {
+  if (alternative.tags.length > 0) return alternative.tags.join(' | ');
+  const declared = alternative.type;
+  const typed =
+    declared === null ? '' : typeof declared === 'string' ? declared : declared.join(' | ');
+  if (typed !== '') return typed;
+  return alternative.target ?? '';
+}
+
 /** Every enumeration and every tagged union of the schemas, indexed by pointer. */
 export function vocabularyOf(schemas: readonly LoadedSchema[]): Vocabulary {
   const byId = new Map(schemas.map((schema) => [schema.id, schema]));

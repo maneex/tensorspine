@@ -41,6 +41,7 @@ const SCHEMA = 'schemas/tensorspine-editor-presentation.schema.json';
 const NOTE = 'schemas/TENSORSPINE-EDITOR-PRESENTATION.md';
 const MODEL = 'https://tensorspine.dev/schema/2.0/model.json';
 const DERIVED = 'https://tensorspine.dev/schema/2.1/derived.json';
+const UNIT_SCHEMA = 'https://tensorspine.dev/schema/2.0/primitive-library-unit.json';
 
 const file = presentation();
 const audit = auditPresentation(registry(), file);
@@ -317,20 +318,34 @@ describe('what the document names, and where it is declared', () => {
 });
 
 describe('the unit side of the store, stated rather than assumed', () => {
-  it('answers no reference tag at all, which is feature 3.2’s to close', () => {
-    // Measured, not guessed: the unit schema reaches its `definition` through the root's
-    // `allOf: [{if, then}, …]`, and `SchemaShapes.root` builds its shape from the root node alone
-    // — `allOf` is flattened by the `$ref`-following path (`follow`/`gather`), which `root` does
-    // not take. So `definition` reduces to `{"type": "object"}` and no `propertyNames` of the unit
-    // schema is reachable. The presentation bindings for the unit side are keyed by *anchors* and
-    // resolve against the registry, so this feature is unaffected; the unit store (feature 3.2)
-    // and the walker (2.3) are not, and this is the line that says so.
+  it('answers its reference tags, the root’s `allOf` having been followed', () => {
+    // This row was a defect, found here by feature 2.2 and closed by 2.3. The unit schema reaches
+    // its `definition` through the root's `allOf: [{if, then}, …]`, and `SchemaShapes.root` built
+    // its shape from the root node alone — `allOf` is flattened by the `$ref`-following path
+    // (`follow`/`gather`), which `root` did not take — so `definition` reduced to `{"type":
+    // "object"}`, no `propertyNames` of the unit schema was reachable, and `referenceTags`
+    // answered nothing at all. `root` follows the root now, and the four definitions are reached.
+    // The tags themselves are `packages/store/test/shape.test.ts`'s; what belongs here is that the
+    // unit side is no longer blind, since a binding of this file's is keyed against it.
     const shapes = new SchemaShapes(registry());
     const unit = referenceTags(shapes, 'primitive-library-unit');
-    expect([...unit.keys.keys()]).toEqual([]);
-    expect([...unit.values.keys()]).toEqual([]);
+    expect([...unit.keys.keys()].length).toBeGreaterThan(0);
+    expect([...unit.values.keys()].length).toBeGreaterThan(0);
     const definition = shapes.member(shapes.root('primitive-library-unit'), 'definition');
-    expect(definition.all.map((place) => place.pointer)).toEqual(['/properties/definition']);
+    expect(definition.all.map((place) => place.pointer)).toContain('/$defs/primitive_definition');
+  });
+
+  it('still binds no unit-side map, which is feature 3.2’s to answer', () => {
+    // The model side's nine name-keyed maps are paired above; the unit side's are not, and that
+    // is deliberate rather than forgotten. What a unit's names refer to is mostly *another
+    // base's* units — a shape axis names an axis unit, a port names a precision role — which is a
+    // cross-base pairing, not an occurrence inside the document, and `picker` is what this file
+    // already says about those two. The unit store (3.2) decides the rest.
+    const shapes = new SchemaShapes(registry());
+    const unit = referenceTags(shapes, 'primitive-library-unit');
+    const bound = file.anchors.filter((anchor) => anchor.startsWith(`${UNIT_SCHEMA}#`));
+    expect(bound.every((anchor) => file.at(anchor)?.declares === undefined)).toBe(true);
+    expect([...unit.values.keys()]).not.toContain('axis');
   });
 });
 

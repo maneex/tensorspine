@@ -33,7 +33,15 @@
  *
  * {@link constraintsOf} reads `direct` and nothing else, and it is the only reader of it.
  */
-import type { PathSegment, SchemaObject, SchemaRegistry } from '@tensorspine/lang';
+import {
+  isSchemaObject,
+  nodeAtPointer,
+  parseAnchor,
+  pointerSegment,
+  type PathSegment,
+  type SchemaObject,
+  type SchemaRegistry,
+} from '@tensorspine/lang';
 
 /** One candidate subschema, and where it is written. */
 export interface Place {
@@ -85,11 +93,40 @@ export class SchemaShapes {
 
   constructor(private readonly registry: SchemaRegistry) {}
 
-  /** The shape of a whole document of that role — `model`, `primitive-library-unit`. */
+  /**
+   * The shape of a whole document of that role — `model`, `primitive-library-unit`.
+   *
+   * The root is followed like any other place. It matters: the unit schema reaches its
+   * `definition` through the root's `allOf: [{if, then}, …]` — one branch per `kind` — and a
+   * reading that took the root node alone left `definition` as `{"type": "object"}`, so no
+   * `propertyNames` of the unit schema was reachable and `referenceTags` answered nothing at all
+   * (found by feature 2.2, stated as a suite, closed here). `follow` flattens the `$ref` chain
+   * and the `allOf` into `direct`; the branches under each of them are alternatives, so the
+   * conditional `then` is something a descent sees and `constraintsOf` still does not.
+   */
   root(role: string): Shape {
     const schema = this.registry.locate(role);
     if (schema === undefined) return EMPTY;
-    return this.shapeOf([this.place(schema.id, '', schema.document)]);
+    return this.shapeOf(this.follow(schema.id, '', schema.document));
+  }
+
+  /**
+   * The shape of the place an anchor names: `<$id>#<JSON pointer>`, as a presentation binding
+   * writes it and as a form is asked for one (`…/model.json#/$defs/instance_definition`).
+   *
+   * A generated form starts at a `$def` rather than at a document root — the argument sheet at
+   * `argument_value`, the location editor at `location`, the primitive editor at
+   * `primitive_primitive` — so the same reading has to be reachable from an anchor. Empty when
+   * the anchor names nothing, which is what a presentation key that resolves nowhere answers.
+   */
+  at(anchor: string): Shape {
+    const parsed = parseAnchor(anchor);
+    if (parsed === null) return EMPTY;
+    const document = this.registry.byId(parsed.schema)?.document;
+    if (document === undefined) return EMPTY;
+    const node = objectAtPointer(document, parsed.pointer);
+    if (node === null) return EMPTY;
+    return this.shapeOf(this.follow(parsed.schema, parsed.pointer, node));
   }
 
   /** The shape of the member `name` of an object whose shape is `shape`. */
@@ -106,7 +143,7 @@ export class SchemaShapes {
           const declared = (properties as Record<string, unknown>)[name];
           if (declared !== undefined) {
             found.push(
-              ...this.follow(place.schema, `${place.pointer}/properties/${pointerStep(name)}`, declared),
+              ...this.follow(place.schema, `${place.pointer}/properties/${pointerSegment(name)}`, declared),
             );
             continue;
           }
@@ -368,7 +405,7 @@ export class SchemaShapes {
     const pointer = hash < 0 ? '' : ref.slice(hash + 1);
     const document = id === schema ? this.registry.byId(schema)?.document : this.registry.byId(id)?.document;
     if (document === undefined) return null;
-    const node = nodeAtPointer(document, pointer);
+    const node = objectAtPointer(document, pointer);
     return node === null ? null : this.place(id, pointer, node);
   }
 
@@ -377,20 +414,15 @@ export class SchemaShapes {
   }
 }
 
-/** A JSON pointer segment, escaped as RFC 6901 escapes it. */
-function pointerStep(name: string): string {
-  return name.replace(/~/g, '~0').replace(/\//g, '~1');
-}
-
-/** The node a JSON pointer names inside a schema document, or `null`. */
-function nodeAtPointer(document: SchemaObject, pointer: string): SchemaObject | null {
-  if (pointer === '' || pointer === '#') return document;
-  if (!pointer.startsWith('/')) return null;
-  let node: unknown = document;
-  for (const raw of pointer.slice(1).split('/')) {
-    const step = decodeURIComponent(raw).replace(/~1/g, '/').replace(/~0/g, '~');
-    if (node === null || typeof node !== 'object') return null;
-    node = Array.isArray(node) ? node[Number(step)] : (node as Record<string, unknown>)[step];
-  }
-  return node !== null && typeof node === 'object' && !Array.isArray(node) ? (node as SchemaObject) : null;
+/**
+ * The object a JSON pointer names inside a schema document, or `null`.
+ *
+ * The walk is the core's ({@link nodeAtPointer}, feature 2.2's `schema/pointer.ts`): resolving
+ * `<$id>#<pointer>` is the registry's business and this module reads the answer. What it adds is
+ * the one thing a shape needs of it — that the place be an *object*, since `true` and `false`
+ * are schemas that describe no place a form or a cascade can stand at.
+ */
+function objectAtPointer(document: SchemaObject, pointer: string): SchemaObject | null {
+  const node = nodeAtPointer(document, pointer);
+  return node !== null && isSchemaObject(node) ? node : null;
 }

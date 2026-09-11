@@ -27,6 +27,7 @@ export {
   sortByPlace,
   type SchemaError,
 } from './errors.js';
+export { factsOf, mergeFacts, NO_FACTS, type SchemaFacts } from './facts.js';
 export { pythonPattern, pythonRegExp } from './pattern.js';
 export {
   anchorOf,
@@ -54,6 +55,7 @@ export {
 export { ASSERTION_KEYWORDS, type AssertionEngine } from './assertions.js';
 export { KNOWN_KEYWORDS } from './walk.js';
 export {
+  alternativeLabel,
   vocabularyOf,
   type Vocabulary,
   type VocabularyAlternative,

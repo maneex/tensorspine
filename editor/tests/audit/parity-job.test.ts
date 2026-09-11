@@ -104,7 +104,7 @@ const CHECKS: readonly Check[] = [
   {
     check: 'Schema snapshot test',
     proves: 'every `$def` of the four schemas renders; a schema change is a reviewed diff',
-    owner: '2.3 — the generic schema walker and the form model',
+    runs: ['packages/ui/test/snapshots/forms.test.ts', 'packages/ui/test/forms/walk.test.ts'],
   },
   {
     check: 'No-hard-coding audit (§1 b)',
@@ -174,17 +174,18 @@ describe('the checks of the plan’s §6', () => {
     }
   });
 
-  it('runs six of them today; the other six name the feature that will', () => {
+  it('runs seven of them today; the other five name the feature that will', () => {
     const run = CHECKS.filter((row) => row.runs !== undefined).map((row) => row.check);
     expect(run).toEqual([
       'Parity job',
       'Semantic-table audit (§1 d)',
+      'Schema snapshot test',
       'No-hard-coding audit (§1 b)',
       'Presentation audit at startup',
       'Corpus and library round-trip',
       'Timings',
     ]);
-    expect(CHECKS.filter((row) => row.owner !== undefined)).toHaveLength(6);
+    expect(CHECKS.filter((row) => row.owner !== undefined)).toHaveLength(5);
   });
 });
 
