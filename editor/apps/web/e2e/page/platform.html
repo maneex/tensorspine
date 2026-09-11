@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TensorSpine Editor — the browser platform</title>
+    <style>
+      body {
+        font: 13px/1.5 ui-monospace, "IBM Plex Mono", monospace;
+        margin: 24px;
+        max-width: 100ch;
+      }
+      h1 {
+        font-size: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Feature 2.4 — the browser platform</h1>
+    <p>
+      The interfaces of the plan's §5.2 in a browser: a folder read and written in place through
+      the File System Access API, a read-only snapshot whose Save downloads, the vendored Examples
+      workspace, settings in <code>localStorage</code>, drafts and remembered handles in IndexedDB.
+      The browser layer drives it through <code>window.platformProbe</code>; the page runs nothing
+      on its own. It is built for the suite alone and is no part of the deployed application.
+    </p>
+    <p><input id="upload" type="file" webkitdirectory multiple /></p>
+    <pre id="out" data-state="loading">loading…</pre>
+    <script type="module" src="./probe.ts"></script>
+  </body>
+</html>

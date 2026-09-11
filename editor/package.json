@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "TensorSpine Editor \u2014 the workspace root: the language core, the store, the interface and the static application.",
+  "description": "TensorSpine Editor — the workspace root: the language core, the store, the interface and the static application.",
   "license": "Apache-2.0",
   "packageManager": "pnpm@12.3.4",
   "engines": {
@@ -17,7 +17,7 @@
     "test:parity": "vitest run --project parity",
     "test:snapshot": "vitest run --project snapshot",
     "audit:rules": "vitest run --project audit",
-    "test:e2e": "pnpm --filter @tensorspine/web run test:e2e",
+    "test:e2e": "pnpm run vendor && pnpm --filter @tensorspine/web run test:e2e",
     "vendor": "node --experimental-strip-types scripts/vendor.ts",
     "build": "pnpm run vendor && pnpm --filter @tensorspine/web run build",
     "dev": "pnpm --filter @tensorspine/web run dev",

@@ -7,6 +7,12 @@ const inCI = process.env['CI'] !== undefined && process.env['CI'] !== '';
 const host = '127.0.0.1';
 const port = 4173;
 
+// Feature 2.4's two extra pages of the application's own build (`vite build --mode check`): the
+// renderer against the stub `Platform` — D11's leak build — and the driver the browser layer
+// runs the browser platform's claims through. `pnpm build` emits neither.
+export const stubUrl = `http://${host}:${String(port)}/stub.html`;
+export const platformUrl = `http://${host}:${String(port)}/e2e/page/platform.html`;
+
 // The spike of feature 0.5 is a static build of its own, served beside the application by
 // `editor/spikes/headers/serve.ts` — the same page the cross-engine runner opens in Firefox and
 // WebKitGTK, so what the suite holds to account here is what the note measured there.

@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The document store: the ordered tree, commands and undo, the reference index, the layout and preview sidecars, drafts.",
+  "description": "The document store: the ordered tree, commands and undo, the reference index, the layout and preview sidecars, drafts, and the platform interfaces of §5.2 with their stub.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./platform": "./src/platform/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

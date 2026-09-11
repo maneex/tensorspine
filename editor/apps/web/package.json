@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:e2e": "vite build && playwright test"
+    "test:e2e": "vite build --mode check && playwright test"
   },
   "dependencies": {
     "@tensorspine/lang": "workspace:*",

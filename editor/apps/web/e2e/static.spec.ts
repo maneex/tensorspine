@@ -41,13 +41,22 @@ const manifestText = readFileSync(join(repository, MANIFEST), 'utf8');
 /**
  * A workspace on disk, laid out like `data/`: a model, and the base its `primitive_libraries`
  * resolves to beside it. This is what the folder upload is pointed at.
+ *
+ * Made in `beforeAll` and not at the module's top level, which is a real trap of a suite that runs
+ * `fullyParallel`: a worker is reused across test *groups*, so `afterAll` runs once per group
+ * while a module's top level runs once per **worker** — a fixture made there and removed there is
+ * gone for the file's next test in the same worker. Found by feature 2.4, whose own tests changed
+ * how these are distributed; both hooks now bracket every group.
  */
 const fixture = mkdtempSync(join(tmpdir(), 'tensorspine-spike-0.6-'));
 const workspaceDirectory = join(fixture, 'workspace');
-mkdirSync(join(workspaceDirectory, 'models'), { recursive: true });
-mkdirSync(join(workspaceDirectory, 'primitive-library'), { recursive: true });
-writeFileSync(join(workspaceDirectory, 'models', 'llama3-8b.json'), modelText, 'utf8');
-writeFileSync(join(workspaceDirectory, 'primitive-library', 'primitive-library.json'), manifestText, 'utf8');
+
+test.beforeAll(() => {
+  mkdirSync(join(workspaceDirectory, 'models'), { recursive: true });
+  mkdirSync(join(workspaceDirectory, 'primitive-library'), { recursive: true });
+  writeFileSync(join(workspaceDirectory, 'models', 'llama3-8b.json'), modelText, 'utf8');
+  writeFileSync(join(workspaceDirectory, 'primitive-library', 'primitive-library.json'), manifestText, 'utf8');
+});
 
 test.afterAll(() => {
   rmSync(fixture, { recursive: true, force: true });

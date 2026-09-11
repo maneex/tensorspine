@@ -23,13 +23,35 @@ editor/
 ├── packages/lang     the language core: lexeme-preserving JSON, the schema registry,
 │                     expressions, the library loader, validation, expansion, derivation,
 │                     the checkpoint check, lint, describe and check. No DOM.
-├── packages/store    the document store: the ordered tree, commands and undo, the sidecars
+├── packages/store    the document store: the ordered tree, commands and undo, the sidecars,
+│                     and the platform interfaces (@tensorspine/store/platform) with their stub
 ├── packages/ui       React: shell, activities, canvas, generated forms, sheets, panels
-├── apps/web          the static application built by Vite
+├── apps/web          the static application built by Vite, and the browser's platform:
+│                     the workspace, settings, drafts, the shell
 ├── schemas/          the editor's own schemas — the layout sidecar, the presentation
 │                     bindings — with their companion notes
 └── tests/            the audits (tests/audit) and the parity oracle (tests/oracle)
 ```
+
+## The platform
+
+Everything the editor cannot compute for itself — the files it reads and writes, the settings it
+remembers, the drafts it autosaves, who the user is, and the few things only a shell can do —
+goes through one interface, `Platform`, declared in `@tensorspine/store/platform` and implemented
+per deployment. No package reaches around it: an audit holds every `packages/*/src` to that, and
+CI builds the application against a stub platform so that a leak is a build failure.
+
+| What | The static application's answer |
+|---|---|
+| a workspace the editor can write | a folder opened through the File System Access API and written in place, its handle kept in IndexedDB so it reopens with one permission prompt (Chromium today) |
+| a workspace it cannot | a folder upload or a drop, read-only, where Save hands the document to the user as a download and the folder is left alone — what Firefox and Safari get |
+| the **Examples** workspace | the corpus and the reference base vendored with the build, read-only, always available |
+| settings | `localStorage`, loaded once and written through |
+| drafts | IndexedDB |
+| sign-in | none: the static application has no accounts, and everything it computes runs in the browser |
+
+Each of them keeps working where the browser refuses to store anything at all — a private window,
+site data blocked — for the session alone, and says so.
 
 ## Install
 
@@ -95,7 +117,12 @@ working. No test is ever disabled to make the suite pass.
 
 The audit layer also runs `pnpm vendor` into a temporary directory and holds what it wrote to
 the repository's own files, so a broken vendor fails `pnpm check` and CI needs no step of its
-own for it.
+own for it. The end-to-end layer vendors for real before it builds, because the static
+application *is* its vendored schemas, corpus and reference base: an application built without
+them opens no Examples workspace and reads no schema, and a suite against it would be testing
+something nobody deploys. That build also emits two pages the deployment does not have —
+`stub.html`, the renderer against the stub platform, and the browser layer's own driver — and an
+audit holds `pnpm build` to emitting neither.
 
 ## The oracle
 
