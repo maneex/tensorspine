@@ -598,6 +598,25 @@ export function loopEnvsWith(
 }
 
 /**
+ * `{i.get('stream', n) for n, i in model['interfaces']['inputs'].items() if i.get('fragmented')}`:
+ * the streams a fragmented public input delivers (§5.3).
+ *
+ * The tools write that set comprehension twice — once in `validate.analyse`, where V16 and V18
+ * read it, and once as `derive._fragmented_streams`, where D4's carrying reads it — over the same
+ * document: the *top-level* one, since `_expand` keeps `graph['model']` the calling document at
+ * every level. One rule, one reading, both callers.
+ */
+export function fragmentedStreams(model: PyValue): Set<string> {
+  const fragmented = new Set<string>();
+  for (const [name, declared] of entries(demand(demand(model, 'interfaces'), 'inputs'))) {
+    if (truthy(optional(declared, 'fragmented', false))) {
+      fragmented.add(pyStr(optional(declared, 'stream', name)));
+    }
+  }
+  return fragmented;
+}
+
+/**
  * `instance_ports(exposed)`: the ports of a template instance, carrying the kinds and shapes the
  * expanded template resolved, "so that V4 and V5 apply across the boundary" (§4.6).
  */
@@ -1081,12 +1100,7 @@ function analyseNormalised(
   const interfaces = demand(model, 'interfaces');
   const inputs = demand(interfaces, 'inputs');
   const outputs = demand(interfaces, 'outputs');
-  const fragmented = new Set<string>();
-  for (const [name, declared] of entries(inputs)) {
-    if (truthy(optional(declared, 'fragmented', false))) {
-      fragmented.add(pyStr(optional(declared, 'stream', name)));
-    }
-  }
+  const fragmented = fragmentedStreams(model);
   const seeds = new Map<string, PortDomain>();
   const fedShapes = new Map<string, { shape: ShapeIdentity | null; where: string }>();
   for (const [name, declared] of entries(inputs)) {

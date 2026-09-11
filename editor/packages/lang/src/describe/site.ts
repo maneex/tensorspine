@@ -392,8 +392,14 @@ function stateStream(
   return analysis.domains.get(portKeyOf(site, demand(indexedBy, 'port')))?.domain ?? null;
 }
 
-/** `sorted({o['effect'] for o in port['operations'].values()})`: a Python set of names, sorted. */
-function sortedEffects(operations: PyValue): PyValue[] {
+/**
+ * `sorted({o['effect'] for o in port['operations'].values()})`: a Python set of names, sorted.
+ *
+ * The sheet's row and D4's `operations` are the same list — "the effects the state admits (O5.4)"
+ * — so the reading is written once and both call it: a set keeps one occurrence of a name two
+ * operations declare, and the sort is Python's, by code point.
+ */
+export function sortedEffects(operations: PyValue): PyValue[] {
   const seen = new Map<string, PyValue>();
   for (const [, operation] of entries(operations)) {
     const effect = demand(operation, 'effect');

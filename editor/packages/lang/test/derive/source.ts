@@ -1,11 +1,14 @@
 import { parse } from '../../src/json/index.js';
 import {
   expandedKeyOf,
+  expandedPortKeyOf,
   rootSite,
   toPython,
   type ExpandedGraph,
   type ExpandedNode,
+  type ExpandedStateInstance,
   type ExpandedTensorInstance,
+  type Indexing,
   type PyRecord,
   type PyValue,
 } from '../../src/index.js';
@@ -44,11 +47,35 @@ export function site(name: string): { prefix: string; key: ReturnType<typeof roo
   return { prefix: '', key: rootSite(name) };
 }
 
-/** An expanded graph holding those nodes and those parameter identity instances, and nothing else. */
+/**
+ * What a case needs of an expanded graph beside its nodes and its parameter identity instances.
+ *
+ * D3 reads the library and the nodes alone; D4 also reads the state identity instances, the
+ * indexing domains a stream is read from, and the document's public inputs — "the streams the
+ * fragmented public inputs introduce or join" is the whole of what `model` is for here.
+ */
+export interface SyntheticExtra {
+  readonly quantities?: ReadonlyMap<string, PyValue>;
+  readonly states?: readonly ExpandedStateInstance[];
+  /**
+   * The document the graph was analysed over: only its `interfaces.inputs` are ever read.
+   *
+   * The default is a document with no public input at all, since the grammar requires the two
+   * members and D4 reads them unguarded — a graph without them raises there as it raises in the
+   * tools, which is a defect of the caller and not a fact about a document.
+   */
+  readonly model?: PyRecord;
+  /** Each node's own indexing domain, by node name; a node absent from it has none. */
+  readonly own?: Readonly<Record<string, Indexing | null>>;
+  /** The indexing domain of a node's input port, keyed `<node>.<port>`. */
+  readonly domains?: Readonly<Record<string, Indexing>>;
+}
+
+/** An expanded graph holding those nodes and those identity instances, and nothing else. */
 export function syntheticGraph(
   nodes: readonly SyntheticNode[],
   tensors: readonly ExpandedTensorInstance[],
-  quantities: ReadonlyMap<string, PyValue> = new Map(),
+  extra: SyntheticExtra = {},
 ): ExpandedGraph {
   const resolved = new Map<string, ExpandedNode>();
   for (const node of nodes) {
@@ -60,20 +87,31 @@ export function syntheticGraph(
       args: node.args ?? {},
     });
   }
+  const own = new Map<string, Indexing | null>();
+  for (const [name, domain] of Object.entries(extra.own ?? {})) {
+    own.set(expandedKeyOf(site(name)), domain);
+  }
+  const domains = new Map<string, { site: ReturnType<typeof site>; port: PyValue; domain: Indexing }>();
+  for (const [at, domain] of Object.entries(extra.domains ?? {})) {
+    const dot = at.lastIndexOf('.');
+    const node = site(at.slice(0, dot));
+    const port = at.slice(dot + 1);
+    domains.set(expandedPortKeyOf(node, port), { site: node, port, domain });
+  }
   return {
-    model: {},
-    quantities,
+    model: extra.model ?? record('{"interfaces": {"inputs": {}, "outputs": {}}}'),
+    quantities: extra.quantities ?? new Map(),
     resolved,
     edges: [],
-    domains: new Map(),
-    own: new Map(),
+    domains,
+    own,
     order: [...resolved.values()].map((node) => node.site),
     meta: new Map(),
     compositions: [],
     inputsAt: new Map(),
     outputsAt: new Map(),
     tensorInstances: tensors,
-    stateInstances: [],
+    stateInstances: extra.states ?? [],
   };
 }
 
@@ -89,6 +127,26 @@ export function tensorInstance(
     env: new Map(),
     members: members.map(([node, slot]) => ({ site: site(node), name: slot })),
     dtype: null,
+    ...extra,
+  };
+}
+
+/** One state identity instance over one node's port, with whatever the case needs beside. */
+export function stateInstance(
+  identity: string,
+  members: readonly (readonly [string, string])[],
+  extra: Partial<ExpandedStateInstance> = {},
+): ExpandedStateInstance {
+  const first = members[0];
+  return {
+    identity,
+    rule: identity,
+    members: members.map(([node, port]) => ({ site: site(node), name: port })),
+    dtype: null,
+    indices: [],
+    // "Exactly one member writes an identity instance" (V20): the first, unless a case says
+    // otherwise. It is an unprefixed member, as the expansion leaves it.
+    writer: first === undefined ? null : { site: rootSite(first[0]), name: first[1] },
     ...extra,
   };
 }

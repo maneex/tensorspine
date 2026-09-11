@@ -18,19 +18,20 @@
  * non-finite value, which after V3's domains and V8's invariants can only mean the validator is
  * missing a domain (R11) — named and raised, never clamped.
  */
-import { pyAdd, pyDivide, pyEqual, pyMultiply } from '../expr/arithmetic.js';
-import { PyKeyError } from '../expr/errors.js';
+import { pyDivide, pyEqual, pyMultiply } from '../expr/arithmetic.js';
 import { primitiveValue } from '../expr/primitive.js';
 import { truthy, type PyRecord, type PyValue } from '../expr/value.js';
 import { put } from '../json/tree.js';
 import { demand, has, listOf, optional } from '../library/access.js';
 import type { Library } from '../library/load.js';
-import { pyRepr, pyStr } from '../library/repr.js';
+import { pyStr } from '../library/repr.js';
 import { storageShape } from '../validate/bindings/locations.js';
 import {
   elementsOf,
   numberOf,
+  orZero,
   productShape,
+  pySum,
   selectedDtype,
   sensitivityOf,
   sound,
@@ -38,11 +39,10 @@ import {
   type Figure,
 } from './figures.js';
 import {
-  expandedKeyOf,
   identOf,
   locatedValue,
+  nodeAt,
   type ExpandedGraph,
-  type ExpandedMember,
   type ExpandedNode,
   type ExpandedTensorInstance,
 } from './expand.js';
@@ -68,7 +68,7 @@ function tensorOf(
 ): PyRecord | null {
   const first = instance.members[0];
   if (first === undefined) return null;
-  const node = nodeOf(graph, instance);
+  const node = nodeAt(graph, first);
   const slot = pyStr(first.name);
   const declared = demand(demand(node.definition, 'parameters'), slot);
   const role = demand(declared, 'role');
@@ -106,22 +106,6 @@ function tensorOf(
   if (unit !== null) put(entry, 'sparsity', unit);
   if (instance.location !== undefined) put(entry, 'location', locatedValue(instance.location));
   return entry;
-}
-
-/**
- * `resolved[key]` for an identity instance's first member: the site every fact is read from.
- *
- * `members` holds only the members whose site the *analysis* resolved, and the expansion then
- * drops every template instance from `resolved`, so the one key that can miss here is a slot bound
- * on a template instance — which V7 refuses long before a derivation, a template primitive
- * declaring no parameter of its own. The tools raise `KeyError` on the site's tuple; the port
- * names the identifier, which is the same site said the way §5.2 rule 2 says it.
- */
-function nodeOf(graph: ExpandedGraph, instance: ExpandedTensorInstance): ExpandedNode {
-  const first = instance.members[0] as ExpandedMember;
-  const node = graph.resolved.get(expandedKeyOf(first.site));
-  if (node === undefined) throw new PyKeyError(pyRepr(identOf(first.site)));
-  return node;
 }
 
 /** `n * BYTES[dtype]`, in Python's arithmetic: a whole width keeps an integer, `0.5` makes a float. */
@@ -181,19 +165,7 @@ function totalsOf(tensors: readonly PyRecord[]): PyRecord {
   return totals;
 }
 
-/**
- * `sum(t[name] or 0 for t in tensors)`: Python's own sum, started at the integer `0`.
- *
- * `or 0` reads the figure's truth, so a `null` **and** a zero both contribute the *integer* zero —
- * a float zero does not make the total a float. Adding one float does, from that term on, which is
- * why the sum is taken term by term in the tools' order rather than by any faster reading.
- */
+/** `sum(t[name] or 0 for t in tensors)`: {@link pySum} over {@link orZero} of each figure. */
 function summed(tensors: readonly PyRecord[], name: string): bigint | number {
-  let total: bigint | number = 0n;
-  for (const entry of tensors) {
-    const value = entry[name] as Figure | undefined;
-    const term = value === undefined || value === null || !truthy(value) ? 0n : value;
-    total = pyAdd(total, term) as bigint | number;
-  }
-  return total;
+  return pySum(tensors.map((entry) => orZero(entry[name] as Figure | undefined)));
 }

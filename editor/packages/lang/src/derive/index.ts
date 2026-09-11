@@ -14,14 +14,16 @@
  * they all write.
  *
  * Features 1.8a–1.8e fill it in one product at a time. What is here today: the expansion, the
- * figures, the agreement, and D3.
+ * figures, the agreement, D3 and D4.
  */
 export {
   BYTES,
   defaultDtype,
   elementsOf,
   numberOf,
+  orZero,
   productShape,
+  pySum,
   selectedDtype,
   sensitivityOf,
   sound,
@@ -34,6 +36,7 @@ export {
   expandedPortKeyOf,
   identOf,
   locatedValue,
+  nodeAt,
   prefixedLocation,
   type ExpandedComposition,
   type ExpandedEdge,
@@ -54,3 +57,4 @@ export {
   type DerivationOptions,
 } from './products.js';
 export { d3 } from './d3.js';
+export { d4 } from './d4.js';

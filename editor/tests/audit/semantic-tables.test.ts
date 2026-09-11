@@ -4,7 +4,16 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { COMPARISONS, OPERATORS, toPython, type PyValue } from '../../packages/lang/src/expr/index.js';
-import { BYTES, widthOf } from '../../packages/lang/src/derive/index.js';
+import {
+  BYTES,
+  d4,
+  expandedKeyOf,
+  widthOf,
+  type ExpandedGraph,
+  type ExpandedSite,
+} from '../../packages/lang/src/derive/index.js';
+import { rootSite } from '../../packages/lang/src/validate/index.js';
+import type { PyRecord } from '../../packages/lang/src/expr/index.js';
 import { loadSchemas, type Vocabulary } from '../../packages/lang/src/schema/index.js';
 import { parse } from '../../packages/lang/src/json/index.js';
 import type { Library } from '../../packages/lang/src/library/index.js';
@@ -58,6 +67,16 @@ import { editorRoot } from './tree.js';
 // declares the sixteen dtype names and says nothing about what one costs, so `BYTES` is a table
 // keyed by a vocabulary item and admitted for exactly the reason §1 admits one. Its key set must
 // equal the schema's enumeration, and every width must be a positive finite number.
+//
+// The eighth, ninth and tenth are D4's three state vocabularies of §4.3, in
+// `packages/lang/src/derive/d4.ts`: the **evolution**, which the product reads by name twice — the
+// visit rule of §7 it takes, and which of the three byte totals it feeds — and the **access
+// geometry** and **sharing granularity**, which it reads not at all and carries to the product as
+// the rule declares them. All three are stated here and *asked* of `d4`, value by value, over a
+// one-state expanded graph: a value the grammar gained would have no stated reading and fails the
+// set equality, one whose reading changed fails the behaviour, and a `d4` that began to branch on
+// an access geometry or a sharing granularity fails the requirement that changing one of them
+// changes exactly one member of the entry.
 //
 // The sixth is the *location forms* of §3.4, in `packages/lang/src/validate/bindings/locations.ts`:
 // `evaluate_location` is four `if`s over the form's own key, ending in "unknown location form", so
@@ -474,5 +493,185 @@ describe('the location forms of packages/lang/src/validate/bindings', () => {
     // `unknown`: the set equality catches both directions.
     expect(Object.keys(WRITTEN).sort()).toEqual(declared);
     for (const form of declared) expect(branchOf(form), form).toBe(form);
+  });
+});
+
+describe('the state vocabularies of packages/lang/src/derive/d4', () => {
+  const RULE = `${UNIT}#/$defs/evolution_rule`;
+
+  /** Every value the grammar admits at one member of an evolution rule. */
+  function declared(member: string): string[] {
+    const pointer = `${RULE}/properties/${member}`;
+    const found = vocabulary.enumAt(pointer);
+    expect(found, `${pointer} is not an enumeration of the loaded schemas`).toBeDefined();
+    return (found as { values: readonly unknown[] }).values.map(String).sort();
+  }
+
+  /** A precision role the payload below cites, so that the library answers a dtype and a width. */
+  const PRECISION = toPython(
+    parse('{"admissible": ["bf16"], "default": "bf16", "sensitivity": "quantizable"}'),
+  );
+
+  /** A library holding that one role and nothing else: D4 reads the precision table alone. */
+  const library: Library = {
+    bases: [],
+    byId: new Map(),
+    primitives: new Map(),
+    axes: new Map(),
+    precision: new Map([['audit.state', PRECISION]]),
+    templates: new Map(),
+    problems: [],
+  };
+
+  /** `{prefix: '', key: ('root', 'n')}`: the one node of the graph below. */
+  const SITE: ExpandedSite = { prefix: '', key: rootSite('n') };
+
+  /**
+   * A one-state expanded graph whose rule declares those three values.
+   *
+   * The payload is two elements of a `bf16` role, so `bytes_per_cached_position` is 4 and a
+   * `window`'s span of 2 bounds it at 8: each of the three byte totals is non-zero for exactly the
+   * evolution that feeds it, which is what {@link totalOf} reads back.
+   */
+  function graphWith(evolution: string, access: string, sharing: string): ExpandedGraph {
+    const rule =
+      `{"when": {"boolean": true}, "evolution": "${evolution}", "access": "${access}", ` +
+      `"sharing": "${sharing}", "indexed_by": {"self": true}, "span": {"literal": 2}}`;
+    const definition = toPython(
+      parse(
+        `{"state_ports": {"s": {"present_when": {"boolean": true}, "payload": {"p": {` +
+          `"role": "audit.state", "shape": {"axes": [{"name": "a", "axis": "audit.axis", ` +
+          `"nature": "feature", "extent": {"literal": 2}}]}}}, "key_axes": ["instance.session"], ` +
+          `"operations": {"r": {"effect": "read"}}, "rules": [${rule}]}}}`,
+      ),
+    );
+    return {
+      model: toPython(parse('{"interfaces": {"inputs": {}, "outputs": {}}}')) as PyRecord,
+      quantities: new Map(),
+      resolved: new Map([
+        [
+          expandedKeyOf(SITE),
+          { site: SITE, primitive: 'audit.state', definition, args: {} },
+        ],
+      ]),
+      edges: [],
+      domains: new Map(),
+      own: new Map(),
+      order: [SITE],
+      meta: new Map(),
+      compositions: [],
+      inputsAt: new Map(),
+      outputsAt: new Map(),
+      tensorInstances: [],
+      stateInstances: [
+        {
+          identity: 's',
+          rule: 's',
+          members: [{ site: SITE, name: 's' }],
+          dtype: null,
+          indices: [],
+          writer: { site: SITE.key, name: 's' },
+        },
+      ],
+    };
+  }
+
+  /** The one entry and the totals D4 answers for such a graph. */
+  function inventory(evolution: string, access = 'ring', sharing = 'within_span'): {
+    state: PyRecord;
+    totals: PyRecord;
+  } {
+    const answer = d4(graphWith(evolution, access, sharing), library);
+    const states = answer['states'] as readonly PyRecord[];
+    expect(states, evolution).toHaveLength(1);
+    return { state: states[0] as PyRecord, totals: answer['totals'] as PyRecord };
+  }
+
+  describe('the evolution table', () => {
+    // What D4 does with an evolution, name by name: §7's visit rule — "an `append` or `window`
+    // state indexed by its own stream is written once per new element … a `fixed` state is read
+    // and written once per element" — and the total of the guide's §6 that it feeds.
+    const STATED: Record<string, { visits: string; total: string }> = {
+      append: { visits: 'per new element', total: 'append_bytes_per_cached_position' },
+      window: { visits: 'per new element', total: 'bounded_bytes' },
+      fixed: { visits: 'per element', total: 'fixed_bytes' },
+    };
+
+    /** Which of the three byte totals a state of that evolution fed, or `none`. */
+    function totalOf(evolution: string): string {
+      const { totals } = inventory(evolution);
+      const fed = ['append_bytes_per_cached_position', 'bounded_bytes', 'fixed_bytes'].filter(
+        (name) => Number(totals[name] as bigint | number) !== 0,
+      );
+      expect(fed.length, evolution).toBeLessThan(2);
+      return fed[0] ?? 'none';
+    }
+
+    /** Which visit rule it took: `_visits`' own two wordings for a self-indexed state. */
+    function visitsOf(evolution: string): string {
+      const visits = inventory(evolution).state['visits'] as PyRecord;
+      return visits['write'] === 'once per element' ? 'per element' : 'per new element';
+    }
+
+    it('gives every evolution the grammar declares a visit rule and a total, and names no other', () => {
+      expect(declared('evolution')).toEqual(Object.keys(STATED).sort());
+      for (const evolution of declared('evolution')) {
+        expect(visitsOf(evolution), evolution).toBe(STATED[evolution]?.visits);
+        expect(totalOf(evolution), evolution).toBe(STATED[evolution]?.total);
+      }
+    });
+  });
+
+  describe('the access and sharing tables', () => {
+    // What D4 does with an access geometry (O5.3) and a sharing granularity (§4.3): it carries
+    // the rule's own value to the product and reads neither by name — "as consumed properties
+    // rather than runtime data-structure names". The reading is proved by asking for both halves:
+    // the value arrives at its own member, and *nothing else of the entry moves*. A `d4` that
+    // began to branch on one of them — a visit rule chosen by the access, a total chosen by the
+    // granularity — fails the second half.
+    const ACCESS: Record<string, 'carried'> = {
+      logical_position: 'carried',
+      ring: 'carried',
+      aggregate: 'carried',
+      selected: 'carried',
+    };
+    const SHARING: Record<string, 'carried'> = {
+      by_position: 'carried',
+      by_source: 'carried',
+      within_span: 'carried',
+      at_fork_point: 'carried',
+    };
+
+    /** Every member of an entry but that one, written down: what must not move. */
+    function rest(state: PyRecord, member: string): string {
+      const shown = (value: unknown): string =>
+        JSON.stringify(value, (_name, held: unknown) =>
+          typeof held === 'bigint' ? `${held}n` : held,
+        ) ?? 'undefined';
+      return Object.entries(state)
+        .filter(([name]) => name !== member)
+        .map(([name, value]) => `${name}=${shown(value)}`)
+        .join(' | ');
+    }
+
+    it('carries every access geometry the grammar declares, and reads none of them', () => {
+      expect(declared('access')).toEqual(Object.keys(ACCESS).sort());
+      const reference = inventory('window', 'ring').state;
+      for (const access of declared('access')) {
+        const { state } = inventory('window', access);
+        expect(state['access'], access).toBe(access);
+        expect(rest(state, 'access'), access).toBe(rest(reference, 'access'));
+      }
+    });
+
+    it('carries every sharing granularity the grammar declares, and reads none of them', () => {
+      expect(declared('sharing')).toEqual(Object.keys(SHARING).sort());
+      const reference = inventory('window', 'ring', 'within_span').state;
+      for (const sharing of declared('sharing')) {
+        const { state } = inventory('window', 'ring', sharing);
+        expect(state['sharing'], sharing).toBe(sharing);
+        expect(rest(state, 'sharing'), sharing).toBe(rest(reference, 'sharing'));
+      }
+    });
   });
 });

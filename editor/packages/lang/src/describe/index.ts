@@ -54,7 +54,7 @@ export type {
   StateComponent,
   StateDescription,
 } from './site.js';
-export { describeSite } from './site.js';
+export { describeSite, sortedEffects } from './site.js';
 export { attachCompatibility } from './compatibility.js';
 export {
   checkCandidate,

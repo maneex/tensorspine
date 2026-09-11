@@ -191,6 +191,24 @@ export interface ExpandedGraph {
   readonly stateInstances: readonly ExpandedStateInstance[];
 }
 
+/**
+ * `resolved[key]` for an identity instance's member: the node a product reads its facts from.
+ *
+ * D3 and D4 each read everything an entry says about a slot or a state port from the identity
+ * instance's **first** member — "of the first member; V15 makes the others compatible" — so this
+ * is the one lookup they share. `members` holds only the members whose site the *analysis*
+ * resolved, and the expansion then drops every template instance from `resolved`, so the one key
+ * that can miss here is a slot or a port bound on a template instance — which V7 refuses long
+ * before a derivation, a template primitive declaring no parameter and no state of its own. The
+ * tools raise `KeyError` on the site's tuple; the port names the identifier, which is the same
+ * site said the way §5.2 rule 2 says it.
+ */
+export function nodeAt(graph: ExpandedGraph, member: ExpandedMember): ExpandedNode {
+  const node = graph.resolved.get(expandedKeyOf(member.site));
+  if (node === undefined) throw new PyKeyError(pyRepr(identOf(member.site)));
+  return node;
+}
+
 /** A `(site, port)` pair as one key, keyed as {@link expandedKeyOf} keys a site. */
 export function expandedPortKeyOf(site: ExpandedSite, port: PyValue): string {
   return `${expandedKeyOf(site)}\u0000\u0000${valueToken(port)}`;

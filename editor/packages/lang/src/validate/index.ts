@@ -36,6 +36,7 @@ export {
   analyseGraph,
   analyseGraphText,
   compareSiteKeys,
+  fragmentedStreams,
   generatedSite,
   indexingToken,
   instancePorts,

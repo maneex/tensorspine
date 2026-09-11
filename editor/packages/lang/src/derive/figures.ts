@@ -19,11 +19,11 @@
  * what the derived documents record and what a byte comparison of them decides. `pyMultiply` is
  * the promotion, written down once there rather than by each product.
  */
-import { pyMultiply } from '../expr/arithmetic.js';
+import { pyAdd, pyMultiply } from '../expr/arithmetic.js';
 import { PyKeyError, PyOverflowError, PyValueError } from '../expr/errors.js';
 import type { Quantities } from '../expr/model.js';
 import { primitiveValue } from '../expr/primitive.js';
-import type { PyRecord, PyValue } from '../expr/value.js';
+import { truthy, type PyRecord, type PyValue } from '../expr/value.js';
 import { describeShape, type DescribedShape } from '../describe/shape.js';
 import { demand, listOf } from '../library/access.js';
 import type { Library } from '../library/load.js';
@@ -148,6 +148,25 @@ export function elementsOf(shape: PyValue, args: PyRecord, multiplicity: PyValue
     count = pyMultiply(count, copies) as bigint | number;
   }
   return count;
+}
+
+/**
+ * `v or 0`: Python's truthiness over a derived figure, which is how every total starts a term.
+ *
+ * `sum(t['bytes'] or 0 for t in …)` reads the figure's *truth*, so a blank **and** a zero both
+ * contribute the integer zero — a float zero does not make the total a float. Adding one real
+ * does, from that term on, which is why {@link pySum} takes the terms in the tools' own order
+ * rather than by any faster reading.
+ */
+export function orZero(value: Figure | undefined): bigint | number {
+  return value === undefined || value === null || !truthy(value) ? 0n : value;
+}
+
+/** `sum(terms)`: Python's own sum, started at the integer `0` and taken term by term. */
+export function pySum(terms: Iterable<bigint | number>): bigint | number {
+  let total: bigint | number = 0n;
+  for (const term of terms) total = pyAdd(total, term) as bigint | number;
+  return total;
 }
 
 /**

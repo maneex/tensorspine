@@ -1,125 +1,45 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { expect, it, suite } from 'vitest';
 
 import {
-  basesOf,
   consistent,
   d3,
-  derivationGraph,
   expand,
   identOf,
-  loadLibrary,
-  parse,
   pyStr,
-  serialize,
-  toJsonValue,
-  toPython,
-  type Derivation,
   type ExpandedGraph,
-  type Library,
   type PyRecord,
   type PyValue,
 } from '../../src/index.js';
-import { nodeSource } from '../library/source.js';
-import { repositorySchemas } from '../schema/repository.js';
-import { oracleGenerated, oracleOut, readOracleManifest, repositoryRoot } from './oracle.js';
+import {
+  agrees,
+  at,
+  derivedCorpus,
+  generated,
+  inCI,
+  libraryOf,
+  type Case,
+} from './derived.js';
 
 // Parity of D3 (feature 1.8a): the Derived Parameter Tensor Inventory of §7, as `derive.d3`
 // writes it.
 //
-// The expectation is the repository's own derived document — `out/derive/<name>.derived.json`,
-// what `--derive` wrote for the corpus and for the template under its documented assignment — and
-// the comparison is over its `d3` member, twice: the readings deep-equal, then the two written
-// with the core's serializer and compared as text. The reading decides the structure *and* the
-// integer/float distinction, because `toPython` keeps it (a `bf16` tensor's `bytes` is an integer
-// and a `fp4` tensor's a float, and `1024n` is not `1024`); the text names the line that moved.
+// The fixture — the corpus derived once beside `--derive`'s own documents — and the two
+// comparisons it is held to are `derived.ts`'s, shared by every product's suite.
 //
-// The assignment is read from the derived document itself, which records it (§7), so the whole
-// expectation is one file and the external quantities keep their lexemes: `3072` a whole number,
-// `1e-05` a real.
-//
-// Beside it, the **expansion** D3 and every later product are written over. `_expand` rebuilds the
-// validator's graph with every template instance expanded in place (§5.1), and four of its answers
-// are D1's own, node for node: the identifiers of `resolved`, the rewired `edges`, and the public
-// interfaces resolved to instance ports. D1 is already compared byte for byte against `--d1`
-// (feature 1.7), so requiring the expansion to agree with it holds the parts of `_expand` that D3
-// does not read to a fixture that is the tools' own output. Its `order` is *not* D1's — the
-// validator's Kahn and the emitter's differ in their successors' order (feature 1.7), and
-// `gemma3n-kvshare` is where that shows — so it is held to what it is: a permutation of the nodes
-// in which every edge points forward.
+// Beside D3 itself, the **expansion** it and every later product are written over. `_expand`
+// rebuilds the validator's graph with every template instance expanded in place (§5.1), and four
+// of its answers are D1's own, node for node: the identifiers of `resolved`, the rewired `edges`,
+// and the public interfaces resolved to instance ports. D1 is already compared byte for byte
+// against `--d1` (feature 1.7), so requiring the expansion to agree with it holds the parts of
+// `_expand` that D3 does not read to a fixture that is the tools' own output. Its `order` is *not*
+// D1's — the validator's Kahn and the emitter's differ in their successors' order (feature 1.7),
+// and `gemma3n-kvshare` is where that shows — so it is held to what it is: a permutation of the
+// nodes in which every edge points forward.
 //
 // `consistent` is the third thing this suite proves: `derive.products` runs both expansions and
 // requires them to agree node by node, and it is run here on every corpus document.
 
-const inCI = process.env['CI'] !== undefined && process.env['CI'] !== '';
-const generated = oracleGenerated();
-
-const schemas = repositorySchemas();
-const source = nodeSource(repositoryRoot);
-const libraries = new Map<string, Library>();
-
-function libraryFor(bases: readonly string[]): Library {
-  const key = bases.join('|');
-  const held = libraries.get(key);
-  if (held !== undefined) return held;
-  const library = loadLibrary(bases, { schemas, source });
-  libraries.set(key, library);
-  return library;
-}
-
-/** The bases a corpus document declares, as `load_for` resolves them. */
-function declaredBases(path: string, document: PyValue): string[] {
-  return [...basesOf(path, document).bases];
-}
-
-/** A member of a record read from a document, or a failure naming it. */
-function at(value: PyValue, name: string): PyValue {
-  const held = (value as PyRecord)[name];
-  expect(held, `the recorded document has no '${name}'`).toBeDefined();
-  return held as PyValue;
-}
-
-/** One corpus document, derived by the core, beside the document the tools derived. */
-interface Case {
-  name: string;
-  path: string;
-  /** `--derive`'s own output, read as a document is read: `1e-05` a float, `4096` a whole number. */
-  expected: PyValue;
-  derivation: Derivation;
-}
-
-const cases: Case[] = [];
-
-function corpus(): readonly Case[] {
-  if (cases.length > 0) return cases;
-  for (const one of readOracleManifest().documents) {
-    const expected = toPython(parse(readFileSync(join(oracleOut, one.derived), 'utf8')));
-    const assignment = at(expected, 'assignment') as PyRecord;
-    const text = readFileSync(join(repositoryRoot, one.path), 'utf8');
-    const tree = parse(text);
-    const library = libraryFor(declaredBases(one.path, toPython(tree)));
-    cases.push({
-      name: one.name,
-      path: one.path,
-      expected,
-      derivation: derivationGraph(tree, { schemas, library, assignment }),
-    });
-  }
-  return cases;
-}
-
-/** The library the document was derived under, by name. */
-function libraryOf(one: Case): Library {
-  return libraryFor(declaredBases(one.path, one.derivation.document));
-}
-
-/** The two comparisons, in the order that makes a failure readable. */
-function agrees(answer: PyValue, expected: PyValue, where: string): void {
-  expect(answer, where).toEqual(expected);
-  expect(serialize(toJsonValue(answer)), where).toBe(serialize(toJsonValue(expected)));
-}
+const corpus = derivedCorpus;
 
 /** D1, as the derived document carries it. */
 function d1Of(one: Case): PyValue {
