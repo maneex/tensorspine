@@ -176,6 +176,12 @@ importers:
 
   packages/ui:
     dependencies:
+      '@tensorspine/lang':
+        specifier: workspace:*
+        version: link:../lang
+      '@tensorspine/store':
+        specifier: workspace:*
+        version: link:../store
       elkjs:
         specifier: ^0.12.0
         version: 0.12.0

@@ -114,7 +114,11 @@ const CHECKS: readonly Check[] = [
   {
     check: 'Presentation audit at startup',
     proves: 'every binding resolves; unbound constructs listed',
-    owner: '2.2 — presentation bindings and the audits',
+    runs: [
+      'tests/audit/presentation.test.ts',
+      'packages/ui/test/presentation/audit.test.ts',
+      'packages/ui/test/snapshots/presentation.test.ts',
+    ],
   },
   {
     check: 'Corpus open test',
@@ -170,16 +174,17 @@ describe('the checks of the plan’s §6', () => {
     }
   });
 
-  it('runs five of them today; the other seven name the feature that will', () => {
+  it('runs six of them today; the other six name the feature that will', () => {
     const run = CHECKS.filter((row) => row.runs !== undefined).map((row) => row.check);
     expect(run).toEqual([
       'Parity job',
       'Semantic-table audit (§1 d)',
       'No-hard-coding audit (§1 b)',
+      'Presentation audit at startup',
       'Corpus and library round-trip',
       'Timings',
     ]);
-    expect(CHECKS.filter((row) => row.owner !== undefined)).toHaveLength(7);
+    expect(CHECKS.filter((row) => row.owner !== undefined)).toHaveLength(6);
   });
 });
 

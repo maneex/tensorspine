@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@tensorspine/lang": "workspace:*",
+    "@tensorspine/store": "workspace:*",
     "elkjs": "^0.12.0"
   }
 }

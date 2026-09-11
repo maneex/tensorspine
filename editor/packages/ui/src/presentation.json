@@ -1,0 +1,411 @@
+{
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/instance_definition": {
+    "role": "node",
+    "face": [
+      "primitive",
+      "families",
+      "when"
+    ],
+    "structuralSummary": true
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/composition_definition": {
+    "role": "group"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/value_binding": {
+    "role": "edge",
+    "label": "$key"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/public_input": {
+    "role": "terminal",
+    "side": "left"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/public_output": {
+    "role": "terminal",
+    "side": "right"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/physical_name": {
+    "widget": "token-list"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_expression": {
+    "widget": "expression",
+    "references": [
+      "quantity",
+      "index"
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/condition": {
+    "widget": "condition",
+    "symbols": {
+      "all": {
+        "text": "and",
+        "form": "infix"
+      },
+      "any": {
+        "text": "or",
+        "form": "infix"
+      },
+      "not": {
+        "text": "not",
+        "form": "prefix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/unary_operation_expression/properties/op": {
+    "symbols": {
+      "negate": {
+        "text": "-",
+        "form": "prefix"
+      },
+      "absolute": {
+        "text": "abs",
+        "form": "function"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/binary_operation_expression/properties/op": {
+    "symbols": {
+      "subtract": {
+        "text": "-",
+        "form": "infix"
+      },
+      "divide": {
+        "text": "/",
+        "form": "infix"
+      },
+      "ceil_divide": {
+        "text": "cdiv",
+        "form": "infix"
+      },
+      "floor_divide": {
+        "text": "div",
+        "form": "infix"
+      },
+      "modulo": {
+        "text": "mod",
+        "form": "infix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/nary_operation_expression/properties/op": {
+    "symbols": {
+      "add": {
+        "text": "+",
+        "form": "infix"
+      },
+      "multiply": {
+        "text": "*",
+        "form": "infix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/comparison_condition/properties/compare/properties/operator": {
+    "symbols": {
+      "equal": {
+        "text": "=",
+        "form": "infix"
+      },
+      "not_equal": {
+        "text": "!=",
+        "form": "infix"
+      },
+      "less": {
+        "text": "<",
+        "form": "infix"
+      },
+      "less_or_equal": {
+        "text": "<=",
+        "form": "infix"
+      },
+      "greater": {
+        "text": ">",
+        "form": "infix"
+      },
+      "greater_or_equal": {
+        "text": ">=",
+        "form": "infix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/expression": {
+    "widget": "expression",
+    "references": [
+      "argument"
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/condition": {
+    "widget": "condition",
+    "symbols": {
+      "all": {
+        "text": "and",
+        "form": "infix"
+      },
+      "any": {
+        "text": "or",
+        "form": "infix"
+      },
+      "not": {
+        "text": "not",
+        "form": "prefix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/unary_operation/properties/op": {
+    "symbols": {
+      "negate": {
+        "text": "-",
+        "form": "prefix"
+      },
+      "absolute": {
+        "text": "abs",
+        "form": "function"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/binary_operation/properties/op": {
+    "symbols": {
+      "subtract": {
+        "text": "-",
+        "form": "infix"
+      },
+      "divide": {
+        "text": "/",
+        "form": "infix"
+      },
+      "ceil_divide": {
+        "text": "cdiv",
+        "form": "infix"
+      },
+      "floor_divide": {
+        "text": "div",
+        "form": "infix"
+      },
+      "modulo": {
+        "text": "mod",
+        "form": "infix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/nary_operation/properties/op": {
+    "symbols": {
+      "add": {
+        "text": "+",
+        "form": "infix"
+      },
+      "multiply": {
+        "text": "*",
+        "form": "infix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/comparison_condition/properties/compare/properties/operator": {
+    "symbols": {
+      "equal": {
+        "text": "=",
+        "form": "infix"
+      },
+      "not_equal": {
+        "text": "!=",
+        "form": "infix"
+      },
+      "less": {
+        "text": "<",
+        "form": "infix"
+      },
+      "less_or_equal": {
+        "text": "<=",
+        "form": "infix"
+      },
+      "greater": {
+        "text": ">",
+        "form": "infix"
+      },
+      "greater_or_equal": {
+        "text": ">=",
+        "form": "infix"
+      }
+    }
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/shape": {
+    "widget": "axis-rows"
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/shape_axis/properties/axis": {
+    "picker": "axes",
+    "create": "New axis…"
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/port/properties/role": {
+    "picker": "precision-roles"
+  },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/state_port/properties/rules": {
+    "widget": "ordered-list"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/bytes_by_input/additionalProperties": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/graph_split_payload_entry/properties/bytes_per_element": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/values/items/properties/bytes_per_element": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/graph_splits/items/properties/bytes_per_element": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/peak_live/properties/bytes_per_element": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d3/properties/tensors/items/properties/bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d3/properties/totals/properties/bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/payload/items/properties/bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/bytes_per_cached_position": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/bytes_bounded": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/append_bytes_per_cached_position": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/bounded_bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/fixed_bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/parameters/properties/bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/state/properties/append_bytes_per_cached_position": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/state/properties/bounded_bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/state/properties/fixed_bytes": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/graph_splits/items/properties/bytes_per_element": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d6/properties/graph_splits/items/properties/separated_states/items/properties/bytes_per_cached_position": {
+    "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/values/items/properties/elements": {
+    "format": "elements"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d3/properties/tensors/items/properties/elements": {
+    "format": "elements"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d3/properties/totals/properties/elements": {
+    "format": "elements"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/payload/items/properties/elements": {
+    "format": "elements"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/parameters/properties/elements": {
+    "format": "elements"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/count": {
+    "format": "count"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/shape": {
+    "format": "shape"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/epistemic_status": {
+    "format": "status"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/properties/quantities": {
+    "declares": "quantity",
+    "refers": [
+      {
+        "tag": "quantity",
+        "kind": "tagged"
+      }
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/properties/constants": {
+    "declares": "constant",
+    "refers": [
+      {
+        "tag": "constant",
+        "kind": "tagged"
+      }
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/properties/instances": {
+    "declares": "instance",
+    "refers": [
+      {
+        "tag": "instance",
+        "kind": "tagged",
+        "without": [
+          "composition"
+        ]
+      }
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/properties/compositions": {
+    "declares": "composition",
+    "refers": [
+      {
+        "tag": "composition",
+        "kind": "tagged"
+      }
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/composition_definition/properties/instances": {
+    "declares": "site",
+    "scope": "https://tensorspine.dev/schema/2.0/model.json#/properties/compositions",
+    "refers": [
+      {
+        "tag": "site",
+        "kind": "tagged",
+        "under": "scope"
+      },
+      {
+        "tag": "instance",
+        "kind": "tagged",
+        "scopedBy": "composition"
+      }
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/composition_definition/properties/indices": {
+    "declares": "index",
+    "scope": "https://tensorspine.dev/schema/2.0/model.json#/properties/compositions",
+    "refers": [
+      {
+        "tag": "index",
+        "kind": "tagged",
+        "under": "scope"
+      },
+      {
+        "tag": "indices",
+        "kind": "key",
+        "under": "scope"
+      },
+      {
+        "tag": "indices",
+        "kind": "key",
+        "scopedBy": "composition"
+      }
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/interfaces/properties/inputs": {
+    "declares": "input",
+    "refers": [
+      {
+        "tag": "stream",
+        "kind": "tagged"
+      }
+    ]
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/interfaces/properties/outputs": {
+    "declares": "output",
+    "refers": []
+  }
+}

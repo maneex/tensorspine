@@ -10,7 +10,8 @@ Two rules shape everything here.
 * **The schemas are the source of truth.** An item of information that can be inferred from
   `schemas/` is never hard-coded in the interface: every form is generated from a schema, every
   enumeration is read from one, and what a schema cannot say (that an instance is drawn as a
-  node, that bytes are shown in MiB) lives in one presentation file bound to schema anchors.
+  node, that bytes are shown in MiB) lives in one presentation file bound to schema anchors —
+  `packages/ui/src/presentation.json`, resolved against the loaded schemas at startup.
 * **One implementation of every rule, in `packages/lang`.** The language core is a TypeScript
   port of `tools/`, held to parity with it by the oracle below. The interface asks the core and
   displays the answer; it implements no rule of the specification.
@@ -25,7 +26,8 @@ editor/
 ├── packages/store    the document store: the ordered tree, commands and undo, the sidecars
 ├── packages/ui       React: shell, activities, canvas, generated forms, sheets, panels
 ├── apps/web          the static application built by Vite
-├── schemas/          the editor's own schemas — the layout sidecar — with their companion notes
+├── schemas/          the editor's own schemas — the layout sidecar, the presentation
+│                     bindings — with their companion notes
 └── tests/            the audits (tests/audit) and the parity oracle (tests/oracle)
 ```
 

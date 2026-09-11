@@ -10,6 +10,15 @@ exports[`@tensorspine/ui > exports the layout surface the snapshot records 1`] =
 
 exports[`@tensorspine/ui > exports the surface the snapshot records 1`] = `
 [
+  "PresentationError",
+  "SCOPE",
+  "auditPresentation",
+  "genericLines",
   "packageName",
+  "presentation",
+  "presentationLines",
+  "readPresentation",
+  "referenceSelectors",
+  "startPresentation",
 ]
 `;

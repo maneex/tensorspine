@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tensorspine.dev/schema/editor/presentation.json",
+  "title": "TensorSpine Editor Presentation Bindings 1",
+  "description": "What the language's schemas cannot say about the places they describe: that an `instance_definition` is drawn as a node, a `value_binding` as an edge, that `bytes` is shown in MiB, that `add` prints as `+`, that a `shape` gets the axis-row editor, and what a name written in a document refers to. It is the editor's own file, `packages/ui/src/presentation.json`, and the one data file the interface carries (the editor plan's §1); every key is a JSON pointer into a schema, resolved at startup.",
+  "type": "object",
+  "propertyNames": { "$ref": "#/$defs/anchor" },
+  "additionalProperties": { "$ref": "#/$defs/binding" },
+  "$defs": {
+    "anchor": {
+      "type": "string",
+      "pattern": "^[^#]+#(/([^/]*))*$",
+      "description": "`<$id>#<JSON pointer>`: the identity the registry indexes a schema under, `#`, and an RFC 6901 pointer into that schema's document. `…/model.json#` is the whole schema and `…/model.json#/$defs/instance_definition` one of its definitions. The same anchor the store computes for a place of a document (`Place.anchor`), so a binding and an occurrence are keyed by one scheme."
+    },
+    "binding": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "description": "What is bound to the place the key names. A binding says nothing the schema already says: a select's options are the schema's `enum`, a union's tags are the `required` keys of its members, and help text is the schema's `description`.",
+      "properties": {
+        "role": {
+          "enum": ["node", "group", "edge", "terminal"],
+          "description": "How the construct is drawn on the canvas: a node card, a composition box, a value edge, an interface terminal."
+        },
+        "side": {
+          "enum": ["left", "right"],
+          "description": "Which side of the canvas a terminal sits on: inputs enter on the left, outputs leave on the right."
+        },
+        "face": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" },
+          "description": "The members shown on the node's face, in the order they are shown. Each one is a member the definition at this anchor declares; the audit checks it."
+        },
+        "structuralSummary": {
+          "type": "boolean",
+          "description": "Whether the face carries the summary of the instance's structural arguments. Which arguments those are is the core's answer (`describe`), never a list here."
+        },
+        "label": {
+          "const": "$key",
+          "description": "What labels the construct. `$key` is the name of the map member it is written under — a value binding's rule name, which is how `--view` labels an edge."
+        },
+        "widget": {
+          "enum": ["token-list", "expression", "condition", "axis-rows", "ordered-list"],
+          "description": "The editor bound to this construct where the generic walker has no reading of its own: the physical-name token editor, the expression and condition trees, the axis-row shape editor, the ordered rule list. A construct with no widget renders generically, which is the plan's own answer for one nobody has bound yet."
+        },
+        "references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" },
+          "description": "What a picker inside that editor offers, by the member each referent is named under: quantities and indices on the model side, argument paths on the unit side."
+        },
+        "picker": {
+          "enum": ["axes", "precision-roles"],
+          "description": "The list a select at this place is filled from when it is not an enumeration: the axes and the precision roles the gathered library declares, which the core answers."
+        },
+        "create": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The label of the action offered beside that picker when what is wanted does not exist yet."
+        },
+        "symbols": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/symbol" },
+          "description": "A symbol per value of the enumeration at this anchor, or per tag of the union at it. An operator with no symbol prints and parses as `name(args)` and is listed by the startup audit as rendered generically, which is why `min` and `max` have none."
+        },
+        "format": {
+          "enum": ["bytes", "elements", "count", "status", "shape"],
+          "description": "How a figure at this place is shown: a size in B/KiB/MiB/GiB with the exact number in the tooltip, a count of elements, a per-stream count, an epistemic status as a chip, a shape as its axes and extents. No component converts or rounds a figure of its own; the derived document's number is the fact and this is its rendering."
+        },
+        "declares": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The kind of thing the map at this anchor declares — a quantity, an instance, a composition, a site, an index, a public input. The name a command and the log use for it."
+        },
+        "scope": {
+          "$ref": "#/$defs/anchor",
+          "description": "The anchor of the declaration this one lives inside, when its references are read against it. A site and an index are declared inside a composition, so both name the anchor of the compositions map."
+        },
+        "refers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reference_rule" },
+          "description": "Where a name declared here is referred to. The empty list is a statement: nothing in a document names a public output, so renaming one rewrites nothing."
+        }
+      }
+    },
+    "symbol": {
+      "type": "object",
+      "required": ["text", "form"],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What is printed: `+`, `div`, `abs`, `and`."
+        },
+        "form": {
+          "enum": ["infix", "prefix", "function"],
+          "description": "Where it is printed: between its arguments, before its argument, or as a function name. Not inferable from the arity — `negate` and `absolute` are both unary and print `-a` and `abs(a)`, `add` and `min` both n-ary and print `a + b` and `min(a, b)`."
+        }
+      }
+    },
+    "reference_rule": {
+      "type": "object",
+      "required": ["tag"],
+      "additionalProperties": false,
+      "description": "One way a name declared at this anchor is referred to, as the store's reference index reads occurrences. The schemas say which members hold a name; no keyword says what the name refers to, and this is where that is written down.",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The member the name is written under: the tag of a tagged value (`quantity`, `site`, `instance`), or the member the map is for a key (`indices`)."
+        },
+        "kind": {
+          "enum": ["key", "tagged"],
+          "description": "`key` for a name written as a map's own member name, `tagged` for one written as the value of a member. Absent, both."
+        },
+        "under": {
+          "const": "scope",
+          "description": "Restricts the rule to the occurrences at or below the enclosing declaration's place — how a composition's own scope is stated. The binding must name a `scope`."
+        },
+        "scopedBy": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The member that must carry the enclosing declaration's name beside the occurrence: `{\"kind\": \"generated\", \"composition\": \"decoder\", \"instance\": \"attn_n\"}` names a site of `decoder` from outside it. The binding must name a `scope`."
+        },
+        "without": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "The members that must be *absent* beside the occurrence. A root instance is named by an `instance` written with no `composition` beside it, which is how a root selector is told from a generated one without naming either."
+        }
+      }
+    }
+  }
+}

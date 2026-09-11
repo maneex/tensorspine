@@ -28,6 +28,17 @@ export {
   type SchemaError,
 } from './errors.js';
 export { pythonPattern, pythonRegExp } from './pattern.js';
+export {
+  anchorOf,
+  followAnchor,
+  nodeAtPointer,
+  parseAnchor,
+  pointerSegment,
+  pointerSteps,
+  resolveAnchor,
+  type Anchor,
+  type Resolution,
+} from './pointer.js';
 export { comparePythonStrings, pythonRepr, pythonReprString } from './repr.js';
 export {
   comparePaths,

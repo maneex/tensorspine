@@ -25,6 +25,7 @@
  * A pointer is the anchor `presentation.json` is keyed by: the schema's `$id`, `#`, and the JSON
  * pointer of the node, as `…/model.json#/$defs/instance_definition`.
  */
+import { nodeAtPointer, pointerSegment } from './pointer.js';
 import type { LoadedSchema } from './registry.js';
 import { isSchemaObject, type SchemaNode, type SchemaObject } from './types.js';
 
@@ -109,11 +110,6 @@ const SINGLE = [
 const MAPS = ['$defs', 'definitions', 'dependentSchemas', 'patternProperties', 'properties'] as const;
 const LISTS = ['allOf', 'anyOf', 'oneOf', 'prefixItems'] as const;
 
-/** A JSON pointer segment, escaped as RFC 6901 escapes it. */
-function segment(name: string): string {
-  return name.replace(/~/g, '~0').replace(/\//g, '~1');
-}
-
 /** The string of a `title` or `description` keyword, or `null`. */
 function text(node: SchemaObject, keyword: string): string | null {
   const value = node[keyword];
@@ -157,26 +153,13 @@ function follow(
     const inside = hash < 0 ? '#' : ref.slice(hash);
     const target = byId.get(uri === '' ? base : uri);
     if (target === undefined) return null;
-    const found = at(target.document, inside);
+    const found = nodeAtPointer(target.document, inside);
     if (found === null) return null;
     base = target.id;
     pointer = `${target.id}${inside}`;
     current = found;
   }
   return pointer === null ? null : { node: current, pointer };
-}
-
-/** The node a `#/…` pointer names inside a schema document, or `null`. */
-function at(document: SchemaObject, pointer: string): SchemaNode | null {
-  if (pointer === '#' || pointer === '') return document;
-  let node: unknown = document;
-  for (const step of pointer.slice(2).split('/')) {
-    const name = step.replace(/~1/g, '/').replace(/~0/g, '~');
-    if (node === null || typeof node !== 'object') return null;
-    node = Array.isArray(node) ? node[Number(name)] : (node as Record<string, unknown>)[name];
-    if (node === undefined) return null;
-  }
-  return node as SchemaNode;
 }
 
 /** The alternatives of one `oneOf`, with the tags that tell them apart. */
@@ -282,7 +265,7 @@ export function vocabularyOf(schemas: readonly LoadedSchema[]): Vocabulary {
       const children = node[keyword];
       if (children === null || typeof children !== 'object' || Array.isArray(children)) continue;
       for (const [name, child] of Object.entries(children)) {
-        visit(child as SchemaNode, schema, `${place}/${keyword}/${segment(name)}`);
+        visit(child as SchemaNode, schema, `${place}/${keyword}/${pointerSegment(name)}`);
       }
     }
     for (const keyword of LISTS) {

@@ -61,8 +61,15 @@ import { editorRoot, readEditorFile } from './tree.js';
 // reads *scripts*, and the rule that keeps it honest is the stronger one §1 states directly —
 // **the interface carries one data file, and it is that one**. So a binding table written as a
 // TypeScript module is reported like any other literal, and a second data file fails whether it
-// carries vocabulary or not. Feature 2.2 writes `presentation.json`; until then the interface has
-// no data file at all, which is what the test states today.
+// carries vocabulary or not.
+//
+// Feature 2.2 wrote that file, so the exemption is live and the tests below state both halves of
+// it: the interface carries exactly one data file and it is that path, and the file **is** where
+// the vocabulary went — `tests/audit/presentation.test.ts` requires it to carry operator names
+// and resolves every one of its keys against the schemas. An exemption with nothing behind it
+// would mean the symbols had gone somewhere else, which is what (b) is for. (Feature 1.3's
+// lesson, from the no-Python audit: an exemption ships with a test that names what uses it, or it
+// goes stale.)
 
 const repositoryRoot = resolve(editorRoot, '..');
 
@@ -303,10 +310,18 @@ describe('the interface names no vocabulary of the schemas', () => {
     expect(offences.map((one) => `${one.path}:${String(one.line)}: ${one.value}`)).toEqual([]);
   });
 
-  it('carries one data file at most, and it is `presentation.json`', () => {
+  it('carries one data file, and it is `presentation.json`', () => {
     const data = sources.filter((path) => path.endsWith('.json'));
-    for (const path of data) expect(path, path).toBe(PRESENTATION);
-    expect(data.length).toBeLessThanOrEqual(1);
+    expect(data).toEqual([PRESENTATION]);
+  });
+
+  it('leaves that file to the presentation audit, which resolves every key of it', () => {
+    // The scan reads scripts, so the data file is out of its reach by construction — and that is
+    // exactly why something else has to answer for it. `tests/audit/presentation.test.ts` is
+    // that something: every key a place of the loaded schemas, every byte figure bound, every
+    // name-keyed map of the grammar accounted for.
+    expect(scripts).not.toContain(PRESENTATION);
+    expect(existsSync(join(editorRoot, 'tests/audit/presentation.test.ts'))).toBe(true);
   });
 });
 
