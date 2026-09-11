@@ -148,7 +148,9 @@ const CHECKS: readonly Check[] = [
   {
     check: 'Platform leak build',
     proves: 'the app builds against the stub `Platform`; the round-trip runs in headless Chromium',
-    owner: '2.4 — `Platform`: browser workspace, settings, drafts, stub',
+    // Feature 2.4 built both halves: the stub the application is compiled against, and the
+    // round-trip through `BrowserWorkspace` in headless Chromium.
+    runs: ['tests/audit/platform-leak.test.ts', 'apps/web/e2e/platform.spec.ts'],
   },
   {
     check: 'Timings',
@@ -183,9 +185,10 @@ describe('the checks of the plan’s §6', () => {
       'No-hard-coding audit (§1 b)',
       'Presentation audit at startup',
       'Corpus and library round-trip',
+      'Platform leak build',
       'Timings',
     ]);
-    expect(CHECKS.filter((row) => row.owner !== undefined)).toHaveLength(5);
+    expect(CHECKS.filter((row) => row.owner !== undefined)).toHaveLength(4);
   });
 });
 
