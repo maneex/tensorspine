@@ -420,7 +420,8 @@ test('the application builds against the stub platform, and that page carries no
   await expect(root).toHaveAttribute('data-state', 'ready');
   await expect(root).toHaveAttribute('data-platform', 'stub');
   await expect(root).toHaveAttribute('data-workspace', 'memory');
-  await expect(root).toContainText('@tensorspine/lang');
+  // The shell of feature 2.5 is what the renderer draws; the stub is what it draws it over.
+  await expect(page.locator('.app footer.status [data-workspace]')).toHaveText('memory');
 
   const html = readFileSync(join(dist, 'stub.html'), 'utf8');
   const chunks = [...html.matchAll(/(?:src|href)="\/(assets\/[^"]+\.js)"/g)].map((match) => match[1] ?? '');

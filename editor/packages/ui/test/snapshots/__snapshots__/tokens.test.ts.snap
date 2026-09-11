@@ -1,0 +1,39 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the token file > is the palette the snapshot records, in both themes 1`] = `
+"--bg             #101317      #eef2f5
+--bg-chrome      #0b0d10      #ffffff
+--bg-panel       #14181d      #f8fafb
+--bg-raised      #1b2026      #ffffff
+--bg-tint        #222932      #e2e9ef
+--bg-sunk        #0d1014      #e6ebf0
+--ink            #e3e8ef      #12181e
+--ink-2          #c3cad4      #333d47
+--ink-3          #9aa3b0      #4e5a66
+--muted          #78828f      #6b7783
+--faint          #58616d      #97a2ad
+--rule           #1f242b      #dbe2e8
+--rule-2         #2b323b      #cbd4dc
+--rule-strong    #3a424d      #9dabb7
+--chip           #333b45      #c2ccd5
+--accent         #2ac3c1      #0d7a78
+--accent-dim     #1c7d7c      #0a5f5d
+--struct         #4d9fd4      #15577f
+--struct-bd      #2c4f6b      #9dbdd2
+--struct-bg      #141c24      #e7eef4
+--derived        #d9a441      #8a5e1e
+--derived-bg     #2a2213      #f2ebdd
+--good           #2ac3c1      #0d7a78
+--bad            #e0645c      #b23b32
+--bad-bg         #2c1917      #f7e7e5
+--warn           #d9a441      #8a5e1e
+--edge           #4c5765      #93a0ac
+--ghost          #2a323c      #ccd5dd
+--ground-dot     #1e242b      #dde4ea
+--port-bg        #0b0d10      #ffffff
+--logo-a         #4a9ec4      #175e8c
+--logo-b         #2ac3c1      #1fa8a6
+--sans           "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif (same)
+--mono           "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace (same)
+--r              3px          (same)"
+`;

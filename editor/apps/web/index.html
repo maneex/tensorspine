@@ -4,9 +4,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>TensorSpine Editor</title>
+    <!-- The two families the design names (component inventory §1: "IBM Plex Sans for chrome and
+         prose, IBM Plex Mono for every identifier, shape, expression and figure. No serif
+         anywhere"), asked for the way the documentation site asks for them (docs/style/doc.html).
+         Nothing depends on the request: the token file names a fallback stack for each, so a page
+         opened offline is the same page in the browser's own faces. Vendoring the files with the
+         build is a deployment decision and belongs to feature 2.18. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
   </head>
   <body>
-    <main id="root" data-state="loading">Loading…</main>
+    <div id="root" data-state="loading">Loading…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

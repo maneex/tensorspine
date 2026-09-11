@@ -23,3 +23,41 @@ export function noAuth(reason: string): AuthProvider {
     onChange: (): Unsubscribe => () => undefined,
   };
 }
+
+/**
+ * A provider that holds a session in memory — the stub's, where a suite needs one.
+ *
+ * The chrome's rule is "no avatar without a session", which is two claims and not one: nothing
+ * shows where there is no session, and something shows where there is. `NoAuth` can only be asked
+ * the first, so this answers the second. It is not a deployment — there is nothing to sign in to
+ * and `signIn` answers the session it already holds — and it names no platform, so it belongs
+ * beside `noAuth` rather than in one.
+ */
+export function memoryAuth(session: Session | null = null): AuthProvider {
+  let held = session;
+  const listeners = new Set<(session: Session | null) => void>();
+  const announce = (): void => {
+    for (const listener of listeners) listener(held);
+  };
+  return {
+    current: (): Session | null => held,
+    signIn: (): Promise<Session> => {
+      if (held === null) {
+        return Promise.reject(new PlatformError('this provider was given no session', 'unsupported'));
+      }
+      announce();
+      return Promise.resolve(held);
+    },
+    signOut: (): Promise<void> => {
+      held = null;
+      announce();
+      return Promise.resolve();
+    },
+    onChange: (callback): Unsubscribe => {
+      listeners.add(callback);
+      return () => {
+        listeners.delete(callback);
+      };
+    },
+  };
+}

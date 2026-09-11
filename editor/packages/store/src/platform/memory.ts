@@ -23,9 +23,11 @@ import {
   type Draft,
   type DraftStore,
   type Entry,
+  type ColourScheme,
   type MenuCommand,
   type Platform,
   type RecentWorkspace,
+  type Session,
   type SettingValue,
   type SettingsStore,
   type Shell,
@@ -36,7 +38,7 @@ import {
   type WorkspaceRef,
   type Workspaces,
 } from './types.js';
-import { noAuth } from './auth.js';
+import { memoryAuth, noAuth } from './auth.js';
 
 /** A workspace whose files are in memory, written and read back exactly as a folder's are. */
 export class MemoryWorkspace implements Workspace {
@@ -257,10 +259,21 @@ export interface ShellRecord {
   clipboard: string | null;
   /** What {@link Shell.confirm} answers. A stub says no: the destructive branch is never taken. */
   answer: boolean;
+  /**
+   * What {@link Shell.colourScheme} answers, and what a change announces.
+   *
+   * A stub answers `light` until a suite says otherwise — the same thing `prefers-color-scheme`
+   * answers where no preference is expressed — so a run is not a function of the machine.
+   */
+  scheme: ColourScheme;
 }
 
 /** A shell that shows nothing and records everything — the stub's, and a suite's. */
-export function recordingShell(): { shell: Shell; record: ShellRecord } {
+export function recordingShell(): {
+  shell: Shell;
+  record: ShellRecord;
+  prefer: (scheme: ColourScheme) => void;
+} {
   const record: ShellRecord = {
     downloads: [],
     opened: [],
@@ -268,7 +281,9 @@ export function recordingShell(): { shell: Shell; record: ShellRecord } {
     menu: [],
     clipboard: null,
     answer: false,
+    scheme: 'light',
   };
+  const watchers = new Set<(scheme: ColourScheme) => void>();
   const shell: Shell = {
     confirm: (question) => {
       record.asked.push(question);
@@ -290,8 +305,24 @@ export function recordingShell(): { shell: Shell; record: ShellRecord } {
     setMenu: (commands) => {
       record.menu = commands;
     },
+    // `control` and not the machine's: a stub says the same thing on every machine, so an
+    // accelerator a suite asserts is the accelerator every run sees (§4.4's "Ctrl elsewhere").
+    modifier: 'control',
+    colourScheme: () => record.scheme,
+    onColourSchemeChange: (callback) => {
+      watchers.add(callback);
+      return () => watchers.delete(callback);
+    },
   };
-  return { shell, record };
+  return {
+    shell,
+    record,
+    /** Announce a change of the machine's preference — a suite's, and the stub page's. */
+    prefer: (scheme: ColourScheme): void => {
+      record.scheme = scheme;
+      for (const watcher of watchers) watcher(scheme);
+    },
+  };
 }
 
 /** What {@link stubPlatform} is given. */
@@ -301,11 +332,22 @@ export interface StubOptions {
   /** The files the **Examples** workspace holds, if the stub is asked for one. */
   readonly examples?: Readonly<Record<string, string>>;
   readonly settings?: Readonly<Record<string, SettingValue>>;
+  /**
+   * A session the stub's `AuthProvider` holds.
+   *
+   * Absent — the default — the stub is `NoAuth`, which is what every deployment of this plan has
+   * (Q8 defers the SaaS). Given, a suite can ask the other half of "no avatar without a session".
+   */
+  readonly session?: Session;
 }
 
 /** The stub of D11: every interface of §5.2, implemented in memory and naming no platform. */
-export function stubPlatform(options: StubOptions = {}): Platform & { readonly shellRecord: ShellRecord } {
-  const { shell, record } = recordingShell();
+export function stubPlatform(options: StubOptions = {}): Platform & {
+  readonly shellRecord: ShellRecord;
+  /** Announce a change of the machine's colour-scheme preference (§4.21) — a suite's. */
+  readonly preferScheme: (scheme: ColourScheme) => void;
+} {
+  const { shell, record, prefer } = recordingShell();
   const settings = options.settings === undefined ? memorySettings() : memorySettings(options.settings);
   const drafts = memoryDrafts();
   let current: Workspace = options.workspace ?? MemoryWorkspace.of();
@@ -349,11 +391,12 @@ export function stubPlatform(options: StubOptions = {}): Platform & { readonly s
     },
     workspaces,
     checkpoints: [],
-    auth: noAuth('this deployment has no accounts'),
+    auth: options.session === undefined ? noAuth('this deployment has no accounts') : memoryAuth(options.session),
     settings,
     drafts,
     shell,
     shellRecord: record,
+    preferScheme: prefer,
     describe: () => 'stub',
   };
 }

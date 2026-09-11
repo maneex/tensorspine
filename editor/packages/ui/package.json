@@ -6,7 +6,9 @@
   "description": "The interface: shell, activities, canvas, the generic schema walker and its forms, sheets, panels, the primitive editor. No platform import.",
   "exports": {
     ".": "./src/index.ts",
-    "./layout": "./src/layout/elk.ts"
+    "./layout": "./src/layout/elk.ts",
+    "./shell": "./src/shell/index.ts",
+    "./style.css": "./src/shell/shell.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -14,6 +16,8 @@
   "dependencies": {
     "@tensorspine/lang": "workspace:*",
     "@tensorspine/store": "workspace:*",
-    "elkjs": "^0.12.0"
+    "elkjs": "^0.12.0",
+    "react": "18.3.1",
+    "zustand": "5.0.2"
   }
 }

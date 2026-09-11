@@ -350,6 +350,19 @@ export interface MenuCommand {
   readonly enabled: boolean;
 }
 
+/**
+ * Which modifier a platform's conventions use for an accelerator.
+ *
+ * §4.4: "shortcuts are the platform's conventions (⌘ on macOS, Ctrl elsewhere)". Which of the two
+ * this deployment is, is the platform's to say and not the interface's to guess: a browser reads
+ * it off the user agent, Electron knows its own build, and the stub answers the same thing every
+ * time so that a suite is not a function of the machine it runs on.
+ */
+export type AcceleratorModifier = 'command' | 'control';
+
+/** What the machine prefers, as `prefers-color-scheme` has it — the two values it can take. */
+export type ColourScheme = 'light' | 'dark';
+
 /** §5.2's `Shell`: "dialogs, open-external, clipboard, native menu hooks". */
 export interface Shell {
   /** A yes/no the platform asks in its own way. */
@@ -373,6 +386,24 @@ export interface Shell {
    * in-app menu is the interface's own and is not this.
    */
   setMenu(commands: readonly MenuCommand[]): void;
+  /**
+   * Which modifier this platform writes an accelerator with (§4.4).
+   *
+   * Read once, at the moment the menus and the Keyboard Shortcuts screen are drawn: a machine
+   * does not change its keyboard conventions while the page is open.
+   */
+  readonly modifier: AcceleratorModifier;
+  /**
+   * What the machine prefers right now — §4.21's "system preference honoured".
+   *
+   * The editor's own `theme` setting decides whether this is used (`system`) or overridden
+   * (`light`, `dark`); the platform only reports what the machine says. A deployment that cannot
+   * ask answers `light`, which is what `prefers-color-scheme` itself answers where no preference
+   * is expressed.
+   */
+  colourScheme(): ColourScheme;
+  /** Called when the machine's preference changes while the page is open. */
+  onColourSchemeChange(callback: (scheme: ColourScheme) => void): Unsubscribe;
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -75,5 +75,5 @@ export { Vendor, VENDOR, type VendorFile, type VendorManifest } from './examples
 export { Recents, type Permission, type RememberedWorkspace } from './recents.js';
 export { browserDrafts, draftsOver } from './drafts.js';
 export { browserSettings, PREFIX } from './settings.js';
-export { browserShell, type BrowserShell, type LastDownload, type ShellOptions } from './shell.js';
+export { appleConventions, browserShell, modifierOf, type BrowserShell, type LastDownload, type ShellOptions } from './shell.js';
 export { BrowserWorkspaces, hasDirectoryPicker, type BrowserWorkspacesOptions } from './workspaces.js';

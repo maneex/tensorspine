@@ -224,12 +224,16 @@ describe('every parity suite is run, and reads the oracle', () => {
  *
  * Every one is a fact about the machine, never about the code: the oracle has not been generated
  * (a developer before `pnpm oracle`; in CI the parity layer asserts that it has), a checkpoint is
- * not on this disk (`TENSORSPINE_MODEL_ARTIFACTS`, `TENSORSPINE_CHECKPOINT`), the browser engine
- * has no OPFS, or the Hub is not reachable. A skip that is not one of these is a test being
+ * not on this disk (`TENSORSPINE_MODEL_ARTIFACTS`, `TENSORSPINE_CHECKPOINT`), the design's
+ * working directory is not on this disk either (`plans/` is not part of the tree, so feature
+ * 2.5's byte-equality of the token file against `_ts.css` can be asked only beside it — the
+ * snapshot of the same file runs everywhere and is what CI holds), the browser engine has no
+ * OPFS, or the Hub is not reachable. A skip that is not one of these is a test being
  * turned off, which is what the standing rule forbids — and the list being closed is what makes
  * a new way of not running a test a decision somebody takes rather than a line somebody writes.
  */
 const SKIP_CONDITIONS = [
+  '!designPresent',
   '!generated',
   '!oracleGenerated',
   '!oracleGenerated()',

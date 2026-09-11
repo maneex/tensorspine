@@ -30,8 +30,10 @@ export {
 export { PlatformError, type PlatformRefusal } from './errors.js';
 export {
   ABSENT,
+  type AcceleratorModifier,
   type AuthProvider,
   type CheckpointSource,
+  type ColourScheme,
   type Draft,
   type DraftStore,
   type DraftSummary,
@@ -52,7 +54,7 @@ export {
   type WorkspaceRef,
   type Workspaces,
 } from './types.js';
-export { noAuth } from './auth.js';
+export { memoryAuth, noAuth } from './auth.js';
 export { byNewest, draftKey, summaryOf } from './autosave.js';
 export {
   byteLength,

@@ -25,7 +25,10 @@ editor/
 │                     the checkpoint check, lint, describe and check. No DOM.
 ├── packages/store    the document store: the ordered tree, commands and undo, the sidecars,
 │                     and the platform interfaces (@tensorspine/store/platform) with their stub
-├── packages/ui       React: shell, activities, canvas, generated forms, sheets, panels
+├── packages/ui       React: shell, activities, canvas, generated forms, sheets, panels.
+│                     Three entry points: the package root (the walker, the forms and the
+│                     presentation bindings — no React), `/shell` (the chrome) and
+│                     `/layout` (ELK), plus `/style.css`
 ├── apps/web          the static application built by Vite, and the browser's platform:
 │                     the workspace, settings, drafts, the shell
 ├── schemas/          the editor's own schemas — the layout sidecar, the presentation
@@ -53,6 +56,27 @@ CI builds the application against a stub platform so that a leak is a build fail
 Each of them keeps working where the browser refuses to store anything at all — a private window,
 site data blocked — for the session alone, and says so.
 
+## The shell
+
+One window laid out as VS Code lays one out: a bar with seven menus, an activity rail, a side
+bar, the editor's tabs, a bottom panel, the Properties region and a status bar. Every region
+remembers its size; every panel is a tab that can be dragged to the other region; the
+arrangement lives in the settings.
+
+* **Every command is registered once** and is reachable from its menu, from the command palette
+  (Ctrl/⌘ + Shift + P) and, later, from a context menu. A command no feature has wired yet is
+  still there and says so in the Log when it is chosen — hiding it would hide the plan from the
+  person reading the menu. A shortcut is an accelerator and never the only way to reach
+  anything; Help ▸ Keyboard Shortcuts lists all of them.
+* **Two themes, and the machine decides between them by default.** The tokens are the design
+  pass's own (`packages/ui/src/shell/tokens.css`, vendored from `plans/graph-editor-design/`
+  and held to it); `View ▸ Theme: Light / Dark / System` pins one, and the choice is remembered.
+* **The lockup is the repository's.** The monogram of `docs/tensorspine.svg` as
+  `docs/style/nav.html` arranges it, vendored by `pnpm logo` and held equal to its source by an
+  audit: placed and scaled, never redrawn.
+* **Every string the interface shows is in one dictionary**, keyed by the English sentence
+  itself, so a translation is a map and not a rewrite.
+
 ## Install
 
 Node 22 or later and pnpm 12. The repository pins the package manager, so
@@ -69,6 +93,7 @@ pnpm exec playwright install chromium     # once, for the end-to-end layer
 
 ```sh
 pnpm vendor     # the schemas, corpus, reference base and generated artifacts, for the application
+pnpm logo       # re-vendor the wordmark's monogram from docs/style/nav.html (rarely needed)
 pnpm dev        # the application on Vite's dev server
 pnpm build      # the static build, into apps/web/dist (vendors first)
 ```

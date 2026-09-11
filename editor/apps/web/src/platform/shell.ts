@@ -7,7 +7,7 @@
  * every workspace the editor cannot write, which is what two of the three engines get (feature
  * 0.6) and what the Examples workspace always is.
  */
-import type { MenuCommand, Shell } from '@tensorspine/store/platform';
+import type { AcceleratorModifier, ColourScheme, MenuCommand, Shell, Unsubscribe } from '@tensorspine/store/platform';
 
 /**
  * How long an object URL is kept alive after it is handed over.
@@ -30,6 +30,35 @@ export interface BrowserShell extends Shell {
   readonly lastDownload: LastDownload | null;
   /** The commands a native menu was offered; a browser has none, so nothing was done with them. */
   readonly menu: readonly MenuCommand[];
+}
+
+/**
+ * Which modifier this machine writes an accelerator with — §4.4's "⌘ on macOS, Ctrl elsewhere".
+ *
+ * `userAgentData.platform` where the engine has it (Chromium), the deprecated `navigator.platform`
+ * elsewhere; both answer a string naming the operating system, and both are the only thing a page
+ * is told about the machine's keyboard. `iPhone` and `iPad` join `Mac` because the conventions are
+ * the same and a page served to one is served the same menus.
+ */
+export function modifierOf(): AcceleratorModifier {
+  return appleConventions() ? 'command' : 'control';
+}
+
+/** Whether this machine writes accelerators the way Apple's conventions do. */
+export function appleConventions(): boolean {
+  const agent = navigator as Navigator & { userAgentData?: { platform?: string } };
+  const named = agent.userAgentData?.platform ?? navigator.platform;
+  return /mac|iphone|ipad|ipod/i.test(named);
+}
+
+/**
+ * The machine's colour-scheme preference, where the engine can be asked.
+ *
+ * `prefers-color-scheme` has two values and answers `light` where no preference is expressed, so
+ * that is what a missing `matchMedia` answers too: the same reading, not a different default.
+ */
+function prefersDark(): MediaQueryList | null {
+  return typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 }
 
 /** What {@link browserShell} is given, for the runs where a download must not be delivered. */
@@ -99,6 +128,22 @@ export function browserShell(options: ShellOptions = {}): BrowserShell {
      */
     setMenu: (commands: readonly MenuCommand[]): void => {
       shell.menu = commands;
+    },
+
+    modifier: modifierOf(),
+
+    colourScheme: (): ColourScheme => (prefersDark()?.matches === true ? 'dark' : 'light'),
+
+    onColourSchemeChange: (callback: (scheme: ColourScheme) => void): Unsubscribe => {
+      const query = prefersDark();
+      if (query === null) return () => undefined;
+      const listener = (event: MediaQueryListEvent): void => {
+        callback(event.matches ? 'dark' : 'light');
+      };
+      query.addEventListener('change', listener);
+      return () => {
+        query.removeEventListener('change', listener);
+      };
     },
   };
   return shell;

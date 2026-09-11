@@ -92,6 +92,15 @@ export {
 } from './forms/index.js';
 
 /**
+ * The shell (plan §4.2, §4.4, §4.21) is the package's third entry point,
+ * `@tensorspine/ui/shell` (`./src/shell/index.ts`), with its stylesheet at
+ * `@tensorspine/ui/style.css`. It is deliberately not re-exported here for the reason the layout
+ * is not: what a module imports says what it depends on, and the walker, the forms and the
+ * presentation bindings above are pure readings of the schemas that a worker, a script or a Node
+ * suite can use without React.
+ */
+
+/**
  * The canvas's automatic layout (plan §4.7, §4.9) — ELK's layered algorithm, top to bottom,
  * compositions as compound nodes — is the package's second entry point, `@tensorspine/ui/layout`
  * (`./src/layout/elk.ts`). It is deliberately not re-exported here: importing it pulls in a

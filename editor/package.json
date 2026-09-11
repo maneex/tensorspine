@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "TensorSpine Editor — the workspace root: the language core, the store, the interface and the static application.",
+  "description": "TensorSpine Editor \u2014 the workspace root: the language core, the store, the interface and the static application.",
   "license": "Apache-2.0",
   "packageManager": "pnpm@12.3.4",
   "engines": {
@@ -19,6 +19,7 @@
     "audit:rules": "vitest run --project audit",
     "test:e2e": "pnpm run vendor && pnpm --filter @tensorspine/web run test:e2e",
     "vendor": "node --experimental-strip-types scripts/vendor.ts",
+    "logo": "node --experimental-strip-types scripts/logo.ts",
     "build": "pnpm run vendor && pnpm --filter @tensorspine/web run build",
     "dev": "pnpm --filter @tensorspine/web run dev",
     "oracle": "python3 tests/oracle/generate.py",
@@ -30,12 +31,15 @@
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:parity && pnpm run test:snapshot && pnpm run audit:rules && pnpm run test:e2e"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.1",
     "@eslint/js": "10.0.1",
     "@huggingface/hub": "2.16.3",
     "@playwright/test": "1.63.0",
     "@tensorspine/lang": "workspace:*",
     "@tensorspine/ui": "workspace:*",
     "@types/node": "22.20.1",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
     "eslint": "10.10.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.0",

@@ -1,0 +1,382 @@
+@import './tokens.css';
+
+/* ─────────────────────────────────────────────────────────────────────────
+   The shell — plan §4.2 as drawn on S1, component inventory §2.
+
+   Every rule below is the design's (`plans/graph-editor-design/_ts.css`,
+   the `.app`, `.bar`, `.rail`, `.side`, `.ed`, `.tabs`, `.canvas`,
+   `.panel`, `.insp`, `.status`, `.dlg`, `.btn`, `.ctl` and `.banner`
+   blocks) unless the comment beside it says otherwise, and there are three
+   kinds of otherwise:
+
+     1. **an artboard is a picture and this is a program.** A `<span>` on a
+        board is a `<button>` here, so the resets, the pointers, the hover
+        and the focus rings are added; a splitter, a menu pop-up and the
+        command palette have no board and are built from the design's own
+        vocabulary (`.dlg`, `.search`, `.tree .row`).
+
+     2. **§4.21 asks for "contrast ≥ 4.5:1 for text"**, and two of the
+        design's names do not reach it on every ground they are written on:
+        `--faint` reaches 2.3–3.1:1 as text anywhere, and `--muted` reaches
+        4.37:1 on `--bg-panel` in the light theme and 4.21:1 on
+        `--bg-raised` in the dark one. The values are the design's and are
+        not touched (`tokens.css` is held to them byte for byte); what is
+        decided here is where each is *written*: `--faint` carries rules,
+        ghosts and disabled marks and never text, `--muted` carries text on
+        `--bg-chrome` alone, and text on any other ground steps up the same
+        ramp to `--ink-3`. `test/shell/contrast.test.ts` holds every pair
+        below to 4.5:1 in both themes, and the axe pass of
+        `apps/web/e2e/shell.spec.ts` is what catches a rule written after
+        this comment was.
+
+        `.btn.pri` is the one place a value changed: the design writes
+        `#06181a` on `--accent-dim`, which is 3.71:1 in the dark theme and
+        2.43:1 in the light one. The ink is `#eafcfb` instead — the
+        design's own, from `.tog.on::after` — which is 4.64:1 and 7.06:1.
+
+     3. **a region's size is state, not a rule.** `.side`, `.insp` and
+        `.panel` take their width and height from the store (§4.2's
+        defaults, remembered in the settings), so the fixed values of the
+        design's own rules are gone and the boards' inline heights with
+        them.
+
+   Nothing of the node card, the composition box, the sheet rows or the
+   trees is here: those belong to the features that draw them.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── the page ───────────────────────────────────────────────────────────── */
+/* `_ts.css`'s own two page rules, plus the height the application needs to
+   fill: the shell is a column that owns the viewport. */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; }
+#root { height: 100%; }
+
+.app {
+  height: 100%;
+  /* The palette's scrim is `inset: 0` of this, so every pop-up stays inside the
+     element that carries the theme class. */
+  position: relative;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--sans); font-size: 13px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* The dark block is `:root`'s, so the frame declares which one is in force for
+     the browser's own widgets — scrollbars, form controls — as well as for CSS. */
+  color-scheme: dark;
+}
+.app.theme-light { color-scheme: light; }
+
+.app button {
+  margin: 0; padding: 0; border: 0; background: transparent; color: inherit;
+  font: inherit; text-align: inherit; cursor: pointer;
+}
+.app button:disabled { cursor: default; }
+.app :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.app .mono { font-family: var(--mono); }
+/* The line-art of S1's rail and search, as one rule: the elements carry geometry. */
+.app .ico { fill: none; stroke: currentColor; stroke-width: 1.3; }
+.app .fig { font-variant-numeric: tabular-nums; }
+
+/* ── bar ────────────────────────────────────────────────────────────────── */
+.bar {
+  flex-shrink: 0; display: flex; align-items: center; gap: 26px;
+  height: 56px; padding: 0 20px 0 16px;
+  background: var(--bg-chrome); border-bottom: 1px solid var(--rule);
+}
+.wordmark { flex-shrink: 0; display: flex; align-items: center; gap: 8.4px; }
+.wordmark .mark { display: flex; }
+.wordmark svg.mono { display: block; height: 40px; width: auto; }
+.wordmark .name { font-family: sans-serif; font-size: 17.6px; line-height: 1; white-space: nowrap; }
+.wordmark .name span:first-child { color: var(--logo-a); }
+.wordmark .name span:last-child { color: var(--logo-b); }
+.sitekind { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.menu { display: flex; gap: 17px; font-size: 12.5px; color: var(--ink-3); }
+/* A menu title is a button: it opens a pop-up, it takes the keyboard, and it
+   says whether its menu is open. The board draws the resting state. */
+.menu > button { padding: 3px 4px; border-radius: 2px; color: var(--ink-3); }
+.menu > button:hover { color: var(--ink); background: var(--bg-tint); }
+.menu > button[aria-expanded='true'] { color: var(--accent); background: var(--bg-tint); }
+
+.bar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.avatar {
+  display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border-radius: 999px; background: var(--bg-tint); border: 1px solid var(--chip);
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+}
+
+/* The palette's own button. §4.2 gives the shell a command palette and gives it a
+   chord; §4.4 gives the shell the rule that a chord is "never the only way", so the
+   region has a visible way in. Built from the design's `.pill` and `.search` — what
+   it has for a thing you click and a thing you type in. The bar's own pills, which
+   carry the core's validation and derivation state, arrive with the core (2.8,
+   2.15); only what this feature draws is styled here. */
+.palette-open {
+  display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px;
+  background: var(--bg-raised); border: 1px solid var(--rule-2); border-radius: var(--r);
+  font-size: 11.5px; color: var(--ink-3);
+}
+.palette-open:hover { border-color: var(--rule-strong); color: var(--ink); }
+.palette-open svg { width: 13px; height: 13px; }
+
+/* ── the menu pop-up ────────────────────────────────────────────────────── */
+/* No artboard draws an open menu. It is the `.dlg` surface at a menu's scale:
+   the panel ground, a hairline, the shadow the dialog uses. */
+.menu-anchor { position: relative; }
+.menu-pop {
+  position: absolute; top: calc(100% + 6px); left: -4px; z-index: 40;
+  min-width: 248px; max-height: 70vh; overflow-y: auto;
+  display: flex; flex-direction: column; padding: 5px 0;
+  background: var(--bg-panel); border: 1px solid var(--rule-2); border-radius: 5px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.theme-light .menu-pop { box-shadow: 0 18px 40px rgba(18, 24, 30, 0.14); }
+.menu-pop button {
+  display: flex; align-items: center; gap: 18px; padding: 5px 14px;
+  font-size: 12.5px; color: var(--ink-2); white-space: nowrap;
+}
+.menu-pop button:hover, .menu-pop button:focus-visible { background: var(--bg-tint); color: var(--ink); }
+.menu-pop .kbd { margin-left: auto; }
+
+.kbd {
+  padding: 1px 5px; border: 1px solid var(--chip); border-radius: 2px;
+  font-family: var(--mono); font-size: 10px;
+  /* `--muted` on `--bg-panel` is 4.37:1 in the light theme; one step up the ramp. */
+  color: var(--ink-3);
+}
+
+/* ── middle, rail, side ─────────────────────────────────────────────────── */
+.mid { flex: 1 1 auto; min-height: 0; display: flex; }
+.rail {
+  width: 48px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 8px 0 10px; background: var(--bg-chrome); border-right: 1px solid var(--rule);
+}
+.act {
+  display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;
+  border-radius: var(--r);
+  /* The design draws the resting icon in `--faint`, which is 2.6:1 on the light
+     chrome — under the 3:1 a control's own shape wants. One step up the ramp. */
+  color: var(--muted);
+}
+.act svg { width: 19px; height: 19px; }
+.act:hover { color: var(--ink-2); }
+.act[aria-selected='true'] { color: var(--accent); background: var(--bg-tint); box-shadow: inset 2px 0 0 var(--accent); }
+.act.foot { margin-top: auto; }
+
+.side {
+  position: relative;
+  flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 14px 10px 0 14px; background: var(--bg-panel); border-right: 1px solid var(--rule);
+}
+.side-head {
+  display: flex; align-items: center; gap: 8px; padding-left: 4px;
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3); /* `--muted` is 4.37:1 on this ground in the light theme. */
+}
+.search {
+  display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px;
+  background: var(--bg-raised); border: 1px solid var(--rule-2); border-radius: var(--r);
+  color: var(--ink-3);
+}
+.search svg { width: 13px; height: 13px; flex-shrink: 0; }
+.search input {
+  flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent;
+  font-family: var(--sans); font-size: 12.5px; color: var(--ink);
+}
+.search input::placeholder { color: var(--ink-3); }
+
+.side-body { flex: 1 1 auto; min-height: 0; overflow: auto; margin: 2px -6px 0; padding: 0 6px 10px; }
+
+/* ── splitters ──────────────────────────────────────────────────────────── */
+/* No board draws one: a printed shell has no drag. It is a hairline that widens
+   to a grab strip, and it takes the keyboard, because §4.21 asks that every
+   command be reachable from it and a region that only a mouse can resize is not.
+   It is pinned to the edge of the region that owns it and rendered inside it. */
+.splitter { position: absolute; background: transparent; z-index: 5; }
+.splitter.vertical { top: 0; bottom: 0; width: 6px; cursor: col-resize; }
+.splitter.horizontal { left: 0; right: 0; height: 6px; cursor: row-resize; }
+.splitter.at-right { right: -3px; }
+.splitter.at-left { left: -3px; }
+.splitter.at-top { top: -3px; }
+.splitter:hover, .splitter:focus-visible { background: var(--accent-dim); }
+
+/* ── the editor column ──────────────────────────────────────────────────── */
+/* The inventory's own rule for `.ed`: "must be `flex:1; min-height:0;
+   display:flex; flex-direction:column` — without it the canvas and panel never
+   size themselves". */
+.ed { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.ed-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+
+.tabs {
+  flex-shrink: 0; display: flex; align-items: stretch; gap: 2px; height: 38px; padding: 0 14px;
+  background: var(--bg-chrome); border-bottom: 1px solid var(--rule);
+}
+/* The board draws one box per tab; here it is a box holding two buttons — the one
+   that selects and the one that closes — so that neither is inside the other. */
+.tab-slot { display: flex; align-items: center; padding-right: 8px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab-slot.on { border-bottom-color: var(--accent); background: var(--bg-panel); }
+.tab {
+  display: flex; align-items: center; gap: 7px; padding: 0 8px 0 14px; height: 100%;
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab:hover { color: var(--ink-2); }
+.tab-slot.on .tab { color: var(--ink); }
+.tab .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--derived); }
+.tab .bdg { padding: 0 5px; border: 1px solid var(--struct-bd); border-radius: 2px; font-size: 9px; color: var(--struct); }
+.shut {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 2px; font-size: 12px; line-height: 1; color: var(--ink-3);
+}
+.shut:hover { background: var(--bg-tint); color: var(--ink); }
+.tbtn {
+  padding: 3px 9px; border: 1px solid var(--rule-2); border-radius: var(--r);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--muted);
+}
+.tbtn:hover { color: var(--ink-2); border-color: var(--rule-strong); }
+.tbtn[aria-pressed='true'] { color: var(--accent); border-color: var(--accent-dim); }
+
+.canvas {
+  flex: 1 1 auto; min-height: 0; position: relative; padding: 22px 30px; overflow: hidden;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--ground-dot) 1px, transparent 1px); background-size: 20px 20px;
+}
+.canvas-note {
+  position: absolute; top: 8px; left: 30px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.canvas-note.right { left: auto; right: 30px; }
+.flow { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+/* The empty state of S17, on the canvas ground: what the editor shows before it
+   has anything to show. */
+.nothing { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 0 60px; text-align: center; }
+.nothing h1 { margin: 0; font-size: 17px; font-weight: 400; color: var(--ink-2); }
+.nothing .actions { display: flex; gap: 10px; margin-top: 4px; }
+.nothing .recent { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; align-items: center; }
+.note-line { font-size: 11.5px; line-height: 1.6; color: var(--ink-3); max-width: 460px; }
+.note-line code { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+
+/* ── panels: the bottom region and the right one ────────────────────────── */
+.panel { position: relative; flex-shrink: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-panel); border-top: 1px solid var(--rule); }
+.insp { position: relative; flex-shrink: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-panel); border-left: 1px solid var(--rule); border-top: 0; }
+.panel-tabs {
+  flex-shrink: 0; display: flex; align-items: center; gap: 20px; height: 34px; padding: 0 22px;
+  border-bottom: 1px solid var(--rule);
+}
+/* The tab list holds tabs and nothing else: a button beside them inside the same
+   element would be a child of a `tablist` that is not a tab. */
+.ptabs { display: flex; align-items: center; gap: 20px; height: 100%; }
+.insp .panel-tabs { padding: 0 16px; }
+.panel-tabs .ptab {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); /* `--muted` is 4.37:1 on `--bg-panel` in the light theme. */
+}
+.panel-tabs .ptab:hover { color: var(--ink-2); }
+.panel-tabs .ptab[aria-selected='true'] { color: var(--ink); }
+.panel-tabs .ptab .n { padding: 0 5px; border-radius: 999px; background: var(--bg-tint); font-size: 9.5px; font-style: normal; color: var(--ink-3); }
+.panel-tabs .panel-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* The design's own `.panel-right`: no letter-spacing, no capitals, 11 px. */
+.panel-tabs .panel-right .tbtn { letter-spacing: 0; text-transform: none; font-size: 11px; }
+.panel-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 14px 22px; display: flex; flex-direction: column; gap: 7px; }
+.insp .panel-body { padding: 16px; }
+.panel-tabs .ptab[draggable='true'] { cursor: grab; }
+.panel.dropping, .insp.dropping { outline: 1px dashed var(--accent); outline-offset: -3px; }
+
+.empty-line { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.empty-sub { max-width: 940px; font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+.empty-sub code { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+
+.logline { display: flex; gap: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.logline time { flex-shrink: 0; color: var(--ink-3); }
+
+/* ── status ─────────────────────────────────────────────────────────────── */
+.status {
+  flex-shrink: 0; display: flex; align-items: baseline; gap: 20px; height: 32px; padding: 0 20px;
+  background: var(--bg-chrome); border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.status .mono { font-size: 11.5px; letter-spacing: 0; text-transform: none; color: var(--ink-2); }
+.status .mono.dimf { color: var(--muted); font-size: 10.5px; }
+.status .fig b { margin-right: 4px; font-size: 13.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink); font-variant-numeric: tabular-nums; }
+.status .right { margin-left: auto; display: flex; align-items: baseline; gap: 20px; }
+.status button { letter-spacing: inherit; text-transform: inherit; color: inherit; }
+.status button:hover { color: var(--ink-2); }
+
+/* ── the command palette ────────────────────────────────────────────────── */
+/* §4.2's own region, drawn on no board: the `.dlg` surface over a scrim, with
+   `.search` for the query and the tree's own rows for the commands. */
+.scrim {
+  position: absolute; inset: 0; z-index: 60;
+  /* `flex-start`, or the dialog stretches to the scrim's height and a query that found
+     three commands shows a screen of empty panel under them. */
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 90px;
+  background: rgba(4, 6, 8, 0.44);
+}
+.theme-light .scrim { background: rgba(18, 24, 30, 0.24); }
+.dlg {
+  width: min(620px, calc(100% - 60px)); max-height: calc(100% - 180px);
+  display: flex; flex-direction: column;
+  background: var(--bg-panel); border: 1px solid var(--rule-2); border-radius: 5px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45); overflow: hidden;
+}
+.theme-light .dlg { box-shadow: 0 18px 40px rgba(18, 24, 30, 0.14); }
+.dlg-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--rule); }
+.dlg-head svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--ink-3); }
+.dlg-head input {
+  flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent;
+  font-family: var(--sans); font-size: 14px; color: var(--ink);
+}
+.dlg-head input::placeholder { color: var(--ink-3); }
+/* `0 1 auto`, so the dialog is as tall as the list it found and no taller: a query
+   that answers three commands should not leave a screen of empty panel under them. */
+.dlg-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 6px 0; display: flex; flex-direction: column; }
+.dlg-foot { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--rule); background: var(--bg-sunk); font-size: 11px; color: var(--ink-3); }
+
+.cmd { display: flex; align-items: center; gap: 10px; padding: 5px 14px; font-size: 12.5px; color: var(--ink-2); }
+.cmd .in { color: var(--ink-3); font-size: 11px; }
+.cmd .kbd { margin-left: auto; }
+.cmd[aria-selected='true'] { background: var(--bg-tint); color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+.cmd:hover { background: var(--bg-tint); }
+
+/* ── controls ───────────────────────────────────────────────────────────── */
+/* The design's `.banner`, `.toast`, `.ctl`, `.seg` and `.tog` are not here: nothing
+   this feature draws is one of them, and a stylesheet that carried rules for
+   components nobody renders would be the wrong kind of head start. */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px;
+  border: 1px solid var(--rule-2); border-radius: 2px;
+  font-size: 11.5px; color: var(--ink-2); background: var(--bg-raised);
+}
+.btn:hover { border-color: var(--rule-strong); color: var(--ink); }
+/* The design writes `#06181a` here, which is 3.71:1 on the dark `--accent-dim`
+   and 2.43:1 on the light one. `#eafcfb` is the design's own light ink
+   (`.tog.on::after`) and is 4.64:1 and 7.06:1. */
+.btn.pri { background: var(--accent-dim); border-color: var(--accent-dim); color: #eafcfb; font-weight: 500; }
+.btn.pri:hover { color: #ffffff; }
+
+/* ── the Help screens ───────────────────────────────────────────────────── */
+/* Two tabs of the editor area rather than two dialogs: §4.4 lists `Keyboard
+   Shortcuts` and `About` beside six links, and a screen that lists every
+   accelerator is where §4.21's "every command reachable from the keyboard" is
+   answered to the person who has to find them. */
+/* A document view fills the editor column and scrolls inside it; its text keeps a
+   measure. Two elements, because a flex item that scrolls needs `min-height: 0`
+   and a centred column needs a width. */
+.doc { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.doc-body { max-width: 860px; margin: 0 auto; padding: 26px 30px 40px; display: flex; flex-direction: column; gap: 18px; }
+.doc h1 { margin: 0; font-size: 19px; font-weight: 500; color: var(--ink); }
+.doc h2 { margin: 14px 0 0; font-size: 10.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.doc table { border-collapse: collapse; width: 100%; }
+.doc caption { text-align: left; font-size: 11px; color: var(--ink-3); padding-bottom: 6px; }
+.doc th { text-align: left; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--rule-strong); }
+.doc td { font-size: 12.5px; color: var(--ink-2); padding: 4px 10px 4px 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+.doc td.mono { font-family: var(--mono); font-size: 11.5px; }
+.doc dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 0; }
+.doc dt { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.doc dd { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-2); }

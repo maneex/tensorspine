@@ -1,0 +1,60 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   The design's tokens — plan §4.21, component inventory §1.
+
+   Vendored from `plans/graph-editor-design/_ts.css`, the token source the
+   design pass settled on ("cool graphite"), and held to it byte for byte by
+   `packages/ui/test/snapshots/tokens.test.ts` wherever that directory is
+   present. It is a working directory, not part of the tree (the repository
+   ignores `plans/`), so the copy below is the editor's own record of it and
+   the snapshot beside it is what a change would have to be reviewed through.
+
+   One `:root` block and one `.theme-light` block that redefines the same
+   names: dark is the default ground every artboard is drawn on, light is the
+   same stance in daylight, and which of the two a session gets is the
+   `theme` setting resolved against the platform's own preference
+   (`shell/theme.ts`). Colour carries meaning and nothing else —
+     --accent   teal    live, selected, valid
+     --struct   petrol  structure: compositions, templates, splits
+     --derived  amber   derived rather than declared
+     --bad      red     a refusal
+   Type is IBM Plex Sans for chrome and prose and IBM Plex Mono for every
+   identifier, shape, expression and figure. No serif anywhere.
+
+   Two of these names do not reach §4.21's "contrast ≥ 4.5:1 for text" on
+   every ground they are written on — `--faint` nowhere, `--muted` on
+   `--bg-panel` in the light theme (4.37:1) — which is measured in
+   `test/shell/contrast.test.ts` and is why the shell's own rules take them
+   for rules, icons and disabled marks and step up the same ramp for text.
+   The values themselves are the design's and are not touched here.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #101317; --bg-chrome: #0b0d10; --bg-panel: #14181d;
+  --bg-raised: #1b2026; --bg-tint: #222932; --bg-sunk: #0d1014;
+  --ink: #e3e8ef; --ink-2: #c3cad4; --ink-3: #9aa3b0;
+  --muted: #78828f; --faint: #58616d;
+  --rule: #1f242b; --rule-2: #2b323b; --rule-strong: #3a424d; --chip: #333b45;
+  --accent: #2ac3c1; --accent-dim: #1c7d7c;
+  --struct: #4d9fd4; --struct-bd: #2c4f6b; --struct-bg: #141c24;
+  --derived: #d9a441; --derived-bg: #2a2213;
+  --good: #2ac3c1; --bad: #e0645c; --bad-bg: #2c1917; --warn: #d9a441;
+  --edge: #4c5765; --ghost: #2a323c;
+  --ground-dot: #1e242b; --port-bg: #0b0d10;
+  --logo-a: #4a9ec4; --logo-b: #2ac3c1;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 3px;
+}
+.theme-light {
+  --bg: #eef2f5; --bg-chrome: #ffffff; --bg-panel: #f8fafb;
+  --bg-raised: #ffffff; --bg-tint: #e2e9ef; --bg-sunk: #e6ebf0;
+  --ink: #12181e; --ink-2: #333d47; --ink-3: #4e5a66;
+  --muted: #6b7783; --faint: #97a2ad;
+  --rule: #dbe2e8; --rule-2: #cbd4dc; --rule-strong: #9dabb7; --chip: #c2ccd5;
+  --accent: #0d7a78; --accent-dim: #0a5f5d;
+  --struct: #15577f; --struct-bd: #9dbdd2; --struct-bg: #e7eef4;
+  --derived: #8a5e1e; --derived-bg: #f2ebdd;
+  --good: #0d7a78; --bad: #b23b32; --bad-bg: #f7e7e5; --warn: #8a5e1e;
+  --edge: #93a0ac; --ghost: #ccd5dd;
+  --ground-dot: #dde4ea; --port-bg: #ffffff;
+  --logo-a: #175e8c; --logo-b: #1fa8a6;
+}
