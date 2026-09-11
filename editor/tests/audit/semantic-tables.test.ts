@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { COMPARISONS, OPERATORS, toPython, type PyValue } from '../../packages/lang/src/expr/index.js';
+import { BYTES, widthOf } from '../../packages/lang/src/derive/index.js';
 import { loadSchemas, type Vocabulary } from '../../packages/lang/src/schema/index.js';
 import { parse } from '../../packages/lang/src/json/index.js';
 import type { Library } from '../../packages/lang/src/library/index.js';
@@ -52,6 +53,11 @@ import { editorRoot } from './tree.js';
 // an interval — the tools' own two-branch reading, which has no fall-through at all, so a third
 // shape would be silently read as an interval. The audit asks each shape the grammar declares
 // which branch decides it, and requires the shapes and the branches to be the same two.
+//
+// The seventh is the dtype **width** table of `packages/lang/src/derive/figures.ts`: the schema
+// declares the sixteen dtype names and says nothing about what one costs, so `BYTES` is a table
+// keyed by a vocabulary item and admitted for exactly the reason §1 admits one. Its key set must
+// equal the schema's enumeration, and every width must be a positive finite number.
 //
 // The sixth is the *location forms* of §3.4, in `packages/lang/src/validate/bindings/locations.ts`:
 // `evaluate_location` is four `if`s over the form's own key, ending in "unknown location form", so
@@ -380,6 +386,36 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
     for (const relation of relations()) {
       expect(readingOf(relation), relation).toBe(STATED[relation]);
     }
+  });
+});
+
+describe('the dtype width table of packages/lang/src/derive', () => {
+  const DTYPE = `${MODEL}#/$defs/dtype`;
+
+  /** Every dtype the language declares, in the order the schema writes them. */
+  function dtypes(): string[] {
+    const found = vocabulary.enumAt(DTYPE);
+    expect(found, `${DTYPE} is not an enumeration of the loaded schemas`).toBeDefined();
+    return (found as { values: readonly unknown[] }).values.map(String);
+  }
+
+  it('gives every dtype the language declares a width, and names no other', () => {
+    // §1 (d): the core "names a vocabulary item only to attach semantics to it", and a dtype's
+    // width is that semantics — the schema says nothing about what a dtype costs. A dtype the
+    // language gains without a width, or a width for a name the language has not, fails here.
+    expect(Object.keys(BYTES).sort()).toEqual([...dtypes()].sort());
+  });
+
+  it('answers a positive width for each of them, and raises for a name it has not', () => {
+    for (const dtype of dtypes()) {
+      const width = widthOf(dtype);
+      expect(Number(width), dtype).toBeGreaterThan(0);
+      expect(Number.isFinite(Number(width)), dtype).toBe(true);
+      // A whole width keeps Python's integer; a sub-byte one is a real, and that is what makes a
+      // `fp4` tensor's `bytes` a float in the derived document (D3).
+      expect(typeof width === 'bigint' || Number(width) < 1, dtype).toBe(true);
+    }
+    expect(() => widthOf('f8e3m4')).toThrowError("'f8e3m4'");
   });
 });
 

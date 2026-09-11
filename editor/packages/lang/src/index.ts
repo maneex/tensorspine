@@ -23,3 +23,4 @@ export * from './model/index.js';
 export * from './validate/index.js';
 export * from './d1/index.js';
 export * from './describe/index.js';
+export * from './derive/index.js';
