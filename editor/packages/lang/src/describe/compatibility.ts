@@ -31,6 +31,7 @@ import {
   emptyAgreement,
   keyOf,
   portKeyOf,
+  present,
   signatureOf,
   tyingProblems,
   valueToken,
@@ -118,6 +119,11 @@ function attachParameters(
       memberOf.set(portKeyOf(member.site, member.name), identity);
       const site = analysis.resolved.get(keyOf(member.site));
       if (site === undefined) continue;
+      // An absent slot is no part of the identity's signature: the validator skips it before V15
+      // reads it (`check_parameters`), so a group taken over it would answer for a shape the
+      // identity does not have.
+      const slot = optional(demand(site.definition, 'parameters'), pyStr(member.name), null);
+      if (slot === null || !present(slot, site.args)) continue;
       const token = tokenOfMember(site, member.name);
       if (token !== null) tokens.push(token);
     }
@@ -219,6 +225,8 @@ function attachStates(
       if (site === undefined) continue;
       const port = optional(demand(site.definition, 'state_ports'), pyStr(member.name), null);
       if (port === null) continue;
+      // And the absent state port, which `check_states` skips before V9 settles anything from it.
+      if (!present(port, site.args)) continue;
       compareStateMember(analysis, '', site, pyStr(member.name), port, agreement, []);
     }
     const token = agreementToken(agreement);

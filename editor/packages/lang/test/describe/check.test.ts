@@ -73,6 +73,43 @@ function describedText(text: string): Description {
   return describeDocument(tree, { schemas, library });
 }
 
+/** The lines `--validate`'s semantic stage prints for a document, from `analyse` itself. */
+function analysedLines(text: string): string[] {
+  return formatSemanticProblems([...analyse(toPython(parse(text)), library, {}).problems]);
+}
+
+const LAYERS_32 =
+  '"layers": {\n      "type": {\n        "kind": "cardinality"\n      },\n      "source": {\n' +
+  '        "kind": "literal",\n        "value": 32\n      }\n    },';
+const STOP_32 = '"stop": {\n            "literal": 32\n          },';
+const ATTN_K = '"attn.k": {\n            "members": [\n              {\n                "site": "attn",\n                "parameter": "k"\n              }\n            ],';
+
+/**
+ * `llama3-8b` cut to one layer, with the identity `attn.k` given the members named.
+ *
+ * One layer because the assertions are about one identity and the document repeats every line per
+ * layer; the edits are textual, so every other number keeps the float-ness its own spelling gives
+ * it (D12). `q_bias` is a slot of `attention.dense` that is **absent** unless the site's `q_bias`
+ * argument is true, which this document's is not: binding it is a defect the document carries
+ * (V7), and the question is what `check` then says about a candidate joining that identity.
+ */
+function oneLayerWithMembers(members: readonly string[]): string {
+  const text = corpus('llama3-8b');
+  for (const anchor of [LAYERS_32, STOP_32, ATTN_K]) {
+    if (!text.includes(anchor)) throw new Error('the corpus no longer writes that block that way');
+  }
+  const rows = members
+    .map(
+      (name) =>
+        `              {\n                "site": "attn",\n                "parameter": "${name}"\n              }`,
+    )
+    .join(',\n');
+  return text
+    .replace(LAYERS_32, LAYERS_32.replace('"value": 32', '"value": 1'))
+    .replace(STOP_32, STOP_32.replace('"literal": 32', '"literal": 1'))
+    .replace(ATTN_K, `"attn.k": {\n            "members": [\n${rows}\n            ],`);
+}
+
 describe('a candidate edge', () => {
   it('reports V7 on an input already fed, naming the binding that feeds it', () => {
     // `decoder/attn_n[layer=0].input` is fed by the top-level binding `decoder.entry`; §4.7 has
@@ -311,6 +348,30 @@ describe('a candidate member of a parameter identity', () => {
         }),
       ),
     ).toEqual(['[V1] parameter embed.weight: instance does not exist nowhere']);
+  });
+
+  it('leaves an absent slot out of V15, as the validator does', () => {
+    // `check_parameters` `continue`s past a slot that is absent under its instance's arguments —
+    // "slot 'q_bias' absent for these arguments" — **before** its signature is collected, so the
+    // tying is decided over the present members alone. A reading that collected it would judge
+    // the candidate against a shape and a role the identity does not have.
+    const held = oneLayerWithMembers(['k', 'q_bias']);
+    const applied = oneLayerWithMembers(['k', 'q_bias', 'v']);
+    const verdict = check(describedText(held), {
+      member: {
+        kind: 'parameter',
+        slot: { site: at('decoder', 'attn', 0), name: 'v' },
+        into: { identity: 'decoder.attn.k[layer=0]' },
+      },
+    });
+    const v15 = (rows: readonly string[]): string[] => rows.filter((row) => row.startsWith('[V15]'));
+    // The lines the validator prints for the document the drop would make, and no others.
+    expect(v15(lines(verdict))).toEqual(v15(analysedLines(applied)));
+    expect(lines(verdict).join('\n')).not.toContain('q_bias');
+    // The document's own defect is still the document's: `check` speaks of the candidate.
+    expect(analysedLines(held)).toContain(
+      "[V7] parameter decoder.attn.k: slot 'q_bias' absent for these arguments",
+    );
   });
 
   it('judges the identity a slot would join, not the one it leaves', () => {

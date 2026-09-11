@@ -486,6 +486,12 @@ function tyingVerdict(
     if (other === undefined) continue;
     const slot = optional(demand(other.definition, 'parameters'), pyStr(member.name), null);
     if (slot === null) continue;
+    // A slot absent under its instance's arguments takes no part in V15: `check_parameters`
+    // `continue`s past it — "parameter {tid}: slot '{pname}' absent for these arguments" — before
+    // its signature is collected, so the tying is decided over the present members alone. The
+    // document already carries that V7 line; reading the absent slot's shape here would add a
+    // refusal the validator never makes.
+    if (!present(slot, other.args)) continue;
     signatures.push(signatureOf(other, slot, member.name));
   }
   if (signatures.length === 0) return []; // one member: `checkTying` does not run at all
@@ -511,6 +517,10 @@ function sharingVerdict(
     if (other === undefined) continue;
     const port = optional(demand(other.definition, 'state_ports'), pyStr(member.name), null);
     if (port === null) continue;
+    // The same skip on the state side: `check_states` `continue`s past a port whose `present_when`
+    // is false — "state {sid}: port '{sname}' absent for these arguments" — before it settles
+    // key axes, payload, rule or stream, so V9's agreement is the present ports' agreement.
+    if (!present(port, other.args)) continue;
     compareStateMember(analysis, held.rule, other, pyStr(member.name), port, agreement, at);
   }
   return compareStateMember(
