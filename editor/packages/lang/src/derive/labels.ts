@@ -49,7 +49,12 @@ export function streamAxis(count: PyValue): string {
     }
     const reciprocal = truthy(value) ? 1 / Number(value) : Number.NaN;
     if (Number.isInteger(reciprocal)) parts.push(`${name}/${BigInt(Math.trunc(reciprocal))}`);
-    else parts.push(`${name}×${pyStr(value)}`);
+    // `view.py`'s own `${name}×${n}`, where `n` is what `JSON.parse` made of the count: the
+    // viewer this reproduces is JavaScript embedded in the tool, so a count of `2.0` reads
+    // `tokens×2` there and a count of `0` reads `tokens×0` — the value's float-ness is a
+    // distinction the language keeps and this label never showed. Every other figure of the
+    // products is written with `pyStr`, which is why this one says why it is not.
+    else parts.push(`${name}×${String(Number(value))}`);
   }
   return parts.join(' + ');
 }

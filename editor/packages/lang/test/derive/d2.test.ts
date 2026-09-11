@@ -548,6 +548,17 @@ describe('the value-type label of a diagram', () => {
     expect(streamAxis(null)).toBe('');
   });
 
+  it('writes the multiplier as the viewer’s own JavaScript writes it', () => {
+    // `view.py`'s `streamAxis` is JavaScript and its `n` is what `JSON.parse` made of the count,
+    // so a whole float loses its point there and a zero is written bare. `derive.py`'s
+    // `c.get(k, 0) + v` is what produces a float count of `2.0`: a transform that inserts a
+    // stream into itself.
+    expect(streamAxis(record('{"tokens": 2.0}'))).toBe('tokens×2');
+    expect(streamAxis(record('{"tokens": 0.0}'))).toBe('tokens×0');
+    expect(streamAxis(record('{"tokens": 0}'))).toBe('tokens×0');
+    expect(streamAxis(record('{"tokens": 3}'))).toBe('tokens×3');
+  });
+
   it('writes an extent the graph left undetermined as Python writes it', () => {
     expect(
       valueGeometry(
