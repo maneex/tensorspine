@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { COMPARISONS, OPERATORS, toPython, type PyValue } from '../../packages/lang/src/expr/index.js';
+import { dtypeOf, SAFETENSORS_DTYPES } from '../../packages/lang/src/artifact/index.js';
 import {
   BYTES,
   d2,
@@ -121,6 +122,18 @@ import { editorRoot } from './tree.js';
 // a form the grammar gained would be refused as unknown rather than evaluated. The audit reads the
 // forms off the `location` union's discriminating keys and asks the module which branch decides
 // each one; a form with no branch, or a branch with no form, fails the set equality.
+//
+// The sixteenth is the **safetensors dtype table** of `packages/lang/src/artifact/dtypes.ts`, and
+// it is the one table of the core whose *keys* are not a schema's vocabulary — plan §1 states the
+// exception in as many words: "The safetensors header format is the file format's; its dtype
+// vocabulary is a table in the core, mapped onto the schema's `dtype` enum and audited against it
+// like every other table." So three things are asked of it. Its **values** must all be dtypes the
+// language declares. Every pair `tools/artifact.py`'s own `DTYPES` carries must be here with the
+// same value, read out of the Python source, so that a change on either side is a failure rather
+// than drift (feature 0.5 put that guard in the browser layer for the spike's copy; here it is the
+// core's). And the dtypes of the enumeration that **no** key maps to must be exactly the set named
+// below with its reason, so that a dtype the language gains reaches a decision instead of silently
+// becoming unreachable from a checkpoint.
 
 const repositoryRoot = resolve(editorRoot, '..');
 
@@ -495,16 +508,16 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
   });
 });
 
+const DTYPE = `${MODEL}#/$defs/dtype`;
+
+/** Every dtype the language declares, in the order the schema writes them. */
+function dtypes(): string[] {
+  const found = vocabulary.enumAt(DTYPE);
+  expect(found, `${DTYPE} is not an enumeration of the loaded schemas`).toBeDefined();
+  return (found as { values: readonly unknown[] }).values.map(String);
+}
+
 describe('the dtype width table of packages/lang/src/derive', () => {
-  const DTYPE = `${MODEL}#/$defs/dtype`;
-
-  /** Every dtype the language declares, in the order the schema writes them. */
-  function dtypes(): string[] {
-    const found = vocabulary.enumAt(DTYPE);
-    expect(found, `${DTYPE} is not an enumeration of the loaded schemas`).toBeDefined();
-    return (found as { values: readonly unknown[] }).values.map(String);
-  }
-
   it('gives every dtype the language declares a width, and names no other', () => {
     // §1 (d): the core "names a vocabulary item only to attach semantics to it", and a dtype's
     // width is that semantics — the schema says nothing about what a dtype costs. A dtype the
@@ -522,6 +535,95 @@ describe('the dtype width table of packages/lang/src/derive', () => {
       expect(typeof width === 'bigint' || Number(width) < 1, dtype).toBe(true);
     }
     expect(() => widthOf('f8e3m4')).toThrowError("'f8e3m4'");
+  });
+});
+
+describe('the safetensors dtype table of packages/lang/src/artifact', () => {
+  /**
+   * The dtypes of the language the safetensors vocabulary has no name for — the stated reading
+   * this audit holds the module to, as the transform relations' readings are stated above.
+   *
+   * `@huggingface/hub` declares the format's twenty-five names (feature 0.5 listed them), and
+   * none of them is a four-bit integer; `f8e4m3fn` is a *third* thing beside `F8_E4M3` and
+   * `F8_E4M3FNUZ`, and the tools map `F8_E4M3` to `f8e4m3`, so giving `f8e4m3fn` a key would
+   * change an answer `tools/artifact.py` gives. A checkpoint therefore cannot carry a tensor of
+   * one of these three, and a document that declares one locates nothing that matches — which is
+   * a finding for the language, not a mapping for a port to invent.
+   */
+  const UNSPELLED = ['f8e4m3fn', 'i4', 'u4'];
+
+  /** `tools/artifact.py`'s own `DTYPES`, read out of the Python source. */
+  function toolsTable(): Record<string, string> {
+    const source = readFileSync(join(repositoryRoot, 'tools', 'artifact.py'), 'utf8');
+    const literal = /^DTYPES = (\{[^}]*\})/m.exec(source);
+    expect(literal, 'tools/artifact.py no longer opens with a DTYPES dictionary').not.toBeNull();
+    return JSON.parse((literal?.[1] ?? '{}').replaceAll("'", '"')) as Record<string, string>;
+  }
+
+  it('maps the file format’s names onto dtypes the language declares, and onto nothing else', () => {
+    const declared = new Set(dtypes());
+    for (const [name, dtype] of Object.entries(SAFETENSORS_DTYPES)) {
+      expect(declared.has(dtype), `${name} → ${dtype}`).toBe(true);
+    }
+    // The mapping is one-to-one: two format names claiming one dtype would make the reader's
+    // answer depend on which spelling a checkpoint happened to use.
+    expect(new Set(Object.values(SAFETENSORS_DTYPES)).size).toBe(
+      Object.keys(SAFETENSORS_DTYPES).length,
+    );
+  });
+
+  it('carries every pair tools/artifact.py carries, with the same value', () => {
+    const tools = toolsTable();
+    expect(Object.keys(tools).length).toBeGreaterThan(0);
+    for (const [name, dtype] of Object.entries(tools)) {
+      expect(dtypeOf(name), name).toEqual({ dtype, known: true });
+    }
+  });
+
+  it('adds only names whose lower-case form the tools’ fallback already answers', () => {
+    // `read_headers` falls back on `name.lower()`. A key this table has and the tools' has not is
+    // admissible exactly when the fallback already produced the same string — otherwise the port
+    // would be answering something the tools do not, on an input they both can meet.
+    const tools = toolsTable();
+    const added = Object.keys(SAFETENSORS_DTYPES).filter((name) => !(name in tools));
+    expect(added).toEqual(['FP4']);
+    for (const name of added) {
+      expect(name.toLowerCase(), name).toBe(SAFETENSORS_DTYPES[name]);
+    }
+  });
+
+  it('leaves exactly the stated dtypes without a spelling', () => {
+    const mapped = new Set(Object.values(SAFETENSORS_DTYPES));
+    expect(dtypes().filter((dtype) => !mapped.has(dtype)).sort()).toEqual(UNSPELLED);
+    // And the stated set is a set of dtypes, not of names nobody declares.
+    for (const dtype of UNSPELLED) expect(dtypes(), dtype).toContain(dtype);
+  });
+
+  it('passes a name it has not through unchanged, and never lower-cases one', () => {
+    // The decision of feature 1.9, asked of the module: a pass-through marked unknown. The
+    // vocabulary below is the format's own, as `@huggingface/hub` declares it; every one of these
+    // is a name `read_headers` would have answered `name.lower()` for.
+    for (const name of [
+      'C64',
+      'E8M0',
+      'F4',
+      'F6_E2M3',
+      'F6_E3M2',
+      'F8_E4M3FNUZ',
+      'F8_E5M2FNUZ',
+      'F8_E8M0',
+      'U16',
+      'U32',
+      'U64',
+      'UE8',
+    ]) {
+      expect(name in SAFETENSORS_DTYPES, name).toBe(false);
+      expect(dtypeOf(name), name).toEqual({ dtype: name, known: false });
+    }
+    // `known` says exactly whether the table decided the answer, on every input.
+    for (const name of [...Object.keys(SAFETENSORS_DTYPES), 'bf16', 'nonsense', '']) {
+      expect(dtypeOf(name).known, name).toBe(name in SAFETENSORS_DTYPES);
+    }
   });
 });
 

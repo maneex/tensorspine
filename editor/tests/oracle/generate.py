@@ -51,6 +51,10 @@ What it writes (the implementation plan's §0.5):
                                       over edited ones: the emitted document or the exception
     out/expansion/emitted/*.json      each emitted D1, as `--d1` writes one
     out/expansion/documents/*.json    each edited document as the tools were handed it
+    out/artifact/index.json           `artifact.check` over every model document against a
+                                      checkpoint synthesised from its own D3, over mutations of
+                                      those headers, and over synthetic D3s for every location form
+    out/artifact/headers/*.json       each synthesised checkpoint, recorded literally
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -80,6 +84,7 @@ Usage:  pnpm oracle            (from editor/)
         python3 tests/oracle/generate.py [--out DIR]
 """
 import argparse
+import copy
 import glob
 import hashlib
 import json
@@ -1860,6 +1865,231 @@ def library():
             'template_interfaces': interfaces}
 
 
+# --- the checkpoint check, V17 against safetensors headers (feature 1.9) ---------
+
+# A checkpoint the corpus can be checked against does not exist in the repository — the weights
+# are gigabytes and live outside it — so the oracle *synthesises* one per document, out of the
+# document's own D3: every physical name a location binds, with the shape and dtype that location
+# needs. That synthesis is the oracle's alone and is recorded literally, so the port never writes a
+# second copy of it and both implementations read the same bytes. It is held to account by the
+# clean case: a synthesis that got a shape wrong makes `artifact.check` refuse, and the step dies
+# rather than record it.
+#
+# The four location forms are then reached twice over: the corpus reaches `tensor`, `stack` and
+# `slice` (9 254 located identity instances over twelve documents, and no `concat` anywhere), and
+# the synthetic D3s below reach every branch of `_check_part` — the ones `tests/run_artifact.py`
+# writes, and the six it does not.
+
+ARTIFACT_FILE = 'x'
+
+
+def _place(ev, logical, dtype, out, sliced, identity):
+    """One evaluated location, placed in a checkpoint that satisfies it."""
+    import artifact as artifact_mod
+    if 'tensor' in ev:
+        out[ev['tensor']] = {'dtype': dtype, 'shape': list(logical), 'file': ARTIFACT_FILE}
+    elif 'stack' in ev:
+        dim = ev['stack']['dim']
+        inner = logical[:dim] + logical[dim + 1:]
+        for part in ev['stack']['parts']:
+            _place(part, inner, dtype, out, sliced, identity)
+    elif 'slice' in ev:
+        s = ev['slice']
+        want = artifact_mod.squeeze(logical)
+        pos = [i for i, d in enumerate(logical) if d != 1].index(s['dim'])
+        shape = list(want)
+        shape[pos] = s['offset'] + s['extent']
+        held = out.get(s['tensor'])
+        if held is None:
+            out[s['tensor']] = {'dtype': dtype, 'shape': shape, 'file': ARTIFACT_FILE}
+            sliced[s['tensor']] = pos
+        else:
+            held['shape'][pos] = max(held['shape'][pos], shape[pos])
+    else:
+        die(f"{identity}: a location form the synthesis has no answer for: {sorted(ev)}")
+
+
+def _synthesise(d3):
+    """A checkpoint that holds exactly what a D3 says, `tests/run_artifact.py`'s `headers_of`
+    widened to the forms the corpus writes — and, beside it, the tensors a `slice` binds, with the
+    position of the axis it is sliced along, so that a case can make one too short."""
+    out, sliced = {}, {}
+    for t in d3['tensors']:
+        ev = t.get('location')
+        if ev is None:
+            continue
+        _place(ev, [a['extent'] for a in t['shape']], t['dtype'], out, sliced, t['identity'])
+    return out, sliced
+
+
+def _edited(headers, edits):
+    """The recorded headers with the case's edits applied — the same two operations on both
+    sides, so an edit cannot mean one thing here and another there."""
+    out = copy.deepcopy(headers)
+    for edit in edits:
+        if edit['op'] == 'delete':
+            del out[edit['tensor']]
+        elif edit['op'] == 'set':
+            out[edit['tensor']] = copy.deepcopy(edit['entry'])
+        else:
+            die(f"unknown header edit {edit['op']}")
+    return out
+
+
+def _artifact_case(name, product, checkpoint, **rest):
+    """One case: what the tools answered over that D3 and those headers."""
+    import artifact as artifact_mod
+    errors, advisories, stats = artifact_mod.check(product, checkpoint)
+    return dict(name=name, errors=errors, advisories=advisories, stats=stats, **rest)
+
+
+def _artifact_forms():
+    """The synthetic D3s: every branch of `_check_part`, `tests/run_artifact.py`'s own first.
+
+    Its cases are the stack, the concat, the slice and the multiplicity; the six beside them are
+    the branches it does not write — a stack whose count is not the axis's extent, a concat part
+    that is absent or of another rank, a slice that is absent, of another rank, or of another
+    dtype — each of which is a line of the tools nothing else of the repository produces.
+    """
+    def d3_of(location, shape, dtype='bf16'):
+        return {'tensors': [{'identity': 't', 'dtype': dtype, 'location': location,
+                             'shape': [{'axis': 'a', 'extent': n} for n in shape]}]}
+
+    def header(dtype, shape):
+        return {'dtype': dtype, 'shape': list(shape), 'file': ARTIFACT_FILE}
+
+    stack = {'stack': {'axis': 'e', 'dim': 0,
+                       'parts': [{'tensor': f"w.{i}"} for i in range(3)]}}
+    three = {f"w.{i}": header('bf16', [4]) for i in range(3)}
+    concat = {'concat': {'axis': 'r', 'dim': 0,
+                         'parts': [{'tensor': 'g'}, {'tensor': 'u'}]}}
+    parts = {'g': header('bf16', [2, 4]), 'u': header('bf16', [4, 4])}
+    sliced = {'slice': {'tensor': 'big', 'axis': 'r', 'dim': 0, 'offset': 3, 'extent': 4}}
+    beyond = {'slice': {'tensor': 'big', 'axis': 'r', 'dim': 0, 'offset': 8, 'extent': 4}}
+    big = {'big': header('bf16', [10, 4])}
+    copies = {'stack': {'axis': 'multiplicity', 'dim': 0,
+                        'parts': [{'tensor': f"p.{i}.weight"} for i in range(3)]}}
+    three_copies = {f"p.{i}.weight": header('bf16', [2, 2]) for i in range(3)}
+
+    forms = [
+        ('stack-holds', d3_of(stack, [3, 4]), three),
+        ('stack-part-absent', d3_of(stack, [3, 4]), {k: v for k, v in three.items()
+                                                     if k != 'w.1'}),
+        ('stack-count-wrong', d3_of(stack, [4, 4]), {**three, 'w.3': header('bf16', [4])}),
+        ('concat-holds', d3_of(concat, [6, 4]), parts),
+        ('concat-sum-wrong', d3_of(concat, [5, 4]), parts),
+        ('concat-part-absent', d3_of(concat, [6, 4]), {'g': parts['g']}),
+        ('concat-part-rank', d3_of(concat, [6, 4]), {**parts, 'g': header('bf16', [2])}),
+        ('slice-fits', d3_of(sliced, [4, 4]), big),
+        ('slice-does-not-fit', d3_of(beyond, [4, 4]), big),
+        ('slice-absent', d3_of(sliced, [4, 4]), {}),
+        ('slice-rank', d3_of(sliced, [4, 4]), {'big': header('bf16', [10])}),
+        ('slice-dtype', d3_of(sliced, [4, 4]), {'big': header('f32', [10, 4])}),
+        ('multiplicity-stacked', d3_of(copies, [3, 2, 2]), three_copies),
+        ('multiplicity-copy-absent', d3_of(copies, [3, 2, 2]),
+         {k: v for k, v in three_copies.items() if k != 'p.2.weight'}),
+        ('multiplicity-fused', d3_of({'tensor': 'p.weight'}, [3, 2, 2]),
+         {'p.weight': header('bf16', [3, 2, 2])}),
+        ('multiplicity-fused-count', d3_of({'tensor': 'p.weight'}, [3, 2, 2]),
+         {'p.weight': header('bf16', [2, 2, 2])}),
+        ('multiplicity-one', d3_of({'tensor': 'p.weight'}, [1, 2, 2]),
+         {'p.weight': header('bf16', [2, 2])}),
+        ('unit-axes-dropped', d3_of({'tensor': 'w'}, [4096]),
+         {'w': header('bf16', [1, 4096, 1])}),
+    ]
+    return [_artifact_case(name, d3, headers, d3=d3, headers=headers)
+            for name, d3, headers in forms]
+
+
+def artifact(out, corpus, name_of, assignments):
+    """`artifact.check` over the corpus against a checkpoint synthesised from each document's own
+    D3, over mutations of those headers, and over synthetic D3s for every location form.
+
+    The mutations are the cases `tests/run_artifact.py` writes against llama3-8b — an absent
+    tensor, a wrong shape, a wrong dtype, unit axes the logical shape lacks, a tensor no location
+    names — applied to *every* located document of the corpus, so that the wording is held over
+    the composite, over the documents whose locations are slices, and over the one with stacks.
+    """
+    import primitive_library as primitive_library_mod
+    import derive as derive_mod
+
+    written = os.path.join(out, 'artifact', 'headers')
+    os.makedirs(written, exist_ok=True)
+
+    documents, cases = [], []
+    for path in corpus():
+        slug = name_of(path)
+        relative = os.path.relpath(path, ROOT)
+        assignment = assignments.get(slug)
+        with open(path, encoding='utf-8') as handle:
+            document = json.load(handle)
+        cat = primitive_library_mod.load_for(path, document, None)
+        d3 = derive_mod.products(path, cat, assignment)['d3']
+        headers, sliced = _synthesise(d3)
+        record = {'name': slug, 'path': relative,
+                  'assignment': None if assignment is None else encode_map(assignment),
+                  'tensors': len(d3['tensors']),
+                  'located': sum(1 for t in d3['tensors'] if 'location' in t),
+                  'physical': len(headers),
+                  'headers': f"artifact/headers/{slug}.json"}
+        documents.append(record)
+        write(os.path.join(written, f"{slug}.json"),
+              json.dumps(headers, separators=(',', ':')) + '\n')
+
+        clean = _artifact_case(f"{slug}/clean", d3, headers, document=slug, headers_of=slug,
+                               edits=[])
+        if record['located'] and (clean['errors'] or clean['advisories']):
+            die(f"{slug}: the synthesised checkpoint does not satisfy its own D3 "
+                f"({(clean['errors'] + clean['advisories'])[:1]})")
+        cases.append(clean)
+        if not record['located']:
+            continue
+
+        names = sorted(headers)
+        first = names[0]
+        entry = headers[first]
+        other = 'f64' if entry['dtype'] == 'f32' else 'f32'
+        edited = [
+            ('absent', [{'op': 'delete', 'tensor': first}]),
+            ('shape-wrong', [{'op': 'set', 'tensor': first,
+                              'entry': dict(entry, shape=[n + 1 for n in entry['shape']])}]),
+            ('dtype-wrong', [{'op': 'set', 'tensor': first, 'entry': dict(entry, dtype=other)}]),
+            ('unit-axes', [{'op': 'set', 'tensor': first,
+                            'entry': dict(entry, shape=[1] + list(entry['shape']) + [1])}]),
+            ('unnamed', [{'op': 'set', 'tensor': 'oracle.unused.weight',
+                          'entry': {'dtype': 'f32', 'shape': [64], 'file': ARTIFACT_FILE}}]),
+        ]
+        # A tensor a `slice` binds, made one element too short along the sliced axis: the branch
+        # only the documents whose locations are slices reach — 162 of them each in the three
+        # qwen documents, and none anywhere else.
+        if sliced:
+            short = sorted(sliced)[0]
+            shape = list(headers[short]['shape'])
+            shape[sliced[short]] -= 1
+            edited.append(('slice-short', [{'op': 'set', 'tensor': short,
+                                            'entry': dict(headers[short], shape=shape)}]))
+        for suffix, edits in edited:
+            cases.append(_artifact_case(f"{slug}/{suffix}", d3, _edited(headers, edits),
+                                        document=slug, headers_of=slug, edits=edits))
+
+    # The composite against the flat document's checkpoint (§3.4): its instance's tensors,
+    # prefixed, are the flat document's names.
+    flat = {one['name']: one for one in documents}
+    if 'shieldstral-3b' in flat and 'shieldstral-3b-composite' in flat:
+        with open(os.path.join(written, 'shieldstral-3b.json'), encoding='utf-8') as handle:
+            headers = json.load(handle)
+        path = os.path.join(ROOT, flat['shieldstral-3b-composite']['path'])
+        with open(path, encoding='utf-8') as handle:
+            document = json.load(handle)
+        cat = primitive_library_mod.load_for(path, document, None)
+        d3 = derive_mod.products(path, cat)['d3']
+        cases.append(_artifact_case('shieldstral-3b-composite/against-the-flat-document', d3,
+                                    headers, document='shieldstral-3b-composite',
+                                    headers_of='shieldstral-3b', edits=[]))
+
+    return {'documents': documents, 'cases': cases, 'forms': _artifact_forms()}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--out', default=os.path.join(HERE, 'out'),
@@ -1994,6 +2224,12 @@ def main():
           f"identity instance(s) and "
           f"{sum(len(one.get('states', [])) for one in binding_cases['documents'])} state one(s)")
 
+    artifact_cases = artifact(out, corpus, name_of, assignments)
+    print(f"oracle: {len(artifact_cases['documents'])} document(s) checked against a synthesised "
+          f"checkpoint, {sum(one['physical'] for one in artifact_cases['documents'])} physical "
+          f"tensor(s), {len(artifact_cases['cases'])} case(s) and "
+          f"{len(artifact_cases['forms'])} location form(s)")
+
     manifest = {
         'generated_by': 'editor/tests/oracle/generate.py',
         'repository_commit': commit(),
@@ -2086,6 +2322,18 @@ def main():
             'documents': len(expansion_cases['documents']),
             'cases': len(expansion_cases['cases']),
         },
+        'artifact': {
+            'index': 'artifact/index.json',
+            'note': ('artifact.check over every model document of the repository against a '
+                     'checkpoint synthesised from its own D3 — recorded literally, so that both '
+                     'implementations read the same bytes — over five mutations of those headers '
+                     'per located document, and over synthetic D3s reaching every branch of '
+                     '_check_part. No weights are needed: the corpus checkpoints are gigabytes '
+                     'and live outside the repository.'),
+            'documents': len(artifact_cases['documents']),
+            'cases': len(artifact_cases['cases']),
+            'forms': len(artifact_cases['forms']),
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -2114,6 +2362,8 @@ def main():
           json.dumps(binding_cases, indent=1) + '\n')
     write(os.path.join(out, 'expansion', 'index.json'),
           json.dumps(expansion_cases, indent=1) + '\n')
+    write(os.path.join(out, 'artifact', 'index.json'),
+          json.dumps(artifact_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "

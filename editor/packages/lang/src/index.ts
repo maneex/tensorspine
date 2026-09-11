@@ -24,3 +24,4 @@ export * from './validate/index.js';
 export * from './d1/index.js';
 export * from './describe/index.js';
 export * from './derive/index.js';
+export * from './artifact/index.js';
