@@ -66,6 +66,7 @@ import { checkpointRow, libraryRow, lintRow, schemaProblem, semanticRow } from '
 import {
   LangCancelled,
   LangHandleError,
+  type CancelReason,
   type CheckpointReport,
   type Facts,
   type LibraryBaseFiles,
@@ -197,8 +198,14 @@ export class LangSession {
   private readonly schemas = new Map<string, HeldSchemas>();
   private readonly libraries = new Map<string, HeldLibrary>();
   private readonly readings = new Map<string, HeldReading>();
-  /** The derivation in flight for each document: "one in-flight derivation per document" (§5.3). */
-  private readonly deriving = new Map<string, { cancel: () => void }>();
+  /**
+   * The derivation in flight for each document: "one in-flight derivation per document" (§5.3).
+   *
+   * The reason travels with the cancel, because the three ways a derivation ends are three
+   * different things to tell the caller: a second `derive` for the path *superseded* it, a
+   * `forget` dropped the document under it, and a `clear` — the proxy closing — *closed* it.
+   */
+  private readonly deriving = new Map<string, { cancel: (reason: CancelReason) => void }>();
 
   // --- the vocabulary the interface reads --------------------------------------
 
@@ -483,16 +490,16 @@ export class LangSession {
     control: Control = UNWATCHED,
   ): Promise<PyRecord> {
     const held = this.heldLibrary(options.library);
-    const state: { superseded: LangCancelled | null } = { superseded: null };
-    this.deriving.get(path)?.cancel();
+    const state: { cancelled: LangCancelled | null } = { cancelled: null };
+    this.deriving.get(path)?.cancel('superseded');
     const entry = {
-      cancel: (): void => {
-        state.superseded = new LangCancelled('derive', 'superseded');
+      cancel: (reason: CancelReason): void => {
+        state.cancelled = new LangCancelled('derive', reason);
       },
     };
     this.deriving.set(path, entry);
     const guard = (): void => {
-      if (state.superseded !== null) throw state.superseded;
+      if (state.cancelled !== null) throw state.cancelled;
       watch(control);
     };
     try {
@@ -550,7 +557,9 @@ export class LangSession {
   /** Drop what is held for a document: a closed tab, a file reverted. */
   forget(path: string): void {
     this.readings.delete(path);
-    this.deriving.get(path)?.cancel();
+    // The document this derivation describes is gone, so its result is dropped like any other
+    // that no longer describes what the editor holds.
+    this.deriving.get(path)?.cancel('superseded');
   }
 
   /** Drop a registry or a gathered library: a workspace closed, a base reloaded. */
@@ -564,7 +573,9 @@ export class LangSession {
     this.schemas.clear();
     this.libraries.clear();
     this.readings.clear();
-    for (const [, entry] of this.deriving) entry.cancel();
+    // `closed`, not `superseded`: nothing replaced these derivations, the service they were asked
+    // of has ended, and that is what the caller's `catch` reads.
+    for (const [, entry] of this.deriving) entry.cancel('closed');
     this.deriving.clear();
   }
 

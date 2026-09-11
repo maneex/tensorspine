@@ -184,6 +184,108 @@ describe('cancellation', () => {
     lang.close();
     await expect(derivation).rejects.toMatchObject({ reason: 'closed' });
   }, 120_000);
+
+  it('leaves nothing of a validation the close cut short', async () => {
+    // The host's own session, which the caller cannot reach: what it must hold afterwards is
+    // nothing at all. A validation suspended at its yield when the close arrives must not resume,
+    // compute its semantic stage and leave the analysis behind in a cache that was cleared.
+    const { lang, host } = connect();
+    const schemas = await lang.loadSchemas(schemaFiles(), { origin: 'schemas' });
+    const library = await lang.loadLibrary([referenceBase()], schemas.handle);
+    const tree = await lang.parse(corpus('llama3-8b'));
+    const path = corpusPath('llama3-8b');
+    const pending = lang.validate(tree, path, { library: library.handle, revision: 1 });
+    lang.close();
+    await expect(pending).rejects.toMatchObject({ reason: 'closed', call: 'validate' });
+    // Let the cut-short call reach its yield and settle before the session is questioned.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(() =>
+      host.session.check(path, { location: { identity: 'x', location: { tensor: 'x' } } }),
+    ).toThrow(/no reading is held/);
+  }, 120_000);
+});
+
+describe('closing the proxy that runs in this thread', () => {
+  // The in-process `Lang` answers the same interface as the worker-backed one, and `close()` says
+  // "every outstanding call is cancelled". The client has always rejected its pending requests on
+  // close; this is the half that runs here, where a call is not a message but a suspended
+  // function, and where the only moment it can be stopped is its own yield.
+
+  /** A `createLang` with the schemas and the reference base loaded, closed by the caller. */
+  async function inProcess(): Promise<{
+    readonly lang: Lang;
+    readonly library: LibraryHandle;
+    readonly tree: never;
+    readonly path: string;
+  }> {
+    const lang = createLang();
+    const schemas = await lang.loadSchemas(schemaFiles(), { origin: 'schemas' });
+    const library = await lang.loadLibrary([referenceBase()], schemas.handle);
+    const tree = (await lang.parse(corpus('llama3-8b'))) as never;
+    return { lang, library: library.handle, tree, path: corpusPath('llama3-8b') };
+  }
+
+  it('cancels a validation suspended before its semantic stage', async () => {
+    const { lang, library, tree, path } = await inProcess();
+    // No options beyond the library: the call with nothing to watch is exactly the one a fast
+    // path used to hand a control that cancels for nothing.
+    const pending = lang.validate(tree, path, { library });
+    lang.close();
+    await expect(pending).rejects.toBeInstanceOf(LangCancelled);
+    await expect(pending).rejects.toMatchObject({ reason: 'closed', call: 'validate' });
+  }, 120_000);
+
+  it('cancels an expansion and a derivation too', async () => {
+    const { lang, library, tree, path } = await inProcess();
+    const expansion = lang.expand(tree, { library });
+    const derivation = lang.derive(tree, path, { library });
+    lang.close();
+    await expect(expansion).rejects.toMatchObject({ reason: 'closed', call: 'expand' });
+    await expect(derivation).rejects.toMatchObject({ reason: 'closed', call: 'derive' });
+  }, 120_000);
+
+  it('cancels a call that was watching a signal and reporting progress', async () => {
+    const { lang, library, tree, path } = await inProcess();
+    const stages: Progress[] = [];
+    const controller = new AbortController();
+    const pending = lang.validate(tree, path, {
+      library,
+      signal: controller.signal,
+      onProgress: (progress) => stages.push(progress),
+    });
+    lang.close();
+    await expect(pending).rejects.toMatchObject({ reason: 'closed' });
+    expect(stages.map((one) => one.stage)).toContain('schema');
+  }, 120_000);
+
+  it('is harmless to close twice, and refuses what is asked afterwards', async () => {
+    const { lang, library, tree, path } = await inProcess();
+    lang.close();
+    lang.close();
+    await expect(lang.validate(tree, path, { library })).rejects.toMatchObject({
+      reason: 'closed',
+      call: 'validate',
+    });
+    await expect(lang.parse('{}')).rejects.toMatchObject({ reason: 'closed', call: 'parse' });
+  }, 120_000);
+
+  it('keeps the caller’s own reason where the caller is the one who gave up', async () => {
+    const { lang, library, tree, path } = await inProcess();
+    const controller = new AbortController();
+    const pending = lang.validate(tree, path, { library, signal: controller.signal });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ reason: 'requested', call: 'validate' });
+    lang.close();
+  }, 120_000);
+
+  it('keeps `superseded` for a derivation a second one replaced', async () => {
+    const { lang, library, tree, path } = await inProcess();
+    const older = lang.derive(tree, path, { library });
+    const newer = lang.derive(tree, path, { library });
+    await expect(older).rejects.toMatchObject({ reason: 'superseded', call: 'derive' });
+    expect(Object.keys(await newer)).toContain('d6');
+    lang.close();
+  }, 120_000);
 });
 
 describe('a refusal the tools themselves raise', () => {

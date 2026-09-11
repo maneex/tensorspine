@@ -37,7 +37,7 @@ import type { PyRecord, PyValue } from '../expr/value.js';
 import type { JsonValue } from '../json/tree.js';
 
 import { stripped, strippedDescribe } from './options.js';
-import { LangSession, UNWATCHED, type Control } from './session.js';
+import { LangSession, type Control } from './session.js';
 import {
   LangCancelled,
   type CallOptions,
@@ -130,6 +130,9 @@ export function createLang(): Lang {
   const open = (call: string): void => {
     if (closed) throw new LangCancelled(call, 'closed');
   };
+  /** What a call watches: the caller's own signal, and the life of this proxy. */
+  const watching = (call: string, options: CallOptions): Control =>
+    controlOf(call, options, () => closed);
 
   return {
     loadSchemas: (files, options) =>
@@ -160,12 +163,12 @@ export function createLang(): Lang {
     validate: (tree, path, options) =>
       settled(() => {
         open('validate');
-        return session.validate(tree, path, stripped(options), controlOf('validate', options));
+        return session.validate(tree, path, stripped(options), watching('validate', options));
       }),
     describe: (tree, path, options) =>
       settled(() => {
         open('describe');
-        return session.describe(tree, path, strippedDescribe(options), controlOf('describe', options));
+        return session.describe(tree, path, strippedDescribe(options), watching('describe', options));
       }),
     check: (path, candidate) =>
       settled(() => {
@@ -175,12 +178,12 @@ export function createLang(): Lang {
     expand: (tree, options) =>
       settled(() => {
         open('expand');
-        return session.expand(tree, stripped(options), controlOf('expand', options));
+        return session.expand(tree, stripped(options), watching('expand', options));
       }),
     derive: (tree, path, options) =>
       settled(() => {
         open('derive');
-        return session.derive(tree, path, stripped(options), controlOf('derive', options));
+        return session.derive(tree, path, stripped(options), watching('derive', options));
       }),
     checkCheckpoint: (derived, headers) =>
       settled(() => {
@@ -208,6 +211,8 @@ export function createLang(): Lang {
         session.release(handle);
       }),
     close: () => {
+      // Order matters by a hair: the flag first, so that a call resuming from its yield inside
+      // `clear()`'s synchronous work would already see a closed proxy.
       closed = true;
       session.clear();
     },
@@ -230,12 +235,28 @@ function settled<T>(run: () => T | Promise<T>): Promise<T> {
   }
 }
 
-/** The caller's signal and progress callback, as the session watches them. */
-function controlOf(call: string, options: CallOptions): Control {
+/**
+ * The caller's signal and progress callback, and the proxy's own life, as the session watches them.
+ *
+ * **Why there is no fast path here any more.** A call with neither a signal nor a progress
+ * callback used to be given {@link UNWATCHED}, which cancels for nothing — and that is precisely
+ * the call `close()` could not reach. `Lang.close()` says "every outstanding call is cancelled",
+ * and a `validate` suspended at its yield is outstanding: without this it resumes after the close,
+ * computes its semantic stage against a library the session has already dropped, resolves as a
+ * success, and its analysis lands in a cache that was cleared. The worker-backed proxy has always
+ * rejected its pending requests on close (`client.ts`), so this is also what makes the two
+ * implementations answer alike — which is the whole point of the seam.
+ *
+ * The reasons stay distinct and the caller's is the more specific of the two: a call the caller
+ * aborted is `requested` even if the proxy closed in the same turn.
+ */
+function controlOf(call: string, options: CallOptions, closed: () => boolean): Control {
   const { signal, onProgress } = options;
-  if (signal === undefined && onProgress === undefined) return UNWATCHED;
   return {
-    cancelled: () => (signal?.aborted === true ? new LangCancelled(call, 'requested') : null),
+    cancelled: () => {
+      if (signal?.aborted === true) return new LangCancelled(call, 'requested');
+      return closed() ? new LangCancelled(call, 'closed') : null;
+    },
     report: onProgress ?? (() => undefined),
   };
 }
