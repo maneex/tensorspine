@@ -21,6 +21,16 @@ const VALUES: readonly (readonly [string, string])[] = [
   ["1e15", "1000000000000000.0"],
   ["0.0001", "0.0001"],
   ["123456789012", "123456789012"],
+  // Past the doubles: CPython reads an `int` and `repr` writes its digits, so the node's own text
+  // is what has to be printed — `Number` of it is a different integer.
+  ["9007199254740993", "9007199254740993"],
+  ["1152921504606846977", "1152921504606846977"],
+  ["12345678901234567890", "12345678901234567890"],
+  ["-12345678901234567890", "-12345678901234567890"],
+  // And the text is not printed where it is not an integer's: `-0` is the `int` 0, and a float
+  // written `1E5` is the float `repr` writes `100000.0`.
+  ["-0", "0"],
+  ["1E5", "100000.0"],
   ["0.0", "0.0"],
   ["-0.0", "-0.0"],
   ["3.0e2", "300.0"],

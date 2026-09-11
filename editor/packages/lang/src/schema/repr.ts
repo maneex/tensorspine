@@ -24,7 +24,7 @@
  * literal of the five schemas is a whole number (bounds of 0, 1, 2, 3, 120 and 512), so nothing
  * of the parity contract rests on that reading.
  */
-import { formatNumber } from '../json/number.js';
+import { formatNumber, lexemeDenotes } from '../json/number.js';
 import { isJsonArray, isJsonNumber, isJsonObject, type JsonValue } from '../json/tree.js';
 
 /** The characters `repr` never writes as themselves, beyond the quote and the backslash. */
@@ -116,7 +116,15 @@ export function pythonRepr(value: unknown): string {
   if (typeof value === 'string') return pythonReprString(value);
   if (typeof value === 'number') return pythonReprNumber(value, !Number.isInteger(value));
   if (isJsonNumber(value as JsonValue)) {
-    const node = value as { value: number; real: boolean };
+    const node = value as { value: number; real: boolean; lexeme?: string };
+    // An integer's digits, where the node kept them. CPython reads `12345678901234567890` as an
+    // `int` and `repr` prints it whole; `node.value` is the nearest double to it, whose digits are
+    // different ones. The text is only taken where it still denotes this number and says the same
+    // thing about its float-ness — a `1E5` stays the float `100000.0`, as `repr` writes it — and
+    // it goes through `BigInt` so that `-0` reads `0`, which is the integer CPython read.
+    if (!node.real && node.lexeme !== undefined && lexemeDenotes(node.lexeme, node.value, false)) {
+      return BigInt(node.lexeme).toString();
+    }
     return pythonReprNumber(node.value, node.real);
   }
   if (isJsonArray(value as JsonValue)) {
