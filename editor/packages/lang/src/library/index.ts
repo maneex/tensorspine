@@ -25,6 +25,7 @@ export {
   primitiveOf,
   semanticVersion,
   templateInterfaces,
+  templateOf,
   templatePinOf,
   templatePrimitives,
   SECTIONS,

@@ -37,9 +37,14 @@ import {
   type SchemaRegistry,
   type StructuralProblem,
 } from '../schema/registry.js';
-import { get, has, members } from './access.js';
+import { demand, get, has, members } from './access.js';
 import { basename, dirname, join, normalise, relative } from './paths.js';
-import { afterRefusal, libraryProblem, type LibraryProblem } from './problems.js';
+import {
+  afterRefusal,
+  libraryProblem,
+  PrimitiveLibraryError,
+  type LibraryProblem,
+} from './problems.js';
 import { primitiveReferences, type ReferenceLibrary } from './references.js';
 import { readRefusal, readText, type ReadText } from './read.js';
 import { pyRepr, pyStr } from './repr.js';
@@ -171,6 +176,23 @@ export function templatePinOf(library: Library, definition: PyValue): TemplatePi
     if (version !== undefined && pyEqual(version.definition, definition)) return pin;
   }
   return undefined;
+}
+
+/**
+ * `primitive_library.template_path`, where the caller cannot go on without the document.
+ *
+ * `validate.analyse` and `d1.emit` both read a template primitive's document by this route, and
+ * both let the loader's refusal through: a load that resolved no template has already refused, so
+ * the exception is the tools' own and not a verdict this side invents.
+ */
+export function templateOf(library: Library, definition: PyValue): TemplatePin {
+  const pin = templatePinOf(library, definition);
+  if (pin !== undefined) return pin;
+  const reference = demand(definition, 'template');
+  throw new PrimitiveLibraryError(
+    `template '${pyStr(demand(reference, 'name'))}' ` +
+      `${pyStr(demand(reference, 'version'))} was not resolved at load`,
+  );
 }
 
 /** Every unit of every base, in the order the load read them — what §5.3 calls "units". */

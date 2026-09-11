@@ -53,7 +53,7 @@ export type Env = ReadonlyMap<string, PyValue>;
  * so reading it alone requires one." It is a `ValueError` in the tools, which is what `--d1` and
  * `--derive` catch and print as the document's refusal.
  */
-export class Unassigned extends Error {}
+export class Unassigned extends PyValueError {}
 
 /** Value of a model expression against quantities and loop indices. */
 export function modelValue(expression: PyValue, quantities: Quantities, env?: Env): PyValue {

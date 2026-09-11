@@ -36,8 +36,11 @@
  * **What this module answers beside the refusals** is the state every later stage reads: the
  * resolved sites with their arguments and definitions, the edges, the domains, the topological
  * order, and the public interface ports with their kinds, streams and evaluated shapes — the
- * `ports` a caller of a template reads back. Features 1.6c (slots, identities, states) and 1.7
- * (D1) continue from {@link GraphAnalysis}; nothing here is computed twice there.
+ * `ports` a caller of a template reads back. Feature 1.6c (slots, identities, states) continues
+ * from {@link GraphAnalysis}; nothing here is computed twice there. **D1 does not**: the tools
+ * write the expansion twice — here, and in `d1.emit` — and `derive.products` requires the two to
+ * agree node by node, so `d1/` is its own walk against its own tool, sharing this module's site
+ * keys, selectors, physical names and Kahn's algorithm and restating none of them (feature 1.7).
  *
  * **Where the tools raise, this raises.** `analyse` catches exactly one thing — the refusal
  * `model.load` raises, which it reports as V12 or V1 — and lets everything else through: an
@@ -59,8 +62,11 @@ import {
 import { primitiveCondition, primitiveValue } from '../expr/primitive.js';
 import { truthy, UNRESOLVED, type PyRecord, type PyValue } from '../expr/value.js';
 import { demand, entries, has, listOf, optional } from '../library/access.js';
-import { primitiveOf, templatePinOf, type Library } from '../library/load.js';
-import { PrimitiveLibraryError } from '../library/problems.js';
+import {
+  primitiveOf,
+  templateOf as templateDocument,
+  type Library,
+} from '../library/load.js';
 import { pyRepr, pyStr } from '../library/repr.js';
 import { templateInterface } from '../library/template.js';
 import { ModelError } from '../model/errors.js';
@@ -552,6 +558,27 @@ export function loopEnvs(
   problems: SemanticProblem[],
   at: readonly PathSegment[] = [],
 ): Env[] {
+  return loopEnvsWith(binding, label, quantities, (message) => {
+    problems.push(semanticProblem('V10', message, at));
+  });
+}
+
+/**
+ * The same walk, with what an undecidable guard does left to the caller.
+ *
+ * The tools write `loop_envs` twice — once in `validate.analyse`, where an undecidable `when` is a
+ * V10 line and the walk goes on, and once in `d1.emit`, where it is
+ * `ValueError(f"{label}{env}: \`when\` does not resolve")` and the emission stops. The grid, the
+ * filtering and the message are the same in both; only the verdict differs, so only the verdict is
+ * a parameter. The handler is called exactly where the tools decide, so a reading that raises
+ * raises on the first undecidable point of the grid, as `d1.emit` does.
+ */
+export function loopEnvsWith(
+  binding: PyValue,
+  label: string,
+  quantities: Quantities,
+  undecidable: (message: string, env: Env) => void,
+): Env[] {
   let envs: Env[] = [new Map<string, PyValue>()];
   if (has(binding, 'for_each')) {
     const { names, ranges } = indexGrid(demand(binding, 'for_each'), quantities);
@@ -562,9 +589,7 @@ export function loopEnvs(
   for (const env of envs) {
     const truth = modelCondition(demand(binding, 'when'), quantities, env);
     if (truth === UNRESOLVED) {
-      problems.push(
-        semanticProblem('V10', `${label}${reprEnv(env)}: \`when\` does not resolve`, at),
-      );
+      undecidable(`${label}${reprEnv(env)}: \`when\` does not resolve`, env);
     } else if (truthy(truth)) {
       kept.push(env);
     }
@@ -605,9 +630,11 @@ export function instancePorts(exposed: InterfacePorts): PyRecord {
  * The V6 block's own walk: `analyse`'s topological order over the resolved sites and the edges
  * between them, "the value graph is acyclic within an invocation".
  *
- * Kahn's algorithm with the zero-indegree set *sorted* by {@link compareSiteKeys} — the order
- * decides which sites the V5 block reports in, and D1 publishes it — and the answer is shorter
- * than the graph exactly when there is a cycle, which is what the refusal counts.
+ * {@link kahnOrder} with the zero-indegree set *sorted* by {@link compareSiteKeys}: the order
+ * decides which sites the V5 block reports in, and the answer is shorter than the graph exactly
+ * when there is a cycle, which is what the refusal counts. It is **not** the order D1 publishes —
+ * `d1.emit` takes its own, over the identifiers of §5.2 rule 2 and with the successors sorted, and
+ * the two are different listings of one rule (feature 1.7).
  *
  * It is a function rather than a block of the walk because feature 1.6d's `check` asks the same
  * question of one candidate edge: the order over `edges` with the candidate appended is what the
@@ -617,26 +644,82 @@ export function topologicalOrder(
   resolved: ReadonlyMap<string, ResolvedSite>,
   edges: readonly ValueEdge[],
 ): SiteKey[] {
-  const adjacency = new Map<string, SiteKey[]>();
+  return kahnOrder(
+    [...resolved.values()].map((site) => site.key),
+    edges.map((edge) => [edge.from, edge.to] as const),
+    { identify: keyOf, compare: compareSiteKeys },
+  );
+}
+
+/**
+ * How one of the tools' two topological listings is taken — what differs between them, and
+ * nothing else.
+ *
+ * The rule is one (V6, "the value graph is acyclic within an invocation") and the tools compute
+ * it twice: `validate.analyse`'s V6 block over the site keys it resolved, and `d1.emit`'s over the
+ * identifiers of §5.2 rule 2. Both are Kahn's algorithm with the zero-indegree frontier *sorted*;
+ * they differ in what a node is, how two of them order, and in the two readings below. Either
+ * answer is shorter than the node set exactly when there is a cycle, which is what each refusal
+ * counts.
+ */
+export interface KahnReading<T> {
+  /** How a node is keyed in the walk's maps — `keyOf` for a site, the identifier for a D1 node. */
+  readonly identify: (node: T) => string;
+  /** `sorted(…)`: the order the zero-indegree frontier is drawn in. */
+  readonly compare: (one: T, other: T) => number;
+  /**
+   * `for m in sorted(adjacency[n])` against `for m in adjacency[n]`.
+   *
+   * `d1.emit` sorts a node's successors before queueing them, so its order is a function of the
+   * graph alone — which is what §5.2 rule 4 asks of a canonical listing. `analyse` queues them in
+   * the order the bindings emitted the edges, and its order is what the V5 block then reports in.
+   */
+  readonly sortSuccessors?: boolean;
+  /**
+   * What an edge whose destination is not a node does.
+   *
+   * `analyse` builds its adjacency under `if src_key in nodes and dst_key in nodes`, so such an
+   * edge is skipped; `d1.emit` counts indegrees in a plain dictionary keyed by the emitted nodes,
+   * so a destination it does not hold is the `KeyError` Python raises there. Left out, the first
+   * reading is taken.
+   */
+  readonly unknownDestination?: (node: T) => never;
+}
+
+/** Kahn's algorithm under one of the two readings {@link KahnReading} states. */
+export function kahnOrder<T>(
+  nodes: readonly T[],
+  edges: readonly (readonly [T, T])[],
+  reading: KahnReading<T>,
+): T[] {
+  const adjacency = new Map<string, T[]>();
   const indegree = new Map<string, number>();
-  for (const edge of edges) {
-    const from = keyOf(edge.from);
-    const to = keyOf(edge.to);
-    if (!resolved.has(from) || !resolved.has(to)) continue;
-    (adjacency.get(from) ?? setAt(adjacency, from, [])).push(edge.to);
-    indegree.set(to, (indegree.get(to) ?? 0) + 1);
+  for (const node of nodes) indegree.set(reading.identify(node), 0);
+  for (const [from, to] of edges) {
+    const source = reading.identify(from);
+    const target = reading.identify(to);
+    if (!indegree.has(target)) {
+      if (reading.unknownDestination === undefined) continue;
+      reading.unknownDestination(to);
+    }
+    // A source outside the node set only `analyse` skips: `d1.emit`'s adjacency is a
+    // `defaultdict`, and the entry it grows under an unknown name is never read back.
+    if (reading.unknownDestination === undefined && !indegree.has(source)) continue;
+    (adjacency.get(source) ?? setAt(adjacency, source, [])).push(to);
+    indegree.set(target, (indegree.get(target) as number) + 1);
   }
-  const queue = [...resolved.values()]
-    .filter((site) => (indegree.get(keyOf(site.key)) ?? 0) === 0)
-    .map((site) => site.key)
-    .sort(compareSiteKeys);
-  const order: SiteKey[] = [];
+  const queue = [...nodes].filter((node) => indegree.get(reading.identify(node)) === 0);
+  queue.sort(reading.compare);
+  const order: T[] = [];
   for (let head = 0; head < queue.length; head += 1) {
-    const node = queue[head] as SiteKey;
+    const node = queue[head] as T;
     order.push(node);
-    for (const next of adjacency.get(keyOf(node)) ?? []) {
-      const id = keyOf(next);
-      const left = (indegree.get(id) ?? 0) - 1;
+    const successors = adjacency.get(reading.identify(node)) ?? [];
+    const walked =
+      reading.sortSuccessors === true ? [...successors].sort(reading.compare) : successors;
+    for (const next of walked) {
+      const id = reading.identify(next);
+      const left = (indegree.get(id) as number) - 1;
       indegree.set(id, left);
       if (left === 0) queue.push(next);
     }
@@ -669,17 +752,8 @@ function analyseNormalised(
   const staticOf = (one: PyValue, env: Env): PyValue => staticArgument(one, quantities, env);
 
   // --- the primitive citation graph is acyclic and of bounded depth (§4.6) --
-  const templateOf = (definition: PyValue): { path: string; document: PyValue } => {
-    const pin = templatePinOf(library, definition);
-    if (pin === undefined) {
-      const reference = demand(definition, 'template');
-      throw new PrimitiveLibraryError(
-        `template '${pyStr(demand(reference, 'name'))}' ` +
-          `${pyStr(demand(reference, 'version'))} was not resolved at load`,
-      );
-    }
-    return pin;
-  };
+  const templateOf = (definition: PyValue): { path: string; document: PyValue } =>
+    templateDocument(library, definition);
 
   const primitiveDependencies = (template: PyValue): Set<string> | null => {
     let document: PyRecord;

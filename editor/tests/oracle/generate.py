@@ -47,6 +47,10 @@ What it writes (the implementation plan's §0.5):
                                       instance keys, what is carried, the physical names, the
                                       bound slots and the identity instances
     out/bindings/documents/*.json     each edited document as the tools were handed it
+    out/expansion/index.json          `d1.emit` over every model document of the repository and
+                                      over edited ones: the emitted document or the exception
+    out/expansion/emitted/*.json      each emitted D1, as `--d1` writes one
+    out/expansion/documents/*.json    each edited document as the tools were handed it
 
 The expressions are recorded as *cases* rather than as a walk: each one carries the expression,
 the quantities, the index environment or the resolved arguments it was evaluated against, and
@@ -1612,6 +1616,127 @@ def bindings(out, corpus, name_of, assignments):
     return {'documents': documents, 'cases': cases}
 
 
+# --- D1, the expanded graph (feature 1.7) -----------------------------------
+
+def expansion(out, corpus, name_of, assignments):
+    """`d1.emit` over every model document of the repository, and over edited ones.
+
+    The emitter is not the validator: it resolves an instance's arguments *as written* — the
+    document's values, then the declared defaults, records included — where `validate.analyse`
+    resolves them typed, and it raises where the validator would have written a line. So its
+    answers are recorded on their own, against `d1.emit` and nothing else; `derive.products` is
+    where the two resolutions are required to agree, and that is feature 1.8's.
+
+    What is recorded per document is the emitted document *itself*, as `--d1` writes it
+    (`json.dumps(indent=2, ensure_ascii=False)`), so the parity suite compares bytes and a failure
+    names a line. The corpus and the template are not written twice: their record points at the
+    file `--d1` already wrote, and the step re-emits each one and dies if the two texts differ —
+    the expectation must be the tool's own output, not a second reading of it.
+
+    The 73 documents of `tests/rejections/models/` are read under the reference base, which is what
+    `tests/run_rejections.py` hands the validator (feature 1.6a's finding); `d1.emit` emits a graph
+    for most of them, since a document V2 or V8 refuses still denotes one.
+    """
+    import model as model_mod
+    import primitive_library as primitive_library_mod
+    import d1 as d1_mod
+    from d1_cases import CASES, SHORTENED
+
+    emitted_dir = os.path.join(out, 'expansion', 'emitted')
+    documents_dir = os.path.join(out, 'expansion', 'documents')
+    os.makedirs(emitted_dir, exist_ok=True)
+    os.makedirs(documents_dir, exist_ok=True)
+
+    with open(os.path.join(REJECTIONS, 'models.json'), encoding='utf-8') as handle:
+        rejection_cases = json.load(handle)['cases']
+    named = {os.path.join('tests', 'rejections', case['document']): case.get('assign')
+             for case in rejection_cases}
+
+    paths = [(name_of(path), os.path.relpath(path, ROOT)) for path in corpus()]
+    paths += [(f"rejection-{name[:-len('.json')]}",
+               os.path.join('tests', 'rejections', 'models', name))
+              for name in sorted(os.listdir(os.path.join(REJECTIONS, 'models')))
+              if name.endswith('.json')]
+
+    gathered = {}
+
+    def catalogue(bases):
+        key = tuple(bases)
+        if key not in gathered:
+            gathered[key] = primitive_library_mod.load(
+                *[os.path.join(ROOT, base) for base in bases])
+        return gathered[key]
+
+    def text_of(document):
+        return json.dumps(document, indent=2, ensure_ascii=False) + '\n'
+
+    def facts(document, where):
+        graph = document['d1']
+        return {'nodes': len(graph['nodes']), 'edges': len(graph['edges']),
+                'instances': list(graph.get('instances') or {}), 'emitted': where}
+
+    documents = []
+    for slug, relative in paths:
+        full = os.path.join(ROOT, relative)
+        assignment = assignments.get(slug, named.get(relative))
+        try:
+            document = model_mod.load(full)
+            bases = ([REFERENCE_BASE] if relative.startswith('tests/rejections/')
+                     else [os.path.relpath(base, ROOT)
+                           for base in primitive_library_mod.bases_of(full, document)])
+        except Exception:
+            bases = [REFERENCE_BASE]
+        record = {'name': slug, 'path': relative, 'bases': bases,
+                  'assignment': None if assignment is None else encode_map(assignment),
+                  'error': None}
+        try:
+            answer = d1_mod.emit(full, catalogue(bases), assignment)
+        except Exception as error:                     # whatever it is, it is the answer
+            record['error'] = _raised(error)
+            documents.append(record)
+            continue
+        text = text_of(answer)
+        if relative.startswith(os.path.join('data', 'models')):
+            # `--d1` wrote it already; the record points there, and the two must be the same text.
+            where = f"d1/{slug}.d1.json"
+            with open(os.path.join(out, where), encoding='utf-8') as handle:
+                if handle.read() != text:
+                    die(f"{slug}: re-emitting D1 does not reproduce what --d1 wrote")
+        else:
+            where = f"expansion/emitted/{slug}.d1.json"
+            write(os.path.join(out, where), text)
+        record.update(facts(answer, where))
+        documents.append(record)
+
+    cases = []
+    for name, relative, edits in CASES:
+        applied = SHORTENED[relative] + list(edits)
+        with open(os.path.join(ROOT, relative), encoding='utf-8') as handle:
+            document = json.load(handle)
+        for edit in applied:
+            _no_floats(edit.get('value'), f"{name} {edit['pointer']}")
+            _edit(document, edit['pointer'], edit['op'], edit.get('value'))
+        # `emit` reads a path, so the edited document is written where the tools can be handed it;
+        # the parity suite applies the same edits to the same source and never reads this file.
+        path = os.path.join(documents_dir, f"{name}.json")
+        with open(path, 'w', encoding='utf-8') as handle:
+            json.dump(document, handle, indent=2, ensure_ascii=False)
+        record = {'name': name, 'source': relative,
+                  'edits': [_encoded_edit(edit) for edit in applied], 'error': None}
+        try:
+            answer = d1_mod.emit(path, catalogue([REFERENCE_BASE]))
+        except Exception as error:                     # whatever it is, it is the answer
+            record['error'] = _raised(error)
+            cases.append(record)
+            continue
+        where = f"expansion/emitted/case-{name}.d1.json"
+        write(os.path.join(out, where), text_of(answer))
+        record.update(facts(answer, where))
+        cases.append(record)
+
+    return {'documents': documents, 'cases': cases}
+
+
 # --- the primitive library loader (feature 1.3) -----------------------------
 
 # What a mutation replaces a value by. A string keeps the shape it had — `attention.heads` becomes
@@ -1856,6 +1981,12 @@ def main():
           f"{sum(len(one.get('sites', [])) for one in graph_cases['documents'])} resolved site(s) "
           f"and {sum(len(one.get('edges', [])) for one in graph_cases['documents'])} edge(s)")
 
+    expansion_cases = expansion(out, corpus, name_of, assignments)
+    print(f"oracle: {len(expansion_cases['documents'])} document(s) expanded and "
+          f"{len(expansion_cases['cases'])} edited case(s), "
+          f"{sum(one.get('nodes', 0) for one in expansion_cases['documents'])} node(s) and "
+          f"{sum(one.get('edges', 0) for one in expansion_cases['documents'])} edge(s)")
+
     binding_cases = bindings(out, corpus, name_of, assignments)
     print(f"oracle: {len(binding_cases['documents'])} document(s) analysed in full and "
           f"{len(binding_cases['cases'])} edited case(s), "
@@ -1945,6 +2076,16 @@ def main():
             'documents': len(binding_cases['documents']),
             'cases': len(binding_cases['cases']),
         },
+        'expansion': {
+            'index': 'expansion/index.json',
+            'note': ('d1.emit over every model document of the repository and over edited ones '
+                     'reaching the branches nothing in the repository takes: the emitted document '
+                     'as --d1 writes it, or the exception the emitter raised. The corpus and the '
+                     'template point at the file --d1 wrote, re-emitted and compared here so that '
+                     'the expectation is the tool own output.'),
+            'documents': len(expansion_cases['documents']),
+            'cases': len(expansion_cases['cases']),
+        },
         'library': {
             'index': 'library/index.json',
             'note': ('the reference base gathered, the rejection suite refused word for word, and '
@@ -1971,6 +2112,8 @@ def main():
           json.dumps(graph_cases, indent=1) + '\n')
     write(os.path.join(out, 'bindings', 'index.json'),
           json.dumps(binding_cases, indent=1) + '\n')
+    write(os.path.join(out, 'expansion', 'index.json'),
+          json.dumps(expansion_cases, indent=1) + '\n')
     write(os.path.join(out, 'manifest.json'), json.dumps(manifest, indent=2) + '\n')
     print(f"oracle: {len(documents)} document(s), {len(primitive_schemas)} primitive schema(s), "
           f"{len(rejection_documents)} rejection document(s), "
