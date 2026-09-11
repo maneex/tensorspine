@@ -9,6 +9,7 @@ import {
   d2,
   d4,
   d5,
+  d6,
   expandAnalysis,
   expandedKeyOf,
   OPERATION_COUNTERS,
@@ -106,6 +107,14 @@ import { editorRoot } from './tree.js';
 // are asked — the figure a unit reads must be the counter that unit's name is paired with, and a
 // correction counted per one unit must leave the other three exact — which is what catches a pair
 // written the wrong way round.
+//
+// The thirteenth, fourteenth and fifteenth are D6's, in `packages/lang/src/derive/d6.ts`: the
+// **communications** a partition admits and the **targets** it names, both carried to the product
+// and read by no rule of the core — asked the way the eighth and ninth are, by requiring the value
+// to arrive at its own member and nothing else of the row to move — and the one operator D6 *does*
+// read, `multiply`, which is what makes an axis flattened for O5.10. That last is not a table but
+// a single name out of the operator vocabulary, so it is asked of the module operator by operator:
+// exactly one must report the loss, and an operator the grammar gained must not.
 //
 // The sixth is the *location forms* of §3.4, in `packages/lang/src/validate/bindings/locations.ts`:
 // `evaluate_location` is four `if`s over the form's own key, ending in "unknown location form", so
@@ -889,5 +898,144 @@ describe('the cost units of packages/lang/src/derive/d5', () => {
         );
       }
     }
+  });
+});
+
+describe('the decomposition vocabularies of packages/lang/src/derive/d6', () => {
+  const COMMUNICATION = `${UNIT}#/$defs/communication`;
+  const TARGET = `${UNIT}#/$defs/partition_target`;
+
+  /** Every logical communication a partition may admit (§7, O7.1). */
+  function communications(): string[] {
+    const found = vocabulary.enumAt(COMMUNICATION);
+    expect(found, `${COMMUNICATION} is not an enumeration of the loaded schemas`).toBeDefined();
+    return (found as { values: readonly unknown[] }).values.map(String);
+  }
+
+  /** Every form a partition's target takes, by the key that discriminates it. */
+  function targets(): string[] {
+    return union(TARGET)
+      .alternatives.flatMap((alternative) => [...alternative.discriminating])
+      .sort();
+  }
+
+  /** `{prefix: '', key: ('root', 'n')}`: the one node of the graphs below. */
+  const SITE: ExpandedSite = { prefix: '', key: rootSite('n') };
+
+  /** A one-node expanded graph whose primitive declares that definition. */
+  function graphOf(definition: string): ExpandedGraph {
+    return {
+      model: toPython(parse('{"interfaces": {"inputs": {}, "outputs": {}}}')) as PyRecord,
+      quantities: new Map(),
+      resolved: new Map([
+        [
+          expandedKeyOf(SITE),
+          { site: SITE, primitive: 'audit.partition', definition: toPython(parse(definition)), args: {} },
+        ],
+      ]),
+      edges: [],
+      domains: new Map(),
+      own: new Map(),
+      order: [SITE],
+      // `_structural_graph_splits` reads `meta[key]` for every resolved node, unguarded.
+      meta: new Map([[expandedKeyOf(SITE), { families: new Set<string>(), composition: null }]]),
+      compositions: [],
+      inputsAt: new Map(),
+      outputsAt: new Map(),
+      tensorInstances: [],
+      stateInstances: [],
+    };
+  }
+
+  /** The one partition row D6 answers for a primitive declaring that target and communication. */
+  function partition(target: string, communication: string): PyRecord {
+    const definition =
+      `{"parameters": {}, "partition_options": [{"target": ${target}, ` +
+      `"communication": ${communication}}]}`;
+    const answer = d6(graphOf(definition), splits, states, []);
+    const rows = answer['partition_options'] as readonly PyRecord[];
+    expect(rows, `${target} / ${communication}`).toHaveLength(1);
+    return rows[0] as PyRecord;
+  }
+
+  /** How many information-loss rows a slot whose one axis is written that way produces. */
+  function losses(axis: Record<string, unknown>): number {
+    const definition = JSON.stringify({
+      parameters: { w: { shape: { axes: [{ name: 'f', axis: 'audit.axis', nature: 'feature', ...axis }] } } },
+    });
+    return (d6(graphOf(definition), splits, states, [])['information_loss'] as readonly PyValue[])
+      .length;
+  }
+
+  /** Every member of a row but that one, written down: what must not move. */
+  function rest(row: PyRecord, member: string): string {
+    const shown = (value: unknown): string =>
+      JSON.stringify(value, (_name, held: unknown) => (typeof held === 'bigint' ? `${held}n` : held)) ??
+      'undefined';
+    return Object.entries(row)
+      .filter(([name]) => name !== member)
+      .map(([name, value]) => `${name}=${shown(value)}`)
+      .join(' | ');
+  }
+
+  const splits = toPython(parse('{"graph_splits": []}'));
+  const states = toPython(parse('{"states": []}'));
+
+  it('carries every communication the grammar declares, and reads none of them', () => {
+    // What D6 does with a communication: it wraps a single one in a list — "always a list", so a
+    // consumer reads one shape whether the primitive admits one pattern or several — and reads it
+    // by name not at all. Proved by asking for both halves: the value arrives at its own member,
+    // and *nothing else of the row moves*. A `d6` that began to branch on a communication — a
+    // granularity chosen by the pattern, a target rewritten for `none` — fails the second half.
+    const declared = communications();
+    expect(declared.length).toBeGreaterThan(0);
+    const reference = partition('{"any_axis": true}', `"${declared[0] as string}"`);
+    for (const communication of declared) {
+      const row = partition('{"any_axis": true}', `"${communication}"`);
+      expect(row['communication'], communication).toEqual([communication]);
+      expect(rest(row, 'communication'), communication).toBe(rest(reference, 'communication'));
+    }
+    // A declared list is carried as written, in its own order, and is not re-wrapped.
+    const several = partition('{"any_axis": true}', JSON.stringify(declared));
+    expect(several['communication']).toEqual(declared);
+  });
+
+  it('carries every partition target the grammar declares, and reads none of them', () => {
+    const shapes: Record<string, string> = {
+      argument_axis: '{"argument_axis": "audit.axis"}',
+      instance_key_axis: '{"instance_key_axis": "instance.session"}',
+      payload_axis: '{"payload_axis": {"state": "s", "component": "c", "axis": "audit.axis"}}',
+      any_axis: '{"any_axis": true}',
+      none: '{"none": true}',
+    };
+    expect(Object.keys(shapes).sort()).toEqual(targets());
+    const reference = partition(shapes['any_axis'] as string, '"none"');
+    for (const [name, written] of Object.entries(shapes)) {
+      const row = partition(written, '"none"');
+      expect(row['target'], name).toEqual(toPython(parse(written)));
+      expect(rest(row, 'target'), name).toBe(rest(reference, 'target'));
+    }
+  });
+
+  it('flattens on `multiply` alone, of every operator the grammar declares', () => {
+    // The one place D6 names a member of the operator vocabulary: "a flattened shape declares its
+    // decomposition" (O5.10), and a flattened axis is one whose extent is the *product* of the
+    // axes it stands for. The reading is asked of the module, operator by operator, over one slot
+    // whose axis carries an extent written with that operator: exactly `multiply` must report the
+    // loss, and every other operator — an operator the grammar gained among them — must not.
+    const declared = operatorsOf(`${UNIT}#/$defs/expression`);
+    expect(declared).toContain('multiply');
+    const product = { op: 'multiply', args: [{ literal: 2 }, { literal: 3 }] };
+    for (const operator of declared) {
+      const extent = { op: operator, args: [{ literal: 2 }, { literal: 3 }] };
+      expect(losses({ extent }), operator).toBe(operator === 'multiply' ? 1 : 0);
+    }
+    // An extent that is no operation at all is no flattening either.
+    expect(losses({ extent: { literal: 4096 } })).toBe(0);
+    expect(losses({ extent: { argument: 'width' } })).toBe(0);
+    // And a product that declares its factors is a decomposition, not a loss.
+    expect(
+      losses({ extent: product, factors: [{ axis: 'audit.a', extent: { literal: 6 } }] }),
+    ).toBe(0);
   });
 });

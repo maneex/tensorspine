@@ -13,8 +13,9 @@
  * two stages, in their order) and that agreement; `figures.ts` holds the widths, counts and shapes
  * they all write.
  *
- * Features 1.8a–1.8e fill it in one product at a time. What is here today: the expansion, the
- * figures, the agreement, D3, D4, D2 and D5 — and, beside them, the value-type label a diagram
+ * Features 1.8a–1.8e filled it in one product at a time, and it is complete: the expansion, the
+ * figures, the agreement, the six products and `derive` itself — the whole document, validated
+ * against the derived schema before it is returned. Beside them, the value-type label a diagram
  * prints over an edge, which is a reading of D2 and not a product (finding F6), and the
  * qualified-value algebra of §2.2, of which the tools implement the one row D5's totals need.
  */
@@ -55,6 +56,8 @@ export {
 export {
   consistent,
   derivationGraph,
+  derive,
+  DerivedSchemaError,
   type Derivation,
   type DerivationOptions,
 } from './products.js';
@@ -72,6 +75,7 @@ export {
 export { d3 } from './d3.js';
 export { d4 } from './d4.js';
 export { d5, OPERATION_COUNTERS } from './d5.js';
+export { d6 } from './d6.js';
 export {
   conditionalStatus,
   flipped,
