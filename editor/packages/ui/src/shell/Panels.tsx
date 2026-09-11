@@ -14,14 +14,16 @@
  * one — the same edit, visible, and reachable from the keyboard (§4.21).
  *
  * **What the panels show today.** Problems and Derived are the core's, and the core has nothing
- * to say until a document is open (2.6, 2.8, 2.15); Properties is the selection's (2.10). Each
- * says so in the design's own empty-state voice. The Log is this feature's own and is full from
+ * to say until a document is open (2.6, 2.8, 2.15); Properties is the selection's, and feature
+ * 2.7 gave it the row every sheet of §4.11 starts with. Each says so in the design's own
+ * empty-state voice. The Log is this feature's own and is full from
  * the first frame: what the platform is, what the workspace is, and every command chosen that
  * nobody has wired yet.
  */
 import type { DragEvent, JSX } from 'react';
 
 import { useDocumentState } from '../documents/Pills.js';
+import { SelectionSheet } from '../explorer/Sheet.js';
 import { useShell, useShellStore } from './context.js';
 import { BOUNDS, PANELS, panelById, type PanelId, type RegionId } from './regions.js';
 import { Splitter } from './Splitter.js';
@@ -73,7 +75,11 @@ function PanelBody({ panel }: { panel: PanelId }): JSX.Element {
     );
   }
   if (panel === 'panel.properties') {
-    return <p className="empty-sub">{text('Nothing is selected.')}</p>;
+    // §4.11's sheet of the current selection. The sections each kind of selection gets are the
+    // features that can answer them (2.10 onwards); the row every one of them starts with — the
+    // name, edited here — is feature 2.7's, because §4.4 asks that a name be editable in the
+    // sheet as well as by clicking the thing.
+    return <SelectionSheet />;
   }
   // With a document open, the panel says what the core has said about it and nothing more: the
   // rows of §4.17 are feature 2.8's and the six products of §4.18 are feature 2.15's, and a panel

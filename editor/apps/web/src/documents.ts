@@ -13,6 +13,7 @@ import {
   type DocumentsStore,
   type TabSink,
 } from '@tensorspine/ui/documents';
+import { selectionHandlers } from '@tensorspine/ui/explorer';
 import type { ShellStore } from '@tensorspine/ui/shell';
 
 /** What {@link wireDocuments} is given. */
@@ -69,6 +70,11 @@ export function wireDocuments(wiring: DocumentsWiring): {
   /** The document a command with no argument is about — the tab the strip has current. */
   const current = (): string | null => shell.getState().activeTab;
 
+  /** §4.4's `Rename` and `Delete`, which act on the selection the explorer and the canvas share. */
+  const edit = selectionHandlers(documents, () => {
+    shell.getState().revealPanel('panel.properties');
+  });
+
   shell.getState().bind({
     'file.new-model': () => now().newModel(),
     'file.new-template': () => now().newModel(true),
@@ -109,6 +115,10 @@ export function wireDocuments(wiring: DocumentsWiring): {
     'model.derive-now': () => {
       now().validateNow();
     },
+    // §4.4's Edit menu, on whatever is selected in the document (§4.5). The tree answers the
+    // same two keys while it has the focus; these are what the menu and the palette reach.
+    'edit.rename': edit.rename,
+    'edit.delete': edit.remove,
   });
 
   // §4.3's "Close with unsaved changes asks": the strip is the shell's, the answer is the

@@ -463,3 +463,78 @@ body { margin: 0; }
 /* Read by a screen reader, drawn nowhere: a heading the tab strip already names in its own way,
    and the file input a button stands in for. */
 .offscreen { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── the Model explorer's tree (feature 2.7, §4.5) ──────────────────────────
+   The design's own `.tree` rules (`_ts.css`), with the two inks feature 2.5
+   stepped up kept stepped up: `--faint` carries the chevrons and the swatches,
+   which are icons, and never a word — a count, a tail and the line that says
+   what a row holds are all text and take `--ink-3`.
+
+   The swatch is tinted by what the row *holds* and never by what it is called:
+   a row with declarations under it is structure, a row with a figure beside it
+   is the figure's own ink, and everything else is a name. Which is exactly the
+   distinction S1 draws — `--struct` on the composition, `--derived` beside the
+   quantities, `--ink-3` on the sites — without a word of the language reaching
+   this file.                                                                  */
+.tree { display: flex; flex-direction: column; }
+.tree .row {
+  display: flex; align-items: center; gap: 7px; height: 24px; padding: 0 8px;
+  border-radius: var(--r); font-size: 12.5px; color: var(--ink-3); white-space: nowrap;
+}
+.tree .row b { font-family: var(--mono); font-weight: 500; color: var(--ink); }
+.tree .row.lvl1 { padding-left: 16px; } .tree .row.lvl2 { padding-left: 30px; }
+.tree .row.lvl3 { padding-left: 44px; } .tree .row.lvl4 { padding-left: 58px; }
+.tree .row.leaf { font-family: var(--mono); font-size: 12px; }
+.tree .row:hover { background: var(--bg-tint); }
+.tree .row.sel { background: var(--bg-tint); color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+.tree .row.quiet { height: 20px; font-size: 11px; color: var(--ink-3); }
+/* The design writes `--faint` here; a chevron is a glyph a reader reads the open state from, and
+   `--faint` is 2.31–3.10:1 on every ground (feature 2.5's measurement), so it steps up like every
+   other mark that says something. The token values themselves are the design's and untouched. */
+.tree .chev { flex-shrink: 0; width: 8px; font-size: 8px; color: var(--ink-3); cursor: pointer; }
+.tree .sw { flex-shrink: 0; width: 6px; height: 6px; border-radius: 1.5px; background: var(--faint); }
+.tree .sw.group { background: var(--struct); }
+.tree .sw.figure { background: var(--derived); }
+/* The name is what a row *is*, so it is never the part that is cut: the tail beside it shrinks
+   and is ellipsised, and a name longer than the pane scrolls it. */
+.tree .n-name { flex: 0 0 auto; }
+.tree .n {
+  flex-shrink: 0; padding: 0 5px; border-radius: 999px; background: var(--bg-tint);
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+}
+.tree .tail {
+  margin-left: auto; padding-left: 10px; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  font-size: 11px; color: var(--ink-3);
+}
+.tree .tail.mono { font-family: var(--mono); font-size: 10.5px; }
+.tree .fig { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--derived); }
+.tree .fig + .tail { margin-left: 0; }
+/* A mark that is a symbol is drawn as one — S1's own `⚑` is a glyph in the derived ink, not a
+   chip; a mark that is a *word* takes the chip, which is what a word needs to read as a badge. */
+.tree .mk { flex-shrink: 0; font-size: 11px; color: var(--derived); }
+.tree .drv {
+  flex-shrink: 0; padding: 0 5px; border: 1px solid var(--chip); border-radius: 999px;
+  font-family: var(--sans); font-size: 9.5px; color: var(--ink-3);
+}
+.tree .dotbad { flex-shrink: 0; width: 6px; height: 6px; border-radius: 999px; background: var(--bad); }
+.tree .held { min-width: 0; font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+/* The name, while it is being typed: the row's own line, not a dialog. */
+.tree .n-edit {
+  flex: 1 1 auto; min-width: 0; height: 20px; padding: 0 4px;
+  background: var(--bg-raised); border: 1px solid var(--accent); border-radius: 2px;
+  font-size: 12px; color: var(--ink); outline: 0;
+}
+
+/* ── the sheet of the selection (§4.11's first section) ─────────────────── */
+/* The level is the page's — under the open document's own `h1` — and the rule is the class's. */
+.ih {
+  display: flex; align-items: baseline; gap: 8px; margin: 16px 0 2px; padding-bottom: 6px;
+  font-family: var(--sans); font-size: 10.5px; font-weight: 500; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ink-3); border-bottom: 1px solid var(--rule-strong);
+}
+.ih:first-child { margin-top: 0; }
+.ihn { margin-left: auto; font-family: var(--mono); font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--ink-3); }
+.insp .frow { padding: 4px 0; align-items: baseline; }
+.insp .frow > .fk { width: 72px; }
+/* A pointer is long and is worth reading whole: it wraps rather than being cut. */
+.insp .frow > .fv { min-width: 0; overflow-wrap: anywhere; }

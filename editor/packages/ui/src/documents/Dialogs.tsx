@@ -345,6 +345,75 @@ function Restore(): JSX.Element {
   );
 }
 
+/**
+ * The confirmation of §4.4's "Delete (cascades with confirmation)" — feature 2.7.
+ *
+ * A delete takes with it every rule that names the thing (plan §3: "the delete command cascades
+ * over every selector that names the instance, listed in the confirmation and undone as one
+ * command"), and the grammar keeps what it cannot let go — a public input's `to` cannot be
+ * emptied, so the dangling name stays and V1 reports it, which is the editor's own rule of
+ * wiring first and fixing afterwards (Q5). Both lists are shown, because the second is the
+ * surprising one.
+ */
+function Remove(): JSX.Element {
+  const store = useDocumentsStore();
+  const dialog = useDocuments((state) => (state.dialog?.kind === 'remove' ? state.dialog : null));
+  const close = (): void => {
+    store.getState().setDialog(null);
+  };
+  if (dialog === null) return <></>;
+  return (
+    <Frame
+      title={`${dialog.label}?`}
+      hint={textWith('{} place(s)', String(dialog.removed.length))}
+      onClose={close}
+      foot={
+        <>
+          <span className="note-line">
+            {dialog.kept.length === 0
+              ? text('One edit of the Edit menu: Undo takes all of it back.')
+              : text(
+                  'What the grammar will not let go stays, and the core reports the name it no longer resolves — wire first, fix afterwards.',
+                )}
+          </span>
+          <span className="right">
+            <button type="button" className="btn ghost" data-cancel="remove" onClick={close}>
+              {text('Cancel')}
+            </button>
+            <button
+              type="button"
+              className="btn pri"
+              data-confirm="remove"
+              onClick={() => {
+                store.getState().confirmed();
+              }}
+            >
+              {text('Delete')}
+            </button>
+          </span>
+        </>
+      }
+    >
+      {dialog.removed.map((place) => (
+        <div className="frow" key={place}>
+          <span className="fk">{text('Remove')}</span>
+          <span className="fv mono" data-removed={place}>
+            {place}
+          </span>
+        </div>
+      ))}
+      {dialog.kept.map((place) => (
+        <div className="frow" key={place}>
+          <span className="fk">{text('Kept')}</span>
+          <span className="fv mono" data-kept={place}>
+            {place}
+          </span>
+        </div>
+      ))}
+    </Frame>
+  );
+}
+
 /** Whichever dialog is up. */
 export function DocumentDialogs(): JSX.Element | null {
   const kind = useDocuments((state) => state.dialog?.kind ?? null);
@@ -352,5 +421,6 @@ export function DocumentDialogs(): JSX.Element | null {
   if (kind === 'documents') return <Documents />;
   if (kind === 'save-as') return <SaveAs />;
   if (kind === 'restore') return <Restore />;
+  if (kind === 'remove') return <Remove />;
   return null;
 }

@@ -4,6 +4,8 @@ import { parse } from '../../src/json/index.js';
 import {
   externalNames,
   indexGrid,
+  QUANTITIES,
+  quantityReadings,
   missingAssignment,
   PyTypeError,
   PyValueError,
@@ -30,6 +32,68 @@ function document(quantities: string): PyRecord {
 const literal = (value: string): string => `{"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": ${value}}}`;
 const derived = (expression: string): string =>
   `{"type": {"kind": "cardinality"}, "source": {"kind": "derived", "expression": ${expression}}}`;
+
+describe('quantityReadings', () => {
+  // What a *reader* of a document is told about its quantities (the editor's outline, §4.5):
+  // where each is declared, what it resolves to, and whether the document computes the value or
+  // simply writes it. The last of the three is the one `resolveQuantities` cannot answer, and
+  // `llama3-8b`'s `head_dim` is why: a literal of 128 that declares its own derivation.
+  it('answers the place each quantity is declared at, in the document’s own order', () => {
+    const model = document(`{
+      "d": ${literal('4096')},
+      "heads": ${literal('32')}
+    }`);
+    expect(quantityReadings(model).map((one) => one.pointer)).toEqual([
+      `/${QUANTITIES}/d`,
+      `/${QUANTITIES}/heads`,
+    ]);
+  });
+
+  it('calls a literal that declares its derivation computed, and a plain literal not', () => {
+    const model = document(`{
+      "d": ${literal('4096')},
+      "heads": ${literal('32')},
+      "head_dim": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 128,
+        "derivation": {"op": "floor_divide", "args": [{"quantity": "d"}, {"quantity": "heads"}]}}}
+    }`);
+    const readings = new Map(quantityReadings(model).map((one) => [one.name, one]));
+    expect(readings.get('d')?.computed).toBe(false);
+    expect(readings.get('d')?.value).toBe(4096n);
+    expect(readings.get('head_dim')?.computed).toBe(true);
+    expect(readings.get('head_dim')?.value).toBe(128n);
+  });
+
+  it('calls a derived source and an external with a default computed, and leaves what nothing resolves without a value', () => {
+    const model = document(`{
+      "heads": {"type": {"kind": "cardinality"}, "domain": {"kind": "interval", "lower": {"value": {"literal": 1}, "inclusive": true}},
+                "source": {"kind": "external"}},
+      "kv_heads": {"type": {"kind": "cardinality"}, "domain": {"kind": "interval", "lower": {"value": {"literal": 1}, "inclusive": true}},
+                   "source": {"kind": "external", "default": {"literal": 8}}},
+      "inner": ${derived('{"op": "multiply", "args": [{"literal": 4}, {"quantity": "kv_heads"}]}')}
+    }`);
+    const readings = new Map(quantityReadings(model).map((one) => [one.name, one]));
+    expect(readings.get('heads')?.computed).toBe(false);
+    expect(readings.get('heads')?.value).toBeUndefined();
+    expect(readings.get('kv_heads')?.computed).toBe(true);
+    expect(readings.get('kv_heads')?.value).toBe(8n);
+    expect(readings.get('inner')?.computed).toBe(true);
+    // Under an assignment, what the assignment says — the same resolution the validator reads.
+    const assigned = new Map(
+      quantityReadings(model, { heads: 12n, kv_heads: 3n }).map((one) => [one.name, one]),
+    );
+    expect(assigned.get('heads')?.value).toBe(12n);
+    expect(assigned.get('inner')?.value).toBe(12n);
+  });
+
+  it('resolves exactly as `resolveQuantities` does, being the same resolution', () => {
+    const model = toPython(parse(readRepositoryFile('data/models/llama3-8b.json'))) as PyRecord;
+    const resolved = resolveQuantities(model);
+    for (const reading of quantityReadings(model)) {
+      expect(reading.value).toBe(resolved.get(reading.name));
+    }
+    expect(quantityReadings(model)).toHaveLength(resolved.size);
+  });
+});
 
 describe('resolveQuantities', () => {
   it('resolves a derived chain in any declaration order', () => {

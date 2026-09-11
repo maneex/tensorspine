@@ -74,10 +74,13 @@ export {
   missingAssignment,
   modelCondition,
   modelValue,
+  QUANTITIES,
+  quantityReadings,
   quantityReferences,
   resolveQuantities,
   staticArgument,
   Unassigned,
   type Env,
   type Quantities,
+  type QuantityReading,
 } from './model.js';

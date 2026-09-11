@@ -20,7 +20,7 @@
  */
 import { PyTypeError, PyValueError } from './errors.js';
 import { apply, compare } from './arithmetic.js';
-import { comparePythonStrings } from '../schema/index.js';
+import { comparePythonStrings, pointerSegment } from '../schema/index.js';
 import { put } from '../json/tree.js';
 
 import {
@@ -157,6 +157,65 @@ export function resolveQuantities(model: PyRecord, assignment?: PyRecord): Map<s
     if (!progress) break;
   }
   return resolved;
+}
+
+/**
+ * What a *reader of the document* is told about each quantity: where it is declared, what it
+ * resolves to, and whether the document computes the value or simply writes it.
+ *
+ * {@link resolveQuantities} is the validator's reading and answers a map by name, which is all a
+ * rule needs. An outline of the document (the editor's plan §4.5) needs two things beside it, and
+ * neither is the interface's to work out:
+ *
+ *  - **where** each quantity is declared, as a JSON pointer, so that a row of the outline can be
+ *    matched to its reading without the interface naming the member the quantities are written
+ *    under. Only the core knows that, since only the core reads them;
+ *  - **whether the value follows from the others.** `head_dim` in `llama3-8b` is a *literal* of
+ *    128 that declares its derivation — V11 checks the two agree — so a reading that asked the
+ *    source's kind would call it freely chosen, which it is not. The three members that hold an
+ *    expression are the answer: a literal's `derivation`, an external's `default`, a derived
+ *    source's `expression`.
+ *
+ * The order is the document's own, as `items` walks it.
+ */
+export interface QuantityReading {
+  /** The name the quantity is declared under. */
+  readonly name: string;
+  /** Where it is declared, as an RFC 6901 pointer into the document: `/quantities/head_dim`. */
+  readonly pointer: string;
+  /** What it resolves to under this assignment; absent where nothing resolves it (V10, §4.6). */
+  readonly value?: PyValue;
+  /** Whether the document says how the value follows from the others rather than only what it is. */
+  readonly computed: boolean;
+}
+
+/**
+ * The member of a document the quantities are written under, as the core reads them.
+ *
+ * `resolve_quantities` reads `model['quantities']` and every rule below it does the same; a
+ * caller that has to *find* them in a tree — the editor's outline (§4.5) — is told the name
+ * here rather than spelling it, which is the rule §1 puts on every name of the language.
+ */
+export const QUANTITIES = 'quantities';
+
+/** The members of a source that hold the expression a value follows from. */
+const FOLLOWS_FROM: readonly string[] = ['derivation', 'default', 'expression'];
+
+/** Every quantity of a document, read as {@link QuantityReading} describes. */
+export function quantityReadings(model: PyRecord, assignment?: PyRecord): QuantityReading[] {
+  const resolved = resolveQuantities(model, assignment);
+  const readings: QuantityReading[] = [];
+  for (const [name, declaration] of items(demand(model, QUANTITIES))) {
+    const source = asRecord(demand(asRecord(declaration), 'source'));
+    const value = resolved.get(name);
+    readings.push({
+      name,
+      pointer: `/${QUANTITIES}/${pointerSegment(name)}`,
+      computed: FOLLOWS_FROM.some((one) => hasKey(source, one)),
+      ...(value === undefined ? {} : { value }),
+    });
+  }
+  return readings;
 }
 
 /** Static value of an instance argument: a literal, a resolved quantity, or a record of those. */

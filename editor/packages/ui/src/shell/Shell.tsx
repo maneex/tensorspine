@@ -41,7 +41,7 @@ import { ShellProvider, useShell, useShellStore, usePlatform } from './context.j
 import { EditorArea, type TabViews } from './EditorArea.js';
 import { Palette } from './Palette.js';
 import { PanelRegion } from './Panels.js';
-import { Rail, Side } from './Rail.js';
+import { ActivityProvider, Rail, Side, type ActivityViews } from './Rail.js';
 import { StatusBar } from './StatusBar.js';
 import type { ShellStore } from './store.js';
 import { text } from './strings.js';
@@ -139,6 +139,14 @@ export interface ShellProps {
   /** Views for tab kinds a later feature opens; the shell's own two are always there. */
   readonly views?: TabViews;
   /**
+   * The body each activity of the rail draws in the side bar (§4.2).
+   *
+   * Given rather than imported, for the reason the tab views are: the Model explorer reads an
+   * open document and the Library reads a loaded base, so the shell would depend on both to draw
+   * a panel it only makes room for.
+   */
+  readonly activities?: ActivityViews;
+  /**
    * What a later feature puts inside the frame beside the regions — a dialog, a toast.
    *
    * Inside, and not beside: the theme is one class on the frame (`tokens.css` puts the dark block
@@ -149,10 +157,12 @@ export interface ShellProps {
 }
 
 /** The shell, over a store and the platform that store was built on. */
-export function Shell({ store, platform, views, children }: ShellProps): JSX.Element {
+export function Shell({ store, platform, views, activities, children }: ShellProps): JSX.Element {
   return (
     <ShellProvider store={store} platform={platform}>
-      <Frame views={{ ...SHELL_VIEWS, ...views }}>{children}</Frame>
+      <ActivityProvider views={activities ?? {}}>
+        <Frame views={{ ...SHELL_VIEWS, ...views }}>{children}</Frame>
+      </ActivityProvider>
     </ShellProvider>
   );
 }

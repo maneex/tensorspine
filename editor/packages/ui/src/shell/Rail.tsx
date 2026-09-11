@@ -13,11 +13,16 @@
  * marks it "(SaaS)", and Q8 defers the SaaS, so `NoAuth` never shows it).
  *
  * The activities themselves — the Model explorer's tree, the Library's palette, the Weights
- * panel, Search — are features 2.7, 3.1 and 4.2. What the side bar shows until then is the name
- * of the activity, which is the honest reading of §4.3's "what the editor shows before it has
- * anything to show".
+ * panel, Search — are features 2.7, 3.1 and 4.2, and they arrive the way a tab's body arrives:
+ * the application gives the shell a view per activity ({@link ActivityViews}), and an activity
+ * with none still shows its name, which is the honest reading of §4.3's "what the editor shows
+ * before it has anything to show".
+ *
+ * The **filter box** belongs to the view and not to the bar: §4.5's filters the document, the
+ * library's would filter the library, and a box over a panel that has nothing to filter is a box
+ * that lies. So an activity with a view draws its own, and one without draws none.
  */
-import type { JSX } from 'react';
+import { createContext, useContext, type JSX, type ReactNode } from 'react';
 
 import { useShell, useShellStore } from './context.js';
 import {
@@ -81,24 +86,48 @@ export function Rail(): JSX.Element {
   );
 }
 
+/** The body an activity draws in the side bar, by the activity's own identity. */
+export type ActivityViews = Readonly<Record<string, () => JSX.Element>>;
+
+const ActivityContext = createContext<ActivityViews>({});
+
+/** Put the activities' own panels in reach of the side bar — the application does it. */
+export function ActivityProvider({
+  views,
+  children,
+}: {
+  views: ActivityViews;
+  children: ReactNode;
+}): JSX.Element {
+  return <ActivityContext.Provider value={views}>{children}</ActivityContext.Provider>;
+}
+
 /** The side bar: the selected activity's panel, with the edge that resizes it. */
 export function Side(): JSX.Element {
   const store = useShellStore();
   const activity = useShell((state) => state.side.activity);
   const width = useShell((state) => state.side.width);
+  const views = useContext(ActivityContext);
   const one = ACTIVITIES.find((each) => each.id === activity) ?? ACTIVITIES[0];
   const label = one === undefined ? '' : text(one.label);
+  const View = one === undefined ? undefined : views[one.id];
 
   return (
-    <aside className="side" aria-label={label} style={{ width }} data-width={width}>
+    <aside className="side" aria-label={label} style={{ width }} data-width={width} data-activity={activity}>
       <div className="side-head">{label}</div>
-      <label className="search">
-        <FilterIcon />
-        <input type="search" placeholder={text('Filter…')} aria-label={text('Filter…')} />
-      </label>
-      <div className="side-body" tabIndex={0}>
-        <p className="note-line">{text('Nothing to show here yet.')}</p>
-      </div>
+      {View === undefined ? (
+        <>
+          <label className="search">
+            <FilterIcon />
+            <input type="search" placeholder={text('Filter…')} aria-label={text('Filter…')} disabled />
+          </label>
+          <div className="side-body" tabIndex={0}>
+            <p className="note-line">{text('Nothing to show here yet.')}</p>
+          </div>
+        </>
+      ) : (
+        <View />
+      )}
       {/* The edge belongs to the region it resizes: inside it, so that it is part of the same
           landmark and cannot disturb the row's own flow. */}
       <Splitter

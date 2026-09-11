@@ -35,9 +35,11 @@ import {
   FIRST_VERSION,
   gatherBases,
   gatherSchemas,
+  isUnder,
   listTree,
   nameMember,
   newDocument,
+  pointerOf,
   readSidecar,
   readTree,
   schemaDifferences,
@@ -46,12 +48,16 @@ import {
   tagOf,
   writeLayout,
   zipOf,
+  type Applied,
+  type Command,
   type DraftStanding,
+  type EditContext,
+  type Path,
   type Shape,
   type WorkspacePath,
   type ZipEntry,
 } from '@tensorspine/store';
-import { BASE_MANIFEST, loadSchemas, type SchemaRegistry } from '@tensorspine/lang';
+import { BASE_MANIFEST, loadSchemas, templatePrimitives, type SchemaRegistry } from '@tensorspine/lang';
 import type { Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
@@ -96,6 +102,23 @@ export interface OpenDocument {
   readonly figures: readonly StatusFigure[];
   /** A draft found for it, offered rather than applied (§4.3). */
   readonly draft?: { readonly draft: Draft; readonly standing: DraftStanding };
+  /**
+   * What is selected *in* the document, as a place of it — §4.5's "selecting an item selects it
+   * on the canvas and in Properties".
+   *
+   * A path and nothing else, because D1 leaves nothing else to hold: the canvas, the sheets and
+   * the explorer are projections of one tree, so a selection is a place in that tree and every
+   * projection reads it. It lives per open document, since a tab keeps what was selected in it.
+   */
+  readonly selection?: Path;
+  /**
+   * The outline rows whose openness the reader changed, by pointer (§4.5).
+   *
+   * A *deviation* from the default and not the open set: the default is the document's own shape
+   * — a non-empty map of its own names is open — so a composition added after the fact opens like
+   * the others rather than staying shut because nobody had said anything about it.
+   */
+  readonly toggled: readonly string[];
 }
 
 /** How the library and the schemas stand for the open workspace. */
@@ -108,6 +131,15 @@ export interface LibraryState {
   /** How many files were gathered, and how long it took — the log's line and X.2's figure. */
   readonly files: number;
   readonly ms: number;
+  /**
+   * The primitives that pin a template, by name (§4.5's `▣`, §4.6's own badge).
+   *
+   * The names and not the library: what the outline needs of a gathered library is which
+   * primitives are templates, and `primitive_library.template_primitives` is the core's own
+   * answer to that. Whether the page keeps the whole library beside the worker's copy is the
+   * library activity's decision (3.1), not this one's.
+   */
+  readonly templates: ReadonlySet<string>;
 }
 
 /** A banner the chrome shows (component inventory §5: the dropped-folder snapshot, and its kin). */
@@ -133,7 +165,16 @@ export type Dialog =
   | { readonly kind: 'workspaces'; readonly recent: readonly RecentWorkspace[] }
   | { readonly kind: 'documents' }
   | { readonly kind: 'save-as'; readonly id: string; readonly path: WorkspacePath }
-  | { readonly kind: 'restore'; readonly id: string };
+  | { readonly kind: 'restore'; readonly id: string }
+  | {
+      readonly kind: 'remove';
+      readonly id: string;
+      /** The Edit menu's wording for the command waiting to be made. */
+      readonly label: string;
+      /** What the cascade would remove and what the grammar keeps (§4.7's confirmation). */
+      readonly removed: readonly string[];
+      readonly kept: readonly string[];
+    };
 
 /** The documents as the chrome reads them. */
 export interface DocumentsState {
@@ -146,6 +187,14 @@ export interface DocumentsState {
   readonly dialog: Dialog | null;
   /** Every `.json` of the workspace that is not under a library base — what Open Model… offers. */
   readonly documents: readonly WorkspacePath[];
+  /**
+   * The Model explorer's filter box (§4.5), kept here rather than in the component.
+   *
+   * The side bar is unmounted whenever another activity is shown, and a filter that was typed and
+   * then lost because the reader looked at the library is a filter they have to type again. One
+   * box and one string: the explorer filters whichever document is current.
+   */
+  readonly filter: string;
 }
 
 /** The documents, and the gestures of §4.3 on them. */
@@ -167,6 +216,32 @@ export interface Documents extends DocumentsState {
   /** Whether a tab may close — the shell asks before it removes one (§4.3). */
   mayClose(id: string): Promise<boolean>;
   closeDocument(id: string): void;
+
+  /**
+   * Select a place of the current document, or nothing — §4.5, and the canvas's own gesture (2.9).
+   */
+  selectPlace(path: Path | null, id?: string): void;
+  /** Open or close an outline row, by the pointer of the place it stands for (§4.5). */
+  togglePlace(pointer: string, id?: string): void;
+  /** What the explorer's filter box holds (§4.5). */
+  setFilter(filter: string): void;
+  /**
+   * Make a gesture on the document — the one way a projection edits the tree (D1, D13).
+   *
+   * The command is built by the caller against {@link DocumentStore.context}, because what a
+   * rename rewrites and what a delete takes with it are read from `presentation.json` and the
+   * reference index, which is the interface's half (2.1, 2.2). What is done here is what every
+   * gesture owes the rest of the editor: the sidecar's keys follow a rename and are pruned after
+   * a delete (D6), the selection follows the place it was on, and the pipeline of §5.4 runs.
+   */
+  edit(make: (context: EditContext) => Command, id?: string): Applied | null;
+  /**
+   * Offer a command that has to be confirmed before it is made — §4.4's "Delete (cascades with
+   * confirmation)". The dialog says what would go; {@link confirmed} is what makes it.
+   */
+  offer(make: (context: EditContext) => Command, id?: string): void;
+  /** Make the offered command. */
+  confirmed(): void;
 
   save(id?: string): Promise<void>;
   saveAs(id: string, path: WorkspacePath): Promise<void>;
@@ -217,6 +292,13 @@ export interface TabSink {
 /** The `kind` a document's tab carries, which the shell draws with the view of the same name. */
 export const DOCUMENT_TAB = 'view.document';
 
+/** The same open document with nothing selected: the member goes rather than becoming undefined. */
+function withoutSelection(open: OpenDocument): OpenDocument {
+  const next: OpenDocument & { selection?: Path } = { ...open };
+  delete next.selection;
+  return next;
+}
+
 /** A tab's identity: one per (workspace, path), so the same file twice is the same tab. */
 function tabId(workspace: string, path: WorkspacePath): string {
   return `doc:${workspace}:${path}`;
@@ -242,6 +324,8 @@ export function createDocuments(options: DocumentsOptions): {
   const pipelines = new Map<string, Pipeline>();
   /** Per open document: the subscription that follows its edits. */
   const following = new Map<string, () => void>();
+  /** The command a confirmation is up for, held out of the state because it is a closure. */
+  let pending: { id: string; command: Command } | null = null;
   let registry: SchemaRegistry | null = null;
   let shapes: SchemaShapes | null = null;
   /** The derived schema as the figure walk reads it, built once with the registry it reads. */
@@ -333,6 +417,9 @@ export function createDocuments(options: DocumentsOptions): {
           problems: loaded.problems,
           files: bases.files,
           ms,
+          // `primitive_library.template_primitives`: the core's own reading of which primitives
+          // pin a template, which is what the explorer marks an instance of one by (§4.5).
+          templates: templatePrimitives(loaded.library),
         },
       });
       note(
@@ -342,6 +429,50 @@ export function createDocuments(options: DocumentsOptions): {
           `load ${String(clock() - read)} ms)`,
       );
       return loaded.handle;
+    };
+
+    /** The document a gesture is about: the one named, or the tab the strip has current. */
+    const current = (id?: string): OpenDocument | undefined => {
+      const state = get();
+      const wanted = id ?? tabs.current() ?? state.current;
+      return state.open.find((one) => one.id === wanted);
+    };
+
+    /**
+     * Make a command on a document, and everything a made gesture owes the rest of the editor.
+     *
+     * The sidecar follows what moved and is pruned of what went (D6: "a sidecar key that names a
+     * path the document no longer has is dropped with a log line"), and the selection follows the
+     * place it was on — a rename moves it, a delete clears it. The pipeline needs no telling: the
+     * store's own subscription runs it (§5.4).
+     */
+    const run = (one: OpenDocument, command: Command): Applied => {
+      const applied = one.session.store.apply(command);
+      if (!applied.changed) return applied;
+      if (applied.moves.length > 0) one.session.layout.follow(applied.moves);
+      for (const dropped of one.session.layout.prune(one.session.store.tree)) {
+        note(`layout: ${dropped.key} names nothing the document has; dropped`);
+      }
+      const selection = get().open.find((open) => open.id === one.id)?.selection;
+      if (selection !== undefined) {
+        const moved = applied.moves.find((move) => isUnder(selection, move.from));
+        if (moved !== undefined) {
+          patch(one.id, (open) => ({
+            ...open,
+            selection: [...moved.to, ...selection.slice(moved.from.length)],
+          }));
+        } else if (applied.cascade?.removed.some((place) => isUnder(selection, place)) === true) {
+          patch(one.id, withoutSelection);
+        }
+      }
+      if (applied.cascade !== undefined) {
+        const { removed, kept } = applied.cascade;
+        note(
+          `${applied.label}: ${String(removed.length)} place(s) removed` +
+            (kept.length === 0 ? '' : `, ${String(kept.length)} kept on the grammar`),
+        );
+      }
+      return applied;
     };
 
     /** Put a session behind a tab and start its pipeline. */
@@ -357,6 +488,7 @@ export function createDocuments(options: DocumentsOptions): {
         session,
         reading: noReading(session.store.revision),
         figures: [],
+        toggled: [],
         ...(tag === null ? {} : { tag }),
       };
       set((state) => ({
@@ -438,7 +570,7 @@ export function createDocuments(options: DocumentsOptions): {
         workspace: reference,
         open: [],
         current: null,
-        library: { loading: false, handle: null, problems: [], files: 0, ms: 0 },
+        library: { loading: false, handle: null, problems: [], files: 0, ms: 0, templates: new Set() },
         banner: bannerFor(reference),
         dialog: null,
         documents: [],
@@ -478,11 +610,12 @@ export function createDocuments(options: DocumentsOptions): {
       workspace: platform.workspace.root(),
       open: [],
       current: null,
-      library: { loading: false, handle: null, problems: [], files: 0, ms: 0 },
+      library: { loading: false, handle: null, problems: [], files: 0, ms: 0, templates: new Set() },
       banner: null,
       toast: null,
       dialog: null,
       documents: [],
+      filter: '',
 
       async start(): Promise<void> {
         // D11: the folder the browser still holds a grant for, with no gesture and no prompt.
@@ -659,6 +792,65 @@ export function createDocuments(options: DocumentsOptions): {
           dialog: state.dialog !== null && 'id' in state.dialog && state.dialog.id === id ? null : state.dialog,
         }));
         rememberTabs();
+      },
+
+      selectPlace(path: Path | null, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        patch(one.id, (open) => (path === null ? withoutSelection(open) : { ...open, selection: path }));
+      },
+
+      togglePlace(pointer: string, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        patch(one.id, (open) => ({
+          ...open,
+          toggled: open.toggled.includes(pointer)
+            ? open.toggled.filter((each) => each !== pointer)
+            : [...open.toggled, pointer],
+        }));
+      },
+
+      setFilter(filter: string): void {
+        set({ filter });
+      },
+
+      edit(make: (context: EditContext) => Command, id?: string): Applied | null {
+        const one = current(id);
+        if (one === undefined) return null;
+        return run(one, make(one.session.store.context));
+      },
+
+      offer(make: (context: EditContext) => Command, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        const command = make(one.session.store.context);
+        // A command with nothing to warn about is made rather than asked about: a confirmation
+        // that always says yes teaches the reader to stop reading it.
+        if (command.cascade === undefined) {
+          run(one, command);
+          return;
+        }
+        pending = { id: one.id, command };
+        const { removed, kept } = command.cascade;
+        set({
+          dialog: {
+            kind: 'remove',
+            id: one.id,
+            label: command.label,
+            removed: removed.map((place) => pointerOf(place)),
+            kept: kept.map((place) => pointerOf(place)),
+          },
+        });
+      },
+
+      confirmed(): void {
+        const held = pending;
+        pending = null;
+        set({ dialog: null });
+        if (held === null) return;
+        const one = get().open.find((open) => open.id === held.id);
+        if (one !== undefined) run(one, held.command);
       },
 
       async save(id?: string): Promise<void> {

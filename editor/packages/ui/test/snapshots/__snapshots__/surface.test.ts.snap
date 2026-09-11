@@ -12,6 +12,7 @@ exports[`@tensorspine/ui > exports the shell surface the snapshot records 1`] = 
 [
   "ACTIVITIES",
   "About",
+  "ActivityProvider",
   "BOUNDS",
   "Bar",
   "COMMANDS",

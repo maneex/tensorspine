@@ -10,6 +10,7 @@ import {
   DocumentsProvider,
   type DocumentsStore,
 } from '@tensorspine/ui/documents';
+import { EXPLORER_ACTIVITY, ModelExplorer } from '@tensorspine/ui/explorer';
 import { createShell, documentationBase, Shell, type ShellStore } from '@tensorspine/ui/shell';
 
 import '@tensorspine/ui/style.css';
@@ -83,7 +84,12 @@ export function start(platform: Platform, options: StartOptions): Application {
   flushSync(() => {
     react.render(
       <DocumentsProvider store={documents.store}>
-        <Shell store={store} platform={platform} views={DOCUMENT_VIEWS}>
+        <Shell
+          store={store}
+          platform={platform}
+          views={DOCUMENT_VIEWS}
+          activities={{ [EXPLORER_ACTIVITY]: ModelExplorer }}
+        >
           <DocumentDialogs />
           <DocumentToast />
         </Shell>

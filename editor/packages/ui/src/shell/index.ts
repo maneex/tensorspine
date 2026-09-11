@@ -39,7 +39,7 @@ export { EditorArea, type TabViews } from './EditorArea.js';
 export { MONOGRAM } from './logo.js';
 export { Palette } from './Palette.js';
 export { PANEL_TRANSFER, PanelRegion } from './Panels.js';
-export { Rail, Side } from './Rail.js';
+export { ActivityProvider, Rail, Side, type ActivityViews } from './Rail.js';
 export {
   ACTIVITIES,
   BOUNDS,
