@@ -206,37 +206,44 @@ async function opfsFileCase(): Promise<CaseReport> {
     return { name: CASES.opfsFile, ok: false, skipped: 'no navigator.storage.getDirectory', ms: 0 };
   }
   const root = await storage.getDirectory();
-  const handle = await root.getFileHandle('spike-0.5.safetensors', { create: true });
-  if (typeof handle.createWritable !== 'function') {
-    await root.removeEntry('spike-0.5.safetensors');
-    return { name: CASES.opfsFile, ok: false, skipped: 'no FileSystemFileHandle.createWritable', ms: 0 };
-  }
-  const file = synthesise([{ name: 'weight', dtype: 'F32', shape: [OPFS_BYTES / 4] }]);
-  const writable = await handle.createWritable();
-  await writable.write(syntheticBlob(file));
-  await writable.close();
-  const written = performance.now();
+  const name = 'spike-0.5.safetensors';
+  // 64 MiB in the profile, removed however this ends: a failing `expect` used to leave the file
+  // behind, and the next run's `create: true` would reopen it rather than write it afresh.
+  try {
+    const handle = await root.getFileHandle(name, { create: true });
+    if (typeof handle.createWritable !== 'function') {
+      return { name: CASES.opfsFile, ok: false, skipped: 'no FileSystemFileHandle.createWritable', ms: 0 };
+    }
+    const file = synthesise([{ name: 'weight', dtype: 'F32', shape: [OPFS_BYTES / 4] }]);
+    const writable = await handle.createWritable();
+    await writable.write(syntheticBlob(file));
+    await writable.close();
+    const written = performance.now();
 
-  const onDisk = await handle.getFile();
-  const { source, reads } = counting(onDisk);
-  const read = await readHeader(source, 'spike-0.5.safetensors');
-  const ms = performance.now() - written;
-  expect(onDisk.size === file.prefix.byteLength + file.payloadBytes, 'the file on disk is not the file written');
-  expect(read.bytesRead === 8 + read.headerBytes, 'more than the header was read');
-  expect(reads().length === 2, 'the header took more than two reads');
-  await root.removeEntry('spike-0.5.safetensors');
-  return {
-    name: CASES.opfsFile,
-    ok: true,
-    ms: Math.round(ms * 1000) / 1000,
-    bytesRead: read.bytesRead,
-    detail: {
-      fileBytes: onDisk.size,
-      headerBytes: read.headerBytes,
-      tensors: Object.keys(read.entries).length,
-      writeMs: Math.round(written - started),
-    },
-  };
+    const onDisk = await handle.getFile();
+    const { source, reads } = counting(onDisk);
+    const read = await readHeader(source, name);
+    const ms = performance.now() - written;
+    expect(onDisk.size === file.prefix.byteLength + file.payloadBytes, 'the file on disk is not the file written');
+    expect(read.bytesRead === 8 + read.headerBytes, 'more than the header was read');
+    expect(reads().length === 2, 'the header took more than two reads');
+    return {
+      name: CASES.opfsFile,
+      ok: true,
+      ms: Math.round(ms * 1000) / 1000,
+      bytesRead: read.bytesRead,
+      detail: {
+        fileBytes: onDisk.size,
+        headerBytes: read.headerBytes,
+        tensors: Object.keys(read.entries).length,
+        writeMs: Math.round(written - started),
+      },
+    };
+  } finally {
+    // `NotFoundError` where the handle was never created: the removal is the point, not its
+    // verdict, and a failure here must not replace the one being reported.
+    await root.removeEntry(name).catch(() => undefined);
+  }
 }
 
 /** The file on the page's input, if one was put there: a real checkpoint shard, on a real disk. */
