@@ -60,6 +60,14 @@ function stripCommonRoot(paths: readonly string[]): { name: string; depth: numbe
   return { name: 'dropped folder', depth: 0 };
 }
 
+/** One item of a drop, as the handler read it off the transfer before its first await. */
+export interface DroppedItem {
+  /** `webkitGetAsEntry()`: a directory, a file, or nothing where the engine gives none. */
+  readonly entry: FileSystemEntry | null;
+  /** `getAsFile()`: the file itself, which a directory has none of. */
+  readonly file: File | null;
+}
+
 /** Walk a dropped directory entry, which is the only reading a drop offers without handles. */
 async function walkEntry(entry: FileSystemEntry, into: SnapshotFile[]): Promise<void> {
   if (entry.isFile) {
@@ -100,15 +108,30 @@ export class SnapshotWorkspace implements Workspace {
     return new SnapshotWorkspace(name, entries, options.deliver ?? true);
   }
 
-  /** A folder dropped on the window, in an engine with no writable handle to give. */
-  static async fromDataTransfer(items: DataTransferItemList, options: SnapshotOptions = {}): Promise<SnapshotWorkspace> {
-    const roots: FileSystemEntry[] = [];
-    for (let index = 0; index < items.length; index += 1) {
-      const entry = items[index]?.webkitGetAsEntry() ?? null;
-      if (entry !== null) roots.push(entry);
-    }
+  /**
+   * A folder dropped on the window, in an engine with no writable handle to give.
+   *
+   * What it takes is what the caller read off the transfer **before its first await**: a
+   * `DataTransfer` is disabled the moment the synchronous part of the `drop` handler returns,
+   * after which its `items` are empty and `webkitGetAsEntry()` answers null. The entries and the
+   * files survive it, so `openDrop` reads both and this walks them afterwards.
+   *
+   * Both, because an item gives one or the other: a dropped *directory* is an entry and only an
+   * entry, and an item whose `webkitGetAsEntry` answers nothing — an engine without it, a
+   * synthesised transfer — is still a file, named by itself.
+   */
+  static async fromDrop(
+    dropped: readonly DroppedItem[],
+    options: SnapshotOptions = {},
+  ): Promise<SnapshotWorkspace> {
     const found: SnapshotFile[] = [];
-    for (const entry of roots) await walkEntry(entry, found);
+    for (const item of dropped) {
+      if (item.entry !== null) {
+        await walkEntry(item.entry, found);
+        continue;
+      }
+      if (item.file !== null) found.push({ path: normalise(item.file.name), file: item.file });
+    }
     const { name, depth } = stripCommonRoot(found.map((one) => one.path));
     return new SnapshotWorkspace(
       name,

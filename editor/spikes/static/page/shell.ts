@@ -1,6 +1,6 @@
 import { DirectoryWorkspace, hasDirectoryPicker, pickDirectory } from './directory.ts';
 import { grantPermission, permissionOf, recentWorkspaces, rememberWorkspace, type RecentWorkspace } from './recents.ts';
-import { SnapshotWorkspace } from './snapshot.ts';
+import { SnapshotWorkspace, type DroppedItem } from './snapshot.ts';
 import { nameOf, WorkspaceError, type Path, type Unsubscribe, type Workspace } from './workspace.ts';
 
 /**
@@ -130,6 +130,18 @@ export class Shell {
   private async openDrop(event: DragEvent): Promise<void> {
     const items = event.dataTransfer?.items;
     if (items === undefined || items.length === 0) return;
+    // Everything the transfer holds is read **before** the first `await`. A `DataTransfer` is
+    // disabled as soon as the synchronous part of the `drop` handler returns: after the await
+    // below `items.length` is 0 and `webkitGetAsEntry()` answers null, so a Chromium drop of
+    // anything that is not a directory handle — a single file, most obviously — adopted an empty
+    // snapshot called "dropped folder". The entries themselves outlive the transfer, which is what
+    // makes reading them first enough.
+    const dropped: DroppedItem[] = [];
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      if (item === undefined) continue;
+      dropped.push({ entry: item.webkitGetAsEntry(), file: item.getAsFile() });
+    }
     const first = items[0] as (DataTransferItem & { getAsFileSystemHandle?: () => Promise<FileSystemHandle | null> }) | undefined;
     const handle = first?.getAsFileSystemHandle === undefined ? null : await first.getAsFileSystemHandle();
     if (handle !== null && handle !== undefined && handle.kind === 'directory') {
@@ -139,28 +151,38 @@ export class Shell {
       await this.showRecents();
       return;
     }
-    await this.adopt(await SnapshotWorkspace.fromDataTransfer(items));
+    await this.adopt(await SnapshotWorkspace.fromDrop(dropped));
   }
 
-  /** Take a workspace, whichever kind it is: everything below this line is the same code. */
+  /**
+   * Take a workspace, whichever kind it is: everything below this line is the same code.
+   *
+   * Two `adopt`s can be in flight at once — Open Folder clicked, then a recent clicked while the
+   * first listing is still being read — so nothing here may outlive its own call. The watch is
+   * therefore started *before* the first `await` and its handle stored with it, or the first
+   * workspace's poll would still be running with nothing left holding its `unwatch`; and every
+   * resumption asks whether this call is still the one that owns the page before it writes to it.
+   */
   async adopt(workspace: Workspace): Promise<void> {
     this.unwatch?.();
     this.unwatch = null;
-    this.open = { workspace, path: null, revision: null };
+    const open: Open = { workspace, path: null, revision: null };
+    this.open = open;
     const reference = workspace.root();
     this.say(`Opened ${reference.name} — ${reference.kind}, ${reference.writable ? 'read-write' : 'read-only'}`);
-    await this.showFiles();
     if (reference.writable) {
       this.unwatch = workspace.watch('', (event) => {
+        if (this.open !== open) return;
         this.say(`watch: ${event.kind} ${event.path}`);
-        const open = this.open;
-        if (open === null || event.kind === 'removed') return;
+        if (event.kind === 'removed') return;
         if (open.path === event.path && open.revision !== event.revision) {
           this.parts.body.dataset['external'] = 'changed';
           this.say(`${event.path} changed on disk since it was read — reload to see it`);
         }
       });
     }
+    await this.showFiles();
+    if (this.open !== open) return;
     this.render();
   }
 

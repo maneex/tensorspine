@@ -296,6 +296,25 @@ test('a folder upload is a read-only snapshot, and Save downloads the document w
   expect(readFileSync(join(workspaceDirectory, 'models', 'llama3-8b.json'), 'utf8')).toBe(modelText);
 });
 
+test('a drop is read before the transfer is disabled, so the dropped files are the snapshot', async ({ page }) => {
+  // A `DataTransfer` is disabled the moment the synchronous part of the `drop` handler returns.
+  // `openDrop` awaits `getAsFileSystemHandle()` — the writable path, which is what Chromium can
+  // give for a *directory* — so anything it must read from the transfer has to be read before
+  // that await. A single file is the case: no directory handle comes back, and what is left is
+  // the snapshot built from the entries.
+  await openPage(page);
+  await page.evaluate((text) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([text], 'llama3-8b.json', { type: 'application/json' }));
+    window.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true }));
+  }, modelText);
+
+  await expect(page.locator('body')).toHaveAttribute('data-workspace', 'snapshot');
+  await expect(page.getByTestId('file')).toHaveText(['llama3-8b.json']);
+  await page.getByTestId('file').first().click();
+  await expect(page.getByTestId('editor')).toHaveValue(modelText);
+});
+
 test('the snapshot path is exercised on the uploaded folder, and refuses to create a directory', async ({ page }) => {
   await openPage(page);
   await page.getByTestId('upload').setInputFiles(workspaceDirectory);
