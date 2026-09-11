@@ -137,6 +137,22 @@ export class Vendor {
         if (file === undefined) return null;
         return { text: await this.read(file.path), revision: file.sha256 };
       },
+      // Together, not one after another: feature 2.4 measured the reference base's 131 files at
+      // **167–215 ms** read in sequence and **82–90 ms** read at once, and a library load has
+      // three hundred milliseconds to its name (§5.6). The set is known from the manifest before
+      // the first request, which is what makes the bulk read possible at all.
+      readMany: async (paths) => {
+        const found: Record<WorkspacePath, { text: string; revision: string }> = {};
+        const read = await Promise.all(
+          paths.map(async (path) => {
+            const file = held.get(path);
+            if (file === undefined) return null;
+            return { path, text: await this.read(file.path), revision: file.sha256 };
+          }),
+        );
+        for (const one of read) if (one !== null) found[one.path] = { text: one.text, revision: one.revision };
+        return found;
+      },
       revision: (path) => held.get(path)?.sha256 ?? null,
     };
   }

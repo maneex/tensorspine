@@ -72,6 +72,7 @@ export {
   type CancelReason,
   type CheckpointReport,
   type DescribeOptions,
+  type DocumentBases,
   type Facts,
   type FixAction,
   type Handle,

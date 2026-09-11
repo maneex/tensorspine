@@ -9,9 +9,14 @@
  *    when it is chosen rather than being absent from the menu that promises it;
  *  - **no avatar without a session** (component inventory §2): `NoAuth` answers `null`, which is
  *    every deployment of this plan (Q8 defers the SaaS), so the bar ends at the palette button.
+ *
+ * The two pills on the right are **the core's validation and derivation state** (inventory §2),
+ * shown only with a document open — feature 2.6 answers them, and with nothing open there is
+ * nothing to be the state of.
  */
 import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from 'react';
 
+import { BarPills } from '../documents/Pills.js';
 import { acceleratorText, commandsOf, MENUS, PALETTE_CHORD, type MenuId } from './commands.js';
 import { useShell, useShellStore, usePlatform } from './context.js';
 import { FilterIcon } from './icons.js';
@@ -165,6 +170,7 @@ export function Bar(): JSX.Element {
         ))}
       </nav>
       <div className="bar-right">
+        <BarPills />
         <button
           type="button"
           className="palette-open"

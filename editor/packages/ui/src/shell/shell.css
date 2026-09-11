@@ -327,6 +327,8 @@ body { margin: 0; }
 }
 .theme-light .dlg { box-shadow: 0 18px 40px rgba(18, 24, 30, 0.14); }
 .dlg-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--rule); }
+.dlg-head h2 { margin: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+.dlg-head .sub { font-size: 11px; color: var(--ink-3); }
 .dlg-head svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--ink-3); }
 .dlg-head input {
   flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent;
@@ -380,3 +382,84 @@ body { margin: 0; }
 .doc dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 0; }
 .doc dt { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
 .doc dd { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+
+/* ── open documents (feature 2.6) ───────────────────────────────────────────
+   The design's own rules, with the two inks feature 2.5 stepped up kept
+   stepped up: `--faint` carries no text here either, and a pill's dot is a
+   fill beside a word rather than the word itself, so the colour is never the
+   only thing that says what state a document is in.                          */
+.pill {
+  display: flex; align-items: center; gap: 6px; padding: 3px 10px;
+  border: 1px solid var(--chip); border-radius: 999px;
+  font-size: 11px; color: var(--ink-3); white-space: nowrap;
+}
+.pill i { width: 6px; height: 6px; border-radius: 999px; background: var(--good); }
+.pill.der i { background: var(--derived); }
+.pill.bad { border-color: var(--bad); color: var(--bad); }
+.pill.bad i { background: var(--bad); }
+.pill.stale i { background: var(--rule-strong); }
+
+.banner { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: var(--r); font-size: 11.5px; }
+.banner.stop { background: var(--bad-bg); color: var(--ink-2); border: 1px solid var(--bad); }
+.banner.info { background: var(--bg-tint); color: var(--ink-2); }
+.banner.warn { background: var(--derived-bg); color: var(--ink-2); border: 1px solid var(--derived); }
+.banner b { font-weight: 500; color: var(--ink); }
+.banner .bi { flex-shrink: 0; font-family: var(--mono); }
+
+.toast {
+  position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20;
+  display: flex; align-items: center; gap: 10px; padding: 7px 12px;
+  border: 1px solid var(--rule-2); border-radius: var(--r); background: var(--bg-raised);
+  font-size: 11.5px; color: var(--ink-2); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+.theme-light .toast { box-shadow: 0 8px 22px rgba(18, 24, 30, 0.14); }
+.toast .undo { margin-left: auto; color: var(--accent); }
+
+.link { color: var(--accent); font-size: 11.5px; }
+.link code { font-family: var(--mono); font-size: 11px; color: inherit; }
+.nothing .recent .note-line { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; }
+
+.doc-open { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+.doc-open .banner { border-radius: 0; border-width: 0 0 1px 0; }
+.doc-json {
+  flex: 1 1 auto; min-height: 0; overflow: auto; margin: 0; padding: 14px 22px;
+  font-size: 11.5px; line-height: 1.55; color: var(--ink-2); white-space: pre; tab-size: 2;
+}
+.doc-foot {
+  flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-top: 1px solid var(--rule); background: var(--bg-panel);
+}
+
+/* Every field stays on its own line and inside the bar: a figure that wrapped grew taller than
+   the thirty-two pixels the bar is, spilled out of its painted ground, and was then read against
+   the page's — which is how the axe pass found it. §4.2 gives the bar ten fields and the design
+   draws it 1472 px wide; a narrower window scrolls it rather than dropping a field or cutting
+   one in half, because a figure half shown is a figure misread. */
+.status > * { white-space: nowrap; }
+.status { overflow-x: auto; scrollbar-width: none; }
+.status::-webkit-scrollbar { width: 0; height: 0; }
+.status .ok { color: var(--accent); }
+.status .bad { color: var(--bad); }
+.status .der { color: var(--derived); }
+.status .fig.d b { color: var(--derived); }
+.status .fig .chip {
+  margin-left: 6px; padding: 0 5px; border: 1px solid var(--chip); border-radius: 2px;
+  font-style: normal; font-size: 9.5px; color: var(--ink-3);
+}
+
+.btn.ghost { background: transparent; }
+.ctl {
+  display: inline-flex; align-items: center; gap: 7px; height: 24px; padding: 0 8px;
+  background: var(--bg-raised); border: 1px solid var(--rule-2); border-radius: 2px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink);
+}
+.ctl.wide { display: flex; flex: 1 1 auto; min-width: 0; }
+.frow { display: flex; align-items: center; gap: 12px; padding: 4px 14px; font-size: 12px; }
+.frow > .fk { width: 92px; flex-shrink: 0; color: var(--ink-3); }
+.frow > .fv { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.dlg-foot .right { margin-left: auto; display: flex; gap: 8px; }
+.dlg-body .cmd { gap: 10px; }
+.dlg-body .cmd .link { margin-left: auto; }
+/* Read by a screen reader, drawn nowhere: a heading the tab strip already names in its own way,
+   and the file input a button stands in for. */
+.offscreen { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

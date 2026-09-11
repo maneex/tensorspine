@@ -64,7 +64,8 @@ meanings: so the declaration is bound at
 | `picker` | the list a select is filled from when it is not an enumeration: the base's axes, its precision roles |
 | `create` | the label of the action beside that picker when what is wanted does not exist yet |
 | `symbols` | a symbol per value of the enumeration at this anchor, or per tag of the union at it |
-| `format` | how a figure is shown: `bytes`, `elements`, `count`, `status`, `shape` |
+| `format` | how a figure is shown: `bytes`, `elements`, `operations`, `count`, `status`, `shape` |
+| `statusBar` | this figure is one of the status bar's four totals, in this position and under this label |
 | `declares` | the kind of thing the map at this anchor declares |
 | `scope` | the anchor of the declaration this one lives inside |
 | `refers` | where a name declared here is referred to |
@@ -100,6 +101,26 @@ The derived document's number is the fact; `format` is its rendering.
 Every member of the derived schema whose name says bytes carries the binding, and an audit test
 derives that set **from the schema** rather than listing it, so a byte figure added to a derived
 product fails the build until it is bound.
+
+The renderings themselves are `tools/view.py`'s: `14.96 GiB`, `128 KiB`, `15.01 Gop`, an em dash
+for nothing at all. That script is removed when the editor is deployed (the editor plan's finding
+F6 — "the conventions … move into the editor's presentation layer"), so the editor is where they
+live from now on, in `packages/ui/src/documents/figures.ts`, with the Python beside them in the
+comments as every other port keeps it.
+
+### The status bar's totals
+
+§4.2 gives the status bar ten fields and four of them are figures: *D3 total bytes · D5 operations
+per element · D4 append bytes per cached position · D2 peak live bytes per element*. Which four
+they are is a choice about the interface, and the derived schema cannot state it — so it is
+`statusBar` here, `{"order": 1, "label": "parameters"}`, and the bar **finds** them by walking the
+derived document against the derived schema rather than reading four paths written into a
+component. A fifth figure joins the bar by gaining the member, and a figure that moved in the
+schema moves with it.
+
+The label is English and is the key of the interface's own dictionary (§4.21): the schema's member
+name (`append_bytes_per_cached_position`) is not a label a bar can carry, and inventing one in a
+component is what this file exists to prevent.
 
 ## What a name refers to
 

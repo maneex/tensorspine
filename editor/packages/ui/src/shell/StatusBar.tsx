@@ -7,11 +7,13 @@
  *
  * Eight of those ten are a document's, and **every one of them is a figure the core computes** —
  * the component inventory's rule ("Every figure — D1–D6. No component adds, converts or rounds a
- * byte count"). There is no document here yet and no core reading yet (2.6, 2.8, 2.15), so the
- * bar shows the two that are answerable today and says plainly that it is showing nothing else:
- * the workspace it is looking at, the zoom, and the theme. Writing `tensorspine/2.0` into it
- * would be writing a `const` of the schema into the interface, which catching rule (b) forbids
- * and which feature 2.1 already refused to do for the same reason.
+ * byte count"). Feature 2.5 left them out because there was no document; feature 2.6 opens one
+ * and `../documents/Pills.tsx` answers all eight, each from the core or from the document's own
+ * tree and none from a literal: the model id and the revision tag are read at the two members the
+ * *schema* names (the one it requires as free text, the one it fixes), the two states are
+ * `validate` and `derive`, and the four figures are the places `presentation.json` marks in the
+ * derived document. With nothing open they are not shown at all, and what is left is what this
+ * component has always said: the workspace, the zoom, the theme.
  *
  * Both fields on the right are **clickable**, which is §4.4's rule rather than a flourish: "a
  * value is edited in the sheet's row, or by clicking the element itself". The zoom runs `View ▸
@@ -20,6 +22,7 @@
  */
 import type { JSX } from 'react';
 
+import { StatusFields, useOpenDocument } from '../documents/Pills.js';
 import { useShell, useShellStore, usePlatform } from './context.js';
 import { text, textWith } from './strings.js';
 import { resolveTheme, type ColourScheme, type ThemeChoice } from './theme.js';
@@ -45,6 +48,7 @@ export function StatusBar(): JSX.Element {
   const store = useShellStore();
   const platform = usePlatform();
   const workspace = useShell((state) => state.workspace);
+  const showing = useOpenDocument();
   const zoom = useShell((state) => state.zoom);
   const theme = useShell((state) => state.theme);
   const scheme = useShell((state) => state.scheme);
@@ -54,10 +58,13 @@ export function StatusBar(): JSX.Element {
       <span className="mono" data-workspace={workspace.kind}>
         {workspace.kind === 'empty' ? text('No workspace') : workspace.name}
       </span>
-      {workspace.kind === 'empty' || workspace.writable ? null : (
+      {showing || workspace.kind === 'empty' || workspace.writable ? null : (
         <span className="mono dimf">{text('read-only — Save hands you the file')}</span>
       )}
-      <span className="mono dimf">{textWith('platform: {}', platform.describe())}</span>
+      <StatusFields />
+      {showing ? null : (
+        <span className="mono dimf">{textWith('platform: {}', platform.describe())}</span>
+      )}
       <span className="right">
         <button
           type="button"

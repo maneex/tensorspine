@@ -44,6 +44,24 @@ export interface SymbolBinding {
 }
 
 /**
+ * One figure of the status bar — §4.2's "D3 total bytes · D5 operations per element · D4 append
+ * bytes per cached position · D2 peak live bytes per element".
+ *
+ * Which four of the derived document's figures the bar shows is a choice about the interface, and
+ * the derived schema cannot state it: so it is marked here, and the bar **finds** them by walking
+ * the derived document against the schema rather than reading four paths written into a
+ * component. The label is English and is the key of the interface's own dictionary (§4.21),
+ * because a schema member name — `append_bytes_per_cached_position` — is not a label a bar can
+ * carry.
+ */
+export interface StatusBarField {
+  /** Where it sits, left to right, in the order §4.2 writes the fields. */
+  readonly order: number;
+  /** What is written beside the figure. */
+  readonly label: string;
+}
+
+/**
  * How the occurrences of a name are found, once its declaration is known.
  *
  * The store's reference index answers *occurrences* — each with the member it is written under
@@ -103,6 +121,8 @@ export interface Binding {
   readonly symbols?: ReadonlyMap<string, SymbolBinding>;
   /** How a figure at this place is shown: as a size, a count, a status, a shape. */
   readonly format?: string;
+  /** That this figure is one of the status bar's totals, where it sits and what labels it. */
+  readonly statusBar?: StatusBarField;
   /** The kind of thing the map at this anchor declares: a quantity, a site, an index. */
   readonly declares?: string;
   /** The anchor of the declaration this one lives inside, when its references are scoped. */

@@ -15,7 +15,14 @@
  * against this one is asking the same questions the browser layer asks.
  */
 import { byNewest, draftKey, summaryOf } from './autosave.js';
-import { byteLength, ReadOnlyWorkspace, snapshotOf, textsOf, type Delivered } from './readonly.js';
+import {
+  ReadOnlyWorkspace,
+  sizeOf,
+  snapshotOf,
+  textsOf,
+  type Deliver,
+  type Delivered,
+} from './readonly.js';
 import { byName, join, normalise, parentOf, resolveFrom, segmentsOf, type WorkspacePath } from './paths.js';
 import {
   ABSENT,
@@ -298,8 +305,8 @@ export function recordingShell(): {
       record.clipboard = text;
       return Promise.resolve();
     },
-    download: (name, text) => {
-      record.downloads.push({ name, path: name, bytes: byteLength(text) });
+    download: (name, content) => {
+      record.downloads.push({ name, path: name, bytes: sizeOf(content) });
       return Promise.resolve();
     },
     setMenu: (commands) => {
@@ -357,7 +364,7 @@ export function stubPlatform(options: StubOptions = {}): Platform & {
     for (const listener of listeners) listener(workspace);
     return workspace;
   };
-  const deliver = (name: string, text: string): Promise<void> => shell.download(name, text);
+  const deliver: Deliver = (name, content) => shell.download(name, content);
 
   const workspaces: Workspaces = {
     // A stub has no picker, and says so rather than inventing a folder nobody chose.

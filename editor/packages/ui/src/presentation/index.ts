@@ -17,7 +17,13 @@ export { auditPresentation, genericLines, presentationLines, SCOPE } from './aud
 export type { GenericConstruct, PresentationAudit, PresentationProblem } from './audit.js';
 export { presentation, PresentationError, readPresentation } from './load.js';
 export { referenceSelectors, type Scope } from './selectors.js';
-export type { Binding, Presentation, ReferenceRule, SymbolBinding } from './types.js';
+export type {
+  Binding,
+  Presentation,
+  ReferenceRule,
+  StatusBarField,
+  SymbolBinding,
+} from './types.js';
 
 /** What the shell holds after startup: the bindings, and what the audit said about them. */
 export interface StartedPresentation {

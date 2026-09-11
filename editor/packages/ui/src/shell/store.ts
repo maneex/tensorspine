@@ -143,8 +143,23 @@ export interface Shell extends ShellState {
 
   openTab(tab: Tab): void;
   selectTab(id: string): void;
+  /**
+   * Change what a tab says about itself — its name, its badge, its dirty dot (§4.3).
+   *
+   * The strip is the shell's and the document behind it is not (D1), so the feature that owns the
+   * document is what tells the strip a document has become dirty or turned out to be a template.
+   */
+  updateTab(id: string, patch: { title?: string; badge?: string; dirty?: boolean }): void;
   closeTab(id: string): void;
   closeAllTabs(): void;
+  /**
+   * What is asked before a tab closes — §4.3's "Close with unsaved changes asks".
+   *
+   * A guard and not a state member: it is the *document's* answer, and a copy of the answer here
+   * would be a copy of the document's dirtiness, which D1 forbids. The default takes every close,
+   * which is what the shell did before anything could be dirty.
+   */
+  guardClose(guard: (tab: Tab) => boolean | Promise<boolean>): void;
 
   setTheme(choice: ThemeChoice): void;
   openMenu(menu: string | null): void;
@@ -352,6 +367,8 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
   const stored = readLayout(settings.peek(LAYOUT_SETTING));
   const docsBase = options.docsBase ?? '../';
   let handlers: Record<string, CommandHandler> = { ...options.handlers };
+  /** What is asked before a tab closes; every close is taken until a feature says otherwise. */
+  let closing: (tab: Tab) => boolean | Promise<boolean> = () => true;
 
   const store: ShellStore = createStore<Shell>()((set, get) => {
     const remember = (): void => {
@@ -367,6 +384,18 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
       set((state) => ({
         log: [...state.log, { at: new Date().toISOString(), text: line }].slice(-LOG_LIMIT),
       }));
+    };
+
+    /** Take a tab out of the strip, the current one moving to its neighbour. */
+    const remove = (id: string): void => {
+      set((state) => {
+        const index = state.tabs.findIndex((tab) => tab.id === id);
+        if (index < 0) return {};
+        const tabs = state.tabs.filter((tab) => tab.id !== id);
+        if (state.activeTab !== id) return { tabs };
+        const next = tabs[Math.min(index, tabs.length - 1)];
+        return { tabs, activeTab: next?.id ?? null };
+      });
     };
 
     const openTab = (tab: Tab): void => {
@@ -499,18 +528,29 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
       selectTab: (id) => {
         set((state) => (state.tabs.some((tab) => tab.id === id) ? { activeTab: id } : {}));
       },
+      updateTab: (id, change) => {
+        set((state) => ({
+          tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, ...change } : tab)),
+        }));
+      },
+      guardClose: (guard) => {
+        closing = guard;
+      },
       closeTab: (id) => {
-        set((state) => {
-          const index = state.tabs.findIndex((tab) => tab.id === id);
-          if (index < 0) return {};
-          const tabs = state.tabs.filter((tab) => tab.id !== id);
-          if (state.activeTab !== id) return { tabs };
-          const next = tabs[Math.min(index, tabs.length - 1)];
-          return { tabs, activeTab: next?.id ?? null };
+        const tab = get().tabs.find((one) => one.id === id);
+        if (tab === undefined) return;
+        const answer = closing(tab);
+        if (answer === true) {
+          remove(id);
+          return;
+        }
+        if (answer === false) return;
+        void answer.then((may) => {
+          if (may) remove(id);
         });
       },
       closeAllTabs: () => {
-        set({ tabs: [], activeTab: null });
+        for (const tab of [...get().tabs]) get().closeTab(tab.id);
       },
 
       setTheme: (choice) => {

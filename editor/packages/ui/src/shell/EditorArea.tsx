@@ -75,14 +75,23 @@ function Nothing(): JSX.Element {
             {text('New Base…')}
           </button>
         </div>
-        {recent.length === 0 ? null : (
-          <div className="recent">
-            <span className="note-line">{text('Recent')}</span>
-            <span className="note-line">
-              <code>{recent.map((one) => one.name).join(' · ')}</code>
-            </span>
-          </div>
-        )}
+        <div className="recent">
+          <span className="note-line">{text('Recent')}</span>
+          <span className="note-line">
+            {/* The examples the build carries are always available (§4.3) and are the one
+                workspace that needs no folder, no permission and no upload — so they are offered
+                beside the folders that have been open, rather than as a fourth button S17 does
+                not draw. */}
+            <button type="button" className="link" data-open="examples" onClick={run('file.open-recent')}>
+              {text('Examples')}
+            </button>
+            {recent.map((one) => (
+              <button key={one.id} type="button" className="link" data-open={one.id} onClick={run('file.open-recent')}>
+                <code>{one.name}</code>
+              </button>
+            ))}
+          </span>
+        </div>
       </div>
     </div>
   );

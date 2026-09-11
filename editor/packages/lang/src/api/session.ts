@@ -44,8 +44,10 @@ import { put, type JsonValue } from '../json/tree.js';
 import { parse as parseOf } from '../json/parse.js';
 import { serialize as serializeOf } from '../json/serialize.js';
 import {
+  baseTemplates as baseTemplatesOf,
   basesOf,
   loadLibrary as loadLibraryOf,
+  missingBases,
   type Library,
   type LibraryContext,
 } from '../library/load.js';
@@ -68,6 +70,7 @@ import {
   LangHandleError,
   type CancelReason,
   type CheckpointReport,
+  type DocumentBases,
   type Facts,
   type LibraryBaseFiles,
   type LibraryHandle,
@@ -237,7 +240,7 @@ export class LangSession {
   loadLibrary(
     bases: readonly LibraryBaseFiles[],
     schemas: SchemasHandle,
-    options: { readonly modelsBase?: string | null } = {},
+    options: { readonly modelsBase?: string | null; readonly forDocument?: string } = {},
   ): LibraryLoaded {
     const held = this.heldSchemas(schemas);
     const files: Record<string, string> = {};
@@ -251,12 +254,67 @@ export class LangSession {
       ...(options.modelsBase === undefined ? {} : { modelsBase: options.modelsBase }),
     };
     const paths = bases.map((base) => base.base);
+    // `load_for`'s own guard, which `load` assumes has run: the tools open what they are given
+    // and raise what `open()` raises, because a base that does not exist has already been
+    // rejected (V1) one call up. The caller here gathers its own bases out of a workspace, so the
+    // guard is made here — with the core's function, in the core's words — rather than left to a
+    // `LibrarySourceError` escaping out of a read.
+    const absent = missingBases(options.forDocument ?? '', paths, context);
+    if (absent.length > 0) {
+      const handle: LibraryHandle = { kind: 'library', id: this.identity('library') };
+      const empty = loadLibraryOf([], context);
+      this.libraries.set(handle.id, {
+        handle,
+        schemas: held,
+        bases: paths.map((path) => ({ path, root: normalise(path) })),
+        library: empty,
+        context,
+      });
+      return { handle, library: empty, problems: absent.map((one) => libraryRow(one)) };
+    }
     // The loader is given the caller's own spellings, which is what its refusals name.
     const library = loadLibraryOf(paths, context);
     const handle: LibraryHandle = { kind: 'library', id: this.identity('library') };
     const heldBases = paths.map((path) => ({ path, root: normalise(path) }));
     this.libraries.set(handle.id, { handle, schemas: held, bases: heldBases, library, context });
     return { handle, library, problems: library.problems.map((one) => libraryRow(one)) };
+  }
+
+  /**
+   * `bases_of`: the bases a document declares, resolved against the document's own directory.
+   *
+   * The call the workspace makes **before** it can read anything for a document: it has the
+   * document's text and has to know which folders to gather. The answer is the loader's own, so
+   * that no part of the interface reads `primitive_libraries` for itself (D3, §1).
+   */
+  documentBases(tree: JsonValue, path: string): DocumentBases {
+    const resolved = basesOf(path, recordOf(tree));
+    return {
+      bases: resolved.bases,
+      problems: resolved.problem === null ? [] : [libraryRow(resolved.problem)],
+    };
+  }
+
+  /**
+   * Where each base keeps its template documents, read from the manifest each one carries.
+   *
+   * The second half of the same question, asked once the bases' own files are in hand. A base's
+   * templates location is resolved against the base and **may leave it** — the reference base
+   * says `"templates": "../models/"` — so a base handed to {@link loadLibrary} with its own files
+   * alone is refused for a reason the workspace, not the base, is responsible for. This is the
+   * computation `loadLibrary` does, without the load: one manifest read per base.
+   */
+  baseTemplates(
+    bases: readonly LibraryBaseFiles[],
+    schemas: SchemasHandle,
+  ): (string | null)[] {
+    const held = this.heldSchemas(schemas);
+    const files: Record<string, string> = {};
+    for (const base of bases) {
+      for (const [path, text] of Object.entries(base.files)) put(files, path, text);
+    }
+    const context: LibraryContext = { schemas: held.registry, source: memorySource(files) };
+    return bases.map((base) => baseTemplatesOf(base.base, context));
   }
 
   /** `validateUnit(unit, path, bases)`: the loader's verdict on one unit, live (D15, §4.22). */

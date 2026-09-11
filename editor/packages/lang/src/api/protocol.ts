@@ -164,6 +164,8 @@ export function listen(port: LangPort, handler: (data: unknown) => void): () => 
 export const CALLS = [
   'loadSchemas',
   'loadLibrary',
+  'documentBases',
+  'baseTemplates',
   'validateUnit',
   'parse',
   'serialize',

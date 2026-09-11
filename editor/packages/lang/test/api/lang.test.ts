@@ -81,6 +81,57 @@ for (const deployment of DEPLOYMENTS) {
       );
     });
 
+    // --- what the workspace has to read --------------------------------------
+
+    it('answers the bases a document declares, resolved against the document (bases_of)', async () => {
+      const tree = await lang.parse(corpus('llama3-8b'));
+      const answered = await lang.documentBases(tree, corpusPath('llama3-8b'));
+      expect(answered.bases).toEqual(['data/primitive-library']);
+      expect(answered.problems).toEqual([]);
+    });
+
+    it('carries the loader’s own refusal where a document resolves from nothing', async () => {
+      const tree = await lang.parse('{"schema": "tensorspine/1.0"}');
+      const answered = await lang.documentBases(tree, 'data/models/x.json');
+      expect(answered.bases).toEqual([]);
+      expect(answered.problems[0]?.message).toContain('expected tensorspine/2.0');
+    });
+
+    it('answers where a base keeps its template documents, from the manifest alone', async () => {
+      // The templates location may leave the base — `"templates": "../models/"` — and the loader
+      // opens what it names. This is the reading the workspace makes before it hands a base over
+      // (feature 2.6), and it costs one manifest read: a base of its manifest alone answers it.
+      const base = referenceBase();
+      const manifest = 'data/primitive-library/primitive-library.json';
+      expect(await lang.baseTemplates([base], schemas)).toEqual(['data/models']);
+      expect(
+        await lang.baseTemplates(
+          [{ base: base.base, files: { [manifest]: base.files[manifest] ?? '' } }],
+          schemas,
+        ),
+      ).toEqual(['data/models']);
+      expect(await lang.baseTemplates([{ base: 'nowhere', files: {} }], schemas)).toEqual([null]);
+    });
+
+    it('refuses a base that is not there in `load_for`’s own words, and raises nothing', async () => {
+      // `load` opens what it is given and raises what `open()` raises, because the tools check a
+      // declared base exists before they load (V1). A caller that gathers its own bases out of a
+      // workspace cannot know, so the guard runs here — and a `LibrarySourceError` escaping out of
+      // a read is what this replaced (found by feature 2.6's own suite).
+      const answered = await lang.loadLibrary([{ base: 'primitive-library', files: {} }], schemas, {
+        forDocument: 'models/llama3-8b.json',
+      });
+      expect(answered.problems.map((one) => one.message)).toEqual([
+        "llama3-8b.json: primitive library base 'primitive-library' does not exist (V1)",
+      ]);
+      expect(answered.problems[0]?.code).toBe('V1');
+      expect(answered.library.byId.size).toBe(0);
+      // And the handle is a handle: a caller goes on using it rather than meeting a raise.
+      await expect(
+        lang.validateUnit(await lang.parse('{}'), 'axes/x.json', answered.handle),
+      ).resolves.toBeDefined();
+    });
+
     // --- the document --------------------------------------------------------
 
     it('parses and serializes a corpus document back to its own bytes (D12)', async () => {

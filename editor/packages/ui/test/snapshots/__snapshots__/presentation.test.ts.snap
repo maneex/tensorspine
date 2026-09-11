@@ -37,6 +37,7 @@ exports[`presentation.json > binds the anchors the snapshot records 1`] = `
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/append_bytes_per_cached_position",
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/bounded_bytes",
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/fixed_bytes",
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/operations/properties/element",
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/parameters/properties/bytes",
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/state/properties/append_bytes_per_cached_position",
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/state/properties/bounded_bytes",

@@ -450,6 +450,38 @@ function highestVersions(byId: ReadonlyMap<string, PrimitiveVersion>): Map<strin
   return out;
 }
 
+/**
+ * Where a base keeps its template documents, resolved against the base itself.
+ *
+ * It "may leave it" — the reference base says `"templates": "../models/"` — which is why it is a
+ * reading of the manifest and not a fixed place under the base.
+ */
+export function templatesOfManifest(base: string, manifest: PyValue | null): string | null {
+  if (manifest === null || !has(manifest, 'templates')) return null;
+  return normalise(join(base, pyStr(get(manifest, 'templates'))));
+}
+
+/**
+ * The same answer without the load: the manifest read, and the location it names.
+ *
+ * The caller that needs it is the editor's workspace layer. A base's files are what the loader is
+ * handed (§5.3: "the core is pure — the UI reads files through `Platform`"), and the template
+ * documents a template primitive pins are **not among them**: the loader opens them to check the
+ * file, name, version and id it pins, so a base handed over without them is refused for a reason
+ * the workspace, not the base, is responsible for. The workspace therefore has to know where they
+ * are *before* it hands the base over — and where they are is the manifest's to say, which makes
+ * it the core's to read and not the interface's to spell out (D3, §1).
+ *
+ * `null` where the base is not an exploded directory, carries no manifest, or its manifest names
+ * no location: in each of those a base's own files are all there is to read. A manifest that is
+ * off the unit schema answers `null` here and is refused by the load, which is where a refusal
+ * belongs.
+ */
+export function baseTemplates(base: string, context: LibraryContext): string | null {
+  if (!context.source.isDirectory(base)) return null;
+  return templatesOfManifest(base, readManifest(base, new Gathering(), context));
+}
+
 /** An exploded base: its manifest, then every unit of its three sections. */
 function readDirectoryBase(
   base: string,
@@ -459,10 +491,7 @@ function readDirectoryBase(
 ): LoadedBase {
   const { source } = context;
   const manifest = readManifest(base, gathering, context);
-  let templates: string | null = null;
-  if (manifest !== null && has(manifest, 'templates')) {
-    templates = normalise(join(base, pyStr(get(manifest, 'templates'))));
-  }
+  let templates = templatesOfManifest(base, manifest);
   if (modelsBase !== null) templates = modelsBase;
 
   const units: LibraryUnit[] = [];
@@ -480,13 +509,22 @@ function readDirectoryBase(
   return { path: base, kind: 'directory', manifest, templates, units };
 }
 
+/**
+ * The file an exploded base declares itself with, as `_manifest` opens it.
+ *
+ * Named here because it is the loader's own convention and nothing else's — a caller that has to
+ * read it before it can hand a base over (the editor's workspace layer, which gathers the bytes)
+ * asks for this rather than spelling it, so there is one name for it in the repository.
+ */
+export const BASE_MANIFEST = 'primitive-library.json';
+
 /** `_manifest`: the base's own `primitive-library.json`, `null` when it carries none. */
 export function readManifest(
   base: string,
   gathering: Gathering,
   context: LibraryContext,
 ): PyValue | null {
-  const path = join(base, 'primitive-library.json');
+  const path = join(base, BASE_MANIFEST);
   const source = context.source;
   if (!source.isFile(path)) return null;
   const read = readFile(path, gathering, context, 'primitive-library-unit');
@@ -702,6 +740,33 @@ export function basesOf(
 }
 
 /**
+ * `load_for`'s own guard: **a declared base that does not exist is a rejection (V1)**, "not a
+ * fallback to some other primitive_library".
+ *
+ * It runs before the load and not inside it, exactly as the tools run it: `load` itself opens
+ * what it is given and raises what `open()` raises, because `load_for` has already answered for
+ * the bases being there. A caller that gathers its own bases — the editor's workspace layer, which
+ * hands `loadLibrary` the bytes rather than a directory (§5.3) — makes the same check the same
+ * way, which is why it is a function and not four lines inside one.
+ */
+export function missingBases(
+  modelPath: string,
+  bases: readonly string[],
+  context: LibraryContext,
+): LibraryProblem[] {
+  return bases
+    .filter((base) => !context.source.exists(base))
+    .map((base) =>
+      libraryProblem(
+        'base',
+        modelPath,
+        `${basename(modelPath)}: primitive library base '${base}' does not exist (V1)`,
+        { code: 'V1' },
+      ),
+    );
+}
+
+/**
  * `load_for`: the primitive library a document resolves from, its declared bases checked to exist
  * first — "a declared base that does not exist is a rejection (V1), not a fallback to some other
  * primitive_library".
@@ -718,18 +783,9 @@ export function librariesFor(
     gathering.refuse(resolved.problem);
     return library([], gathering, new Map(), gathering.problems);
   }
-  const missing = resolved.bases.filter((base) => !context.source.exists(base));
+  const missing = missingBases(modelPath, resolved.bases, context);
   if (missing.length > 0) {
-    for (const base of missing) {
-      gathering.refuse(
-        libraryProblem(
-          'base',
-          modelPath,
-          `${basename(modelPath)}: primitive library base '${base}' does not exist (V1)`,
-          { code: 'V1' },
-        ),
-      );
-    }
+    for (const problem of missing) gathering.refuse(problem);
     return library([], gathering, new Map(), gathering.problems);
   }
   return loadLibrary(resolved.bases, context);

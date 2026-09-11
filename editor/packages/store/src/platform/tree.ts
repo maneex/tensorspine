@@ -1,25 +1,29 @@
 /**
- * Reading a whole subtree of a workspace — feature 2.4.
+ * Reading a whole subtree of a workspace — feature 2.4, with feature 2.6's two answers on it.
  *
  * The core opens nothing: "the UI reads files through `Platform` and hands the core texts and
  * trees" (§5.3). `loadSchemas` takes the schema files, `loadLibrary` takes each base as a map of
  * path to text, and this is what produces one.
  *
- * **The trap this leaves open, stated.** A base's templates location is resolved against the base
- * and *may leave it* — the reference base says `"templates": "../models/"` — so the files under a
- * base are not always all the loader needs: it opens the template document a template primitive
- * pins, to check its file, name, version and id. A base handed over without those is refused for a
- * reason the workspace, not the base, is responsible for. Two ways to close it, and feature 2.6
- * chooses:
+ * **The templates hand-over, decided (feature 2.6).** A base's templates location is resolved
+ * against the base and *may leave it* — the reference base says `"templates": "../models/"` — so
+ * the files under a base are not always all the loader needs: it opens the template document a
+ * template primitive pins, to check its file, name, version and id. Feature 2.4 named two ways
+ * out and left the choice here: read the manifest's member, or hand over the base's own files,
+ * read `Library.bases[].templates` off the load and load again.
  *
- *   - read the manifest and add the directory its templates member names (what
- *     `packages/lang/test/api/source.ts` does by hand); or
- *   - hand over the base's own files, read `Library.bases[].templates` off the load — the core
- *     computes it whether or not the documents were there — and load again with them.
+ * **Neither, as they were stated. The core is asked, once, and nothing is loaded twice.** The
+ * first costs one load but writes `templates` — a member of the unit schema — into interface
+ * source, which is what §1 exists to prevent; the second writes nothing but pays the library load
+ * twice, against a budget of 300 ms for one (§5.6). So `packages/lang` gained `baseTemplates` —
+ * `readDirectoryBase`'s own reading of the manifest, factored out of it, with the load left off —
+ * and the workspace layer asks for it between reading a base's files and handing them over
+ * (`gatherBases`, `../documents/gather.ts`). One manifest read, one load, and the member is named
+ * where every other member of the language is named: in the core.
  *
- * The second names nothing of the unit schema in interface source, which is what §1 asks for; the
- * first costs one load instead of two. Neither is decided here, because neither belongs to the
- * workspace: this module reads what it is told to read.
+ * **Reading a set costs less than reading it file by file.** Feature 2.4 measured the reference
+ * base's 131 files at 167–215 ms one after another and 82–90 ms at once; a workspace that can do
+ * better in bulk says so with {@link Workspace.readMany}, and this uses it when it is there.
  */
 import { isUnder, normalise, type WorkspacePath } from './paths.js';
 import { PlatformError, type Workspace } from './types.js';
@@ -46,22 +50,13 @@ export async function readTree(
   directory: WorkspacePath,
   options: TreeOptions = {},
 ): Promise<Record<WorkspacePath, string>> {
-  const root = normalise(directory);
-  const suffix = options.suffix ?? '';
-  const hidden = options.hidden ?? true;
+  const paths = await listTree(workspace, directory, options);
   const found: Record<WorkspacePath, string> = {};
-  const walk = async (at: WorkspacePath, depth: number): Promise<void> => {
-    for (const entry of await workspace.list(at)) {
-      if (hidden && entry.name.startsWith('.')) continue;
-      if (entry.kind === 'directory') {
-        if (options.depth === undefined || depth < options.depth) await walk(entry.path, depth + 1);
-        continue;
-      }
-      if (!entry.name.endsWith(suffix)) continue;
-      found[entry.path] = (await workspace.read(entry.path)).text;
-    }
-  };
-  await walk(root, 0);
+  if (workspace.readMany !== undefined) {
+    for (const [path, one] of Object.entries(await workspace.readMany(paths))) found[path] = one.text;
+    return found;
+  }
+  for (const path of paths) found[path] = (await workspace.read(path)).text;
   return found;
 }
 

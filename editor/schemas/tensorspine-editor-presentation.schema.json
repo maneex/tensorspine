@@ -68,8 +68,26 @@
           "description": "A symbol per value of the enumeration at this anchor, or per tag of the union at it. An operator with no symbol prints and parses as `name(args)` and is listed by the startup audit as rendered generically, which is why `min` and `max` have none."
         },
         "format": {
-          "enum": ["bytes", "elements", "count", "status", "shape"],
-          "description": "How a figure at this place is shown: a size in B/KiB/MiB/GiB with the exact number in the tooltip, a count of elements, a per-stream count, an epistemic status as a chip, a shape as its axes and extents. No component converts or rounds a figure of its own; the derived document's number is the fact and this is its rendering."
+          "enum": ["bytes", "elements", "operations", "count", "status", "shape"],
+          "description": "How a figure at this place is shown: a size in B/KiB/MiB/GiB with the exact number in the tooltip, a count of elements, a count of operations in `op`/`Mop`/`Gop`, a per-stream count, an epistemic status as a chip, a shape as its axes and extents. The renderings are `tools/view.py`'s own, which the editor takes over when that script is removed (the editor plan's finding F6). No component converts or rounds a figure of its own; the derived document's number is the fact and this is its rendering."
+        },
+        "statusBar": {
+          "type": "object",
+          "required": ["order", "label"],
+          "additionalProperties": false,
+          "description": "This figure is one of the status bar's totals (the editor plan's §4.2 and §4.18: D3 total bytes, D5 operations per element, D4 append bytes per cached position, D2 peak live bytes per element). Which four they are is a choice the derived schema cannot state, so it is stated here and the bar shows what it finds rather than four places named in a component.",
+          "properties": {
+            "order": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Where it sits in the bar, left to right, in the order §4.2 writes the fields."
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What is written beside the figure, since the schema's member name is not a label a bar can carry. English, and the key of the interface's own dictionary (§4.21)."
+            }
+          }
         },
         "declares": {
           "type": "string",

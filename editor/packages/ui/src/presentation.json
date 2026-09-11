@@ -251,13 +251,21 @@
     "format": "bytes"
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2/properties/peak_live/properties/bytes_per_element": {
-    "format": "bytes"
+    "format": "bytes",
+    "statusBar": {
+      "order": 4,
+      "label": "peak live"
+    }
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d3/properties/tensors/items/properties/bytes": {
     "format": "bytes"
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d3/properties/totals/properties/bytes": {
-    "format": "bytes"
+    "format": "bytes",
+    "statusBar": {
+      "order": 1,
+      "label": "params"
+    }
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/states/items/properties/payload/items/properties/bytes": {
     "format": "bytes"
@@ -269,13 +277,24 @@
     "format": "bytes"
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/append_bytes_per_cached_position": {
-    "format": "bytes"
+    "format": "bytes",
+    "statusBar": {
+      "order": 3,
+      "label": "/ cached position"
+    }
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/bounded_bytes": {
     "format": "bytes"
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4/properties/totals/properties/fixed_bytes": {
     "format": "bytes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/operations/properties/element": {
+    "format": "operations",
+    "statusBar": {
+      "order": 2,
+      "label": "/ element"
+    }
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/parameters/properties/bytes": {
     "format": "bytes"

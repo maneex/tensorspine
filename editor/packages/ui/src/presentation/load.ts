@@ -13,7 +13,13 @@
  */
 import source from '../presentation.json';
 
-import type { Binding, Presentation, ReferenceRule, SymbolBinding } from './types.js';
+import type {
+  Binding,
+  Presentation,
+  ReferenceRule,
+  StatusBarField,
+  SymbolBinding,
+} from './types.js';
 
 /** Raised when `presentation.json` is not a presentation file. */
 export class PresentationError extends Error {
@@ -36,6 +42,7 @@ const MEMBERS = [
   'create',
   'symbols',
   'format',
+  'statusBar',
   'declares',
   'scope',
   'refers',
@@ -46,6 +53,9 @@ const RULE_MEMBERS = ['tag', 'kind', 'under', 'scopedBy', 'without'] as const;
 
 /** The members a symbol may carry; both are required. */
 const SYMBOL_MEMBERS = ['text', 'form'] as const;
+
+/** The members a status-bar mark may carry; both are required. */
+const FIELD_MEMBERS = ['order', 'label'] as const;
 
 /** The members whose value is a list of strings. */
 const LISTS = new Set<string>(['face', 'references']);
@@ -95,6 +105,25 @@ function symbolOf(value: unknown, where: string): SymbolBinding {
     throw new PresentationError(`${where}: a symbol needs the place it prints in`);
   }
   return { text: printed, form };
+}
+
+/** One status-bar mark: where the figure sits in the bar, and what is written beside it. */
+function fieldOf(value: unknown, where: string): StatusBarField {
+  if (!isRecord(value)) throw new PresentationError(`${where}: expected a status-bar field`);
+  for (const member of Object.keys(value)) {
+    if (!(FIELD_MEMBERS as readonly string[]).includes(member)) {
+      throw new PresentationError(`${where}: a status-bar field carries no member '${member}'`);
+    }
+  }
+  const order: unknown = value['order'];
+  const label: unknown = value['label'];
+  if (typeof order !== 'number' || !Number.isInteger(order) || order < 1) {
+    throw new PresentationError(`${where}: a status-bar field needs the place it sits in`);
+  }
+  if (typeof label !== 'string' || label === '') {
+    throw new PresentationError(`${where}: a status-bar field needs the label written beside it`);
+  }
+  return { order, label };
 }
 
 /** One reference rule. */
@@ -148,6 +177,8 @@ function bindingOf(value: unknown, anchor: string): Binding {
         throw new PresentationError(`${where}: expected true or false`);
       }
       binding[member] = one;
+    } else if (member === 'statusBar') {
+      binding[member] = fieldOf(one, where);
     } else if (member === 'symbols') {
       if (!isRecord(one)) throw new PresentationError(`${where}: expected symbols by name`);
       const symbols = new Map<string, SymbolBinding>();

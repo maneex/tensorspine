@@ -17,15 +17,19 @@
  *   already gathered — the live judgement of §4.22, D15.
  */
 export {
+  BASE_MANIFEST,
+  baseTemplates,
   basesOf,
   identityKey,
   librariesFor,
   libraryUnits,
   loadLibrary,
+  missingBases,
   primitiveOf,
   semanticVersion,
   templateInterfaces,
   templateOf,
+  templatesOfManifest,
   templatePinOf,
   templatePrimitives,
   SECTIONS,

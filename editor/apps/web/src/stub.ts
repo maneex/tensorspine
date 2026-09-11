@@ -1,5 +1,6 @@
 import { stubPlatform, type Session } from '@tensorspine/store/platform';
 
+import { startLang } from './lang/connect.js';
 import { start } from './app.js';
 
 /**
@@ -11,6 +12,13 @@ import { start } from './app.js';
  * it: a component that reached around `Platform` for `localStorage`, a file handle or a picker
  * would either fail to compile or appear in this page's chunk, and the browser layer asserts that
  * it does not.
+ *
+ * The core it is given is the same worker the application uses, in its own chunk; it carries no
+ * platform either, which is why it may be here. The **schemas** are what it has none of: the
+ * vendored files are read over the network by the browser's page and the stub has no network of
+ * its own, so this page answers an empty set and a document opened on it is refused by the
+ * registry in the registry's own words. That is the honest shape of a renderer with no
+ * deployment behind it.
  *
  * **It reads two query parameters, and only this page does.** `stub.html` is emitted by
  * `vite build --mode check` and by nothing else — it is never deployed — so it is the right place
@@ -35,7 +43,10 @@ const scheme = ask('scheme');
 const platform = stubPlatform(session === undefined ? {} : { session });
 if (scheme === 'dark' || scheme === 'light') platform.preferScheme(scheme);
 
-const application = start(platform);
+const application = start(platform, {
+  lang: startLang(),
+  vendoredSchemas: () => Promise.resolve({}),
+});
 
 /**
  * What the browser layer reads off this page.
@@ -48,8 +59,16 @@ const application = start(platform);
  */
 declare global {
   interface Window {
-    tensorspineStub: { platform: typeof platform; store: typeof application.store };
+    tensorspineStub: {
+      platform: typeof platform;
+      store: typeof application.store;
+      documents: typeof application.documents;
+    };
   }
 }
 
-window.tensorspineStub = { platform, store: application.store };
+window.tensorspineStub = {
+  platform,
+  store: application.store,
+  documents: application.documents,
+};

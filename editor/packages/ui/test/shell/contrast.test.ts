@@ -98,6 +98,19 @@ const PAIRS: readonly [string, string, string][] = [
   // banners
   ['--ink-2', '--bg-tint', 'an informing banner'],
   ['--ink-2', '--derived-bg', 'a warning banner'],
+  ['--ink-2', '--bad-bg', 'a banner that stops'],
+  // the open document (feature 2.6): the bar's two pills, the status bar's eight fields, the
+  // toast, and the links the empty state offers a workspace through
+  ['--ink-3', '--bg-chrome', 'a pill that is checking, or has nothing to report'],
+  ['--bad', '--bg-chrome', 'a pill, or a status field, that counts problems'],
+  ['--derived', '--bg-chrome', 'the derivation state and every derived figure in the bar'],
+  ['--accent', '--bg-chrome', 'the validation state when there is nothing to report'],
+  ['--ink-2', '--bg', 'a document shown as the JSON its file holds'],
+  ['--ink-2', '--bg-raised', 'a toast'],
+  ['--accent', '--bg-raised', 'the action beside a toast'],
+  ['--accent', '--bg', 'a workspace offered as a link in the empty state'],
+  ['--ink-3', '--bg-panel', 'the label of a field of a dialog'],
+  ['--ink', '--bg-raised', 'what is typed into a dialog'],
 ];
 
 describe('every ink the shell writes text in', () => {

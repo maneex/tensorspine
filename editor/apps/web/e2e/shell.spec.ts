@@ -121,12 +121,13 @@ test.describe('the command palette', () => {
       await expect(page.locator('.cmd').first()).toHaveAttribute('data-command', id);
     }
 
-    // Enter runs what is highlighted; a command nobody has wired lands in the Log.
-    await page.locator('.dlg-head input').fill('Derive Now');
+    // Enter runs what is highlighted; a command nobody has wired lands in the Log. `Derive Now`
+    // was this case until feature 2.6 wired it; `Check Locations` is feature 4.2's and is not.
+    await page.locator('.dlg-head input').fill('Check Locations');
     await page.keyboard.press('Enter');
     await expect(page.locator('.dlg')).toHaveCount(0);
     await page.locator('.ptab[data-panel="panel.log"]').click();
-    await expect(page.locator('.logline').last()).toContainText('Derive Now');
+    await expect(page.locator('.logline').last()).toContainText('Check Locations');
   });
 
   test('opens on its chord and on the button beside it, and closes on Escape', async ({ page }) => {

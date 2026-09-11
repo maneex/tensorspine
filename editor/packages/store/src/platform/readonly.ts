@@ -43,12 +43,20 @@ export interface FileSet {
   paths(): readonly WorkspacePath[];
   /** The text of one file and the revision it is at, or `null` when the set does not hold it. */
   read(path: WorkspacePath): Promise<{ text: string; revision: string } | null>;
+  /**
+   * Several at once, where the set can answer faster that way than one after another.
+   *
+   * The vendored Examples workspace can: its files are fetched, and a hundred and thirty requests
+   * issued together cost half what they cost in sequence (feature 2.4's measurement). A set with
+   * nothing to gain leaves it out and the loop below is used.
+   */
+  readMany?(paths: readonly WorkspacePath[]): Promise<Record<WorkspacePath, { text: string; revision: string }>>;
   /** The revision of one file without reading it, or `null` when the set does not hold it. */
   revision(path: WorkspacePath): string | null;
 }
 
 /** How the bytes reach the user when a read-only workspace is asked to save — the shell's. */
-export type Deliver = (name: string, text: string) => Promise<void>;
+export type Deliver = (name: string, content: string | Uint8Array) => Promise<void>;
 
 /** What the last save handed over, so the chrome and the suites can read it back. */
 export interface Delivered {
@@ -94,6 +102,20 @@ export class ReadOnlyWorkspace implements Workspace {
     const found = await this.files.read(normalise(path));
     if (found === null) {
       throw new PlatformError(`no file ${normalise(path)} in ${this.files.name}`, 'not-found');
+    }
+    return found;
+  }
+
+  /** The set's own bulk read where it has one, and the loop where it has not. */
+  async readMany(
+    paths: readonly WorkspacePath[],
+  ): Promise<Record<WorkspacePath, { text: string; revision: string }>> {
+    const wanted = paths.map((path) => normalise(path));
+    if (this.files.readMany !== undefined) return this.files.readMany(wanted);
+    const found: Record<WorkspacePath, { text: string; revision: string }> = {};
+    for (const path of wanted) {
+      const one = await this.files.read(path);
+      if (one !== null) found[path] = one;
     }
     return found;
   }
@@ -153,6 +175,11 @@ export class ReadOnlyWorkspace implements Workspace {
 /** The bytes a text takes as UTF-8 — what a download's size is, and not its length in characters. */
 export function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
+}
+
+/** How many bytes something handed to {@link Deliver} is, whichever of the two forms it took. */
+export function sizeOf(content: string | Uint8Array): number {
+  return typeof content === 'string' ? byteLength(content) : content.byteLength;
 }
 
 /**

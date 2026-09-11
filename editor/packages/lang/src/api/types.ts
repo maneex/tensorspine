@@ -223,6 +223,20 @@ export interface LibraryLoaded {
  */
 export type LibraryData = import('../library/load.js').Library;
 
+/**
+ * What a document says it needs read before it can be judged — {@link Lang.documentBases}.
+ *
+ * The bases are `primitive_libraries[].base` taken relative to the document, in `bases_of`'s own
+ * spelling, and they are what the workspace reads and hands to {@link Lang.loadLibrary}. The
+ * problem is the one `bases_of` records where the document cannot be resolved from at all: a
+ * `schema` that is not this revision, or no `primitive_libraries` to resolve from. It is reported
+ * rather than raised, because a half-typed document is the ordinary case in an editor.
+ */
+export interface DocumentBases {
+  readonly bases: readonly string[];
+  readonly problems: readonly Problem[];
+}
+
 /** What every call that reads a document needs. */
 export interface CallOptions {
   /** The library the document resolves against, gathered by {@link Lang.loadLibrary}. */

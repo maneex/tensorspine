@@ -231,11 +231,16 @@ describe('every parity suite is run, and reads the oracle', () => {
  * working directory is not on this disk either (`plans/` is not part of the tree, so feature
  * 2.5's byte-equality of the token file against `_ts.css` can be asked only beside it — the
  * snapshot of the same file runs everywhere and is what CI holds), the browser engine has no
- * OPFS, or the Hub is not reachable. A skip that is not one of these is a test being
- * turned off, which is what the standing rule forbids — and the list being closed is what makes
- * a new way of not running a test a decision somebody takes rather than a line somebody writes.
+ * OPFS, the Hub is not reachable, or the machine has no `python3` (feature 2.6's archive is read
+ * back by `zipfile`, the one reader that is not the editor's own; every machine that runs the
+ * oracle of §0.5 has it, and one that has not says so instead of being silently short of a
+ * case). A skip that is not one of these is a test being turned off, which is what the standing
+ * rule forbids — and the list being closed is what makes a new way of not running a test a
+ * decision somebody takes rather than a line somebody writes.
  */
 const SKIP_CONDITIONS = [
+  'available',
+  '!available',
   '!designPresent',
   '!generated',
   '!oracleGenerated',

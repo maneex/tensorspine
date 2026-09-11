@@ -21,6 +21,7 @@
  */
 import type { DragEvent, JSX } from 'react';
 
+import { useDocumentState } from '../documents/Pills.js';
 import { useShell, useShellStore } from './context.js';
 import { BOUNDS, PANELS, panelById, type PanelId, type RegionId } from './regions.js';
 import { Splitter } from './Splitter.js';
@@ -74,16 +75,34 @@ function PanelBody({ panel }: { panel: PanelId }): JSX.Element {
   if (panel === 'panel.properties') {
     return <p className="empty-sub">{text('Nothing is selected.')}</p>;
   }
-  const line =
-    panel === 'panel.problems'
-      ? text('Nothing to check — no document is open.')
-      : text('Nothing to show — no document is open.');
+  // With a document open, the panel says what the core has said about it and nothing more: the
+  // rows of §4.17 are feature 2.8's and the six products of §4.18 are feature 2.15's, and a panel
+  // that went on saying "no document is open" over an open one would be saying something false.
+  return <PanelState panel={panel} />;
+}
+
+/** What a panel with nothing of its own to draw yet says, truthfully. */
+function PanelState({ panel }: { panel: PanelId }): JSX.Element {
+  const summary = useDocumentState();
+  const problems = panel === 'panel.problems';
+  if (summary === null) {
+    return (
+      <>
+        <div className="empty-line">
+          {problems
+            ? text('Nothing to check — no document is open.')
+            : text('Nothing to show — no document is open.')}
+        </div>
+        <p className="empty-sub">
+          {text('Open a folder or a model, and the core validates and derives it as you edit.')}
+        </p>
+      </>
+    );
+  }
   return (
     <>
-      <div className="empty-line">{line}</div>
-      <p className="empty-sub">
-        {text('Open a folder or a model, and the core validates and derives it as you edit.')}
-      </p>
+      <div className="empty-line">{problems ? summary.problems : summary.derivation}</div>
+      <p className="empty-sub">{summary.where}</p>
     </>
   );
 }

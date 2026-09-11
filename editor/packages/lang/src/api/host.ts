@@ -138,6 +138,10 @@ async function dispatch(
       return session.loadSchemas(at(0), at(1) ?? {});
     case 'loadLibrary':
       return session.loadLibrary(at(0), at(1), at(2) ?? {});
+    case 'documentBases':
+      return session.documentBases(at(0), at(1));
+    case 'baseTemplates':
+      return session.baseTemplates(at(0), at(1));
     case 'validateUnit':
       return session.validateUnit(at(0), at(1), at(2));
     case 'parse':

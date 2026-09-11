@@ -35,6 +35,7 @@ import {
   type CallOptions,
   type CheckpointReport,
   type DescribeOptions,
+  type DocumentBases,
   type Facts,
   type LibraryBaseFiles,
   type LibraryHandle,
@@ -170,6 +171,10 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
       request<SchemasLoaded>('loadSchemas', [files, schemaOptions]),
     loadLibrary: (bases: readonly LibraryBaseFiles[], schemas: SchemasHandle, libraryOptions) =>
       request<LibraryLoaded>('loadLibrary', [bases, schemas, libraryOptions]),
+    documentBases: (tree: JsonValue, path: string) =>
+      request<DocumentBases>('documentBases', [tree, path]),
+    baseTemplates: (bases: readonly LibraryBaseFiles[], schemas: SchemasHandle) =>
+      request<(string | null)[]>('baseTemplates', [bases, schemas]),
     validateUnit: (unit: JsonValue, path: string, library: LibraryHandle) =>
       request<Problem[]>('validateUnit', [unit, path, library]),
     parse: (text: string) => request<JsonValue>('parse', [text]),

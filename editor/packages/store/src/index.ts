@@ -77,6 +77,35 @@ export {
 } from './commands.js';
 export { DocumentStore, MODEL_ROLE, type Applied, type DocumentStoreOptions } from './document.js';
 export {
+  crc32,
+  DocumentSession,
+  dosStamp,
+  draftStanding,
+  FIRST_VERSION,
+  forgetDraft,
+  gatherBases,
+  gatherSchemas,
+  hasOverrides,
+  nameMember,
+  newDocument,
+  readSidecar,
+  schemaDifferences,
+  sidecarOf,
+  tagOf,
+  versionMember,
+  WORKSPACE_SCHEMAS,
+  zipOf,
+  ZipError,
+  type DraftStanding,
+  type GatheredBases,
+  type GatheredSchemas,
+  type NewDocument,
+  type Saved,
+  type SchemaDifference,
+  type SessionOptions,
+  type ZipEntry,
+} from './documents/index.js';
+export {
   emptyLayout,
   LAYOUT_SCHEMA,
   LayoutStore,
@@ -94,3 +123,10 @@ export {
   type Pruned,
   type Viewport,
 } from './layout.js';
+export {
+  listTree,
+  readTree,
+  within,
+  type TreeOptions,
+} from './platform/tree.js';
+export type { WorkspacePath } from './platform/paths.js';

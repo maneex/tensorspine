@@ -43,6 +43,7 @@ import {
   type CallOptions,
   type CheckpointReport,
   type DescribeOptions,
+  type DocumentBases,
   type Facts,
   type LibraryBaseFiles,
   type LibraryHandle,
@@ -71,8 +72,33 @@ export interface Lang {
   loadLibrary(
     bases: readonly LibraryBaseFiles[],
     schemas: SchemasHandle,
-    options?: { readonly modelsBase?: string | null },
+    options?: {
+      readonly modelsBase?: string | null;
+      /**
+       * The document the bases were resolved for, so that a base that is not there is refused in
+       * `load_for`'s own words — `<file>: primitive library base 'x' does not exist (V1)`.
+       *
+       * The tools check it before they load; a caller that gathers its own bases out of a
+       * workspace has to say which document it gathered them for, or the refusal has no file to
+       * name. Without it the check still runs, naming the base alone.
+       */
+      readonly forDocument?: string;
+    },
   ): Promise<LibraryLoaded>;
+
+  /** The bases a document declares, resolved against it — what the workspace reads next. */
+  documentBases(tree: JsonValue, path: string): Promise<DocumentBases>;
+
+  /**
+   * Where each base keeps its template documents, from the manifest each carries.
+   *
+   * The workspace asks this between reading a base's own files and handing them over, because a
+   * `templates` location resolves against the base and may leave it (§4.6, D9).
+   */
+  baseTemplates(
+    bases: readonly LibraryBaseFiles[],
+    schemas: SchemasHandle,
+  ): Promise<(string | null)[]>;
 
   /** The loader's checks on one unit, live while it is typed (D15). */
   validateUnit(unit: JsonValue, path: string, library: LibraryHandle): Promise<Problem[]>;
@@ -144,6 +170,16 @@ export function createLang(): Lang {
       settled(() => {
         open('loadLibrary');
         return session.loadLibrary(bases, schemas, options ?? {});
+      }),
+    documentBases: (tree, path) =>
+      settled(() => {
+        open('documentBases');
+        return session.documentBases(tree, path);
+      }),
+    baseTemplates: (bases, schemas) =>
+      settled(() => {
+        open('baseTemplates');
+        return session.baseTemplates(bases, schemas);
       }),
     validateUnit: (unit, path, library) =>
       settled(() => {

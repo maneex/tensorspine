@@ -109,6 +109,18 @@ export interface Workspace {
   /** The file's text and the revision it was read at. */
   read(path: WorkspacePath): Promise<{ text: string; revision: string }>;
   /**
+   * Several files at once, for a reader that already knows the whole set — a library base.
+   *
+   * Optional, because it is an optimisation and not a capability: {@link readTree} falls back to
+   * one {@link read} per file, and the two answer the same map. It exists because feature 2.4
+   * measured the difference on the vendored reference base — **167–215 ms one after another
+   * against 82–90 ms at once**, against §5.6's 300 ms for a whole library load — and the set is
+   * known from the manifest before the first request is made. A path the workspace does not hold
+   * is left out of the answer rather than refused, so that one missing file does not lose the
+   * hundred and thirty that are there.
+   */
+  readMany?(paths: readonly WorkspacePath[]): Promise<Record<WorkspacePath, { text: string; revision: string }>>;
+  /**
    * Write the file and answer its new revision.
    *
    * `expect` is the optimistic concurrency of §5.2: the revision the caller last saw, or
@@ -215,6 +227,17 @@ export interface Workspaces {
    * `null` when the grant was refused or the folder is no longer reachable.
    */
   reopen(id: string): Promise<Workspace | null>;
+  /**
+   * The folder last used, **if the deployment still holds the grant for it** — D11's "its handle
+   * kept in IndexedDB so the workspace reopens after a reload with one permission prompt".
+   *
+   * It is what a page may do at launch with no gesture at all, and the reason it is a call of its
+   * own is that a prompt needs one: the folder comes back where the grant is still held, and is
+   * offered by name — never re-picked — where it is not. `null` is the ordinary answer, and a
+   * deployment with nothing to remember leaves it out entirely (the stub does), which is why it
+   * is optional rather than a method that always answers nothing.
+   */
+  reopenGranted?(): Promise<Workspace | null>;
   /** Forget one remembered folder, or all of them when no id is given. */
   forget(id?: string): Promise<void>;
   /** The workspace that is open now, whichever command opened it. */
@@ -376,9 +399,14 @@ export interface Shell {
    * Hand the user a file to keep.
    *
    * The one thing a page can do where it cannot write: Save on a read-only workspace goes through
-   * here, and so will "Save As" and the workspace export of §4.3.
+   * here, and so does "Save As" and the workspace export of §4.3.
+   *
+   * The content is a text or the bytes of one: every document and sidecar the editor writes is
+   * text (D12), and `Download Workspace as Zip` (§4.4) is an archive — a byte string a text
+   * encoding would corrupt. Stated on the interface rather than worked around in the one
+   * implementation that has to deliver it.
    */
-  download(name: string, text: string): Promise<void>;
+  download(name: string, content: string | Uint8Array): Promise<void>;
   /**
    * Offer the application's commands to a native menu.
    *

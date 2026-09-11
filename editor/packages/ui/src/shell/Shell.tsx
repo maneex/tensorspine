@@ -31,7 +31,7 @@
  * menu and ignores them, and Electron will build its own from them. The interface's own menu bar
  * is not that; it is `Bar.tsx`, and it draws the same table.
  */
-import { useEffect, type JSX } from 'react';
+import { useEffect, type JSX, type ReactNode } from 'react';
 
 import type { MenuCommand, Platform } from '@tensorspine/store/platform';
 
@@ -57,7 +57,7 @@ export function isTyping(element: Element | null): boolean {
 }
 
 /** The frame, inside the provider. */
-function Frame({ views }: { views: TabViews }): JSX.Element {
+function Frame({ views, children }: { views: TabViews; children?: ReactNode }): JSX.Element {
   const store = useShellStore();
   const platform = usePlatform();
   const theme = useShell((state) => state.theme);
@@ -117,6 +117,7 @@ function Frame({ views }: { views: TabViews }): JSX.Element {
       </div>
       <StatusBar />
       {palette ? <Palette /> : null}
+      {children}
     </div>
   );
 }
@@ -137,13 +138,21 @@ export interface ShellProps {
   readonly platform: Platform;
   /** Views for tab kinds a later feature opens; the shell's own two are always there. */
   readonly views?: TabViews;
+  /**
+   * What a later feature puts inside the frame beside the regions — a dialog, a toast.
+   *
+   * Inside, and not beside: the theme is one class on the frame (`tokens.css` puts the dark block
+   * on `:root` and the light one on `.theme-light`), so anything rendered outside it would keep
+   * the other theme. Feature 2.6's dialogs and its toast arrive this way.
+   */
+  readonly children?: ReactNode;
 }
 
 /** The shell, over a store and the platform that store was built on. */
-export function Shell({ store, platform, views }: ShellProps): JSX.Element {
+export function Shell({ store, platform, views, children }: ShellProps): JSX.Element {
   return (
     <ShellProvider store={store} platform={platform}>
-      <Frame views={{ ...SHELL_VIEWS, ...views }} />
+      <Frame views={{ ...SHELL_VIEWS, ...views }}>{children}</Frame>
     </ShellProvider>
   );
 }
