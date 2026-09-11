@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  analyse,
   check,
+  describe as describeDocument,
   formatSemanticProblems,
   generatedSite,
+  parse,
   rootSite,
+  toPython,
   type Candidate,
+  type Description,
   type SiteKey,
   type Verdict,
 } from '../../src/index.js';
-import { describedCorpus } from './source.js';
+import { corpus, describedCorpus, library, schemas } from './source.js';
 
 // `check` (feature 1.6d): the verdict on one candidate edit, and its reason.
 //
@@ -37,6 +42,35 @@ function lines(verdict: Verdict): string[] {
 /** `check` over one corpus document. */
 function of(name: string, candidate: Candidate): Verdict {
   return check(describedCorpus(name), candidate);
+}
+
+/**
+ * `llama3-8b` with `final_n.weight` written as a **slice** of `model.norm.weight` rather than the
+ * whole of it — the one edit, as text, so that every other number keeps the float-ness its own
+ * spelling gives it (D12).
+ */
+function slicedFinalNorm(): string {
+  const text = corpus('llama3-8b');
+  const whole = '"location": {\n          "tensor": [\n            "model.norm.weight"\n          ]\n        }';
+  const slice =
+    '"location": {\n          "slice": {\n            "tensor": [\n              "model.norm.weight"\n            ],\n' +
+    '            "axis": "feature",\n            "offset": {\n              "literal": 0\n            }\n          }\n        }';
+  if (!text.includes(whole)) throw new Error('the corpus no longer writes final_n.weight that way');
+  return text.replace(whole, slice);
+}
+
+/** The same document with the candidate applied: `embed.weight` bound to that whole tensor. */
+function applied(text: string): string {
+  const before = '"location": {\n          "tensor": [\n            "model.embed_tokens.weight"\n          ]\n        }';
+  const after = '"location": {\n          "tensor": [\n            "model.norm.weight"\n          ]\n        }';
+  if (!text.includes(before)) throw new Error('the corpus no longer writes embed.weight that way');
+  return text.replace(before, after);
+}
+
+/** One document of the corpus, edited, described as the editor would describe it. */
+function describedText(text: string): Description {
+  const tree = parse(text);
+  return describeDocument(tree, { schemas, library });
 }
 
 describe('a candidate edge', () => {
@@ -419,6 +453,27 @@ describe('a candidate location', () => {
     });
     expect(verdict.problems).toEqual([]);
     expect(verdict.unknown).toContain("'no.such.identity'");
+  });
+
+  it('reports V17 when the candidate binds whole a name the document slices', () => {
+    // The other side of the same rule, and the one a reading over the *slices* can miss: V17 is
+    // computed by walking the slices and asking `whole` about each name, so a candidate that
+    // binds a name whole is only seen if the document's slices of it are carried in.
+    //
+    // What it is held to is `analyse` itself: the lines the applied document carries, taken from
+    // the validator rather than typed here, so this is a parity test between the two readings and
+    // not a transcription of one of them.
+    const sliced = slicedFinalNorm();
+    const candidate: Candidate = {
+      location: { identity: 'embed.weight', location: { tensor: ['model.norm.weight'] } },
+    };
+    const verdict = check(describedText(sliced), candidate);
+    expect(lines(verdict)).toEqual(
+      formatSemanticProblems([...analyse(toPython(parse(applied(sliced))) as never, library, {}).problems]),
+    );
+    expect(lines(verdict)).toEqual([
+      "[V17] physical tensor 'model.norm.weight' is bound whole by embed.weight and sliced by final_n.weight",
+    ]);
   });
 });
 

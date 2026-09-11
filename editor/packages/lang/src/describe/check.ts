@@ -577,11 +577,19 @@ function checkLocation(analysis: Analysis, candidate: LocationCandidate): Verdic
   problems.push(...bindPhysicalNames(candidate.identity, answer.evaluated, whole, slices, at));
   // Only the names the candidate touches: a refusal about a name it does not name is the
   // document's, not the candidate's.
+  //
+  // Three ways it touches one, because V17 is read over the *slices*: `physicalNameProblems`
+  // walks its second argument and looks each name up in its first, so a name the candidate binds
+  // **whole** which the document already **slices** is only ever seen if the slices are carried
+  // in. That is the drop this used to call fine and `analyse` then refused — "bound whole by
+  // <the candidate> and sliced by <the document's>". `bindPhysicalNames` has just written the
+  // candidate's whole names into `whole` under its own identity, which is how they are known.
   const touched = new Map<string, readonly PhysicalSlice[]>();
   for (const [name, regions] of slices) {
-    if (!before.has(name) || regions.some((region) => region.identity === candidate.identity)) {
-      touched.set(name, regions);
-    }
+    const boundHere =
+      whole.get(name) === candidate.identity ||
+      regions.some((region) => region.identity === candidate.identity);
+    if (!before.has(name) || boundHere) touched.set(name, regions);
   }
   problems.push(...physicalNameProblems(whole, touched, ['bindings', 'parameters']));
   return verdict(problems);
