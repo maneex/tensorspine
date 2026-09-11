@@ -42,7 +42,25 @@ export type {
   StateInstance,
   TensorInstance,
 } from './analysis.js';
-export { dtypeValues, slotKeyOf } from './parameters.js';
+export {
+  bindPhysicalNames,
+  dtypeValues,
+  physicalNameProblems,
+  signatureOf,
+  slotKeyOf,
+  tyingProblems,
+  type Signature,
+} from './parameters.js';
+export {
+  applicableRule,
+  compareStateMember,
+  componentsOf,
+  emptyAgreement,
+  streamOf,
+  type Component,
+  type StateAgreement,
+  type StreamSource,
+} from './states.js';
 export {
   declaredMultiplicity,
   evaluateLocation,

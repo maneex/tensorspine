@@ -46,18 +46,129 @@ import {
   shapesAgree,
   whereOfSite,
   type Indexing,
+  type PortDomain,
+  type ResolvedSite,
   type ShapeIdentity,
   type SiteKey,
 } from '../graph.js';
+import { semanticProblem, type SemanticProblem } from '../problems.js';
 import type { IdentityMember } from './analysis.js';
 import type { Bindings } from './context.js';
 import { dtypeValues, slotKeyOf } from './parameters.js';
 
 /** One payload component as V9 compares them: `(name, role, shape)`, sorted by name. */
-interface Component {
+export interface Component {
   readonly name: string;
   readonly role: PyValue;
   readonly shape: ShapeIdentity;
+}
+
+/**
+ * What the members of one state identity must agree on (V9): the four readings, each open until
+ * a member settles it.
+ *
+ * "One identity, one instance key, one payload, one rule, one stream." The tools hold the four in
+ * four locals of `analyse`'s state loop and test each with `is None`, so a member that settles one
+ * to `None` leaves it open for the next; this record is those four locals, named, so that the
+ * comparison is one function — the walk's, and feature 1.6d's compatibility list's.
+ */
+export interface StateAgreement {
+  /** The port's `key_axes`, as the first member that named them wrote them. */
+  keyAxes: PyValue[] | null;
+  /** The payload components, sorted by name, with their evaluated shapes. */
+  payload: Component[] | null;
+  /** The applying rule, encoded as `json.dumps(rule, sort_keys=True)`. */
+  ruleText: string | null;
+  /** The indexing domain the state grows along. */
+  indexing: Indexing | null;
+}
+
+/** An agreement no member has settled yet: `analyse`'s four `None`s. */
+export function emptyAgreement(): StateAgreement {
+  return { keyAxes: null, payload: null, ruleText: null, indexing: null };
+}
+
+/** What {@link streamOf} reads: the graph's own domains and its `(site, port)` domains. */
+export interface StreamSource {
+  readonly own: ReadonlyMap<string, Indexing | null>;
+  readonly domains: ReadonlyMap<string, PortDomain>;
+}
+
+/**
+ * One member of a state identity against what the members before it settled (V9).
+ *
+ * The four comparisons of `analyse`'s state loop, in its order and with its words, and the
+ * agreement grows as the loop's four locals grow. It answers the refusals rather than appending
+ * them so that feature 1.6d can ask what a *candidate* member would be refused with — the
+ * compatibility list of a state port is this function over the members an identity already has,
+ * then over the candidate, and nothing else decides it.
+ */
+export function compareStateMember(
+  graph: StreamSource,
+  rule: string,
+  site: ResolvedSite,
+  portName: string,
+  port: PyValue,
+  agreement: StateAgreement,
+  at: readonly PathSegment[],
+): SemanticProblem[] {
+  const problems: SemanticProblem[] = [];
+  const applying = applicableRule(port, site.args);
+  if (applying === null) {
+    problems.push(
+      semanticProblem(
+        'V9',
+        `state ${rule}: no rule of ${pyStr(site.primitive)}.${portName} applies to these arguments`,
+        at,
+      ),
+    );
+  }
+  const axes = listOf(demand(port, 'key_axes'));
+  if (agreement.keyAxes === null) {
+    agreement.keyAxes = axes;
+  } else if (!sameValues(axes, agreement.keyAxes)) {
+    problems.push(
+      semanticProblem(
+        'V9',
+        `state ${rule}: members keyed on ${pyRepr(agreement.keyAxes)} and ` +
+          `${pyStr(demand(port, 'key_axes'))} cannot share one allocation`,
+        at,
+      ),
+    );
+  }
+  const shapes = componentsOf(port, site.args);
+  if (agreement.payload === null) {
+    agreement.payload = shapes;
+  } else if (!samePayload(shapes, agreement.payload)) {
+    problems.push(
+      semanticProblem(
+        'V9',
+        `state ${rule}: members with different payloads cannot share one allocation`,
+        at,
+      ),
+    );
+  }
+  // `json.dumps(rule, sort_keys=True) if rule else None`: Python's truthiness, so a rule
+  // the grammar could not produce — an empty record — leaves the reading open too.
+  const text = applying === null || !truthy(applying) ? null : ruleTokenOf(applying);
+  if (agreement.ruleText === null) {
+    agreement.ruleText = text;
+  } else if (text !== agreement.ruleText) {
+    problems.push(
+      semanticProblem('V9', `state ${rule}: members under different derivation rules`, at),
+    );
+  }
+  if (applying !== null) {
+    const stream = streamOf(graph, site.key, applying);
+    if (agreement.indexing === null) {
+      agreement.indexing = stream;
+    } else if (!sameIndexing(stream, agreement.indexing)) {
+      problems.push(
+        semanticProblem('V9', `state ${rule}: members indexed by different streams`, at),
+      );
+    }
+  }
+  return problems;
 }
 
 /** The state half of the bindings stage, in the order `analyse` walks it. */
@@ -103,10 +214,7 @@ export function checkStates(bindings: Bindings): void {
       // "V9: one identity, one instance key, one payload, one rule, one stream." Each of the four
       // is `None` until a member settles it, and a member that settles it to `None` leaves it open
       // — the tools test `is None`, so a state with no applicable rule does not fix the reading.
-      let keyAxes: PyValue[] | null = null;
-      let payload: Component[] | null = null;
-      let ruleText: string | null = null;
-      let indexing: Indexing | null = null;
+      const agreement = emptyAgreement();
 
       for (const member of members) {
         const site = stage.resolved.get(keyOf(member.site));
@@ -134,50 +242,8 @@ export function checkStates(bindings: Bindings): void {
           bindings.fail('V7', `state port ${pyStr(name)}.${portName} bound twice`, at);
         }
         bindings.stateSlots.set(slotKeyOf(member), { ...member, rule });
-        const applying = applicableRule(port, site.args);
-        if (applying === null) {
-          bindings.fail(
-            'V9',
-            `state ${rule}: no rule of ${pyStr(name)}.${portName} applies to these arguments`,
-            at,
-          );
-        }
-        const axes = listOf(demand(port, 'key_axes'));
-        if (keyAxes === null) {
-          keyAxes = axes;
-        } else if (!sameValues(axes, keyAxes)) {
-          bindings.fail(
-            'V9',
-            `state ${rule}: members keyed on ${pyRepr(keyAxes)} and ${pyStr(demand(port, 'key_axes'))} ` +
-              'cannot share one allocation',
-            at,
-          );
-        }
-        const shapes = componentsOf(port, site.args);
-        if (payload === null) {
-          payload = shapes;
-        } else if (!samePayload(shapes, payload)) {
-          bindings.fail(
-            'V9',
-            `state ${rule}: members with different payloads cannot share one allocation`,
-            at,
-          );
-        }
-        // `json.dumps(rule, sort_keys=True) if rule else None`: Python's truthiness, so a rule
-        // the grammar could not produce — an empty record — leaves the reading open too.
-        const text = applying === null || !truthy(applying) ? null : ruleTokenOf(applying);
-        if (ruleText === null) {
-          ruleText = text;
-        } else if (text !== ruleText) {
-          bindings.fail('V9', `state ${rule}: members under different derivation rules`, at);
-        }
-        if (applying !== null) {
-          const stream = streamOf(bindings, member.site, applying);
-          if (indexing === null) {
-            indexing = stream;
-          } else if (!sameIndexing(stream, indexing)) {
-            bindings.fail('V9', `state ${rule}: members indexed by different streams`, at);
-          }
+        for (const problem of compareStateMember(stage, rule, site, portName, port, agreement, at)) {
+          stage.problems.push(problem);
         }
         if (values !== null && values.length > 0) {
           for (const [, component] of entries(demand(port, 'payload'))) {
@@ -199,13 +265,16 @@ export function checkStates(bindings: Bindings): void {
           }
         }
       }
-      if (keyAxes !== null) {
+      if (agreement.keyAxes !== null) {
         // `sid + (f"{env}" if env else "")`, and `tuple(indices) + key_axes`: the identity's own
         // index names in document order, then the port's key axes (§4.4).
         const own = has(identity, 'indices')
           ? listOf(demand(identity, 'indices')).map((one) => pyStr(one))
           : [];
-        bindings.instanceKeys.set(rule + (env.size === 0 ? '' : reprEnv(env)), [...own, ...keyAxes]);
+        bindings.instanceKeys.set(rule + (env.size === 0 ? '' : reprEnv(env)), [
+          ...own,
+          ...agreement.keyAxes,
+        ]);
       }
     }
   }
@@ -247,7 +316,7 @@ function checkCarrying(bindings: Bindings): void {
       const mine =
         applying === null || has(demand(applying, 'indexed_by'), 'self')
           ? (stage.own.get(id) ?? null)
-          : streamOf(bindings, site.key, applying);
+          : streamOf(stage, site.key, applying);
       const byPort = applying !== null && has(demand(applying, 'indexed_by'), 'port');
       const onFragment = mine !== null && bindings.stage.fragmented.has(pyStr(mine[1]));
       const held = bindings.stateSlots.get(slotKeyOf(member));
@@ -345,7 +414,7 @@ function checkAcrossPositions(bindings: Bindings): void {
 }
 
 /** `applicable[0] if applicable else None`: "rules are ordered; the first matching rule wins". */
-function applicableRule(port: PyValue, args: PyRecord): PyValue | null {
+export function applicableRule(port: PyValue, args: PyRecord): PyValue | null {
   for (const rule of listOf(demand(port, 'rules'))) {
     if (truthy(primitiveCondition(demand(rule, 'when'), args))) return rule;
   }
@@ -353,10 +422,10 @@ function applicableRule(port: PyValue, args: PyRecord): PyValue | null {
 }
 
 /** The stream a rule indexes its state by: the instance's own, or one of its input ports'. */
-function streamOf(bindings: Bindings, site: SiteKey, rule: PyValue): Indexing | null {
+export function streamOf(graph: StreamSource, site: SiteKey, rule: PyValue): Indexing | null {
   const indexedBy = demand(rule, 'indexed_by');
-  if (has(indexedBy, 'self')) return bindings.stage.own.get(keyOf(site)) ?? null;
-  return bindings.stage.domains.get(portKeyOf(site, demand(indexedBy, 'port')))?.domain ?? null;
+  if (has(indexedBy, 'self')) return graph.own.get(keyOf(site)) ?? null;
+  return graph.domains.get(portKeyOf(site, demand(indexedBy, 'port')))?.domain ?? null;
 }
 
 /** `carried_on[key].add(mine[1])`: the streams an instance's states carry across fragments. */
@@ -367,7 +436,7 @@ function addCarried(bindings: Bindings, id: string, mine: Indexing): void {
 }
 
 /** `tuple(sorted((c, comp['role'], _shape_identity(comp['shape'], args)) …))` over a payload. */
-function componentsOf(port: PyValue, args: PyRecord): Component[] {
+export function componentsOf(port: PyValue, args: PyRecord): Component[] {
   return entries(demand(port, 'payload'))
     .map((entry): Component => ({
       name: entry[0],

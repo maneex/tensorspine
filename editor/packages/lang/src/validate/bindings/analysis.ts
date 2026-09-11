@@ -14,7 +14,7 @@
  * The types live here rather than in `graph.ts` so that neither module states the other's answer;
  * both imports are type-only, so nothing circular survives compilation.
  */
-import type { Quantities } from '../../expr/model.js';
+import type { Env, Quantities } from '../../expr/model.js';
 import type { PyRecord, PyValue } from '../../expr/value.js';
 import type { Library } from '../../library/load.js';
 import type { GraphAnalysis, Indexing, PortDomain, ResolvedSite, SiteKey } from '../graph.js';
@@ -87,6 +87,14 @@ export interface TensorInstance {
   readonly identity: string;
   /** The binding that declared it. */
   readonly rule: string;
+  /**
+   * The index environment the rule fired in — one of `loop_envs`' answers.
+   *
+   * The tools keep it in a loop variable and lose it; a location is written *in* it (`{"index":
+   * "layer"}` in a physical name), so feature 1.6d's `check` on a candidate location needs it to
+   * evaluate the name where the rule would.
+   */
+  readonly env: Env;
   /** The members whose site resolved; a member naming a site that did not is left out. */
   readonly members: readonly IdentityMember[];
   /** The `dtype` selector as written, or `null` when the binding declares none. */

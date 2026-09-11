@@ -601,6 +601,49 @@ export function instancePorts(exposed: InterfacePorts): PyRecord {
   return { inputs: build(exposed.inputs), outputs: build(exposed.outputs) };
 }
 
+/**
+ * The V6 block's own walk: `analyse`'s topological order over the resolved sites and the edges
+ * between them, "the value graph is acyclic within an invocation".
+ *
+ * Kahn's algorithm with the zero-indegree set *sorted* by {@link compareSiteKeys} — the order
+ * decides which sites the V5 block reports in, and D1 publishes it — and the answer is shorter
+ * than the graph exactly when there is a cycle, which is what the refusal counts.
+ *
+ * It is a function rather than a block of the walk because feature 1.6d's `check` asks the same
+ * question of one candidate edge: the order over `edges` with the candidate appended is what the
+ * next validation would compute, so the verdict is this rule and not a second reading of it.
+ */
+export function topologicalOrder(
+  resolved: ReadonlyMap<string, ResolvedSite>,
+  edges: readonly ValueEdge[],
+): SiteKey[] {
+  const adjacency = new Map<string, SiteKey[]>();
+  const indegree = new Map<string, number>();
+  for (const edge of edges) {
+    const from = keyOf(edge.from);
+    const to = keyOf(edge.to);
+    if (!resolved.has(from) || !resolved.has(to)) continue;
+    (adjacency.get(from) ?? setAt(adjacency, from, [])).push(edge.to);
+    indegree.set(to, (indegree.get(to) ?? 0) + 1);
+  }
+  const queue = [...resolved.values()]
+    .filter((site) => (indegree.get(keyOf(site.key)) ?? 0) === 0)
+    .map((site) => site.key)
+    .sort(compareSiteKeys);
+  const order: SiteKey[] = [];
+  for (let head = 0; head < queue.length; head += 1) {
+    const node = queue[head] as SiteKey;
+    order.push(node);
+    for (const next of adjacency.get(keyOf(node)) ?? []) {
+      const id = keyOf(next);
+      const left = (indegree.get(id) ?? 0) - 1;
+      indegree.set(id, left);
+      if (left === 0) queue.push(next);
+    }
+  }
+  return order;
+}
+
 /** The whole of `analyse` from the quantities to V19, over a document already normalised. */
 function analyseNormalised(
   model: PyRecord,
@@ -1063,30 +1106,7 @@ function analyseNormalised(
   }
 
   // --- V6: acyclicity ----------------------------------------------------
-  const adjacency = new Map<string, SiteKey[]>();
-  const indegree = new Map<string, number>();
-  for (const edge of edges) {
-    const from = keyOf(edge.from);
-    const to = keyOf(edge.to);
-    if (!resolved.has(from) || !resolved.has(to)) continue;
-    (adjacency.get(from) ?? setAt(adjacency, from, [])).push(edge.to);
-    indegree.set(to, (indegree.get(to) ?? 0) + 1);
-  }
-  const queue = [...resolved.values()]
-    .filter((site) => (indegree.get(keyOf(site.key)) ?? 0) === 0)
-    .map((site) => site.key)
-    .sort(compareSiteKeys);
-  const order: SiteKey[] = [];
-  for (let head = 0; head < queue.length; head += 1) {
-    const node = queue[head] as SiteKey;
-    order.push(node);
-    for (const next of adjacency.get(keyOf(node)) ?? []) {
-      const id = keyOf(next);
-      const left = (indegree.get(id) ?? 0) - 1;
-      indegree.set(id, left);
-      if (left === 0) queue.push(next);
-    }
-  }
+  const order = topologicalOrder(resolved, edges);
   if (order.length !== resolved.size) {
     fail('V6', `value cycle: ${resolved.size - order.length} instance(s) in a cycle`);
   }
@@ -1366,13 +1386,13 @@ function bind(names: readonly string[], combination: readonly bigint[]): Env {
 }
 
 /** `f"{env}"`: a Python dictionary written into a message, `{'layer': 3}` or `{}`. */
-function reprEnv(env: Env): string {
+export function reprEnv(env: Env): string {
   const written = [...env].map(([name, one]) => `${pyRepr(name)}: ${pyRepr(one)}`);
   return `{${written.join(', ')}}`;
 }
 
 /** `f"{sorted(agree)}"`: the domains of an instance's inputs, as the V5 refusal lists them. */
-function reprIndexings(indexings: readonly Indexing[]): string {
+export function reprIndexings(indexings: readonly Indexing[]): string {
   const sorted = [...indexings].sort((one, other) => {
     const kind = pyOrder(one[0], other[0]) ?? 0;
     return kind !== 0 ? kind : (pyOrder(one[1], other[1]) ?? 0);
@@ -1387,7 +1407,7 @@ function reprSorted(values: readonly PyValue[]): string {
 }
 
 /** An indexing domain as a set member: the tuple's two values, hashed as Python hashes them. */
-function indexingToken(indexing: Indexing): string {
+export function indexingToken(indexing: Indexing): string {
   return `${valueToken(indexing[0])}\u0000${valueToken(indexing[1])}`;
 }
 

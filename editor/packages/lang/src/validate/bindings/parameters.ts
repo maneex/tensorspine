@@ -51,7 +51,13 @@ import {
   type ShapeIdentity,
 } from '../graph.js';
 import { pyInt } from '../conformance.js';
-import type { IdentityMember, PhysicalSlice, TensorInstance } from './analysis.js';
+import { semanticProblem, type SemanticProblem } from '../problems.js';
+import type {
+  EvaluatedLocation,
+  IdentityMember,
+  PhysicalSlice,
+  TensorInstance,
+} from './analysis.js';
 import type { Bindings } from './context.js';
 import {
   declaredMultiplicity,
@@ -62,12 +68,29 @@ import {
 } from './locations.js';
 
 /** One member's signature, as V15 compares them: `(name, slot, role, stored shape, sharing)`. */
-interface Signature {
+export interface Signature {
   readonly primitive: PyValue;
   readonly slot: PyValue;
   readonly role: PyValue;
   readonly shape: ShapeIdentity;
   readonly sharing: PyValue;
+}
+
+/**
+ * The signature of one member: what V15 reads about the slot a member names.
+ *
+ * "The shape compared is the stored one" — {@link storageShape} — so a declared multiplicity is
+ * in it. Feature 1.6d's compatibility lists ask the same question of a slot that is *not* yet a
+ * member, which is why the signature is built here and not inside the walk.
+ */
+export function signatureOf(site: ResolvedSite, slot: PyValue, slotName: PyValue): Signature {
+  return {
+    primitive: site.primitive,
+    slot: slotName,
+    role: demand(slot, 'role'),
+    shape: shapeIdentity(storageShape(slot), site.args),
+    sharing: demand(slot, 'sharing'),
+  };
 }
 
 /**
@@ -127,6 +150,7 @@ export function checkParameters(bindings: Bindings): void {
       } = {
         identity,
         rule,
+        env,
         members: members.filter((member) => stage.resolved.has(keyOf(member.site))),
         dtype: optional(binding, 'dtype', null),
       };
@@ -154,24 +178,14 @@ export function checkParameters(bindings: Bindings): void {
           }
           if (answer.evaluated !== null) {
             instance.location = answer.evaluated;
-            const used = locationNames(answer.evaluated);
-            for (const name of used.whole) {
-              const bound = physicalWhole.get(name);
-              if (bound !== undefined) {
-                bindings.fail(
-                  'V17',
-                  `${identity}: physical tensor '${name}' already bound by ${bound}`,
-                  [...at, 'location'],
-                );
-              }
-              physicalWhole.set(name, identity);
-            }
-            for (const region of used.slices) {
-              addSlice(physicalSlices, region.name, {
-                offset: region.offset,
-                extent: region.extent,
-                identity,
-              });
+            for (const problem of bindPhysicalNames(
+              identity,
+              answer.evaluated,
+              physicalWhole,
+              physicalSlices,
+              [...at, 'location'],
+            )) {
+              stage.problems.push(problem);
             }
           }
         }
@@ -227,13 +241,7 @@ export function checkParameters(bindings: Bindings): void {
         }
         bindings.slots.set(slotKeyOf(member), { ...member, rule });
         // "the count is in it (V15)": the shape compared is the stored one.
-        signatures.push({
-          primitive: name,
-          slot: member.name,
-          role: demand(slot, 'role'),
-          shape: shapeIdentity(storageShape(slot), site.args),
-          sharing: demand(slot, 'sharing'),
-        });
+        signatures.push(signatureOf(site, slot, member.name));
         const admissible = policy.get(pyStr(demand(slot, 'role')));
         if (admissible !== undefined && values !== null && values.length > 0) {
           const allowed = demand(admissible, 'admissible');
@@ -251,7 +259,7 @@ export function checkParameters(bindings: Bindings): void {
       }
       if (signatures.length > 1) {
         ties += 1;
-        checkTying(bindings, rule, signatures, at);
+        for (const problem of tyingProblems(rule, signatures, at)) stage.problems.push(problem);
       }
     }
   }
@@ -287,40 +295,89 @@ export function checkParameters(bindings: Bindings): void {
   countElements(bindings);
 }
 
-/** "Parameter identity compatibility (§3.4)": every member against every other (V15). */
-function checkTying(
-  bindings: Bindings,
+/**
+ * "Parameter identity compatibility (§3.4)": every member against every other (V15).
+ *
+ * The refusals are returned rather than appended, so that feature 1.6d's `check` asks the same
+ * function what a candidate member would be refused with and its compatibility list reads the
+ * answer as a verdict — one implementation of the rule, in the tools' words either way.
+ */
+export function tyingProblems(
   rule: string,
   signatures: readonly Signature[],
   at: readonly PathSegment[],
-): void {
+): SemanticProblem[] {
+  const problems: SemanticProblem[] = [];
   for (const [index, mine] of signatures.entries()) {
     if (!pyEqual(demand(mine.sharing, 'kind'), 'shareable')) {
-      bindings.fail(
-        'V15',
-        `${rule}: ${pyStr(mine.primitive)}.${pyStr(mine.slot)} is exclusive, it cannot be tied`,
-        at,
+      problems.push(
+        semanticProblem(
+          'V15',
+          `${rule}: ${pyStr(mine.primitive)}.${pyStr(mine.slot)} is exclusive, it cannot be tied`,
+          at,
+        ),
       );
     }
     for (const [other, theirs] of signatures.entries()) {
       if (other === index) continue; // `if o is s: continue`
       if (!contains(optional(mine.sharing, 'roles', []), theirs.role)) {
-        bindings.fail(
-          'V15',
-          `${rule}: ${pyStr(mine.primitive)}.${pyStr(mine.slot)} does not share with ` +
-            `role '${pyStr(theirs.role)}'`,
-          at,
+        problems.push(
+          semanticProblem(
+            'V15',
+            `${rule}: ${pyStr(mine.primitive)}.${pyStr(mine.slot)} does not share with ` +
+              `role '${pyStr(theirs.role)}'`,
+            at,
+          ),
         );
       }
       if (!shapesAgree(theirs.shape, mine.shape)) {
-        bindings.fail(
-          'V15',
-          `${rule}: incompatible shapes ${reprShape(mine.shape)} vs ${reprShape(theirs.shape)}`,
-          at,
+        problems.push(
+          semanticProblem(
+            'V15',
+            `${rule}: incompatible shapes ${reprShape(mine.shape)} vs ${reprShape(theirs.shape)}`,
+            at,
+          ),
         );
       }
     }
   }
+  return problems;
+}
+
+/**
+ * The names one evaluated location uses, bound into the document's two maps (V17).
+ *
+ * "A physical name is bound by one identity": a whole name already bound is refused here, at the
+ * identity that met it second, and the maps grow. Feature 1.6d's `check` binds a *candidate*
+ * location into copies of the same maps, so a location the user drags onto a slot chip is judged
+ * by this function and not by a second reading of it.
+ */
+export function bindPhysicalNames(
+  identity: string,
+  evaluated: EvaluatedLocation,
+  whole: Map<string, string>,
+  slices: Map<string, PhysicalSlice[]>,
+  at: readonly PathSegment[],
+): SemanticProblem[] {
+  const problems: SemanticProblem[] = [];
+  const used = locationNames(evaluated);
+  for (const name of used.whole) {
+    const bound = whole.get(name);
+    if (bound !== undefined) {
+      problems.push(
+        semanticProblem('V17', `${identity}: physical tensor '${name}' already bound by ${bound}`, at),
+      );
+    }
+    whole.set(name, identity);
+  }
+  for (const region of used.slices) {
+    addSlice(slices, region.name, {
+      offset: region.offset,
+      extent: region.extent,
+      identity,
+    });
+  }
+  return problems;
 }
 
 /** "A physical name is bound by one identity; the slices of one physical tensor do not overlap." */
@@ -329,15 +386,34 @@ function checkPhysicalNames(
   whole: ReadonlyMap<string, string>,
   slices: ReadonlyMap<string, readonly PhysicalSlice[]>,
 ): void {
-  const at: PathSegment[] = ['bindings', 'parameters'];
+  for (const problem of physicalNameProblems(whole, slices, ['bindings', 'parameters'])) {
+    bindings.stage.problems.push(problem);
+  }
+}
+
+/**
+ * The same, as a function of the two maps alone: what V17 says about the names a document binds.
+ *
+ * Feature 1.6d calls it over the names a candidate location *touches*, with the regions the
+ * document already binds beside the candidate's, so the verdict on the candidate is these two
+ * refusals and not a paraphrase of them.
+ */
+export function physicalNameProblems(
+  whole: ReadonlyMap<string, string>,
+  slices: ReadonlyMap<string, readonly PhysicalSlice[]>,
+  at: readonly PathSegment[],
+): SemanticProblem[] {
+  const problems: SemanticProblem[] = [];
   for (const [name, intervals] of slices) {
     const bound = whole.get(name);
     if (bound !== undefined) {
-      bindings.fail(
-        'V17',
-        `physical tensor '${name}' is bound whole by ${bound} and sliced by ` +
-          `${(intervals[0] as PhysicalSlice).identity}`,
-        at,
+      problems.push(
+        semanticProblem(
+          'V17',
+          `physical tensor '${name}' is bound whole by ${bound} and sliced by ` +
+            `${(intervals[0] as PhysicalSlice).identity}`,
+          at,
+        ),
       );
     }
     const ordered = [...intervals].sort(compareSlices);
@@ -345,16 +421,19 @@ function checkPhysicalNames(
       const one = ordered[index] as PhysicalSlice;
       const next = ordered[index + 1] as PhysicalSlice;
       if (next.offset < one.offset + one.extent) {
-        bindings.fail(
-          'V17',
-          `physical tensor '${name}': slices of ${one.identity} ` +
-            `[${one.offset}, ${one.offset + one.extent}) and ${next.identity} ` +
-            `[${next.offset}, ${next.offset + next.extent}) overlap`,
-          at,
+        problems.push(
+          semanticProblem(
+            'V17',
+            `physical tensor '${name}': slices of ${one.identity} ` +
+              `[${one.offset}, ${one.offset + one.extent}) and ${next.identity} ` +
+              `[${next.offset}, ${next.offset + next.extent}) overlap`,
+            at,
+          ),
         );
       }
     }
   }
+  return problems;
 }
 
 /**
