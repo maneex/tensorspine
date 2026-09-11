@@ -171,7 +171,22 @@ export function readHeader(bytes: Uint8Array | ArrayBuffer, file: string): Heade
       `the header length ${String(length)} runs past the end of ${String(all.byteLength)} byte(s)`,
     );
   }
-  const text = new TextDecoder().decode(all.subarray(LENGTH_PREFIX_BYTES, end));
+  // `read_header` is `json.loads(f.read(n))` — **bytes**, so CPython decodes them itself, and it
+  // raises `UnicodeDecodeError` on a sequence that is not UTF-8 rather than reading a name with a
+  // replacement character in it. `fatal` is what makes this refuse the same file: without it a
+  // corrupted shard decodes to a name spelled with U+FFFD, parses, and V17 then reports the
+  // document's tensor absent and the garbled one named by no location — two refusals about the
+  // document where the truth is one about the file.
+  //
+  // The byte-order mark is **kept stripped**, which is the default: `json.loads` of bytes runs
+  // `detect_encoding` first and reads a BOM-prefixed header as `utf-8-sig`, so a header written
+  // with one is a header CPython accepts.
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(all.subarray(LENGTH_PREFIX_BYTES, end));
+  } catch (error) {
+    throw new HeaderError(file, `the header is not UTF-8 (${messageOf(error)})`, { cause: error });
+  }
   let header: PyValue;
   try {
     // `json.loads` takes the last of two members of one name; the core's parser refuses one by

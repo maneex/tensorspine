@@ -173,6 +173,46 @@ describe('the guards a browser needs and the tools do not', () => {
     );
   });
 
+  it('refuses a header that is not UTF-8, where the tools raise UnicodeDecodeError', () => {
+    // `read_header` hands `json.loads` the **bytes**, so CPython decodes them and raises
+    // `UnicodeDecodeError: 'utf-8' codec can't decode byte 0xc3 …` on a broken sequence. Reading
+    // it leniently would put a U+FFFD in a tensor's name and carry on: the header would parse,
+    // and V17 would then report the document's tensor absent from the checkpoint and the garbled
+    // name as named by no location — two refusals about the document, where the truth is one
+    // about the file.
+    const text = new TextEncoder().encode('{"model.norm.weight": {}}');
+    const bytes = new Uint8Array(LENGTH_PREFIX_BYTES + text.byteLength);
+    new DataView(bytes.buffer).setBigUint64(0, BigInt(text.byteLength), true);
+    bytes.set(text, LENGTH_PREFIX_BYTES);
+    // `0xc3 0x28`: a lead byte followed by something that is no continuation byte.
+    bytes[LENGTH_PREFIX_BYTES + 2] = 0xc3;
+    bytes[LENGTH_PREFIX_BYTES + 3] = 0x28;
+    expect(() => readHeader(bytes, 'a.safetensors')).toThrowError(
+      /^a\.safetensors: the header is not UTF-8 \(/,
+    );
+    let caught: unknown;
+    try {
+      readHeader(bytes, 'a.safetensors');
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(HeaderError);
+    expect((caught as { cause?: unknown }).cause).toBeInstanceOf(Error);
+  });
+
+  it('reads a header written with a byte-order mark, as `json.loads` of bytes does', () => {
+    // Not the other half of the same rule: `json.loads` of a **str** refuses a BOM with
+    // "Unexpected UTF-8 BOM (decode using utf-8-sig)", but of **bytes** it runs `detect_encoding`
+    // first and reads the file as `utf-8-sig`. `read_header` passes bytes, so the mark is part of
+    // the encoding and not part of the document — which is what the decoder's default does too.
+    const text = new TextEncoder().encode('{"model.norm.weight": {"dtype": "BF16", "shape": [4096], "data_offsets": [0, 8192]}}');
+    const bytes = new Uint8Array(LENGTH_PREFIX_BYTES + 3 + text.byteLength);
+    new DataView(bytes.buffer).setBigUint64(0, BigInt(3 + text.byteLength), true);
+    bytes.set([0xef, 0xbb, 0xbf], LENGTH_PREFIX_BYTES);
+    bytes.set(text, LENGTH_PREFIX_BYTES + 3);
+    expect(Object.keys(readHeader(bytes, 'a.safetensors').entries)).toEqual(['model.norm.weight']);
+  });
+
   it('carries the parser’s own refusal as the cause', () => {
     const broken = new Uint8Array(LENGTH_PREFIX_BYTES + 3);
     new DataView(broken.buffer).setBigUint64(0, 3n, true);
