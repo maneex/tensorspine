@@ -14,8 +14,9 @@
  * they all write.
  *
  * Features 1.8a–1.8e fill it in one product at a time. What is here today: the expansion, the
- * figures, the agreement, D3, D4 and D2 — and, beside them, the value-type label a diagram prints
- * over an edge, which is a reading of D2 and not a product (finding F6).
+ * figures, the agreement, D3, D4, D2 and D5 — and, beside them, the value-type label a diagram
+ * prints over an edge, which is a reading of D2 and not a product (finding F6), and the
+ * qualified-value algebra of §2.2, of which the tools implement the one row D5's totals need.
  */
 export {
   BYTES,
@@ -70,4 +71,18 @@ export {
 } from './d2.js';
 export { d3 } from './d3.js';
 export { d4 } from './d4.js';
+export { d5, OPERATION_COUNTERS } from './d5.js';
+export {
+  conditionalStatus,
+  flipped,
+  propagate,
+  propagationOf,
+  PROPAGATIONS,
+  roundQualified,
+  STATUSES,
+  sumStatus,
+  type Propagation,
+  type Rounding,
+  type Status,
+} from './qualified.js';
 export { streamAxis, valueGeometry } from './labels.js';

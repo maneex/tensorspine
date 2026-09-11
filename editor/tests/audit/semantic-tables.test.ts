@@ -8,8 +8,15 @@ import {
   BYTES,
   d2,
   d4,
+  d5,
   expandAnalysis,
   expandedKeyOf,
+  OPERATION_COUNTERS,
+  propagate,
+  propagationOf,
+  PROPAGATIONS,
+  STATUSES,
+  sumStatus,
   widthOf,
   type ExpandedGraph,
   type ExpandedSite,
@@ -83,6 +90,22 @@ import { editorRoot } from './tree.js';
 // set equality, one whose reading changed fails the behaviour, and a `d4` that began to branch on
 // an access geometry or a sharing granularity fails the requirement that changing one of them
 // changes exactly one member of the entry.
+//
+// The eleventh is the **qualified-value algebra** of §2.2, in
+// `packages/lang/src/derive/qualified.ts`: the four statuses O0.5 declares and the row of §2.2's
+// propagation table each operator of O0.1's set stands in. The statuses are asked behaviourally —
+// `_status` is four membership tests over a set, so a status the grammar gained without a reading
+// would fall through to `exact` rather than raise, and a status summed beside an exact value must
+// survive as itself. The operators are held to the same walk the first table uses, and the four
+// rows are required to stay four: a sum carries a bound through, an inverse flips the second
+// operand's, `modulo` (which §2.2 gives no row) keeps only an exact result, and `negate` and
+// `absolute` answer nothing at all.
+//
+// The twelfth is D5's **cost units** in `packages/lang/src/derive/d5.ts`: the four values of
+// `cost_entry.per` and the counter of `--validate`'s first derivation each one reads. Both halves
+// are asked — the figure a unit reads must be the counter that unit's name is paired with, and a
+// correction counted per one unit must leave the other three exact — which is what catches a pair
+// written the wrong way round.
 //
 // The sixth is the *location forms* of §3.4, in `packages/lang/src/validate/bindings/locations.ts`:
 // `evaluate_location` is four `if`s over the form's own key, ending in "unknown location form", so
@@ -728,5 +751,143 @@ describe('the state vocabularies of packages/lang/src/derive/d4', () => {
         expect(rest(state, 'sharing'), sharing).toBe(rest(reference, 'sharing'));
       }
     });
+  });
+});
+
+describe('the qualified-value algebra of packages/lang/src/derive/qualified', () => {
+  const STATUS = `${MODEL}#/$defs/epistemic_status`;
+
+  /** Every status O0.5 declares, as the schema writes them. */
+  function statuses(): string[] {
+    const found = vocabulary.enumAt(STATUS);
+    expect(found, `${STATUS} is not an enumeration of the loaded schemas`).toBeDefined();
+    return (found as { values: readonly unknown[] }).values.map(String);
+  }
+
+  it('knows exactly the statuses the language declares', () => {
+    expect([...STATUSES].sort()).toEqual([...statuses()].sort());
+  });
+
+  it('gives each of them a reading the sum row keeps apart from the others', () => {
+    // `_status` is four membership tests over a set, so a status the grammar gained without a
+    // reading would fall through to `exact` rather than raise. The audit asks behaviourally: a
+    // status summed beside an exact value must survive as itself, which a name the tools do not
+    // look for cannot do.
+    for (const status of statuses()) {
+      expect(sumStatus(['exact', status]), status).toBe(status);
+    }
+    expect(sumStatus(['exact', 'probably'])).toBe('exact');
+  });
+
+  it('gives every operator of the algebra a row of §2.2, and names no other', () => {
+    // The same walk the operator table above uses: every alternative of the expression union that
+    // carries an `op`, on both grammars. §2.2's table is keyed by those names and by nothing else.
+    const implemented = Object.keys(PROPAGATIONS).sort();
+    for (const pointer of [`${MODEL}#/$defs/scalar_expression`, `${UNIT}#/$defs/expression`]) {
+      const declared = operatorsOf(pointer);
+      expect(declared.length, pointer).toBeGreaterThan(0);
+      expect(implemented, pointer).toEqual(declared);
+    }
+  });
+
+  it('answers a stated row per operator, and refuses a name it has not', () => {
+    const rows = new Set<string>();
+    for (const operation of operatorsOf(`${MODEL}#/$defs/scalar_expression`)) {
+      rows.add(propagationOf(operation));
+    }
+    // The four readings are distinct, so a table that collapsed two of them fails here: a sum
+    // carries a bound through, an inverse flips the second operand's, an opaque one keeps only an
+    // exact result, and a rejection answers nothing at all.
+    expect([...rows].sort()).toEqual(['inverse', 'opaque', 'rejection', 'sum']);
+    expect(propagate('add', ['exact', 'upper_bound'])).toBe('upper_bound');
+    expect(propagate('subtract', ['exact', 'upper_bound'])).toBe('lower_bound');
+    expect(propagate('modulo', ['exact', 'upper_bound'])).toBe('estimate');
+    expect(() => propagate('negate', ['exact'])).toThrowError('a rejection (§2.2)');
+    expect(() => propagationOf('logarithm')).toThrowError('unknown to the qualified-value algebra');
+  });
+});
+
+describe('the cost units of packages/lang/src/derive/d5', () => {
+  const PER = `${UNIT}#/$defs/cost_entry/properties/per`;
+
+  /** Every unit a correction may be counted per (§4.1). */
+  function units(): string[] {
+    const found = vocabulary.enumAt(PER);
+    expect(found, `${PER} is not an enumeration of the loaded schemas`).toBeDefined();
+    return (found as { values: readonly unknown[] }).values.map(String);
+  }
+
+  /**
+   * The counters the validator's first derivation keeps, each at a figure of its own.
+   *
+   * Keyed `ops_per_<unit>` from the **schema's** names, not from the table under audit: a table
+   * that paired a unit with another unit's counter would otherwise read back its own mistake, the
+   * figures having come from it. `validate.analyse` writes those four names and no others.
+   */
+  function counters(): Map<string, PyValue> {
+    const stats = new Map<string, PyValue>();
+    for (const [index, per] of units().entries()) {
+      stats.set(`ops_per_${per}`, BigInt(index + 1) * 100n);
+    }
+    return stats;
+  }
+
+  /** A node whose primitive declares one correction counted per that unit, with that status. */
+  function graphOf(per: string, status: string): ExpandedGraph {
+    const definition = toPython(
+      parse(
+        `{"parameters": {}, "logical_cost": [{"expression": {"literal": 7}, ` +
+          `"status": "${status}", "per": "${per}"}]}`,
+      ),
+    );
+    const site: ExpandedSite = { prefix: '', key: rootSite('n') };
+    return {
+      model: toPython(parse('{"interfaces": {"inputs": {}, "outputs": {}}}')) as PyRecord,
+      quantities: new Map(),
+      resolved: new Map([
+        [expandedKeyOf(site), { site, primitive: 'p', definition, args: {} }],
+      ]),
+      edges: [],
+      domains: new Map(),
+      own: new Map(),
+      order: [site],
+      meta: new Map(),
+      compositions: [],
+      inputsAt: new Map(),
+      outputsAt: new Map(),
+      tensorInstances: [],
+      stateInstances: [],
+    };
+  }
+
+  /** D5 over that node, with empty totals and no split. */
+  function costs(per: string, status = 'upper_bound'): PyRecord {
+    const totals = toPython(parse('{"totals": {"elements": 0, "bytes": 0}}'));
+    const states = toPython(
+      parse(
+        '{"totals": {"append_bytes_per_cached_position": 0, "bounded_bytes": 0, "fixed_bytes": 0}}',
+      ),
+    );
+    const values = toPython(parse('{"graph_splits": []}'));
+    return d5(graphOf(per, status), totals, states, values, counters());
+  }
+
+  it('counts a correction per every unit the grammar declares, and per no other', () => {
+    expect(OPERATION_COUNTERS.map(([per]) => per)).toEqual(units());
+  });
+
+  it('reads one counter per unit, and moves that unit’s status alone', () => {
+    // The table's two halves are asked separately: the counter on the right must be the figure
+    // `--validate` kept for that unit, and a correction counted per one unit must leave the other
+    // three exact — which is what catches a pair written the wrong way round.
+    for (const [index, per] of units().entries()) {
+      const operations = costs(per)['operations'] as PyRecord;
+      expect((operations[per] as PyRecord)['value'], per).toBe(BigInt(index + 1) * 100n);
+      for (const other of units()) {
+        expect((operations[other] as PyRecord)['status'], `${per}/${other}`).toBe(
+          other === per ? 'upper_bound' : 'exact',
+        );
+      }
+    }
   });
 });
