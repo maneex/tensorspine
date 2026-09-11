@@ -80,6 +80,39 @@ describe('the writing back', () => {
     expect(() => toJsonValue(UNRESOLVED)).toThrow(PyTypeError);
   });
 
+  it('writes a computed integer past the doubles exactly, and reads it back', () => {
+    // The evaluator computes with Python's `int`, so a parameter count is exact however large;
+    // a conversion through a double would change it, and silently. 2**53 + 1 is the first whole
+    // number no double holds, and 1e26 + 1 is well past where they thin out altogether.
+    for (const value of [
+      9007199254740993n,
+      -9007199254740993n,
+      100000000000000000000000001n,
+      -100000000000000000000000001n,
+    ]) {
+      expect(serialize(toJsonValue(value)), String(value)).toBe(`${value.toString()}\n`);
+      expect(toPython(toJsonValue(value)), String(value)).toBe(value);
+    }
+  });
+
+  it('writes an integer past the finite doubles exactly rather than as a float', () => {
+    // `Number(10n ** 400n)` is `Infinity`: there is no double to round to at all, so the digits
+    // are the only reading of the value and both directions have to take them.
+    const value = 10n ** 400n;
+    const node = toJsonValue(value);
+    expect(serialize(node)).toBe(`${value.toString()}\n`);
+    expect(toPython(node)).toBe(value);
+    expect(toPython(toJsonValue(-value))).toBe(-value);
+  });
+
+  it('keeps those values inside arrays and records too', () => {
+    const value = { a: 9007199254740993n, b: [100000000000000000000000001n, 2, 3n] };
+    expect(serialize(toJsonValue(value))).toBe(
+      '{\n  "a": 9007199254740993,\n  "b": [\n    100000000000000000000000001,\n    2.0,\n    3\n  ]\n}\n',
+    );
+    expect(toPython(toJsonValue(value))).toEqual(value);
+  });
+
   it('round-trips every file the editor loads, byte for byte', () => {
     // tree → value → tree → bytes: the distinction the value model carries is the one D12's
     // writer needs, so every corpus document and every reference unit must come back as written.

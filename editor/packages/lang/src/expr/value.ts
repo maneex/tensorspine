@@ -186,14 +186,25 @@ export function truthy(value: PyValue): boolean {
  * the value; and a value that is not a whole number is a `float` whatever the node claims,
  * because there is no integer text that denotes it — which is what leaves V3 a `1.5` to refuse
  * rather than an exception to raise.
+ *
+ * The text is what makes an `int` *arbitrary*-precision on the way in, as Python's is: a double
+ * holds whole numbers exactly only to 2**53, so past it the digits are the value and the `value`
+ * field is a rounding of them. {@link toJsonValue} writes the digits for that reason, and this
+ * reads them before it consults the double at all.
  */
 export function toPython(value: JsonValue): PyValue {
   if (isJsonNumber(value)) {
+    const lexeme = value.lexeme;
+    // The text first, and before the finiteness test: an integer past the doubles has no finite
+    // `value` to read it from — `Number(10n ** 400n)` is `Infinity` — and its text is the only
+    // place the value survives. A node that means a non-finite *float* carries `real`, so it is
+    // already past this; one with neither text nor float-ness is read from its value below.
+    if (!value.real && lexeme !== undefined && lexemeDenotes(lexeme, value.value, false)) {
+      return BigInt(lexeme);
+    }
     if (value.real || !Number.isFinite(value.value) || !Number.isInteger(value.value)) {
       return value.value;
     }
-    const lexeme = value.lexeme;
-    if (lexeme !== undefined && lexemeDenotes(lexeme, value.value, false)) return BigInt(lexeme);
     return BigInt(value.value);
   }
   if (isJsonArray(value)) return value.map(toPython);
@@ -214,12 +225,23 @@ export function toPython(value: JsonValue): PyValue {
  * An integer is written bare and a float with a fraction or an exponent, which is the rule D12
  * states and the rule V3 reads — so a derived extent of `4096` and one of `4096.0` are different
  * documents, as they are on the Python side.
+ *
+ * An integer is written **exactly**, however large. A parameter count is a product of extents and
+ * a document may name any integer at all, so the conversion cannot go through a double: it carries
+ * the digits as the node's lexeme, which is what the tree keeps them in.
  */
 export function toJsonValue(value: PyValue): JsonValue {
   if (value === UNRESOLVED) {
     throw new PyTypeError('UNRESOLVED has no JSON form: a document holds decided values only');
   }
-  if (typeof value === 'bigint') return { kind: 'number', value: Number(value), real: false };
+  // The digits, always: `Number` of an integer past 2**53 is a *different* integer, and the
+  // lexeme is the tree's own answer to that (`json/tree.ts`) — kept by the parser for a number a
+  // document was written with, and supplied here for one the evaluator computed. The serializer
+  // re-emits it because it still denotes this double, and `toPython` reads the value back from it
+  // exactly; within the doubles the two spellings agree digit for digit, so nothing else moves.
+  if (typeof value === 'bigint') {
+    return { kind: 'number', value: Number(value), real: false, lexeme: value.toString() };
+  }
   if (typeof value === 'number') return { kind: 'number', value, real: true };
   if (Array.isArray(value)) return value.map(toJsonValue);
   if (isRecord(value)) {
