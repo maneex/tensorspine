@@ -57,9 +57,16 @@ export function memorySource(files: Readonly<Record<string, string>>): LibrarySo
   for (const [path, text] of Object.entries(files)) byPath.set(normaliseKey(path), text);
   const directories = new Set<string>();
   for (const path of byPath.keys()) {
+    // The root a key is written against is a directory as soon as any key exists, and it is the
+    // one directory no key is ever a proper *prefix* of: `normalise` writes it `.` for a relative
+    // path and `/` for an absolute one, and writes no key that way. `os.path.isdir('.')` answers
+    // true, so a base that resolves to the workspace root — a document at the root declaring
+    // `..`, which `basesOf` normalises to `.` — is an exploded base here as it is there.
+    directories.add(rootOf(path));
     const parts = path.split('/');
     for (let depth = 1; depth < parts.length; depth += 1) {
-      directories.add(parts.slice(0, depth).join('/'));
+      const prefix = parts.slice(0, depth).join('/');
+      if (prefix !== '') directories.add(prefix);
     }
   }
   return {
@@ -67,7 +74,11 @@ export function memorySource(files: Readonly<Record<string, string>>): LibrarySo
     isFile: (path) => byPath.has(normaliseKey(path)),
     exists: (path) => byPath.has(normaliseKey(path)) || directories.has(normaliseKey(path)),
     find(directory) {
-      const prefix = `${normaliseKey(directory)}/`;
+      // `glob.glob('<dir>/**/*.json')`: the separator between the directory and what is under it,
+      // except at a root, which is written with its separator already — `.` has none to add and
+      // `/` is one.
+      const root = normaliseKey(directory);
+      const prefix = root === '.' ? '' : root.endsWith('/') ? root : `${root}/`;
       return [...byPath.keys()].filter(
         (path) =>
           path.startsWith(prefix) &&
@@ -89,4 +100,9 @@ export function memorySource(files: Readonly<Record<string, string>>): LibrarySo
 /** A key of the map: {@link normalise}, so that `a/./b/` and `a/b` name one file. */
 function normaliseKey(path: string): string {
   return normalise(path);
+}
+
+/** The root a normalised path is written against: `/` for an absolute one, `.` for the rest. */
+function rootOf(path: string): string {
+  return path.startsWith('/') ? '/' : '.';
 }

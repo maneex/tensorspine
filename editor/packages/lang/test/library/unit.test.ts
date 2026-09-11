@@ -177,6 +177,34 @@ describe('the identity a unit’s path spells out', () => {
     expect(placeOf({ base: 'b', path: 'b/primitive-library.json' })?.kind).toBe('base');
   });
 
+  it('reads a base that resolves to the root the paths are written against', () => {
+    // `basesOf` normalises, so a document at the root of its workspace declaring the directory it
+    // sits in gets the base `.` — `normalise('models/..')`. `join` does not normalise, so
+    // `join('.', 'primitives')` is `./primitives` while the unit's path has become
+    // `primitives/…`: the comparison has to be made on the normalised form or every unit of such
+    // a base is refused as being under no section of it.
+    expect(placeOf({ base: '.', path: 'primitives/norm/rms/1.0.0.json' })).toEqual({
+      section: 'primitives',
+      kind: 'primitive',
+      name: 'norm.rms',
+      version: '1.0.0',
+    });
+    expect(placeOf({ base: '.', path: 'primitive-library.json' })).toEqual({
+      section: null,
+      kind: 'base',
+      name: '',
+      version: null,
+    });
+    expect(placeOf({ base: 'models/..', path: 'axes/model/width.json' })).toEqual({
+      section: 'axes',
+      kind: 'axis',
+      name: 'model.width',
+      version: null,
+    });
+    // And a file that is under no section of it is still refused.
+    expect(placeOf({ base: '.', path: 'elsewhere/one.json' })).toBeNull();
+  });
+
   it('names no place for a file outside the base’s sections', () => {
     expect(placeOf({ base: 'b', path: 'b/elsewhere/one.json' })).toBeNull();
     const problems = validateUnitText('{}', { base: 'b', path: 'b/elsewhere/one.json' }, library, {

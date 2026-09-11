@@ -388,6 +388,46 @@ describe('a monolithic base', () => {
   });
 });
 
+describe('a base that is the root its paths are written against', () => {
+  // `basesOf` answers `.` for a document at the root of its workspace that declares the directory
+  // it sits in — `normalise(join('models', '..'))`. `os.path.isdir('.')` is true and
+  // `glob.glob('./primitives/**/*.json')` finds the units, so the tools read such a base; the
+  // core has to as well, or the editor disagrees with itself about a base it can open.
+  const rooted = nodeSource(repositoryPath('data', 'primitive-library'));
+  const named = reference();
+
+  it('is a directory, and its sections are found under it', () => {
+    expect(rooted.isDirectory('.')).toBe(true);
+    expect(rooted.exists('.')).toBe(true);
+    expect(rooted.find('.').length).toBeGreaterThan(0);
+  });
+
+  it('gathers clean, with the units the same base gathers under its own name', () => {
+    // The manifest's `"templates": "../models/"` resolves against `.` to `../models`, which is
+    // `data/models` — the same directory it names when the base is read as
+    // `data/primitive-library`.
+    const library = loadLibrary(['.'], { schemas, source: rooted });
+    expect(formatLibraryProblems(library.problems)).toEqual([]);
+    expect(library.byId.size).toBe(named.byId.size);
+    expect(library.axes.size).toBe(named.axes.size);
+    expect(library.precision.size).toBe(named.precision.size);
+    expect([...library.templates.keys()]).toEqual([...named.templates.keys()]);
+  });
+
+  it('is a directory to a source over texts in memory too', () => {
+    const files = { 'primitive-library.json': '{}', 'primitives/norm/rms/1.0.0.json': '{}' };
+    const memory = memorySource(files);
+    expect(memory.isDirectory('.')).toBe(true);
+    expect(memory.exists('.')).toBe(true);
+    expect(memory.find('.')).toEqual([
+      'primitive-library.json',
+      'primitives/norm/rms/1.0.0.json',
+    ]);
+    // And an empty snapshot has no root: nothing is anywhere.
+    expect(memorySource({}).isDirectory('.')).toBe(false);
+  });
+});
+
 describe('the bases a document resolves from', () => {
   const modelPath = repositoryPath('data', 'models', 'llama3-8b.json');
   const model = toPython(parse(source.read(modelPath)));

@@ -72,11 +72,15 @@ export interface UnitPlace {
 export function placeOf(where: UnitLocation): UnitPlace | null {
   const base = normalise(where.base);
   const path = normalise(where.path);
-  if (path === join(base, 'primitive-library.json')) {
+  // `join` is `os.path.join` and does not normalise: `join('.', 'primitives')` is `./primitives`,
+  // and the path it is compared with has been normalised to `primitives/…`. A base of `.` is what
+  // `basesOf` answers for a document at the root of its workspace declaring the directory it sits
+  // in, so the two forms have to meet — and they meet on the normalised one.
+  if (path === normalise(join(base, 'primitive-library.json'))) {
     return { section: null, kind: 'base', name: '', version: null };
   }
   for (const [section, kind] of SECTIONS) {
-    const root = join(base, section);
+    const root = normalise(join(base, section));
     if (path !== root && !path.startsWith(`${root}/`)) continue;
     const parts = relative(path, root).replace(/\.json$/, '').split('/');
     if (section === 'primitives') {
