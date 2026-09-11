@@ -58,6 +58,87 @@ export type LangPort = LangEventPort | LangEmitterPort;
  * event with a `data` member exactly as the DOM's does (measured) — so the emitter branch is for
  * a port that has only `on`.
  */
+/**
+ * Listen for the two failures a port reports *instead of* a message, and answer how to stop.
+ *
+ * A worker that never loaded — a 404 under a mis-set base, a chunk that throws while it is
+ * evaluated, the browser killing it — delivers `error` and nothing else, ever; a reply that could
+ * not be deserialised delivers `messageerror` and no `message`. Both are silent to
+ * {@link listen}, and silence is the worst answer a request can get: every promise stays pending,
+ * the page never becomes ready, and nothing anywhere says why.
+ *
+ * **Why this reads the port structurally.** {@link LangEventPort} declares exactly the `message`
+ * listener the protocol needs, and widening it to a second event type would make every port the
+ * core accepts — a browser `Worker`, a `MessagePort`, a worker's own global scope, Node's
+ * `parentPort` — have to satisfy a signature for events some of them do not have. So the two
+ * extra registrations are made through a structural reading of the port, and a port that has
+ * neither shape gets nothing and loses nothing: this is the only place in the protocol that asks
+ * a port for something it may not have.
+ */
+export function listenForFailure(
+  port: LangPort,
+  handler: (kind: PortFailure, event: unknown) => void,
+): () => void {
+  const any = port as unknown as {
+    addEventListener?: (type: string, listener: (event: unknown) => void) => void;
+    removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
+    on?: (event: string, listener: (value: unknown) => void) => unknown;
+    off?: (event: string, listener: (value: unknown) => void) => unknown;
+  };
+  const stops: (() => void)[] = [];
+  for (const kind of PORT_FAILURES) {
+    const listener = (event: unknown): void => {
+      handler(kind, event);
+    };
+    if (typeof any.addEventListener === 'function') {
+      any.addEventListener(kind, listener);
+      const remove = any.removeEventListener;
+      if (typeof remove === 'function') {
+        stops.push(() => {
+          remove.call(any, kind, listener);
+        });
+      }
+      continue;
+    }
+    if (typeof any.on === 'function') {
+      any.on(kind, listener);
+      const off = any.off;
+      if (typeof off === 'function') {
+        stops.push(() => {
+          off.call(any, kind, listener);
+        });
+      }
+    }
+  }
+  return () => {
+    for (const stop of stops) stop();
+  };
+}
+
+/** How a port can fail instead of delivering a message. */
+export type PortFailure = 'error' | 'messageerror';
+
+/** Both of them, in the order they are registered. */
+export const PORT_FAILURES: readonly PortFailure[] = ['error', 'messageerror'];
+
+/**
+ * What such an event says, as far as anything can be read from it without naming a DOM type.
+ *
+ * An `ErrorEvent` carries `message`, `filename` and `lineno`; Node hands its `'error'` listener
+ * the `Error` itself. Every member is read defensively, because the one thing that must not
+ * happen here is a throw inside the listener that reports a failure.
+ */
+export function describePortFailure(kind: PortFailure, event: unknown): string {
+  if (kind === 'messageerror') return 'a reply from the worker could not be deserialised';
+  if (event instanceof Error) return event.message;
+  const fields = event as { message?: unknown; filename?: unknown; lineno?: unknown } | null;
+  const message = typeof fields?.message === 'string' ? fields.message : 'the worker failed';
+  const file = typeof fields?.filename === 'string' && fields.filename !== '' ? fields.filename : null;
+  const line = typeof fields?.lineno === 'number' ? String(fields.lineno) : null;
+  if (file === null) return message;
+  return `${message} (${file}${line === null ? '' : `:${line}`})`;
+}
+
 export function listen(port: LangPort, handler: (data: unknown) => void): () => void {
   if ('addEventListener' in port) {
     const listener = (event: LangMessageEvent): void => {

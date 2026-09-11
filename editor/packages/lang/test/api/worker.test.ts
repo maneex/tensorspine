@@ -288,6 +288,108 @@ describe('closing the proxy that runs in this thread', () => {
   }, 120_000);
 });
 
+describe('a port that fails instead of answering', () => {
+  // A worker chunk that 404s under a mis-set base, throws while it is evaluated, or is killed by
+  // the browser delivers `error` and never a `message`; a reply that cannot be deserialised
+  // delivers `messageerror`. Neither reaches the message listener, so without this every promise
+  // stays pending for ever — no refusal, no Problems row, and a page that never becomes ready.
+
+  /** A port that carries nothing and lets a test dispatch the two failures a real one reports. */
+  function brokenPort(): {
+    readonly port: Parameters<typeof connectLang>[0];
+    readonly emit: (type: string, event: unknown) => void;
+  } {
+    const listeners = new Map<string, ((event: unknown) => void)[]>();
+    const port = {
+      postMessage: () => undefined,
+      addEventListener: (type: string, listener: (event: unknown) => void) => {
+        listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+      },
+      removeEventListener: (type: string, listener: (event: unknown) => void) => {
+        listeners.set(type, (listeners.get(type) ?? []).filter((one) => one !== listener));
+      },
+    };
+    return {
+      port: port as unknown as Parameters<typeof connectLang>[0],
+      emit: (type, event) => {
+        for (const listener of listeners.get(type) ?? []) listener(event);
+      },
+    };
+  }
+
+  it('rejects everything outstanding when the worker fails to load', async () => {
+    const { port, emit } = brokenPort();
+    let ended = 0;
+    const lang = connectLang(port, {
+      onClose: () => {
+        ended += 1;
+      },
+    });
+    const pending = lang.parse('{}');
+    const other = lang.serialize({ kind: 'number', value: 1, real: false });
+    emit('error', {
+      message: 'Failed to load module script',
+      filename: 'https://example.test/editor/assets/worker-abcd.js',
+      lineno: 1,
+    });
+    await expect(pending).rejects.toBeInstanceOf(LangFailure);
+    await expect(pending).rejects.toMatchObject({
+      raised: 'WorkerError',
+      message: 'Failed to load module script (https://example.test/editor/assets/worker-abcd.js:1)',
+    });
+    await expect(other).rejects.toBeInstanceOf(LangFailure);
+    // The worker is gone, so the proxy is closed with it and its owner told to clean up.
+    expect(ended).toBe(1);
+    await expect(lang.parse('{}')).rejects.toMatchObject({ reason: 'closed' });
+    lang.close();
+    expect(ended).toBe(1);
+  });
+
+  it('rejects the outstanding requests when a reply cannot be deserialised', async () => {
+    const { port, emit } = brokenPort();
+    let ended = 0;
+    const lang = connectLang(port, {
+      onClose: () => {
+        ended += 1;
+      },
+    });
+    const pending = lang.parse('{}');
+    emit('messageerror', { data: null });
+    await expect(pending).rejects.toMatchObject({
+      raised: 'WorkerMessageError',
+      message: 'a reply from the worker could not be deserialised',
+    });
+    // One reply was lost; the port is still there, so the proxy is not closed with it.
+    expect(ended).toBe(0);
+    const next = lang.parse('{}');
+    emit('error', new Error('and now the worker itself'));
+    await expect(next).rejects.toMatchObject({
+      raised: 'WorkerError',
+      message: 'and now the worker itself',
+    });
+  });
+
+  it('says something when the event carries nothing to say', async () => {
+    const { port, emit } = brokenPort();
+    const lang = connectLang(port, {});
+    const pending = lang.parse('{}');
+    emit('error', null);
+    await expect(pending).rejects.toMatchObject({
+      raised: 'WorkerError',
+      message: 'the worker failed',
+    });
+  });
+
+  it('leaves a port that reports neither exactly as it was', async () => {
+    // `MessageChannel`'s ports do have `addEventListener`; a port that has only `on`/`off`, or
+    // neither, must still connect — the registration is the one thing the protocol asks for that
+    // a port may not have.
+    const { lang, library, tree, path } = await ready();
+    const verdict = await lang.validate(tree as never, path, { library });
+    expect(verdict.problems).toEqual([]);
+  }, 120_000);
+});
+
 describe('a refusal the tools themselves raise', () => {
   // Feature 1.8e settled it and left this half to feature 1.11: a *public input's* byte size is
   // taken unguarded where a produced value's is guarded, so a port shape that does not resolve

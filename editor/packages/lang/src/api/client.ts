@@ -17,15 +17,18 @@ import type { Env, Quantities } from '../expr/model.js';
 import type { PyRecord, PyValue } from '../expr/value.js';
 import type { JsonValue } from '../json/tree.js';
 
-import { decode, encode, LangFailure } from './codec.js';
+import { decode, encode, LangFailure, type EncodedFailure } from './codec.js';
 import type { Lang } from './core.js';
 import { stripped, strippedDescribe } from './options.js';
 import {
+  describePortFailure,
   isResponse,
   listen,
+  listenForFailure,
   type CallName,
   type LangPort,
   type LangResponse,
+  type PortFailure,
 } from './protocol.js';
 import {
   LangCancelled,
@@ -86,6 +89,37 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
 
   const stopListening = listen(port, listener);
 
+  /**
+   * Reject everything outstanding, because the port reported a failure instead of a reply.
+   *
+   * `LangFailure`, not `LangCancelled`: nothing was cancelled — a cancel means the caller gave up,
+   * or a later request replaced this one — and a caller that catches a cancellation quietly would
+   * swallow a worker that never loaded. `raised` names the failure the way the worker's own
+   * refusals name theirs, so one `catch` reads both.
+   */
+  const failAll = (kind: PortFailure, event: unknown): void => {
+    const failure: EncodedFailure = {
+      name: kind === 'error' ? 'WorkerError' : 'WorkerMessageError',
+      message: describePortFailure(kind, event),
+    };
+    // An `error` is the worker itself: it is gone, or it never ran, and nothing asked of it after
+    // this can answer either. A `messageerror` is one reply that could not be deserialised — the
+    // port is still there, so the outstanding requests are refused and the proxy stays open.
+    if (kind === 'error') closed = true;
+    for (const [id, held] of pending) {
+      pending.delete(id);
+      held.release();
+      held.settle({ id, kind: 'failure', failure });
+    }
+    if (kind === 'error') {
+      stopListening();
+      stopFailures();
+      options.onClose?.();
+    }
+  };
+
+  const stopFailures = listenForFailure(port, failAll);
+
   const request = <T>(
     call: CallName,
     args: readonly unknown[],
@@ -127,6 +161,7 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
       held.settle({ id, kind: 'cancelled', call: held.call, reason: 'closed' });
     }
     stopListening();
+    stopFailures();
     options.onClose?.();
   };
 
