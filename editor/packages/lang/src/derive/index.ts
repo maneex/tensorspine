@@ -14,7 +14,8 @@
  * they all write.
  *
  * Features 1.8a–1.8e fill it in one product at a time. What is here today: the expansion, the
- * figures, the agreement, D3 and D4.
+ * figures, the agreement, D3, D4 and D2 — and, beside them, the value-type label a diagram prints
+ * over an edge, which is a reading of D2 and not a product (finding F6).
  */
 export {
   BYTES,
@@ -56,5 +57,17 @@ export {
   type Derivation,
   type DerivationOptions,
 } from './products.js';
+export {
+  ancestors,
+  counts,
+  d2,
+  peakLive,
+  pyRound,
+  structuralGraphSplits,
+  valueId,
+  type Count,
+  type StructuralSplit,
+} from './d2.js';
 export { d3 } from './d3.js';
 export { d4 } from './d4.js';
+export { streamAxis, valueGeometry } from './labels.js';

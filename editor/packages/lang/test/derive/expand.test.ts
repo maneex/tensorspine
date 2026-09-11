@@ -16,6 +16,7 @@ import {
   type PyRecord,
 } from '../../src/index.js';
 import { corpus, library, schemas } from '../describe/source.js';
+import { oneInstance } from './source.js';
 
 // The expansion of §5.1 (feature 1.8a): `derive._expand`, the analysis graph with every template
 // instance expanded in place.
@@ -104,57 +105,9 @@ describe('a template instance, expanded in place', () => {
   });
 });
 
-// A model whose *interfaces* name a template instance. No document of the repository has one —
-// `shieldstral-3b-composite`'s public input feeds `embed` and its output comes from `lm_head`, so
-// the expansion's `inputs_at` and `outputs_at` reach a template instance through no corpus
-// document, and only the edges do. This is the smallest caller that reaches them: one instance,
-// the template's own input as the public input and its own output as the public output. Its
-// answers below were taken from `tools/derive.py` itself on the same document (feature 1.8a's
-// finding), and a fixture for it belongs to the acceptance suite the plan postpones (F8).
-const ONE_INSTANCE = `{
-  "schema": "tensorspine/2.0",
-  "model": "one_template_instance",
-  "primitive_libraries": [{"base": "../primitive-library/"}],
-  "quantities": {
-    "d": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 64}},
-    "layers": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 2}},
-    "heads": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 4}},
-    "kv_heads": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 2}},
-    "hd": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 16}},
-    "ffn": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 128}},
-    "eps": {"type": {"kind": "real"}, "source": {"kind": "literal", "value": 1e-05}},
-    "precision": {"type": {"kind": "enum", "values": ["bf16", "f16", "f32"]},
-                  "source": {"kind": "literal", "value": PRECISION}}
-  },
-  "constants": {},
-  "instances": {
-    "text": {
-      "primitive": {"name": "decoder.causal_yarn", "version": "1.0.0"},
-      "arguments": {
-        "width": {"quantity": "d"}, "layers": {"quantity": "layers"},
-        "heads": {"quantity": "heads"}, "kv_heads": {"quantity": "kv_heads"},
-        "head_dim": {"quantity": "hd"}, "inner": {"quantity": "ffn"},
-        "eps": {"quantity": "eps"}, "precision": ARGUMENT
-      },
-      "families": ["decoder"]
-    }
-  },
-  "compositions": {},
-  "bindings": {"values": {}, "parameters": {}, "constants": {}, "states": {}},
-  "interfaces": {
-    "inputs": {"hidden": {"to": [{"instance": {"kind": "root", "instance": "text"},
-                                  "port": "hidden"}], "kind": "token"}},
-    "outputs": {"hidden_out": {"from": {"instance": {"kind": "root", "instance": "text"},
-                                        "port": "hidden_out"}, "generative": false}}
-  }
-}`;
-
-/** The caller above, with the precision its quantity declares and the one its argument supplies. */
-function oneInstance(precision = '"bf16"', argument = '{"quantity": "precision"}'): ExpandedGraph {
-  const text = ONE_INSTANCE.replace('PRECISION', precision).replace('ARGUMENT', argument);
-  return derivationGraph(parse(text), { schemas, library }).graph;
-}
-
+// A model whose *interfaces* name a template instance: `oneInstance`, in `source.ts`, which D2's
+// unit suite reads too. No document of the repository has one, so its answers were taken from
+// `tools/derive.py` itself on that document (this feature's finding, feature 1.8c's after it).
 describe('a model whose interfaces name a template instance', () => {
   it('resolves its public input into the instance and its output out of it', () => {
     const graph = oneInstance();

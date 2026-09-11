@@ -1,0 +1,43 @@
+{
+  "note": [
+    "The value-type labels `tools/tensorspine --view` printed on the edges of these three model",
+    "views, recorded once while `view.py` is still in the repository (plan finding F6: it is to be",
+    "removed, and the editor becomes the only diagram reading). They are the contract the core's",
+    "`valueGeometry` is held to by `labels.test.ts`.",
+    "Only the distinct labels are recorded, not how often each appears: a label's repetition is the",
+    "diagram's folding — `--view` draws the folded document and prints at most two distinct labels",
+    "per edge — while the label itself is a function of one D2 value alone. The three documents were",
+    "measured to carry exactly these labels over *all* their D2 values, so the sets are equal and not",
+    "merely included; llama3-8b is the one the implementation plan names, and the other two are here",
+    "because their counts reach the `audio/8` and `tokens + pixels/4` forms of the stream axis, which",
+    "llama3-8b's do not."
+  ],
+  "recorded": "2026-09-11",
+  "recorded_from": "tools/tensorspine --view data/models/<model>.json -o <model>.html",
+  "repository_commit": "8a6519b86d7421e89427d4f60025e8f0711d0a07",
+  "labels": {
+    "llama3-8b": [
+      "bf16[tokens, model.width=4096]",
+      "f32[tokens, model.vocabulary=128256]",
+      "i32[tokens]"
+    ],
+    "voxtral-realtime": [
+      "bf16[audio/2, model.width=1280]",
+      "bf16[audio/8, model.width=3072]",
+      "f32[audio, audio.mels=128]",
+      "f32[audio/8, model.vocabulary=131072]",
+      "f32[delay, conditioning.feature=3072]",
+      "i32[audio/8]",
+      "i32[delay]"
+    ],
+    "qwen3.5-35b-a3b": [
+      "bf16[pixels, model.width=1152]",
+      "bf16[pixels/4, model.width=2048]",
+      "bf16[tokens + pixels/4, model.width=2048]",
+      "bf16[tokens, model.width=2048]",
+      "f32[pixels, vision.channels=3, sequence.position=2, vision.patch=16, vision.patch=16]",
+      "f32[tokens + pixels/4, model.vocabulary=248320]",
+      "i32[tokens]"
+    ]
+  }
+}

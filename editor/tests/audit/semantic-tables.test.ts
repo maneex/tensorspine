@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { COMPARISONS, OPERATORS, toPython, type PyValue } from '../../packages/lang/src/expr/index.js';
 import {
   BYTES,
+  d2,
   d4,
+  expandAnalysis,
   expandedKeyOf,
   widthOf,
   type ExpandedGraph,
@@ -24,6 +26,7 @@ import {
   evaluateLocation,
   formatSemanticProblems,
   storageShape,
+  type GraphAnalysis,
   type SemanticProblem,
 } from '../../packages/lang/src/validate/index.js';
 import { editorRoot } from './tree.js';
@@ -52,11 +55,14 @@ import { editorRoot } from './tree.js';
 // unknown to this validator", so the audit reads it the way a table cannot be read: by *asking*
 // it about every kind the grammar declares, and requiring that none falls through.
 //
-// The fifth is the transform relations of §5.3, in `packages/lang/src/validate/graph.ts`: the V5
-// block reads `merge` by name and lumps `align` and `insert`, so the audit states what §5.3 says
-// each relation does to the output's domain and asks the module, relation by relation, over a
-// synthetic primitive with two streams. A relation the grammar gained would have no stated
-// reading and fails the set equality; one whose reading changed fails the behaviour.
+// The fifth is the transform relations of §5.3, read twice by two modules and therefore stated
+// twice. `packages/lang/src/validate/graph.ts`'s V5 block reads `merge` by name and lumps `align`
+// and `insert`, so the audit states what §5.3 says each relation does to the output's **domain**;
+// `packages/lang/src/derive/d2.ts` reads `merge` and `insert` by name and lumps `align`, so it
+// states what each does to the output's **count**. Both are asked of the module, relation by
+// relation, over one synthetic primitive with two streams. A relation the grammar gained would
+// have no stated reading and fails the set equality; one whose reading changed fails the
+// behaviour.
 //
 // The fourth is the *domain*'s, beside it: `domain['kind'] == 'set'` and everything else read as
 // an interval — the tools' own two-branch reading, which has no fall-through at all, so a third
@@ -293,6 +299,13 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
     insert: 'own',
   };
 
+  /** And what each does to the output's count (§5.3), with the transform's factor at two. */
+  const COUNTED: Record<string, PyRecord> = {
+    merge: { second: 0.5 },
+    align: { first: 1 },
+    insert: { first: 1, second: 1 },
+  };
+
   /** The relations the grammar declares, read from the schema and never typed here. */
   function relations(): string[] {
     const found = vocabulary.enumAt(RELATION);
@@ -310,7 +323,7 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
    * else is declared: the reading under test is the domain's, and a shape or a slot would only
    * bring another rule into the answer.
    */
-  function primitive(relation: string): PyValue {
+  function primitive(relation: string, factor: number): PyValue {
     const inherit = { domain: { kind: 'inherit', from: { self: true } }, role: 'activation.hidden' };
     return toPython(
       parse(
@@ -327,7 +340,7 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
           constants: {},
           state_ports: {},
           domain_transforms: [
-            { from_port: 'b', to_port: 'out', relation, factor: { literal: 1 } },
+            { from_port: 'b', to_port: 'out', relation, factor: { literal: factor } },
           ],
           effects: { reads: [], writes: [] },
           partition_options: [],
@@ -348,24 +361,23 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
       ]),
       primitives: new Map([['audit.transform', definition]]),
       axes: new Map(),
-      precision: new Map(),
+      // The one role the ports declare, so that D2 can ask it for the dtype it defaults to. The
+      // name and the width are the test's scaffolding, not a vocabulary the core carries.
+      precision: new Map([
+        ['activation.hidden', toPython(parse('{"default": "bf16", "sensitivity": "full"}'))],
+      ]),
       templates: new Map(),
       problems: [],
     };
   }
 
-  /**
-   * Whose stream the output carries: the transformed port's, or the instance's own.
-   *
-   * `a` is fed by the public input `first` and `b` by `second`, two streams; `a` is the only
-   * untransformed input, so the instance's own domain is `first`'s.
-   */
-  function readingOf(relation: string): string {
+  /** The one-instance document: `first` feeds the untransformed `a`, `second` the transformed `b`. */
+  function documentOf(): PyValue {
     const endpoint = (port: string) => ({
       instance: { kind: 'root', instance: 'x' },
       port,
     });
-    const document = toPython(
+    return toPython(
       parse(
         JSON.stringify({
           schema: 'tensorspine/2.0',
@@ -392,11 +404,41 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
         }),
       ),
     );
-    const answer = analyseGraph(document, libraryWith(primitive(relation)));
+  }
+
+  /** That document analysed under a library holding that one primitive, and found valid. */
+  function analysisOf(relation: string, factor = 1): GraphAnalysis {
+    const answer = analyseGraph(documentOf(), libraryWith(primitive(relation, factor)));
     expect(formatSemanticProblems([...answer.problems]), relation).toEqual([]);
-    const stream = answer.ports.outputs.get('out')?.stream;
+    return answer;
+  }
+
+  /**
+   * Whose stream the output carries: the transformed port's, or the instance's own.
+   *
+   * `a` is fed by the public input `first` and `b` by `second`, two streams; `a` is the only
+   * untransformed input, so the instance's own domain is `first`'s.
+   */
+  function readingOf(relation: string): string {
+    const stream = analysisOf(relation).ports.outputs.get('out')?.stream;
     expect(stream, relation).toBeTypeOf('string');
     return stream === 'second' ? 'from_port' : 'own';
+  }
+
+  /**
+   * What the same relation does to the output's **count**, which is D2's own reading of the three
+   * names (`packages/lang/src/derive/d2.ts`): a `merge` divides the transformed port's count by
+   * the factor, an `insert` adds it to the instance's own, an `align` leaves the instance's own
+   * alone. Asked of `d2` over the same document, with a factor of two so that the division shows.
+   */
+  function countReadingOf(relation: string): PyValue {
+    const library = libraryWith(primitive(relation, 2));
+    const values = d2(expandAnalysis(analysisOf(relation, 2)), library)[
+      'values'
+    ] as readonly PyValue[];
+    const out = values.find((value) => (value as PyRecord)['value'] === 'x.out');
+    expect(out, relation).toBeDefined();
+    return (out as PyRecord)['count'] as PyValue;
   }
 
   it('reads every relation the grammar declares as §5.3 states it', () => {
@@ -405,6 +447,19 @@ describe('the transform relations of packages/lang/src/validate/graph', () => {
     for (const relation of relations()) {
       expect(readingOf(relation), relation).toBe(STATED[relation]);
     }
+  });
+
+  it('counts every one of them as §5.3 states the counts', () => {
+    // The second reading of the same three names, D2's: "transforms carry element counts — after
+    // a `merge` a stream has one element per `factor`; after an `insert` it has the inserted
+    // stream's elements in addition". A relation the grammar gained would take no branch in `d2`
+    // and be counted as an `align`, which is what this stops.
+    expect(relations()).toEqual(Object.keys(COUNTED).sort());
+    for (const relation of relations()) {
+      expect(countReadingOf(relation), relation).toEqual(COUNTED[relation]);
+    }
+    // The three readings are distinct, so a port that confused two of them fails above.
+    expect(new Set(Object.values(COUNTED).map((count) => JSON.stringify(count))).size).toBe(3);
   });
 });
 

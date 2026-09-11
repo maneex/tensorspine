@@ -1,17 +1,22 @@
 import { parse } from '../../src/json/index.js';
 import {
+  derivationGraph,
   expandedKeyOf,
   expandedPortKeyOf,
   rootSite,
   toPython,
+  type ExpandedEdge,
   type ExpandedGraph,
+  type ExpandedMeta,
   type ExpandedNode,
+  type ExpandedPort,
   type ExpandedStateInstance,
   type ExpandedTensorInstance,
   type Indexing,
   type PyRecord,
   type PyValue,
 } from '../../src/index.js';
+import { library, schemas } from '../describe/source.js';
 
 /**
  * A hand-built expanded graph, for the branches of D3 no corpus document reaches.
@@ -58,6 +63,27 @@ export interface SyntheticExtra {
   readonly quantities?: ReadonlyMap<string, PyValue>;
   readonly states?: readonly ExpandedStateInstance[];
   /**
+   * The value edges, as `['<node>.<port>', '<node>.<port>']` pairs in the order the graph holds
+   * them — which D2 reads as the order its values, its crossings and its counts are built in.
+   */
+  readonly edges?: readonly (readonly [string, string])[];
+  /** The ports each public input feeds, `graph['inputs_at']` of the expanded graph. */
+  readonly inputsAt?: Readonly<Record<string, readonly string[]>>;
+  /** The port each public output starts at, `graph['outputs_at']`. */
+  readonly outputsAt?: Readonly<Record<string, string>>;
+  /** A node's families, by node name; a node absent from it belongs to none. */
+  readonly families?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * The composition a node belongs to and the point of its grid, by node name.
+   *
+   * The site stays a *root* site — D2 reads a node's composition off `meta` alone, never off the
+   * key — so a case declares `attn0` with `['decoder', {layer: 0n}]` and gets a layer split named
+   * `decoder[layer<=0]` over it.
+   */
+  readonly generated?: Readonly<Record<string, readonly [string, Readonly<Record<string, PyValue>>]>>;
+  /** The composition names, in the order `_expand` lists them. */
+  readonly compositions?: readonly string[];
+  /**
    * The document the graph was analysed over: only its `interfaces.inputs` are ever read.
    *
    * The default is a document with no public input at all, since the grammar requires the two
@@ -98,22 +124,113 @@ export function syntheticGraph(
     const port = at.slice(dot + 1);
     domains.set(expandedPortKeyOf(node, port), { site: node, port, domain });
   }
+  // Every node the expansion resolves has a `meta` entry, so every node here does too: D2 reads
+  // `meta[key]` unguarded, as the tools do, and a graph without one is a defect of the caller.
+  const meta = new Map<string, ExpandedMeta>();
+  for (const node of nodes) {
+    const generated = extra.generated?.[node.name];
+    meta.set(expandedKeyOf(site(node.name)), {
+      families: new Set(extra.families?.[node.name] ?? []),
+      composition:
+        generated === undefined
+          ? null
+          : { name: generated[0], indices: new Map(Object.entries(generated[1])) },
+    });
+  }
   return {
     model: extra.model ?? record('{"interfaces": {"inputs": {}, "outputs": {}}}'),
     quantities: extra.quantities ?? new Map(),
     resolved,
-    edges: [],
+    edges: (extra.edges ?? []).map(([from, to]) => edge(from, to)),
     domains,
     own,
     order: [...resolved.values()].map((node) => node.site),
-    meta: new Map(),
-    compositions: [],
-    inputsAt: new Map(),
-    outputsAt: new Map(),
+    meta,
+    compositions: extra.compositions ?? [],
+    inputsAt: new Map(
+      Object.entries(extra.inputsAt ?? {}).map(([name, at]) => [name, at.map((one) => port(one))]),
+    ),
+    outputsAt: new Map(
+      Object.entries(extra.outputsAt ?? {}).map(([name, at]) => [name, port(at)]),
+    ),
     tensorInstances: tensors,
     stateInstances: extra.states ?? [],
   };
 }
+
+/** `<node>.<port>` as an expanded graph names one endpoint. */
+export function port(at: string): ExpandedPort {
+  const dot = at.lastIndexOf('.');
+  return { site: site(at.slice(0, dot)), port: at.slice(dot + 1) };
+}
+
+/** One value edge between two `<node>.<port>` endpoints, under no binding name. */
+function edge(from: string, to: string): ExpandedEdge {
+  const source = port(from);
+  const target = port(to);
+  return {
+    from: source.site,
+    fromPort: source.port,
+    to: target.site,
+    toPort: target.port,
+    binding: `${from}->${to}`,
+  };
+}
+
+// A model whose *interfaces* name a template instance. No document of the repository has one —
+// `shieldstral-3b-composite`'s public input feeds `embed` and its output comes from `lm_head`, so
+// the expansion's `inputs_at` and `outputs_at` reach a template instance through no corpus
+// document, and only the edges do. This is the smallest caller that reaches them: one instance of
+// `decoder.causal_yarn` at two layers, the template's own input as the public input and its own
+// output as the public output.
+//
+// Its answers are taken from `tools/derive.py` itself, run on this very document (feature 1.8a's
+// finding, and D2 reads the same two paths). It belongs in `editor/tests/fixtures/` when feature
+// 1.13 lands (F8), where the oracle would own the expectation instead of a hand-recorded one.
+const ONE_INSTANCE = `{
+  "schema": "tensorspine/2.0",
+  "model": "one_template_instance",
+  "primitive_libraries": [{"base": "../primitive-library/"}],
+  "quantities": {
+    "d": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 64}},
+    "layers": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 2}},
+    "heads": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 4}},
+    "kv_heads": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 2}},
+    "hd": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 16}},
+    "ffn": {"type": {"kind": "cardinality"}, "source": {"kind": "literal", "value": 128}},
+    "eps": {"type": {"kind": "real"}, "source": {"kind": "literal", "value": 1e-05}},
+    "precision": {"type": {"kind": "enum", "values": ["bf16", "f16", "f32"]},
+                  "source": {"kind": "literal", "value": PRECISION}}
+  },
+  "constants": {},
+  "instances": {
+    "text": {
+      "primitive": {"name": "decoder.causal_yarn", "version": "1.0.0"},
+      "arguments": {
+        "width": {"quantity": "d"}, "layers": {"quantity": "layers"},
+        "heads": {"quantity": "heads"}, "kv_heads": {"quantity": "kv_heads"},
+        "head_dim": {"quantity": "hd"}, "inner": {"quantity": "ffn"},
+        "eps": {"quantity": "eps"}, "precision": ARGUMENT
+      },
+      "families": ["decoder"]
+    }
+  },
+  "compositions": {},
+  "bindings": {"values": {}, "parameters": {}, "constants": {}, "states": {}},
+  "interfaces": {
+    "inputs": {"hidden": {"to": [{"instance": {"kind": "root", "instance": "text"},
+                                  "port": "hidden"}], "kind": "token"}},
+    "outputs": {"hidden_out": {"from": {"instance": {"kind": "root", "instance": "text"},
+                                        "port": "hidden_out"}, "generative": false}}
+  }
+}`;
+
+/** The caller above, with the precision its quantity declares and the one its argument supplies. */
+export function oneInstance(precision = '"bf16"', argument = '{"quantity": "precision"}'): ExpandedGraph {
+  const text = ONE_INSTANCE.replace('PRECISION', precision).replace('ARGUMENT', argument);
+  return derivationGraph(parse(text), { schemas, library }).graph;
+}
+
 
 /** One parameter identity instance over one node's slot, with whatever the case needs beside. */
 export function tensorInstance(
