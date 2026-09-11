@@ -99,6 +99,15 @@ export interface ArgumentFact {
   readonly path: string;
   /** Whether `present_when` holds for these arguments; true when the declaration carries none. */
   readonly applicable: boolean;
+  /**
+   * Whether the declaration says the argument is `structural`.
+   *
+   * "Structural summary | arguments whose declaration is `structural: true`" (§4.7) — and the
+   * component inventory's §3 says whose answer it is: **the core says which**. It is read here,
+   * inside the walk that has the declaration, because the answer a sheet and a card need is per
+   * *argument path* and a record's fields declare it as its own members do.
+   */
+  readonly structural: boolean;
   /** Whether the effective value is the document's, the declared default's, or nothing. */
   readonly source: ArgumentSource;
   /** The effective value, defaults applied; absent when nothing supplies one, `UNRESOLVED` when refused. */
@@ -288,6 +297,7 @@ type MutableRecord = Record<string, PyValue>;
 interface FactUnderWay {
   path: string;
   applicable: boolean;
+  structural: boolean;
   source: ArgumentSource;
   value?: PyValue;
   written?: PyValue;
@@ -377,6 +387,7 @@ function resolveRecord(scope: Resolution): MutableRecord {
     const fact: FactUnderWay = {
       path: label,
       applicable: true,
+      structural: truthy(optional(declaration, 'structural', false)),
       source: 'absent',
       domain: has(declaration, 'domain') ? 'unchecked' : 'undeclared',
       problems: [],

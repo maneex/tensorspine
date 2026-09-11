@@ -9,6 +9,7 @@ exports[`presentation.json > binds the anchors the snapshot records 1`] = `
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/public_output",
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/physical_name",
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_expression",
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/index_expression/properties/index",
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/condition",
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/unary_operation_expression/properties/op",
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/binary_operation_expression/properties/op",

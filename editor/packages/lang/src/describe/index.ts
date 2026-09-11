@@ -66,6 +66,44 @@ export {
   type SlotRef,
   type Verdict,
 } from './check.js';
+export {
+  FACE_MEMBERS,
+  FED_END,
+  foldedBoxes,
+  foldedGraph,
+  foldedSites,
+  instanceSkeleton,
+  literalIndex,
+  PRODUCING_END,
+  proposedFamily,
+  proposedName,
+  ROOT_INSTANCES,
+  VALUE_BINDINGS,
+  valueEndpoint,
+  type FoldedBadge,
+  type FoldedEdge,
+  type FoldedGraph,
+  type FoldedHandle,
+  type FoldedHeld,
+  type FoldedIndexValue,
+  type FoldedKind,
+  type FoldedNode,
+  type FoldedOptions,
+  type FoldedRange,
+} from './folded.js';
+export {
+  boxOfSite,
+  derivedFacts,
+  noDerivedFacts,
+  slotKey,
+  splitMember,
+  tiedCount,
+  type DerivedFacts,
+  type IdentityLink,
+  type IdentityMembership,
+  type IdentityPlace,
+  type SiteFigures,
+} from './figures.js';
 
 /** What `describe` needs beside the document. */
 export interface DescribeOptions {
@@ -88,6 +126,20 @@ export interface DescribeOptions {
    * Absent, every resolved site is described, which is what the corpus suites read.
    */
   readonly only?: readonly string[];
+  /**
+   * Describe one site per *declared* instance: the folded canvas of §4.7, and nothing more.
+   *
+   * The canvas draws the document as its author edits it — "root instances, compositions as group
+   * boxes" — so a composition's thirty-two iterations are one card, drawn over "one
+   * representative iteration" (§4.8). The representative is the **first point of the grid where
+   * the site's own guard fires**, which the caller cannot name: a guard removes iterations
+   * (§5.2 rule 3) and only the analysis knows which, so `only` would ask for a site that is not
+   * there and the card would lose its ports for a reason that is not a defect.
+   *
+   * It narrows for the same reason `only` does, and by the same amount on the corpus: 9 sites
+   * instead of 195 on `llama3-8b`, 35 instead of 552 on `deepseek-v4-pro`.
+   */
+  readonly folded?: boolean;
 }
 
 /** Everything the interface asks of one document (plan §5.3, `describe`). */
@@ -124,7 +176,7 @@ export function describe(tree: JsonValue, options: DescribeOptions): Description
     conforms: true,
     structural,
     analysis,
-    sites: describedSites(analysis, options.only),
+    sites: describedSites(analysis, options.only, options.folded),
   };
 }
 
@@ -137,8 +189,9 @@ export function describe(tree: JsonValue, options: DescribeOptions): Description
 export function describeAnalysis(
   analysis: Analysis,
   only?: readonly string[],
+  folded?: boolean,
 ): Description {
-  return { conforms: true, structural: [], analysis, sites: describedSites(analysis, only) };
+  return { conforms: true, structural: [], analysis, sites: describedSites(analysis, only, folded) };
 }
 
 /**
@@ -171,11 +224,21 @@ export function check(description: Description, candidate: Candidate): Verdict {
 function describedSites(
   analysis: Analysis,
   only?: readonly string[],
+  folded?: boolean,
 ): ReadonlyMap<string, SiteDescription> {
   const wanted = only === undefined ? null : new Set(only);
+  const drawn = new Set<string>();
   const sites = new Map<string, Mutable<SiteDescription>>();
   for (const [id, site] of analysis.resolved) {
     if (wanted !== null && !wanted.has(whereOfSite(site.key))) continue;
+    if (folded === true) {
+      // One card per declared site, over the first iteration that fired. `analysis.resolved` is
+      // filled in the document's own order — the instances, then each composition's grid point by
+      // point — so the first entry a declared site has is the representative §4.8 asks for.
+      const declared = `${site.key.composition}\u0000${site.key.name}`;
+      if (drawn.has(declared)) continue;
+      drawn.add(declared);
+    }
     sites.set(id, describeSite(analysis, site));
   }
   attachCompatibility(analysis, sites);

@@ -41,6 +41,17 @@ export interface SymbolBinding {
    * carry none.
    */
   readonly form: string;
+  /**
+   * How tightly an infix symbol binds, so that a text form parenthesises where it must and
+   * nowhere else.
+   *
+   * Not inferable either: an operator's enumeration says nothing about how a reader groups it.
+   * Artboard S7 writes `$layer mod 5 = 4 and $layer >= 4` with no parentheses at all, which only
+   * an ordering of the five levels can produce, and §4.13's parser reads the same numbers so that
+   * text and tree round-trip. Absent on an infix symbol, every nested application is
+   * parenthesised — always correct, rarely readable.
+   */
+  readonly precedence?: number;
 }
 
 /**
@@ -117,6 +128,14 @@ export interface Binding {
   readonly picker?: string;
   /** The label of the "New …" action beside that picker. */
   readonly create?: string;
+  /**
+   * What is printed before a name written at this place, so a text form tells its kinds apart.
+   *
+   * `$layer` is an index and `d` is a quantity, and no schema says so — both are an `identifier`
+   * under the one member of a one-member object. Artboard S7's text form is what needs it, and
+   * §4.13's parser reads it back. A place with no prefix prints its name bare.
+   */
+  readonly prefix?: string;
   /** A symbol per value of the enumeration, or per tag of the union, at this anchor. */
   readonly symbols?: ReadonlyMap<string, SymbolBinding>;
   /** How a figure at this place is shown: as a size, a count, a status, a shape. */

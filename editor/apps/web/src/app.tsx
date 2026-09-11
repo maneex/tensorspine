@@ -10,6 +10,7 @@ import {
   DocumentsProvider,
   type DocumentsStore,
 } from '@tensorspine/ui/documents';
+import { CANVAS_VIEWS } from '@tensorspine/ui/canvas';
 import { EXPLORER_ACTIVITY, ModelExplorer } from '@tensorspine/ui/explorer';
 import { createShell, documentationBase, Shell, type ShellStore } from '@tensorspine/ui/shell';
 
@@ -87,7 +88,7 @@ export function start(platform: Platform, options: StartOptions): Application {
         <Shell
           store={store}
           platform={platform}
-          views={DOCUMENT_VIEWS}
+          views={{ ...DOCUMENT_VIEWS, ...CANVAS_VIEWS }}
           activities={{ [EXPLORER_ACTIVITY]: ModelExplorer }}
         >
           <DocumentDialogs />

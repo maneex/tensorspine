@@ -1,5 +1,102 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`@tensorspine/ui > exports the canvas surface the snapshot records 1`] = `
+[
+  "Box",
+  "CANVAS_VIEWS",
+  "CONTEXT_MENU",
+  "Canvas",
+  "DEFAULT_VIEW",
+  "NO_PLACEMENT",
+  "PRIMITIVE_TRANSFER",
+  "ROLE",
+  "SIDE",
+  "addInstance",
+  "canvasModel",
+  "collapsedGroups",
+  "connectHandles",
+  "declarationAt",
+  "declaresAt",
+  "descriptionsByBox",
+  "duplicateAt",
+  "entriesFor",
+  "expandedFromSidecar",
+  "fit",
+  "handleFor",
+  "hasManualMoves",
+  "layoutKey",
+  "place",
+  "primitiveOf",
+  "referencesTo",
+  "removeAt",
+  "renameAt",
+  "routes",
+  "sizeOf",
+  "slotClass",
+  "slotMark",
+  "splitPort",
+]
+`;
+
+exports[`@tensorspine/ui > exports the documents surface the snapshot records 1`] = `
+[
+  "AUTOSAVE_MS",
+  "DERIVED_ROLE",
+  "DOCUMENT_TAB",
+  "DOCUMENT_VIEWS",
+  "DocumentDialogs",
+  "DocumentToast",
+  "DocumentView",
+  "DocumentsProvider",
+  "NO_DOCUMENTS",
+  "Pipeline",
+  "SOURCE_SUFFIX",
+  "SOURCE_TAB",
+  "SourcePane",
+  "TABS_SETTING",
+  "VALIDATE_DEBOUNCE_MS",
+  "WORKSPACE_SETTING",
+  "WorkspaceBanner",
+  "bannerFor",
+  "countsOf",
+  "createDocuments",
+  "documentFor",
+  "documentTab",
+  "elementsText",
+  "figureOf",
+  "groupedNumber",
+  "noReading",
+  "operationsText",
+  "renderedFormats",
+  "shapesFor",
+  "sizeText",
+  "statusFigures",
+  "useDocuments",
+  "useDocumentsStore",
+]
+`;
+
+exports[`@tensorspine/ui > exports the explorer surface the snapshot records 1`] = `
+[
+  "COMPUTED",
+  "DECLARATION_TRANSFER",
+  "EXPLORER_ACTIVITY",
+  "GUARDED",
+  "ModelExplorer",
+  "NAME_FIELD",
+  "SHARED",
+  "SelectionSheet",
+  "TEMPLATE",
+  "declarationOf",
+  "outlineOf",
+  "removeCommand",
+  "renameCommand",
+  "selectedRow",
+  "selectionHandlers",
+  "summaryOf",
+]
+`;
+
 exports[`@tensorspine/ui > exports the layout surface the snapshot records 1`] = `
 [
   "LayoutError",

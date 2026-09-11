@@ -40,6 +40,7 @@ const MEMBERS = [
   'references',
   'picker',
   'create',
+  'prefix',
   'symbols',
   'format',
   'statusBar',
@@ -52,7 +53,7 @@ const MEMBERS = [
 const RULE_MEMBERS = ['tag', 'kind', 'under', 'scopedBy', 'without'] as const;
 
 /** The members a symbol may carry; both are required. */
-const SYMBOL_MEMBERS = ['text', 'form'] as const;
+const SYMBOL_MEMBERS = ['text', 'form', 'precedence'] as const;
 
 /** The members a status-bar mark may carry; both are required. */
 const FIELD_MEMBERS = ['order', 'label'] as const;
@@ -68,6 +69,7 @@ const STRINGS = new Set<string>([
   'widget',
   'picker',
   'create',
+  'prefix',
   'format',
   'declares',
   'scope',
@@ -104,7 +106,12 @@ function symbolOf(value: unknown, where: string): SymbolBinding {
   if (typeof form !== 'string' || form === '') {
     throw new PresentationError(`${where}: a symbol needs the place it prints in`);
   }
-  return { text: printed, form };
+  const precedence: unknown = value['precedence'];
+  if (precedence === undefined) return { text: printed, form };
+  if (typeof precedence !== 'number' || !Number.isInteger(precedence) || precedence < 1) {
+    throw new PresentationError(`${where}: a precedence is how tightly the symbol binds`);
+  }
+  return { text: printed, form, precedence };
 }
 
 /** One status-bar mark: where the figure sits in the bar, and what is written beside it. */

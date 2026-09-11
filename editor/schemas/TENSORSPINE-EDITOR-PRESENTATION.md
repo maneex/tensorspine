@@ -63,6 +63,7 @@ meanings: so the declaration is bound at
 | `references` | what a picker inside that editor offers, by the member each referent is named under |
 | `picker` | the list a select is filled from when it is not an enumeration: the base's axes, its precision roles |
 | `create` | the label of the action beside that picker when what is wanted does not exist yet |
+| `prefix` | what is printed before a name written at this place, so a text form tells an index from a quantity |
 | `symbols` | a symbol per value of the enumeration at this anchor, or per tag of the union at it |
 | `format` | how a figure is shown: `bytes`, `elements`, `operations`, `count`, `status`, `shape` |
 | `statusBar` | this figure is one of the status bar's four totals, in this position and under this label |
@@ -91,6 +92,20 @@ The same member binds the alternatives of a union by their tag, which is how the
 connectives get their text: `all` prints as `and`, `any` as `or`, `not` as `not`. `boolean`,
 `present` and `compare` carry none — a boolean condition prints as its own literal, a presence
 test as `present(path)`, and a comparison through its operator's symbol.
+
+An infix symbol also carries a **precedence**, and for the same reason the form is written rather
+than computed: an operator's enumeration says nothing about how a reader groups it. `layers - 1`,
+`$layer mod 5 = 4` and `heads mod kv_heads = 0` are all written without parentheses on artboard S7,
+and `(a + b) * c` cannot be; the numbers are what decide, and the parser of §4.13 reads the same
+ones so that text and tree round-trip. An infix symbol with no precedence parenthesises every
+nested application — always correct, rarely readable.
+
+### Prefixes
+
+`$layer` is an index and `d` is a quantity, and no schema says so: both are written as an
+`identifier` under a member of a one-member object. The `prefix` binding at the member's own anchor
+is what puts the `$` there, which is what lets a reader and a parser tell the two apart (artboard
+S7). A place with no `prefix` prints its name bare, which is every other referent.
 
 ### Figures
 

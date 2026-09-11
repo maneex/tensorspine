@@ -61,6 +61,11 @@
           "minLength": 1,
           "description": "The label of the action offered beside that picker when what is wanted does not exist yet."
         },
+        "prefix": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What is printed before a name written at this place, so that the text form of an expression tells one kind of name from another: an index prints `$layer` where a quantity prints `d`, and a parser reads the two apart (the editor plan's \u00a74.13, artboard S7). Absent, a name prints bare."
+        },
         "symbols": {
           "type": "object",
           "minProperties": 1,
@@ -118,6 +123,11 @@
         "form": {
           "enum": ["infix", "prefix", "function"],
           "description": "Where it is printed: between its arguments, before its argument, or as a function name. Not inferable from the arity — `negate` and `absolute` are both unary and print `-a` and `abs(a)`, `add` and `min` both n-ary and print `a + b` and `min(a, b)`."
+        },
+        "precedence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How tightly an infix symbol binds, so that a text form parenthesises exactly where it must and nowhere else: `layers - 1` needs no parentheses, `$layer mod 5 = 4` needs none either, and `(a + b) * c` needs one. Larger binds tighter. An operator's enumeration says nothing about how a reader groups it, so the numbers are here and a parser reads the same ones. Absent on an infix symbol, every nested application is parenthesised — always correct, rarely readable."
         }
       }
     },

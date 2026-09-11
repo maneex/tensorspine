@@ -54,12 +54,14 @@ import {
   type DraftStanding,
   type EditContext,
   type Path,
+  type Position,
   type Shape,
   type WorkspacePath,
   type ZipEntry,
 } from '@tensorspine/store';
 import {
   BASE_MANIFEST,
+  foldedGraph,
   isJsonObject,
   loadSchemas,
   parse,
@@ -67,6 +69,7 @@ import {
   type SchemaRegistry,
 } from '@tensorspine/lang';
 import type { Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
+import type { PortRef, Verdict as CandidateVerdict } from '@tensorspine/lang';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import { outlineOf, revealing } from '../explorer/outline.js';
@@ -77,6 +80,7 @@ import {
   unusedQuantities,
   type DroppedSidecarKey,
 } from '../problems/notices.js';
+import { textWith } from '../shell/strings.js';
 import { statusFigures, type FigureShapes, type StatusFigure } from './figures.js';
 import { noReading, Pipeline, type Reading } from './pipeline.js';
 import { shapesFor } from './shapes.js';
@@ -134,6 +138,18 @@ export interface OpenDocument {
    * the others rather than staying shut because nobody had said anything about it.
    */
   readonly toggled: readonly string[];
+  /**
+   * The compositions the reader has opened on the canvas, by pointer (§4.7, D6).
+   *
+   * §4.7's default is **collapsed** — "compositions are group boxes … collapsed by default at the
+   * top level" — and D6 puts "collapsed groups" in the sidecar. The two are read together the way
+   * feature 2.7 reads the explorer's own `toggled`: what is kept is the *deviation*, so a document
+   * with no sidecar draws every box shut without the sidecar having to list them, and a document
+   * whose sidecar names collapsed groups is read as the reader arranged it.
+   */
+  readonly expanded: readonly string[];
+  /** How far the canvas is scrolled and zoomed; the sidecar's viewport seeds it (D6, §5.5). */
+  readonly viewport?: { readonly x: number; readonly y: number; readonly zoom: number };
   /**
    * The sidecar keys this document's edits dropped (D6), for §4.17's `editor` notices.
    *
@@ -225,6 +241,14 @@ export interface DocumentsState {
    * box and one string: the explorer filters whichever document is current.
    */
   readonly filter: string;
+  /**
+   * The schemas the page holds, for what must be read synchronously (§5.4's own branch).
+   *
+   * The pipeline runs Ajv on them (feature 2.8) and the canvas walks them to print an expression
+   * and to find what `presentation.json` binds at a place (§4.7). `null` until a workspace is
+   * open, and on the stub platform, which reads no schemas at all (feature 2.4).
+   */
+  readonly registry: SchemaRegistry | null;
 }
 
 /** The documents, and the gestures of §4.3 on them. */
@@ -243,6 +267,14 @@ export interface Documents extends DocumentsState {
   openDocument(path: WorkspacePath): Promise<void>;
   newModel(template?: boolean): Promise<void>;
   select(id: string): void;
+  /**
+   * `View ▸ JSON Source` (§4.4, Ctrl+Shift+J): the document's own bytes, in a tab of its own.
+   *
+   * §4.2 puts one tab per JSON source view in the editor area, which is what S1's strip draws
+   * beside the model and its drill-in. The pane is read-only here; feature 2.17 gives it Monaco,
+   * the schema and Ajv's ranges.
+   */
+  showSource(id?: string): void;
   /** Whether a tab may close — the shell asks before it removes one (§4.3). */
   mayClose(id: string): Promise<boolean>;
   closeDocument(id: string): void;
@@ -253,6 +285,14 @@ export interface Documents extends DocumentsState {
   selectPlace(path: Path | null, id?: string): void;
   /** Open or close an outline row, by the pointer of the place it stands for (§4.5). */
   togglePlace(pointer: string, id?: string): void;
+  /** Open or close a composition's box on the canvas (§4.7), recording it in the sidecar (D6). */
+  toggleGroup(pointer: string, path: Path, id?: string): void;
+  /** A manual move: D6's override, in the layout log and nowhere else. */
+  moveBox(path: Path, position: Position, id?: string): void;
+  /** `View ▸ Reset Layout` (§4.4): drop every override and let the automatic layout stand (D6). */
+  resetLayout(id?: string): void;
+  /** Where the canvas is looking; not written to the sidecar by this feature (see the ledger). */
+  setViewport(viewport: { x: number; y: number; zoom: number }, id?: string): void;
   /** What the explorer's filter box holds (§4.5). */
   setFilter(filter: string): void;
   /**
@@ -264,6 +304,15 @@ export interface Documents extends DocumentsState {
    * not the open set), and then selects.
    */
   revealPlace(path: Path, id?: string): void;
+  /**
+   * The verdict on one candidate edge, for the drag of §4.7 — never a veto (Q5).
+   *
+   * `check` reads the analysis the worker already holds for `(path, revision)`, which is feature
+   * 1.6d's decision made useful: 0.09 ms, against §5.6's 20 ms for a round trip. It answers
+   * `null` where nothing has been described for the document yet, which is a drag before the
+   * first answer and not a refusal.
+   */
+  checkEdge(from: PortRef, to: PortRef, id?: string): Promise<CandidateVerdict | null>;
   /**
    * `Model ▸ Lint` (§4.4): the advisories, over the workspace's own model documents.
    *
@@ -342,6 +391,31 @@ export interface TabSink {
 /** The `kind` a document's tab carries, which the shell draws with the view of the same name. */
 export const DOCUMENT_TAB = 'view.document';
 
+/** The `kind` a JSON source tab carries — §4.2's "one per JSON source view". */
+export const SOURCE_TAB = 'view.source';
+
+/** What a JSON source tab's identity adds to the document's, so the two tabs are two tabs. */
+export const SOURCE_SUFFIX = ':source';
+
+/**
+ * Which compositions a session opens with expanded, from the sidecar it was read with (§4.7, D6).
+ *
+ * §4.7's default is collapsed, so a sidecar that lists nothing collapsed leaves nothing expanded
+ * either — which is the same drawing and writes no file. Once the reader has collapsed anything,
+ * the list is the arrangement and what it does *not* name is open.
+ */
+function expandedOf(session: DocumentSession): string[] {
+  const layout = session.layout.layout;
+  if (layout.collapsed.length === 0) return [];
+  const shut = new Set(layout.collapsed);
+  const open: string[] = [];
+  for (const node of foldedGraph(session.store.tree).nodes) {
+    if (node.kind !== 'composition') continue;
+    if (!shut.has(node.pointer.slice(1))) open.push(node.pointer);
+  }
+  return open;
+}
+
 /** The same open document with nothing selected: the member goes rather than becoming undefined. */
 function withoutSelection(open: OpenDocument): OpenDocument {
   const next: OpenDocument & { selection?: Path } = { ...open };
@@ -390,6 +464,22 @@ export function createDocuments(options: DocumentsOptions): {
   const store: DocumentsStore = createStore<Documents>()((set, get) => {
     const patch = (id: string, change: (one: OpenDocument) => OpenDocument): void => {
       set((state) => ({ open: state.open.map((one) => (one.id === id ? change(one) : one)) }));
+    };
+
+    /**
+     * Mark a document dirty because its *layout* moved (D6, §4.3).
+     *
+     * The layout has its own log — "an undo of a semantic edit does not shuffle positions" (D13)
+     * — so nothing of §5.4 runs for it: the document is unchanged, its sidecar is not, and what
+     * the reader has to see is the dot that says a Save has something to write.
+     */
+    const refreshDirty = (id: string): void => {
+      const one = get().open.find((open) => open.id === id);
+      if (one === undefined) return;
+      const dirty = one.session.dirty;
+      if (dirty === one.dirty) return;
+      patch(id, (open) => ({ ...open, dirty }));
+      tabs.update(id, { dirty });
     };
 
     /** Redraw one document's tab from its session — its name and the dirty dot (§4.3). */
@@ -450,6 +540,7 @@ export function createDocuments(options: DocumentsOptions): {
         );
         shapes = new SchemaShapes(registry);
         figureShapes = shapesFor(registry);
+        set({ registry });
         // §1's catching rule (a), the startup half: every binding resolved against the schemas
         // that were actually loaded, and everything they leave to the generic widget listed. It
         // *logs* rather than refuses — the repository's own schemas are held to the stricter rule
@@ -495,7 +586,7 @@ export function createDocuments(options: DocumentsOptions): {
     const current = (id?: string): OpenDocument | undefined => {
       const state = get();
       const wanted = id ?? tabs.current() ?? state.current;
-      return state.open.find((one) => one.id === wanted);
+      return documentOf(state, wanted ?? null);
     };
 
     /**
@@ -558,6 +649,7 @@ export function createDocuments(options: DocumentsOptions): {
         reading: noReading(session.store.revision),
         figures: [],
         toggled: [],
+        expanded: expandedOf(session),
         ...(tag === null ? {} : { tag }),
       };
       set((state) => ({
@@ -726,6 +818,7 @@ export function createDocuments(options: DocumentsOptions): {
       shapes = null;
       figureShapes = null;
       set({
+        registry: null,
         workspace: reference,
         open: [],
         current: null,
@@ -777,6 +870,7 @@ export function createDocuments(options: DocumentsOptions): {
       documents: [],
       notices: [],
       filter: '',
+      registry: null,
 
       async start(): Promise<void> {
         // D11: the folder the browser still holds a grant for, with no gesture and no prompt.
@@ -909,6 +1003,7 @@ export function createDocuments(options: DocumentsOptions): {
           );
           shapes = new SchemaShapes(registry);
           figureShapes = shapesFor(registry);
+          set({ registry });
         }
         const name = untitled(get().open.map((one) => one.title));
         const path = `${name}.json`;
@@ -936,7 +1031,21 @@ export function createDocuments(options: DocumentsOptions): {
         rememberTabs();
       },
 
+      showSource(id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        tabs.open({
+          id: `${one.id}${SOURCE_SUFFIX}`,
+          title: textWith('{} · JSON', one.title),
+          kind: SOURCE_TAB,
+        });
+      },
+
       async mayClose(id: string): Promise<boolean> {
+        // A JSON source tab is a second reading of a document its own tab still holds: closing
+        // it closes a view, not a document, and asking about unsaved work there would be asking
+        // about something that is not going away.
+        if (id !== documentTab(id)) return true;
         const one = get().open.find((open) => open.id === id);
         if (one === undefined || !one.dirty) return true;
         const kept = await platform.shell.confirm(
@@ -946,6 +1055,9 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       closeDocument(id: string): void {
+        // Its source view goes with it: a tab drawing a document nothing holds is a tab drawing
+        // "No document", which is worse than no tab.
+        tabs.close(`${id}${SOURCE_SUFFIX}`);
         release(id);
         set((state) => ({
           open: state.open.filter((one) => one.id !== id),
@@ -998,6 +1110,41 @@ export function createDocuments(options: DocumentsOptions): {
 
       setFilter(filter: string): void {
         set({ filter });
+      },
+
+      toggleGroup(pointer: string, path: Path, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        const open = one.expanded.includes(pointer);
+        one.session.layout.collapse(path, open);
+        patch(one.id, (held) => ({
+          ...held,
+          expanded: open
+            ? held.expanded.filter((each) => each !== pointer)
+            : [...held.expanded, pointer],
+        }));
+        refreshDirty(one.id);
+      },
+
+      moveBox(path: Path, position: Position, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        one.session.layout.move(path, position);
+        refreshDirty(one.id);
+      },
+
+      resetLayout(id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        one.session.layout.reset();
+        refreshDirty(one.id);
+        note('Layout reset: every manual move dropped.');
+      },
+
+      setViewport(viewport: { x: number; y: number; zoom: number }, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        patch(one.id, (held) => ({ ...held, viewport }));
       },
 
       edit(make: (context: EditContext) => Command, id?: string): Applied | null {
@@ -1156,6 +1303,19 @@ export function createDocuments(options: DocumentsOptions): {
         set({ dialog: null });
       },
 
+      async checkEdge(from: PortRef, to: PortRef, id?: string): Promise<CandidateVerdict | null> {
+        const one = current(id);
+        if (one === undefined) return null;
+        try {
+          return await lang.check(one.path, { edge: { from, to } });
+        } catch {
+          // A document nothing has described yet has no analysis to read the candidate against,
+          // and a drag is not the place to report that: the drop happens anyway (Q5) and the
+          // validation that follows it says whatever there is to say.
+          return null;
+        }
+      },
+
       validateNow(id?: string): void {
         const one = documentOf(get(), id ?? tabs.current());
         if (one === undefined) {
@@ -1236,7 +1396,18 @@ export function bannerFor(reference: WorkspaceRef): BannerLine | null {
 /** The document a command with no argument is about: the current tab. */
 function documentOf(state: DocumentsState, id: string | null): OpenDocument | undefined {
   if (id === null) return undefined;
-  return state.open.find((one) => one.id === id);
+  return state.open.find((one) => one.id === documentTab(id));
+}
+
+/**
+ * The document behind a tab: a JSON source tab is a tab of the document it shows.
+ *
+ * A command with no argument is about the document behind the *current* tab (§4.4), and with the
+ * source view open that tab is the source's. Stripping the suffix is what makes Save, Rename and
+ * Delete act on the document while its bytes are what the reader is looking at.
+ */
+export function documentTab(id: string): string {
+  return id.endsWith(SOURCE_SUFFIX) ? id.slice(0, -SOURCE_SUFFIX.length) : id;
 }
 
 /** §4.3's "a tab named after `model`" — the member the schema says is the document's name. */

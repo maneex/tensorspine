@@ -1,0 +1,208 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   The folded canvas — plan §4.7, artboards S1, S2 and S3.
+
+   Every rule is the design's (`plans/graph-editor-design/_ts.css`: the
+   `.gcanvas`, `.abs`, `.wires`, `.node`, `.group`, `.term`, `.slot`,
+   `.bh`, `.dghost` blocks) unless the comment beside it says otherwise,
+   and the kinds of otherwise are feature 2.5's three:
+
+     1. an artboard is a picture and this is a program — a `<span>` on a
+        board is a `<button>` here, so the resets, the pointers and the
+        focus rings are added;
+     2. §4.21's contrast floor — `--faint` and `--muted` never carry text
+        (feature 2.5's ramp), so the board's `.n-prim`, `.wlbl`, `.bh` and
+        `.g-sites` step up to `--ink-3`;
+     3. the drawing is absolutely positioned by ELK rather than stacked by
+        a flexbox, which is what `.gcanvas`/`.abs` are for on S12.
+   ───────────────────────────────────────────────────────────────────── */
+
+.gcanvas { position: relative; width: 100%; height: 100%; transform-origin: 0 0; }
+.abs { position: absolute; }
+
+/* The pan surface: the dot ground of `.canvas`, with the drawing inside it. */
+.canvas.graph { padding: 0; cursor: default; }
+.canvas.graph.panning { cursor: grabbing; }
+.canvas .viewport { position: absolute; inset: 0; overflow: hidden; }
+
+.wires { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.wires .w { fill: none; stroke: var(--edge); stroke-width: 1.2; }
+.wires .w.sel { stroke: var(--accent); stroke-width: 1.6; }
+.wires .w.iface { stroke-dasharray: 5 3; }
+.wires .a { fill: var(--edge); }
+.wires .idlink { fill: none; stroke: var(--accent-dim); stroke-width: 1; stroke-dasharray: 3 3; }
+.elbl {
+  position: absolute; font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
+  white-space: nowrap; transform: translateY(-50%); pointer-events: auto;
+  background: none; border: 0; padding: 0 2px; cursor: pointer;
+}
+.elbl:hover { color: var(--ink); }
+.elbl .wtype { display: block; font-size: 9px; color: var(--ink-3); }
+.elbl.idlbl { color: var(--accent); }
+
+/* ── the node card (S2) ─────────────────────────────────────────────── */
+.node {
+  position: relative; box-sizing: border-box; display: flex; flex-direction: column; gap: 5px;
+  padding: 10px 12px; border: 1px solid var(--rule-2); border-radius: var(--r);
+  background: var(--bg-raised); text-align: left;
+}
+.node.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+.node.tmpl { border-color: var(--struct-bd); }
+.node.ghosted { opacity: 0.42; }
+.node.dragging { opacity: 0.85; cursor: grabbing; }
+.n-head { display: flex; align-items: baseline; gap: 8px; }
+.n-name {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: 13.5px; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.n-name:hover { color: var(--accent); }
+.n-rename {
+  width: 100%; padding: 0; border: 0; border-bottom: 1px solid var(--accent); outline: 0;
+  background: none; font-family: var(--mono); font-size: 13.5px; color: var(--ink);
+}
+/* The board writes `--muted` for the primitive and `--faint` for its version, and §4.21's floor
+   admits neither as text (feature 2.5's ramp): both step up, and the step between them stays. */
+.n-prim {
+  margin-left: auto; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: 10.5px; color: var(--ink-2); text-align: right;
+}
+.n-prim em { font-style: normal; color: var(--ink-3); }
+.n-prim:hover { color: var(--ink); }
+.n-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.n-guard {
+  margin-right: auto; padding: 0; border: 0; background: none; cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 10px; color: var(--derived);
+}
+.fchip {
+  padding: 1px 6px; border: 1px solid var(--chip); border-radius: 999px; background: none;
+  font-size: 9.5px; font-style: normal; color: var(--ink-3); cursor: pointer;
+}
+.n-args { font-family: var(--mono); font-size: 10.5px; line-height: 1.45; color: var(--ink-3); }
+.n-ports { display: flex; justify-content: space-between; gap: 8px; padding-top: 2px; }
+.n-ports .col { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.n-ports .col.r { align-items: flex-end; }
+.n-ports .p {
+  position: relative; padding: 0; border: 0; background: none; cursor: crosshair;
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+}
+.n-ports .p::before {
+  content: ""; position: absolute; top: 50%; width: 7px; height: 7px; margin-top: -3.5px;
+  border: 1px solid var(--edge); background: var(--port-bg); border-radius: 1px;
+}
+.n-ports .p.in { padding-left: 12px; } .n-ports .p.in::before { left: -13px; }
+.n-ports .p.out { padding-right: 12px; } .n-ports .p.out::before { right: -13px; }
+/* V7 and V13, projected — never a second check (§4.7, inventory §3). */
+.n-ports .p.unfed { color: var(--bad); } .n-ports .p.unfed::before { border-color: var(--bad); }
+.n-ports .p.unused { color: var(--warn); } .n-ports .p.unused::before { border-color: var(--warn); }
+.n-ports .p.lit::before { border-color: var(--accent); background: var(--accent); }
+.n-ports .p:hover::before { border-color: var(--accent); }
+.n-slots { display: flex; flex-wrap: wrap; gap: 4px; }
+.slot {
+  padding: 1px 6px; border: 1px solid transparent; border-radius: 2px; cursor: pointer;
+  background: var(--bg-tint); font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
+}
+/* The design's own pair for a bound chip (`_ts.css`'s `.slot.priv`), written as it writes it:
+   the chip carries its own ground in both themes, so the two are one pair and not two. */
+.slot.priv { background: #22303a; color: #6fb8c8; }
+.slot.unbound { background: transparent; border-color: var(--bad); color: var(--bad); }
+.slot.tied { background: #22303a; color: #6fb8c8; border-color: var(--accent-dim); }
+.slot.located::after { content: " ✓"; color: var(--good); }
+.slot.st { background: var(--derived-bg); color: var(--derived); }
+.n-der {
+  padding-top: 5px; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 10px; color: var(--derived);
+}
+.n-der.stale { color: var(--ink-3); }
+.n-der .stalebdg {
+  margin-left: 6px; padding: 0 5px; border: 1px solid var(--chip); border-radius: 999px;
+  font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.n-dot {
+  position: absolute; top: -5px; right: -5px; width: 11px; height: 11px; padding: 0;
+  border: 2px solid var(--bg); border-radius: 999px; background: var(--bad); cursor: pointer;
+}
+.n-dot.warn { background: var(--warn); }
+.n-dot.notice { background: var(--struct); }
+
+/* ── the composition box (S3) ───────────────────────────────────────── */
+.group {
+  position: relative; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px; border: 1px solid var(--struct-bd); border-radius: var(--r);
+  background: var(--struct-bg); text-align: left;
+}
+.group.open { background: color-mix(in srgb, var(--struct-bg) 70%, transparent); }
+.group.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+.g-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.g-head .n-name { font-size: 14px; color: var(--struct); }
+.g-range { font-family: var(--mono); font-size: 10.5px; color: var(--derived); }
+.g-count {
+  margin-left: auto; padding: 1px 7px; border: 1px solid var(--struct-bd); border-radius: 999px;
+  font-family: var(--mono); font-size: 10px; color: var(--struct);
+}
+.g-count.unres { color: var(--ink-3); border-color: var(--chip); }
+.g-fams { display: flex; gap: 4px; }
+.g-body { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0 2px; }
+.g-handles { display: flex; flex-direction: column; gap: 4px; }
+.g-handles.right { margin-left: auto; align-items: flex-end; }
+.bh {
+  padding: 2px 6px; border: 1px solid var(--chip); border-radius: 2px; cursor: pointer;
+  background: var(--bg-raised); font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+  white-space: nowrap;
+}
+.bh:hover { border-color: var(--accent-dim); color: var(--ink-2); }
+.g-sites { font-size: 9.5px; line-height: 1.5; color: var(--ink-3); text-align: center; }
+.g-der {
+  padding-top: 5px; border-top: 1px solid var(--rule-2);
+  font-family: var(--mono); font-size: 10px; color: var(--derived);
+}
+.g-fold {
+  padding: 0 6px; border: 1px solid var(--rule-2); border-radius: 2px; background: none;
+  font-size: 10px; color: var(--ink-3); cursor: pointer;
+}
+.g-fold:hover { color: var(--ink); border-color: var(--rule-strong); }
+
+/* ── the interface terminal (S1) ────────────────────────────────────── */
+.term {
+  box-sizing: border-box; display: flex; align-items: center; gap: 9px; padding: 8px 14px;
+  border: 1px dashed var(--chip); border-radius: var(--r); background: var(--bg-raised);
+  text-align: left;
+}
+.term.sel { border-color: var(--accent); border-style: solid; }
+.term .n-name { font-size: 12.5px; color: var(--ink-2); }
+.tkind {
+  font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3);
+}
+
+/* ── the drag ghost, and the wire in flight (S9, S13, S17) ──────────── */
+.dghost {
+  position: fixed; z-index: 40; pointer-events: none;
+  display: inline-flex; flex-direction: column; gap: 3px; padding: 8px 11px;
+  border: 1px solid var(--accent-dim); border-radius: var(--r); background: var(--bg-raised);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-2);
+}
+.theme-light .dghost { box-shadow: 0 8px 24px rgba(18, 24, 30, 0.16); }
+.dghost .verdict { font-family: var(--sans); font-size: 10px; color: var(--bad); max-width: 340px; }
+.dghost .verdict.ok { color: var(--accent); }
+/* S17 draws the wire in flight dashed, and in `--bad` where the core objects — "the verdict
+   shows on the wire while dragging and lands in Problems on release". */
+.wires .w.flight { stroke: var(--accent); stroke-dasharray: 4 3; }
+.wires .w.flight.bad { stroke: var(--bad); }
+
+/* ── the context menu (§4.7) ────────────────────────────────────────── */
+.ctxmenu {
+  position: fixed; z-index: 50; min-width: 210px; padding: 4px;
+  border: 1px solid var(--rule-2); border-radius: var(--r); background: var(--bg-raised);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.theme-light .ctxmenu { box-shadow: 0 10px 30px rgba(18, 24, 30, 0.18); }
+.ctxmenu button {
+  display: block; width: 100%; padding: 4px 10px; border: 0; border-radius: 2px; background: none;
+  font: inherit; font-size: 12px; color: var(--ink-2); text-align: left; cursor: pointer;
+}
+.ctxmenu button:hover { background: var(--bg-tint); color: var(--ink); }
+.ctxmenu button.sep { margin-top: 4px; border-top: 1px solid var(--rule); padding-top: 6px; }
+
+/* The strip of canvas controls the tab bar carries (S1's `.tabs-right`). */
+.canvas-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }

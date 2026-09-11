@@ -49,8 +49,30 @@ async function openModel(page: Page, path = MODEL): Promise<void> {
   await expect(page.locator('footer.status [data-workspace]')).toHaveText('Examples');
   await command(page, 'File', 'file.open-model');
   await page.locator(`.dlg [data-document="${path}"]`).click();
-  await expect(page.locator(`.doc-json[data-path="${path}"]`)).toBeVisible();
+  await expect(page.locator(`.gcanvas[data-canvas="${path}"]`)).toBeVisible();
 }
+
+/**
+ * The document's own bytes, through `View ▸ JSON Source` (§4.4, §4.2's own tab).
+ *
+ * Feature 2.9 gave a model's tab its canvas (§4.7's "the default editor of a model") and the
+ * source pane the tab of its own §4.2 puts it in; this is how a suite reads what a Save would
+ * write, which is the same pane through the same serializer (D12).
+ */
+async function sourceText(page: Page): Promise<string> {
+  await command(page, 'View', 'view.json-source');
+  const pane = page.locator('.doc-json');
+  await expect(pane).toBeVisible();
+  const shown = await pane.innerText();
+  // The source is a *view* of the document, in a tab of its own (§4.2): it is closed again so
+  // that what a suite counts afterwards is the documents it opened and not the readings of them.
+  // `Ctrl+W` rather than the tab's ×, because with fifteen documents open the strip is wider
+  // than the editor area and the × of the last one is behind the Properties region.
+  await page.keyboard.press('Control+w');
+  await expect(page.locator('.doc-json')).toHaveCount(0);
+  return shown;
+}
+
 
 /** One row of the tree, by the place it stands for. */
 function row(page: Page, pointer: string): Locator {
@@ -209,7 +231,7 @@ test.describe('editing from the tree', () => {
 
     // The document, through the core's serializer: the declaration and every argument that named
     // it, and nothing else — which is the file's own bytes with those eleven places rewritten.
-    const shown = await page.locator('.doc-json').innerText();
+    const shown = await sourceText(page);
     expect(shown).toBe(
       modelText
         .replace('"d": {\n      "type"', '"width": {\n      "type"')
@@ -232,7 +254,7 @@ test.describe('editing from the tree', () => {
     const field = page.locator('.insp input[data-name-field]');
     await field.fill('tokens_in');
     await field.press('Enter');
-    const shown = await page.locator('.doc-json').innerText();
+    const shown = await sourceText(page);
     expect(shown).toContain('"tokens_in": {');
     expect(shown).toContain('"instance": "tokens_in"');
     expect(shown).not.toContain('"instance": "embed"');
@@ -251,10 +273,8 @@ test.describe('editing from the tree', () => {
     const dialog = page.locator('.dlg');
     await expect(dialog.locator('.dlg-head h2')).toHaveText('Delete site attn?');
     await expect(dialog.locator('[data-removed]')).toHaveCount(8);
-    expect(await page.locator('.doc-json').innerText()).toBe(modelText);
-
     await dialog.locator('[data-confirm="remove"]').click();
-    const shown = await page.locator('.doc-json').innerText();
+    const shown = await sourceText(page);
     expect(shown).not.toContain('attention.dense');
     expect(shown).not.toContain('"site": "attn"');
     await expect(row(page, '/compositions/decoder/instances/attn')).toHaveCount(0);

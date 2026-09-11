@@ -39,6 +39,9 @@ export {
   bannerFor,
   createDocuments,
   DOCUMENT_TAB,
+  documentTab,
+  SOURCE_SUFFIX,
+  SOURCE_TAB,
   TABS_SETTING,
   WORKSPACE_SETTING,
   type BannerLine,
@@ -53,8 +56,10 @@ export {
   type ToastLine,
 } from './store.js';
 export {
+  documentFor,
   DOCUMENT_VIEWS,
   DocumentToast,
   DocumentView,
+  SourcePane,
   WorkspaceBanner,
 } from './views.js';

@@ -1,4 +1,5 @@
 @import './tokens.css';
+@import '../canvas/canvas.css';
 
 /* ─────────────────────────────────────────────────────────────────────────
    The shell — plan §4.2 as drawn on S1, component inventory §2.

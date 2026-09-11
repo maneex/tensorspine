@@ -127,6 +127,8 @@ export interface DocumentOptions {
 /** {@link DocumentOptions} with the sites a caller wants described. */
 export interface DescribeArguments extends DocumentOptions {
   readonly only?: readonly string[] | undefined;
+  /** One site per declared instance: the folded canvas of §4.7 (`DescribeOptions.folded`). */
+  readonly folded?: boolean | undefined;
 }
 
 /** {@link DocumentOptions} with the set the lint stage reads (feature 1.10: the answer is the set's). */
@@ -514,7 +516,7 @@ export class LangSession {
       };
     }
     const analysis = this.analyse(document, path, options, held, reading);
-    const description = describeAnalysis(analysis, options.only);
+    const description = describeAnalysis(analysis, options.only, options.folded);
     const sites = new Map<string, SiteDescription>();
     for (const site of description.sites.values()) sites.set(site.where, site);
     return { conforms: true, structural: [], sites };

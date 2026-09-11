@@ -114,6 +114,15 @@ export interface ShellState {
   readonly draggingPanel: PanelId | null;
   /** The canvas's zoom, as a fraction: the status bar's last-but-one field. */
   readonly zoom: number;
+  /**
+   * The four View toggles §4.7 puts on the canvas: families, derived figures, edge types,
+   * identities.
+   *
+   * Chrome, and nothing of a document: what is remembered is which of the four readings the
+   * author wants, not anything the document says. S1 draws Derived figures on and Identities off,
+   * which is what {@link DEFAULT_CANVAS} carries.
+   */
+  readonly canvas: CanvasToggles;
   /** Who the user is, where the deployment knows — `null` under `NoAuth`, so no avatar. */
   readonly session: Session | null;
   readonly workspace: WorkspaceRef;
@@ -201,6 +210,8 @@ export interface Shell extends ShellState {
   setPalette(open: boolean): void;
   setDraggingPanel(panel: PanelId | null): void;
   setZoom(zoom: number): void;
+  /** Turn one of §4.7's four canvas readings on or off. */
+  setCanvas(canvas: Partial<CanvasToggles>): void;
 
   /** Write a line into the Log panel. */
   note(line: string): void;
@@ -230,6 +241,34 @@ export interface ShellOptions {
 
 /** The setting the arrangement is remembered under (§4.2: "layouts are saved in settings"). */
 export const LAYOUT_SETTING = 'shell.layout';
+
+/** The four readings §4.7's View menu turns on and off over the canvas. */
+export interface CanvasToggles {
+  /** View ▸ Show Families: the chips on a card. */
+  readonly families: boolean;
+  /** View ▸ Show Derived Figures on Diagram: the line under a card. */
+  readonly derivedFigures: boolean;
+  /** View ▸ Show Edge Types: D2's value type beside a wire. */
+  readonly edgeTypes: boolean;
+  /** View ▸ Show Identities: the dashed links between the chips of one identity. */
+  readonly identities: boolean;
+}
+
+/** The readings S1 draws: the derived figures on, the identities off. */
+export const DEFAULT_CANVAS: CanvasToggles = {
+  families: true,
+  derivedFigures: true,
+  edgeTypes: false,
+  identities: false,
+};
+
+/** Which command turns which reading on and off (§4.4's View menu). */
+const CANVAS_COMMANDS: Readonly<Record<string, keyof CanvasToggles>> = {
+  'view.show-families': 'families',
+  'view.show-derived-figures': 'derivedFigures',
+  'view.show-edge-types': 'edgeTypes',
+  'view.show-identities': 'identities',
+};
 
 /** How the zoom steps, and how far it goes (§4.4's `Zoom In/Out/Fit`). */
 const ZOOM = { step: 1.2, min: 0.2, max: 4, fit: 1 } as const;
@@ -486,6 +525,11 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
         get().setActivity('activity.settings');
       },
     };
+    for (const [id, reading] of Object.entries(CANVAS_COMMANDS)) {
+      builtin[id] = () => {
+        get().setCanvas({ [reading]: !get().canvas[reading] });
+      };
+    }
     for (const [id, panel] of Object.entries(PANEL_COMMANDS)) {
       builtin[id] = () => {
         get().revealPanel(panel);
@@ -516,6 +560,7 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
       palette: false,
       draggingPanel: null,
       zoom: ZOOM.fit,
+      canvas: DEFAULT_CANVAS,
       session: platform.auth.current(),
       workspace: platform.workspace.root(),
       log: [],
@@ -631,6 +676,10 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
       },
       setZoom: (zoom) => {
         set({ zoom: Math.min(ZOOM.max, Math.max(ZOOM.min, zoom)) });
+      },
+
+      setCanvas: (canvas) => {
+        set((state) => ({ canvas: { ...state.canvas, ...canvas } }));
       },
 
       note,

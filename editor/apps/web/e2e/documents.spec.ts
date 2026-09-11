@@ -70,7 +70,28 @@ async function openExamples(page: Page): Promise<void> {
 async function openDocument(page: Page, path: string): Promise<void> {
   await command(page, 'File', 'file.open-model');
   await page.locator(`.dlg [data-document="${path}"]`).click();
-  await expect(page.locator(`.doc-json[data-path="${path}"]`)).toBeVisible();
+  await expect(page.locator(`.gcanvas[data-canvas="${path}"]`)).toBeVisible();
+}
+
+/**
+ * The document's own bytes, through `View ▸ JSON Source` (§4.4, §4.2's own tab).
+ *
+ * Feature 2.9 gave the model's tab its canvas (§4.7's "the default editor of a model") and the
+ * source pane the tab of its own §4.2 puts it in; this is how a suite reads what a Save would
+ * write, which is the same pane through the same serializer (D12).
+ */
+async function sourceText(page: Page, path: string): Promise<string> {
+  await command(page, 'View', 'view.json-source');
+  const pane = page.locator(`.doc-json[data-path="${path}"]`);
+  await expect(pane).toBeVisible();
+  const shown = await pane.innerText();
+  // The source is a *view* of the document, in a tab of its own (§4.2): it is closed again so
+  // that what a suite counts afterwards is the documents it opened and not the readings of them.
+  // `Ctrl+W` rather than the tab's ×, because with fifteen documents open the strip is wider
+  // than the editor area and the × of the last one is behind the Properties region.
+  await page.keyboard.press('Control+w');
+  await expect(page.locator('.doc-json')).toHaveCount(0);
+  return shown;
 }
 
 test.describe('the Examples workspace', () => {
@@ -89,7 +110,7 @@ test.describe('the Examples workspace', () => {
     for (const path of paths) {
       await openDocument(page, path);
       // The JSON that loaded is the file's own, which is the bytes a Save would write (D12).
-      const shown = await page.locator(`.doc-json[data-path="${path}"]`).innerText();
+      const shown = await sourceText(page, path);
       expect(shown.length, path).toBeGreaterThan(100);
     }
     await expect(page.locator('nav.tabs .tab')).toHaveCount(paths.length);
@@ -282,7 +303,7 @@ test.describe('a folder the browser writes', () => {
       await page.reload();
       await expect(page.locator('#root')).toHaveAttribute('data-documents', 'ready');
       await expect(page.locator('footer.status [data-workspace]')).toHaveText('picked');
-      await expect(page.locator(`.doc-json[data-path="${MODEL}"]`)).toBeVisible();
+      await expect(page.locator(`.gcanvas[data-canvas="${MODEL}"]`)).toBeVisible();
       await expect(page.locator('.nothing')).toHaveCount(0);
     });
   });
@@ -317,7 +338,7 @@ test.describe('Download Workspace as Zip (§4.4)', () => {
     await open(page);
     await openExamples(page);
     await command(page, 'File', 'file.new-model');
-    await expect(page.locator('.doc-json[data-path="untitled.json"]')).toBeVisible();
+    await expect(page.locator('.gcanvas[data-canvas="untitled.json"]')).toBeVisible();
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       command(page, 'File', 'file.download-zip'),
@@ -386,10 +407,10 @@ test.describe('the autosave and its restore (§4.3)', () => {
     // A document made from nothing is dirty from birth and has no file behind it — which is what
     // makes it the case an autosave exists for.
     await command(page, 'File', 'file.new-model');
-    await expect(page.locator('.doc-json[data-path="untitled.json"]')).toBeVisible();
+    await expect(page.locator('.gcanvas[data-canvas="untitled.json"]')).toBeVisible();
     await command(page, 'File', 'file.new-template');
-    await expect(page.locator('.doc-json[data-path="untitled-2.json"]')).toBeVisible();
-    const template = await page.locator('.doc-json[data-path="untitled-2.json"]').innerText();
+    await expect(page.locator('.gcanvas[data-canvas="untitled-2.json"]')).toBeVisible();
+    const template = await sourceText(page, 'untitled-2.json');
     expect(template).toContain('"version": "1.0.0"');
     await expect(page.locator('nav.tabs .tab .dot')).toHaveCount(2);
 
@@ -406,6 +427,6 @@ test.describe('the autosave and its restore (§4.3)', () => {
     await expect(page.locator('nav.tabs .tab')).toHaveCount(2);
     await expect(page.locator('nav.tabs .tab .dot')).toHaveCount(2);
     await page.locator('nav.tabs .tab[data-tab$="untitled-2.json"]').click();
-    expect(await page.locator('.doc-json[data-path="untitled-2.json"]').innerText()).toBe(template);
+    expect(await sourceText(page, 'untitled-2.json')).toBe(template);
   });
 });

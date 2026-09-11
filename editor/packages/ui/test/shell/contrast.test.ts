@@ -111,6 +111,21 @@ const PAIRS: readonly [string, string, string][] = [
   ['--accent', '--bg', 'a workspace offered as a link in the empty state'],
   ['--ink-3', '--bg-panel', 'the label of a field of a dialog'],
   ['--ink', '--bg-raised', 'what is typed into a dialog'],
+  // the folded canvas (feature 2.9): a card and a terminal on `--bg-raised`, a composition box
+  // on `--struct-bg`, a wire's label on the canvas ground, a chip on its own
+  ['--ink', '--bg-raised', 'a card’s name'],
+  ['--ink-2', '--bg-raised', 'the primitive a card pins'],
+  ['--ink-3', '--bg-raised', 'its version, the structural summary, a port, a boundary handle'],
+  ['--derived', '--bg-raised', 'a card’s guard badge and its derived line'],
+  ['--bad', '--bg-raised', 'a slot nothing binds, and a refusal shown during a drag'],
+  ['--warn', '--bg-raised', 'a port nothing consumes'],
+  ['--derived', '--derived-bg', 'a state port’s chip'],
+  ['--ink-3', '--bg-tint', 'a constant slot’s chip'],
+  ['--ink-3', '--bg', 'a wire’s rule name and the type beside it'],
+  ['--accent', '--bg', 'an identity link’s own name'],
+  ['--struct', '--struct-bg', 'a composition’s name and its count'],
+  ['--derived', '--struct-bg', 'its index range'],
+  ['--ink-3', '--struct-bg', 'its summary, its families and its fold'],
 ];
 
 describe('every ink the shell writes text in', () => {
@@ -123,6 +138,13 @@ describe('every ink the shell writes text in', () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+
+  it('reaches 4.5:1 for the one pair the design writes as literals, in both themes', () => {
+    // `_ts.css`'s `.slot.priv` and `.slot.tied` are `#6fb8c8` on `#22303a`, which the canvas
+    // writes as it writes them: a bound chip carries its own ground, so the two are one pair and
+    // the theme does not change either of them.
+    expect(contrast('#6fb8c8', '#22303a')).toBeGreaterThanOrEqual(4.5);
   });
 
   it('reaches 4.5:1 for the one ink the shell changed, which the design’s does not', () => {

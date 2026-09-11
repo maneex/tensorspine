@@ -33,16 +33,21 @@
       "index"
     ]
   },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/index_expression/properties/index": {
+    "prefix": "$"
+  },
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/condition": {
     "widget": "condition",
     "symbols": {
       "all": {
         "text": "and",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 2
       },
       "any": {
         "text": "or",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 1
       },
       "not": {
         "text": "not",
@@ -66,23 +71,28 @@
     "symbols": {
       "subtract": {
         "text": "-",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 4
       },
       "divide": {
         "text": "/",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       },
       "ceil_divide": {
         "text": "cdiv",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       },
       "floor_divide": {
         "text": "div",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       },
       "modulo": {
         "text": "mod",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       }
     }
   },
@@ -90,11 +100,13 @@
     "symbols": {
       "add": {
         "text": "+",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 4
       },
       "multiply": {
         "text": "*",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       }
     }
   },
@@ -102,27 +114,33 @@
     "symbols": {
       "equal": {
         "text": "=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "not_equal": {
         "text": "!=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "less": {
         "text": "<",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "less_or_equal": {
         "text": "<=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "greater": {
         "text": ">",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "greater_or_equal": {
         "text": ">=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       }
     }
   },
@@ -137,11 +155,13 @@
     "symbols": {
       "all": {
         "text": "and",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 2
       },
       "any": {
         "text": "or",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 1
       },
       "not": {
         "text": "not",
@@ -165,23 +185,28 @@
     "symbols": {
       "subtract": {
         "text": "-",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 4
       },
       "divide": {
         "text": "/",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       },
       "ceil_divide": {
         "text": "cdiv",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       },
       "floor_divide": {
         "text": "div",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       },
       "modulo": {
         "text": "mod",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       }
     }
   },
@@ -189,11 +214,13 @@
     "symbols": {
       "add": {
         "text": "+",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 4
       },
       "multiply": {
         "text": "*",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 5
       }
     }
   },
@@ -201,27 +228,33 @@
     "symbols": {
       "equal": {
         "text": "=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "not_equal": {
         "text": "!=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "less": {
         "text": "<",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "less_or_equal": {
         "text": "<=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "greater": {
         "text": ">",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       },
       "greater_or_equal": {
         "text": ">=",
-        "form": "infix"
+        "form": "infix",
+        "precedence": 3
       }
     }
   },

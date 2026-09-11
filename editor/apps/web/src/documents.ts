@@ -13,7 +13,9 @@ import {
   type DocumentsStore,
   type TabSink,
 } from '@tensorspine/ui/documents';
+import { duplicateAt } from '@tensorspine/ui/canvas';
 import { selectionHandlers } from '@tensorspine/ui/explorer';
+import { presentation } from '@tensorspine/ui';
 import type { ShellStore } from '@tensorspine/ui/shell';
 
 /** What {@link wireDocuments} is given. */
@@ -128,6 +130,28 @@ export function wireDocuments(wiring: DocumentsWiring): {
     // same two keys while it has the focus; these are what the menu and the palette reach.
     'edit.rename': edit.rename,
     'edit.delete': edit.remove,
+    // §4.7's context menu is mirrored in the menu bar, so Duplicate acts on the same selection
+    // the canvas and the explorer share: the declaration copied under a name nothing else has.
+    'edit.duplicate': () => {
+      const state = now();
+      const one = state.open.find((open) => open.id === state.current);
+      if (one === undefined || one.selection === undefined) {
+        state.note('Duplicate: nothing is selected');
+        return;
+      }
+      const context = {
+        shapes: one.session.store.shapes,
+        bindings: presentation(),
+        role: one.session.store.role,
+      };
+      const path = one.selection;
+      state.edit((made) => duplicateAt(context, made, path), one.id);
+    },
+    // §4.4's "JSON Source (Ctrl+Shift+J, opens beside)": §4.2's own tab, with the bytes a Save
+    // would write. Feature 2.17 gives it Monaco and the schema.
+    'view.json-source': () => {
+      now().showSource();
+    },
   });
 
   // §4.3's "Close with unsaved changes asks": the strip is the shell's, the answer is the

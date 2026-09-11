@@ -53,7 +53,28 @@ async function openExample(page: Page, path = MODEL): Promise<void> {
   await expect(page.locator('footer.status [data-workspace]')).toHaveText('Examples');
   await command(page, 'File', 'file.open-model');
   await page.locator(`.dlg [data-document="${path}"]`).click();
-  await expect(page.locator(`.doc-json[data-path="${path}"]`)).toBeVisible();
+  await expect(page.locator(`.gcanvas[data-canvas="${path}"]`)).toBeVisible();
+}
+
+/**
+ * The document's own bytes, through `View ▸ JSON Source` (§4.4, §4.2's own tab).
+ *
+ * Feature 2.9 gave a model's tab its canvas (§4.7's "the default editor of a model") and the
+ * source pane the tab of its own §4.2 puts it in; this is how a suite reads what a Save would
+ * write, which is the same pane through the same serializer (D12).
+ */
+async function sourceText(page: Page): Promise<string> {
+  await command(page, 'View', 'view.json-source');
+  const pane = page.locator('.doc-json');
+  await expect(pane).toBeVisible();
+  const shown = await pane.innerText();
+  // The source is a *view* of the document, in a tab of its own (§4.2): it is closed again so
+  // that what a suite counts afterwards is the documents it opened and not the readings of them.
+  // `Ctrl+W` rather than the tab's ×, because with fifteen documents open the strip is wider
+  // than the editor area and the × of the last one is behind the Properties region.
+  await page.keyboard.press('Control+w');
+  await expect(page.locator('.doc-json')).toHaveCount(0);
+  return shown;
 }
 
 /** The bottom panel's Problems tab, and its body. */
@@ -158,7 +179,7 @@ async function openPicked(page: Page, path = MODEL): Promise<void> {
   await expect(page.locator('footer.status [data-workspace]')).toHaveText('picked');
   await command(page, 'File', 'file.open-model');
   await page.locator(`.dlg [data-document="${path}"]`).click();
-  await expect(page.locator(`.doc-json[data-path="${path}"]`)).toBeVisible();
+  await expect(page.locator(`.gcanvas[data-canvas="${path}"]`)).toBeVisible();
 }
 
 test.describe('a corpus document', () => {
@@ -338,7 +359,7 @@ test.describe('the editor’s own notices', () => {
     await expect(dialog.locator('.dlg-head h2')).toHaveText('Remove quantity kv_heads?');
     await dialog.locator('[data-confirm="remove"]').click();
 
-    await expect(page.locator('.doc-json')).not.toContainText('"kv_heads"');
+    expect(await sourceText(page)).not.toContain('"kv_heads"');
     await expect(panel(page).locator('.prow[data-source="editor"]')).toHaveCount(0, {
       timeout: 10_000,
     });
@@ -433,6 +454,6 @@ test.describe('the document itself', () => {
     await checked(page);
     await page.locator('.panel .panel-right input[data-control="filter"]').fill('anything');
     await page.locator('.panel .panel-right select[data-control="grouping"]').selectOption('unit');
-    expect(await page.locator('.doc-json').innerText()).toBe(modelText);
+    expect(await sourceText(page)).toBe(modelText);
   });
 });

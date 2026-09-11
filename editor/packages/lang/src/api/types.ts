@@ -395,6 +395,15 @@ export interface Facts {
 export interface DescribeOptions extends CallOptions {
   /** Describe only these sites, by the identifier {@link Facts.sites} keys them with. */
   readonly only?: readonly string[];
+  /**
+   * Describe one site per *declared* instance — the folded canvas of §4.7.
+   *
+   * A composition's thirty-two iterations are one card, drawn over "one representative iteration"
+   * (§4.8), and which iteration that is only the analysis knows: a guard removes some (§5.2 rule
+   * 3), so a caller naming them in {@link only} would ask for sites that are not there. 9 sites
+   * instead of 195 on `llama3-8b`, 35 instead of 552 on `deepseek-v4-pro`.
+   */
+  readonly folded?: boolean;
 }
 
 /** What {@link Lang.validate} takes beside a document. */

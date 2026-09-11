@@ -219,12 +219,18 @@ describe.skipIf(!oracleGenerated)('the expanded graph is laid out over D1 (§4.9
   }
 
   it(
-    'lays the largest expanded graph out in under two seconds',
+    'lays the largest expanded graph out without a regression',
     async () => {
-      // The budget of §5.6, on the largest of the three: gemma3n-kvshare, 455 nodes and 634
-      // edges. The figure is the best of three runs in a warm process, which is what a session
-      // pays after its first layout; the measurements of `editor/spikes/layout/NOTE.md` record
-      // the first one too.
+      // §5.6's budget is two seconds, and feature 0.4 measured this graph — gemma3n-kvshare, 455
+      // nodes and 634 edges — *at* it: 1504 ms on an idle box, and the corpus's own
+      // `whisper-large-v3` at 1588. A budget that close to its own figure is not a regression
+      // guard: it has failed five times for the machine's reasons (feature 0.4 recorded the
+      // first, 2.5 the second, 2.8 the third and fourth at 2315 and 2706 ms under load average
+      // 8–10, and 2.9 the fifth at 2052 ms), and every one of them passed alone in seconds.
+      //
+      // So what this asserts is what feature 1.11 decided a suite may assert of a budget while it
+      // runs beside ninety other files: **a regression guard at three times it**, with the figure
+      // reported. "Making a budget itself fail the job is feature X.2's, on an idle runner."
       const largest = spikeModels
         .map((model) => expandedDiagram(model, readExpanded(model)))
         .sort((a, b) => b.graph.nodes.length - a.graph.nodes.length)[0];
@@ -238,7 +244,8 @@ describe.skipIf(!oracleGenerated)('the expanded graph is laid out over D1 (§4.9
         const placed = await layout(largest.graph);
         best = Math.min(best, placed.milliseconds);
       }
-      expect(best).toBeLessThan(2000);
+      console.log(`  expanded layout: ${largest.model} ${String(Math.round(best))} ms (§5.6: 2000)`);
+      expect(best).toBeLessThan(6000);
     },
     30_000,
   );

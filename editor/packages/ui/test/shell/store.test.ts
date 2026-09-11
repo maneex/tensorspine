@@ -42,10 +42,13 @@ describe('what the shell’s state holds', () => {
     // problem is a reviewed diff. "There is no second graph model" is the rule it guards, and
     // `problems` is the reviewed diff feature 2.8 made: it holds the panel's *filter and
     // grouping* — which sources, which severities, which text, grouped how — and no row of the
-    // panel, which is the document's and lives with the document.
+    // panel, which is the document's and lives with the document. `canvas` is feature 2.9's
+    // reviewed diff: the four View toggles of §4.7 — families, derived figures, edge types,
+    // identities — which are readings of the drawing and nothing the document says.
     expect(held).toMatchInlineSnapshot(`
       [
         "activeTab",
+        "canvas",
         "docsBase",
         "draggingPanel",
         "log",

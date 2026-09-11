@@ -25,6 +25,7 @@
 import type { JsonValue, PyRecord, SchemaRegistry } from '@tensorspine/lang';
 import { derivationRow, LangCancelled, PROBLEM_SOURCE, schemaProblem } from '@tensorspine/lang/api';
 import type {
+  Facts,
   Lang,
   LibraryHandle,
   LintDocuments,
@@ -57,6 +58,21 @@ export interface Reading {
    * schemas (feature 2.4) — and there the verdict's own schema rows are the only ones there are.
    */
   readonly structural: readonly Problem[] | null;
+  /**
+   * The core's facts for the boxes the canvas draws, or `null` before the first answer.
+   *
+   * §5.4 puts `describe` on the branch that runs **at once** — "core.describe (at once) ──► node
+   * handles, sheet facts" — and not behind the 300 ms debounce, because a card's ports and a
+   * sheet's rows are what the author is looking at while typing. It costs one `analyse`, which
+   * the session then keeps for `(path, revision)` so the validation behind the debounce pays for
+   * it only once (feature 1.6d's `describeAnalysis`, feature 1.11's `revision`).
+   *
+   * It is asked for **folded**: one site per declared instance, which is what §4.7 draws — 9
+   * sites instead of 195 on `llama3-8b`.
+   */
+  readonly facts: Facts | null;
+  /** The revision {@link facts} was computed for — older than {@link revision} is stale. */
+  readonly factsAt: number;
   /** The core's verdict, or `null` before the first one answers. */
   readonly verdict: Verdict | null;
   /** The revision {@link verdict} was computed for — older than {@link revision} is stale. */
@@ -96,6 +112,8 @@ export function noReading(revision: number): Reading {
     revision,
     checking: false,
     structural: null,
+    facts: null,
+    factsAt: -1,
     verdict: null,
     verdictAt: -1,
     notices: [],
@@ -135,6 +153,7 @@ export interface PipelineOptions {
 export class Pipeline {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running: AbortController | null = null;
+  private describing: AbortController | null = null;
   private stopped = false;
 
   constructor(private readonly options: PipelineOptions) {}
@@ -169,6 +188,8 @@ export class Pipeline {
     this.timer = null;
     this.running?.abort();
     this.running = null;
+    this.describing?.abort();
+    this.describing = null;
   }
 
   private schedule(delay: number): void {
@@ -188,10 +209,47 @@ export class Pipeline {
       derivation:
         before.derived === null || before.derivedAt === revision ? before.derivation : 'stale',
     }));
+    // §5.4's other branch, and it does not wait for the debounce: the cards and the sheets show
+    // what the core says about *this* revision, and a card whose ports are three hundred
+    // milliseconds behind the name above them is a card that lies.
+    void this.describe(tree, revision);
     this.timer = setTimeout(() => {
       this.timer = null;
       void this.run();
     }, delay);
+  }
+
+  /**
+   * `describe(tree, path, {folded})`: the facts §4.7's cards and §4.12's rows show.
+   *
+   * A newer revision supersedes an older call, as every other call of §5.4 is superseded: an
+   * answer about a document the editor has moved on from is worse than none, because it looks
+   * fresh (the lesson of the review repair `4540ff4`, one package along).
+   */
+  private async describe(tree: JsonValue, revision: number): Promise<void> {
+    this.describing?.abort();
+    const control = new AbortController();
+    this.describing = control;
+    const { lang, library, path, publish } = this.options;
+    try {
+      const facts = await lang.describe(tree, path, {
+        library,
+        revision,
+        folded: true,
+        signal: control.signal,
+      });
+      if (this.stopped || control.signal.aborted) return;
+      if (this.options.read().revision !== revision) return;
+      publish((before) => ({ ...before, facts, factsAt: revision }));
+    } catch (error) {
+      if (error instanceof LangCancelled) return;
+      // A refusal `describe` raises is the validation's to report: it takes the same three gates
+      // and answers the same rows, so saying it twice would show it twice. The facts simply stay
+      // where they were, marked stale by their revision.
+      if (this.stopped) return;
+    } finally {
+      if (this.describing === control) this.describing = null;
+    }
   }
 
   /**
