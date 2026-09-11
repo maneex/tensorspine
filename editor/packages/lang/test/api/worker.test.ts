@@ -147,6 +147,21 @@ describe('cancellation', () => {
     expect(Object.keys(derived)).toContain('d6');
   }, 120_000);
 
+  it('supersedes the older derivation whether or not the worker heard in time', async () => {
+    // The saving — a derivation dropped before its heavy stage — depends on the newer request
+    // reaching the host while the older call is suspended at its yield, and nothing orders a
+    // timer task against a pending message. What the *caller* is promised does not depend on it:
+    // both requests are made in one turn on this side, so the older settles `superseded` at once.
+    // Asked a hundred times over, which no scheduling accident survives.
+    const { lang, library, tree, path } = await ready();
+    for (let round = 0; round < 100; round += 1) {
+      const older = lang.derive(tree as never, path, { library });
+      const newer = lang.derive(tree as never, path, { library });
+      await expect(older).rejects.toMatchObject({ reason: 'superseded', call: 'derive' });
+      expect(Object.keys(await newer)).toContain('d6');
+    }
+  }, 240_000);
+
   it('supersedes per document, not per session', async () => {
     const { lang } = connect();
     const schemas = await lang.loadSchemas(schemaFiles(), { origin: 'schemas' });

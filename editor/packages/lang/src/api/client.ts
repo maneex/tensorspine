@@ -71,6 +71,8 @@ interface Pending {
 /** The `Lang` that runs in a worker, reached over a port. */
 export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang {
   const pending = new Map<number, Pending>();
+  /** The derivation in flight for each document: "one in-flight derivation per document" (§5.3). */
+  const deriving = new Map<string, number>();
   let next = 0;
   let closed = false;
 
@@ -125,10 +127,13 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
     call: CallName,
     args: readonly unknown[],
     watched: Pick<CallOptions, 'signal' | 'onProgress'> = {},
+    /** Told the id this request was given, for a caller that must name it later. */
+    track?: (id: number) => void,
   ): Promise<T> => {
     if (closed) return Promise.reject(new LangCancelled(call, 'closed'));
     next += 1;
     const id = next;
+    track?.(id);
     const { signal, onProgress } = watched;
     if (signal?.aborted === true) return Promise.reject(new LangCancelled(call, 'requested'));
 
@@ -152,6 +157,59 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
     });
   };
 
+  /**
+   * `derive(tree, path)`: the newer derivation of a document supersedes the older **here**, and
+   * not only in the worker.
+   *
+   * §5.3 promises the caller that "a second `derive` for a path cancels the first, whose result is
+   * dropped whether or not it had already been computed". The session keeps that promise when it
+   * can, and that is where the *saving* comes from: a request that reaches the host while the
+   * older call is suspended at its yield cancels it before the heavy stage runs at all. But
+   * whether it arrives inside that window is the scheduler's business — the older call is waiting
+   * on a timer task and the newer one is a message task, and no specification orders the two.
+   * Measured: Chromium delivered the message first on 200 idle trials and the timer first under a
+   * loaded machine, where the older derivation then ran to the end and answered its caller.
+   *
+   * What the caller is promised need not rest on that. Both requests are known here, in one turn,
+   * so the older promise is settled `superseded` the moment the newer one is made, and the cancel
+   * is posted all the same so the worker still drops the work whenever it is in time to. A result
+   * that arrives for a request no longer pending is discarded, which is what the listener already
+   * does with every answer it did not ask for.
+   */
+  const derive = (tree: JsonValue, path: string, callOptions: CallOptions): Promise<PyRecord> => {
+    const older = deriving.get(path);
+    const held = older === undefined ? undefined : pending.get(older);
+    if (older !== undefined && held !== undefined) {
+      pending.delete(older);
+      held.release();
+      port.postMessage({ id: 0, call: 'cancel', args: [older] });
+      held.settle({ id: older, kind: 'cancelled', call: 'derive', reason: 'superseded' });
+    }
+    let mine = 0;
+    const answer = request<PyRecord>(
+      'derive',
+      [tree, path, stripped(callOptions)],
+      callOptions,
+      (id) => {
+        mine = id;
+        deriving.set(path, id);
+      },
+    );
+    const forget = (): void => {
+      if (deriving.get(path) === mine) deriving.delete(path);
+    };
+    return answer.then(
+      (value) => {
+        forget();
+        return value;
+      },
+      (error: unknown) => {
+        forget();
+        throw error;
+      },
+    );
+  };
+
   const close = (): void => {
     if (closed) return;
     closed = true;
@@ -161,6 +219,7 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
       held.release();
       held.settle({ id, kind: 'cancelled', call: held.call, reason: 'closed' });
     }
+    deriving.clear();
     stopListening();
     stopFailures();
     options.onClose?.();
@@ -187,8 +246,7 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
       request<CandidateVerdict>('check', [path, candidate]),
     expand: (tree: JsonValue, callOptions: CallOptions) =>
       request<PyRecord>('expand', [tree, stripped(callOptions)], callOptions),
-    derive: (tree: JsonValue, path: string, callOptions: CallOptions) =>
-      request<PyRecord>('derive', [tree, path, stripped(callOptions)], callOptions),
+    derive,
     checkCheckpoint: (derived: PyValue, headers: CheckpointHeaders) =>
       request<CheckpointReport>('checkCheckpoint', [derived, headers]),
     readHeader: (bytes: Uint8Array, file: string) => request<HeaderRead>('readHeader', [bytes, file]),
