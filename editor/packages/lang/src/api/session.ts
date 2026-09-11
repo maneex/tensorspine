@@ -49,6 +49,7 @@ import {
   type Library,
   type LibraryContext,
 } from '../library/load.js';
+import { dirname, normalise } from '../library/paths.js';
 import { pyRepr } from '../library/repr.js';
 import { memorySource, type LibrarySource } from '../library/source.js';
 import { validateUnit as validateUnitOf, type UnitLocation } from '../library/unit.js';
@@ -134,11 +135,28 @@ interface HeldSchemas {
   readonly registry: SchemaRegistry;
 }
 
+/**
+ * One base of a gathered library: the path the caller wrote, and the path the session compares.
+ *
+ * `data/primitive-library` and `data/primitive-library/` name one directory. The loader reads the
+ * same files under either — `memorySource` normalises every key and every lookup, and `placeOf`
+ * normalises both of its arguments — so a containment test that compared the *text* would answer
+ * differently for two spellings of one base, and the unit would be refused for the caller's
+ * punctuation. The normalised form is what containment is decided on; the caller's own spelling is
+ * what a refusal names, because that is the path the caller holds and will go looking for.
+ */
+interface HeldBase {
+  /** As the caller wrote it: what the loader was given, and what a diagnostic names. */
+  readonly path: string;
+  /** `normalise` of it: what containment is decided on. */
+  readonly root: string;
+}
+
 /** A gathered library, held with what gathered it. */
 interface HeldLibrary {
   readonly handle: LibraryHandle;
   readonly schemas: HeldSchemas;
-  readonly bases: readonly string[];
+  readonly bases: readonly HeldBase[];
   readonly library: Library;
   readonly context: LibraryContext;
 }
@@ -210,9 +228,11 @@ export class LangSession {
       ...(options.modelsBase === undefined ? {} : { modelsBase: options.modelsBase }),
     };
     const paths = bases.map((base) => base.base);
+    // The loader is given the caller's own spellings, which is what its refusals name.
     const library = loadLibraryOf(paths, context);
     const handle: LibraryHandle = { kind: 'library', id: this.identity('library') };
-    this.libraries.set(handle.id, { handle, schemas: held, bases: paths, library, context });
+    const heldBases = paths.map((path) => ({ path, root: normalise(path) }));
+    this.libraries.set(handle.id, { handle, schemas: held, bases: heldBases, library, context });
     return { handle, library, problems: library.problems.map((one) => libraryRow(one)) };
   }
 
@@ -600,12 +620,35 @@ function assignmentKey(assignment?: PyRecord): string {
   return assignment === undefined ? '' : pyRepr(assignment);
 }
 
-/** The base a unit's path falls under, or the path's own directory when none of them does. */
-function baseOf(bases: readonly string[], path: string): string {
-  const under = bases.filter((base) => path === base || path.startsWith(`${base}/`));
+/**
+ * The base a unit's path falls under, or the path's own directory when none of them does.
+ *
+ * The comparison is on the normalised paths and the answer is the caller's spelling ({@link
+ * HeldBase}). The fallback is the file's own directory, which is what makes the refusal read
+ * "not under primitives/, axes/ or precision/ of <where the file is>" for a file under no base at
+ * all — a statement about the file, not about a base it was never claimed to belong to.
+ */
+function baseOf(bases: readonly HeldBase[], path: string): string {
+  const file = normalise(path);
+  const under = bases.filter((base) => contains(base.root, file));
   // The longest match, so that a base inside another is preferred to the one that contains it.
-  under.sort((left, right) => right.length - left.length);
-  return under[0] ?? path.replace(/\/[^/]*$/, '');
+  // The normalised length, because that is the path the containment was decided on.
+  under.sort((left, right) => right.root.length - left.root.length);
+  return under[0]?.path ?? dirname(path);
+}
+
+/**
+ * Whether a normalised path lies at or under a normalised directory.
+ *
+ * A prefix test on the text alone would read `base-other/x.json` as inside `base`, so the
+ * separator is part of what is compared. The two directories that are not spelled with a trailing
+ * segment are the two `normalise` can answer: `/`, the absolute root, and `.`, the relative one.
+ */
+function contains(root: string, file: string): boolean {
+  if (root === file) return true;
+  if (root === '/') return file.startsWith('/');
+  if (root === '.') return !file.startsWith('/');
+  return file.startsWith(`${root}/`);
 }
 
 /**
@@ -622,7 +665,10 @@ function baseOf(bases: readonly string[], path: string): string {
 function basesMissing(held: HeldLibrary, document: PyRecord, path: string): Problem[] {
   const { bases, problem } = basesOf(path, document);
   if (problem !== null) return [libraryRow(problem)];
-  const gathered = new Set(held.bases);
+  // `basesOf` answers normalised paths, and the held bases carry theirs for exactly this: a
+  // document declaring `../primitive-library` from `data/models/` names the base the session
+  // gathered as `data/primitive-library`, and the two must be recognised as one.
+  const gathered = new Set(held.bases.map((base) => base.root));
   return bases
     .filter((base) => !gathered.has(base))
     .map((base) => ({

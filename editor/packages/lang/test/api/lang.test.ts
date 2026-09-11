@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { LangCancelled, LangFailure, LangHandleError } from '../../src/api/index.js';
-import type { Lang, LibraryHandle, Problem } from '../../src/api/index.js';
+import type { Lang, LibraryHandle, Problem, SchemasHandle } from '../../src/api/index.js';
 import { UNRESOLVED, type PyRecord, type PyValue } from '../../src/expr/value.js';
 import { serialize } from '../../src/json/serialize.js';
 import { toJsonValue } from '../../src/expr/value.js';
@@ -19,12 +19,14 @@ for (const deployment of DEPLOYMENTS) {
   describe(`the Lang API (${deployment})`, () => {
     let lang: Lang;
     let library: LibraryHandle;
+    let schemas: SchemasHandle;
     let stop: () => void;
 
     beforeAll(async () => {
       const session = await loaded(deployment);
       lang = session.lang;
       library = session.library;
+      schemas = session.schemas;
       stop = session.stop;
     }, 120_000);
 
@@ -157,6 +159,32 @@ for (const deployment of DEPLOYMENTS) {
       expect(warning?.source).toBe('library');
       expect(warning?.message).toContain("does not carry the base 'somewhere/primitive-library'");
       expect(verdict.problems.filter((one) => one.severity === 'error')).toEqual([]);
+    });
+
+    it('validates a unit of a base spelled with a trailing separator', async () => {
+      // `data/primitive-library` and `data/primitive-library/` are one directory: `memorySource`
+      // says so on the way in, and a base the workspace hands over from a directory picker is as
+      // likely to carry the separator as not. The unit is the base's own, unchanged.
+      const base = referenceBase();
+      const gathered = await lang.loadLibrary([{ ...base, base: `${base.base}/` }], schemas);
+      expect(gathered.problems).toEqual([]);
+      const path = 'data/primitive-library/primitives/norm/rms/1.0.0.json';
+      const text = base.files[path];
+      if (text === undefined) throw new Error('missing corpus fixture');
+      const unit = await lang.parse(text);
+      expect(await lang.validateUnit(unit, path, gathered.handle)).toEqual([]);
+      await lang.release(gathered.handle);
+    });
+
+    it('refuses a unit that lies under no gathered base, naming where it does lie', async () => {
+      const base = referenceBase();
+      const text = base.files['data/primitive-library/primitives/norm/rms/1.0.0.json'];
+      if (text === undefined) throw new Error('missing corpus fixture');
+      const unit = await lang.parse(text);
+      const problems = await lang.validateUnit(unit, 'elsewhere/norm/rms/1.0.0.json', library);
+      expect(problems.map((one) => one.message)).toEqual([
+        'elsewhere/norm/rms/1.0.0.json: not under primitives/, axes/ or precision/ of elsewhere/norm/rms',
+      ]);
     });
 
     it('leaves the analysis where check can read it, on one revision', async () => {
@@ -392,3 +420,100 @@ for (const deployment of DEPLOYMENTS) {
     });
   });
 }
+
+// How a base is *spelled* is path arithmetic in the session, which is one body for both
+// deployments (`api/session.ts`); it is exercised once rather than twice, and the two calls that
+// read it — `validateUnit` and the missing-base warning — are covered against both above.
+describe('the spellings of one base', () => {
+  let lang: Lang;
+  let schemas: SchemasHandle;
+  let stop: () => void;
+
+  beforeAll(async () => {
+    const session = await loaded('in-process');
+    lang = session.lang;
+    schemas = session.schemas;
+    stop = session.stop;
+  }, 120_000);
+
+  afterAll(() => {
+    stop();
+  });
+
+  const UNIT = 'data/primitive-library/primitives/norm/rms/1.0.0.json';
+
+  it('reads a unit of the base under every spelling `normalise` makes one path of', async () => {
+    const base = referenceBase();
+    const text = base.files[UNIT];
+    if (text === undefined) throw new Error('missing corpus fixture');
+    const unit = await lang.parse(text);
+    for (const spelling of [
+      'data/primitive-library',
+      'data/primitive-library/',
+      'data/primitive-library//',
+      './data/primitive-library',
+      'data/./primitive-library',
+      'data/models/../primitive-library',
+    ]) {
+      const gathered = await lang.loadLibrary([{ ...base, base: spelling }], schemas);
+      expect(gathered.problems, spelling).toEqual([]);
+      expect(await lang.validateUnit(unit, UNIT, gathered.handle), spelling).toEqual([]);
+      await lang.release(gathered.handle);
+    }
+  });
+
+  it('recognises the base a document declares under any of them', async () => {
+    // `llama3-8b.json` writes `"../primitive-library/"`, which `basesOf` normalises; a base
+    // gathered under the document's own spelling must not then read as one the session has not
+    // got. The warning is the session's own guard and it says a real thing — the test beside it
+    // holds that — so it must not also say it of a base that is there.
+    const base = referenceBase();
+    const tree = await lang.parse(corpus('llama3-8b'));
+    for (const spelling of ['data/primitive-library', 'data/primitive-library/', './data/primitive-library']) {
+      const gathered = await lang.loadLibrary([{ ...base, base: spelling }], schemas);
+      const verdict = await lang.validate(tree, corpusPath('llama3-8b'), { library: gathered.handle });
+      expect(verdict.problems, spelling).toEqual([]);
+      await lang.release(gathered.handle);
+    }
+  });
+
+  it('reads a unit against the innermost base that contains it', async () => {
+    // Two bases, one inside the other: the unit belongs to the inner one, whose `primitives/`
+    // section root is what gives it its identity. Taking the outer would name it `norm.rms.1.0.0`
+    // under a section it is not in, which is the identity check's whole subject (§8.2).
+    const base = referenceBase();
+    const inner = 'data/primitive-library/primitives/norm/';
+    const text = base.files[UNIT];
+    if (text === undefined) throw new Error('missing corpus fixture');
+    const unit = await lang.parse(text);
+    const gathered = await lang.loadLibrary(
+      [{ ...base, base: 'data/primitive-library' }, { base: inner, files: {} }],
+      schemas,
+    );
+    const problems = await lang.validateUnit(unit, UNIT, gathered.handle);
+    expect(problems.map((one) => one.message)).toEqual([
+      `${UNIT}: not under primitives/, axes/ or precision/ of ${inner}`,
+    ]);
+    await lang.release(gathered.handle);
+  });
+
+  it('does not read a sibling directory as inside a base', async () => {
+    // `data/primitive-library` begins with the text of `data/primitive-lib` and is not inside it:
+    // what separates a directory from its sibling is the separator, so that is what is compared.
+    const base = referenceBase();
+    const manifest = base.files['data/primitive-library/primitive-library.json'];
+    const text = base.files[UNIT];
+    if (manifest === undefined || text === undefined) throw new Error('missing corpus fixture');
+    const unit = await lang.parse(text);
+    const sibling = {
+      base: 'data/primitive-lib',
+      files: { 'data/primitive-lib/primitive-library.json': manifest },
+    };
+    const gathered = await lang.loadLibrary([sibling], schemas);
+    const problems = await lang.validateUnit(unit, UNIT, gathered.handle);
+    expect(problems.map((one) => one.message)).toEqual([
+      `${UNIT}: not under primitives/, axes/ or precision/ of data/primitive-library/primitives/norm/rms`,
+    ]);
+    await lang.release(gathered.handle);
+  });
+});
