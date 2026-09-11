@@ -31,6 +31,7 @@ import {
   type AssertionEngine,
 } from './assertions.js';
 import { schemaError, type SchemaError } from './errors.js';
+import { pythonRegExp } from './pattern.js';
 import { pythonRepr } from './repr.js';
 import {
   at,
@@ -184,7 +185,7 @@ function additionalNames(node: SchemaObject, instance: Instance): string[] {
   const patterns = node['patternProperties'];
   const regexes =
     patterns !== null && typeof patterns === 'object'
-      ? Object.keys(patterns).map((pattern) => new RegExp(pattern, 'u'))
+      ? Object.keys(patterns).map((pattern) => pythonRegExp(pattern))
       : [];
   return memberNames(instance.tree).filter(
     (name) => !known.has(name) && !regexes.some((regex) => regex.test(name)),
@@ -287,7 +288,7 @@ function applicator(
       const errors: SchemaError[] = [];
       if (!isJsonObject(instance.tree)) return errors;
       for (const [pattern, subschema] of Object.entries(declared)) {
-        const regex = new RegExp(pattern, 'u');
+        const regex = pythonRegExp(pattern);
         for (const name of memberNames(instance.tree)) {
           if (!regex.test(name)) continue;
           errors.push(...descend(member(instance, name), subschema, base, env, name, pattern));

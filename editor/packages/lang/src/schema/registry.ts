@@ -29,6 +29,7 @@ import { JsonParseError, parse } from '../json/parse.js';
 import type { JsonValue } from '../json/tree.js';
 import type { AssertionEngine } from './assertions.js';
 import { absolutePath, deepest, sortByPlace, type SchemaError } from './errors.js';
+import { pythonRegExp } from './pattern.js';
 import {
   instanceOf,
   pointerOf,
@@ -235,6 +236,21 @@ function allowAll(declared: unknown): Record<string, true> {
  * The files are indexed by the `$id` each declares, as `schema.discover` does; a file that
  * declares none is not part of the namespace and is skipped, exactly as the tools skip it.
  */
+/**
+ * What Ajv compiles a `pattern` with: {@link pythonRegExp}, in the shape Ajv's option takes.
+ *
+ * Ajv calls it once per distinct pattern while compiling and holds the `RegExp` it answers, so the
+ * translation is applied where the pattern is read and costs nothing per instance. `code` is the
+ * text Ajv writes into a **standalone** module — which this build never generates, since the
+ * registry compiles in the worker at load (§5.3) — and it names the function rather than
+ * `new RegExp`, so that a build that did generate one would have to resolve this name instead of
+ * quietly falling back to an untranslated pattern.
+ */
+const PYTHON_REGEXP = Object.assign(
+  (pattern: string, flags: string): RegExp => pythonRegExp(pattern, flags),
+  { code: 'pythonRegExp' },
+);
+
 export function loadSchemas(
   files: readonly SchemaFile[],
   options: { readonly origin?: string } = {},
@@ -251,7 +267,13 @@ export function loadSchemas(
     strict: false,
     validateFormats: false,
     ownProperties: true,
+    // `pattern` and `patternProperties` are `re.search` on the Python side, where `$` also matches
+    // just before one trailing newline (`schema/pattern.ts`). Ajv compiles a pattern itself, so
+    // the translation is given to it here and to the walk at its own two call sites — the verdict
+    // and the explanation of it read one rule.
+    code: { regExp: PYTHON_REGEXP },
   });
+
 
   // `schema.discover` reads `sorted(glob(...))` and keeps one entry per identity, so of two files
   // declaring the same `$id` the later one is the one indexed. The files arrive here in whatever

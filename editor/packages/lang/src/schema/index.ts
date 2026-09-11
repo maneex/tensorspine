@@ -27,6 +27,7 @@ export {
   sortByPlace,
   type SchemaError,
 } from './errors.js';
+export { pythonPattern, pythonRegExp } from './pattern.js';
 export { comparePythonStrings, pythonRepr, pythonReprString } from './repr.js';
 export {
   comparePaths,
