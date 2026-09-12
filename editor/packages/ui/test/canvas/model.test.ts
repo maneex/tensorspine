@@ -103,7 +103,11 @@ describe('the structural summary of S2', () => {
     // The order is the *declaration's*, and the set is what `attention.dense` calls structural:
     // S2's own panel for this site writes `head_dim` too, and its guarded qwen panel leaves it
     // out — the unit is the authority, and the core is what reads it.
-    expect(attn?.summary).toBe('width=d · heads=heads · head_dim=head_dim · kv_heads=kv_heads · mask=causal');
+    // `mask="causal"` and not S2's `mask=causal`: the card writes §4.13's text form, and that
+    // form quotes a string literal since feature 2.11 gave it a parser — a bare `causal` is how a
+    // *reference* to an argument of that name is written. A fifth artboard figure the repository
+    // does not have, in the sense feature 2.9 listed four.
+    expect(attn?.summary).toBe('width=d · heads=heads · head_dim=head_dim · kv_heads=kv_heads · mask="causal"');
   });
 
   it('leaves out an argument the declaration does not call structural', () => {

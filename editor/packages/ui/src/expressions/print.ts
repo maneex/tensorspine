@@ -5,50 +5,54 @@
  * > `$layer mod 5 = 4 and $layer >= 4`
  * > `heads mod kv_heads = 0`
  *
- * The folded canvas of §4.7 needs it in four places, which is why it is written here and not in
- * feature 2.11: a **guard badge** prints the site's `when`, a **composition header** prints
+ * The folded canvas of §4.7 needs it in four places, which is why it was written at feature 2.9
+ * and not at 2.11: a **guard badge** prints the site's `when`, a **composition header** prints
  * `layer ∈ [0, 32)`, a **structural summary** prints `width=d`, and a **boundary handle** prints
- * `attn_n[layer=0].input`. Feature 2.11 owns the editors — the tree view, the strict parser, the
- * reference pickers — and this is the half of §4.13 both of them read, so there is one convention
- * and not two: an operator's symbol, its form and its precedence are `presentation.json`'s, and
- * the parser 2.11 writes reads the same three.
+ * `attn_n[layer=0].input`. Feature 2.11 added the other half — the strict parser — and with it the
+ * one table both halves read (`language.ts`): an operator's symbol, its form, its precedence and a
+ * name's prefix are `presentation.json`'s, derived once against the schemas, and the printer and
+ * the parser are two renderings of that one derivation.
  *
- * **Nothing here knows an operator.** The walk is over the schema: which alternative a value is is
- * `registry.accepts` (the grammar's own verdict, feature 2.3's rule), which member holds the
- * operator is the member whose binding carries `symbols`, and what it prints as is that symbol.
- * An operator the file binds nothing for prints as `name(args)`, which is §4.13's own fallback and
- * is why `min` and `max` carry no binding. Catching rule §1 (b) is what makes that the only
- * possible implementation: this file may not write `floor_divide`.
+ * **Nothing here knows an operator.** The walk is over the grammar: which production a value is
+ * written by is `Grammar.chosen` (the schema's own verdict through `registry.accepts`, feature
+ * 2.3's rule), and what it prints as is the symbol that production carries. An operator the file
+ * binds nothing for prints as `name(args)`, which is §4.13's own fallback and is why `min` and
+ * `max` carry no binding. Catching rule §1 (b) is what makes that the only possible
+ * implementation: this file may not write `floor_divide`.
  *
- * **A name is printed with the prefix its place binds**, which is how `$layer` is an index where
- * `d` is a quantity — a distinction no schema states, both being an `identifier` under the one
- * member of a one-member object.
+ * **Parentheses come from the precedence the symbols carry and from the parser's own reading.**
+ * An operand that binds more loosely is parenthesised, which is the ordinary rule; an operand of
+ * *equal* precedence is parenthesised where it stands to the right, because the parser reads a
+ * chain left to right; and the first operand of an n-ary operator is parenthesised when it is an
+ * application of that same operator, because the parser would otherwise flatten the two into one
+ * — `a * (b * c)`, `(a * b) * c` and `a * b * c` are three documents the reference base writes
+ * between them, and the text form has to keep them apart.
  *
- * **Parentheses come from the precedence the symbols carry** and from nothing else. An infix
- * symbol with no precedence parenthesises every nested application, which is always correct; the
- * five levels `presentation.json` gives the language's operators are what reproduce S7's text
- * without a single pair.
+ * **A space where two texts would run together.** `not true` needs one and `-d` does not, and the
+ * difference is not typographic: `nottrue` is one word and `-1` is one number. The lexer is asked
+ * ({@link runsTogether}), so the rule is right for whatever symbols the file carries.
  */
-import {
-  isJsonArray,
-  isJsonNumber,
-  isJsonObject,
-  pyStr,
-  toPython,
-  type JsonValue,
-  type SchemaRegistry,
-} from '@tensorspine/lang';
-import type { SchemaShapes, Shape } from '@tensorspine/store';
+import { isJsonNumber, isJsonObject, pyStr, toPython, type JsonValue } from '@tensorspine/lang';
+import type { Shape } from '@tensorspine/store';
 
-import { alternationAt, chosenOf } from '../forms/alternatives.js';
-import type { Binding, Presentation, SymbolBinding } from '../presentation/index.js';
+import {
+  grammarAt,
+  APPLICATION,
+  FUNCTION,
+  INFIX,
+  KEYWORD,
+  LOOSEST,
+  PAYLOAD,
+  PREFIX,
+  unionAnchorOf,
+  type LanguageContext,
+  type Production,
+} from './language.js';
+import { quoted, runsTogether } from './lex.js';
+import { callName } from './parse.js';
 
 /** What a printing needs: the schemas it walks, the shapes it steps through, the bindings. */
-export interface PrintContext {
-  readonly registry: SchemaRegistry;
-  readonly shapes: SchemaShapes;
-  readonly bindings: Presentation;
-}
+export type PrintContext = LanguageContext;
 
 /** The text of a value at a place of a schema, and how tightly the result binds. */
 interface Printed {
@@ -58,161 +62,136 @@ interface Printed {
    * name, a number, a function call, a parenthesised group. `null` never needs parentheses.
    */
   readonly binds: number | null;
+  /** The production that wrote it, which is what says whether a list would absorb it. */
+  readonly production: Production | null;
+  /** How many operands that production was given. */
+  readonly parts: number;
 }
 
-/** What is printed for a value the walk cannot read at all. */
+/** What is printed for a value the grammar has no reading of at all. */
 export const UNPRINTABLE = '…';
 
 /** The text form of the value at a place of a schema. */
 export function printValue(context: PrintContext, shape: Shape, value: JsonValue): string {
-  return print(context, shape, value).text;
+  return printAt(context, unionAnchorOf(context, shape), value);
 }
 
-/** The text form of a value at an anchor — the entry point a badge and a header use. */
+/** The text form of a value at an anchor — the entry point a badge, a row and an editor use. */
 export function printAt(context: PrintContext, anchor: string, value: JsonValue): string {
-  return printValue(context, context.shapes.at(anchor), value);
+  return print(context, anchor, value).text;
 }
 
-/** The binding of a place, most specific first, as every reader of `presentation.json` takes it. */
-function bindingOf(bindings: Presentation, shape: Shape): Binding | undefined {
-  return bindings.firstOf(shape.all.map((place) => place.anchor));
+/** The text of one value, with the precedence of what it printed. */
+function print(context: PrintContext, anchor: string, value: JsonValue): Printed {
+  // A scalar standing where an expression is expected is not a literal *of* one — every
+  // alternative of both languages is an object — so it is some other place a caller prints
+  // through here (an interface's kind, a name, an enum value) and it is written as it stands.
+  if (!isJsonObject(value)) return atom(scalar(value, false));
+  const grammar = grammarAt(context, anchor);
+  const chosen = grammar.chosen(value);
+  if (chosen === null) return atom(UNPRINTABLE);
+  const { production, parts } = chosen;
+
+  if (production.kind === PAYLOAD) {
+    const payload = production.payload;
+    const text = `${payload?.prefix ?? ''}${scalar(parts[0] ?? null, payload?.named !== true)}`;
+    return atom(text);
+  }
+
+  if (production.kind === KEYWORD) {
+    const written = production.operands.map((operand, at) => {
+      const inner = print(context, operand.anchor, parts[at] ?? null);
+      return `${operand.keyword ?? ''} ${inner.text}`;
+    });
+    return { text: written.join(' '), binds: LOOSEST, production, parts: parts.length };
+  }
+
+  if (production.kind === APPLICATION && production.payload !== undefined) {
+    // A tagged production whose one member holds a name rather than an operand: `present(path)`.
+    const name = scalar(parts[0] ?? null, !production.payload.named);
+    return atom(`${production.symbol?.text ?? production.label}(${name})`);
+  }
+
+  const operandAnchor = (at: number): string =>
+    production.list?.anchor ?? production.operands[at]?.anchor ?? anchor;
+  const operands = parts.map((part, at) => print(context, operandAnchor(at), part));
+  return applied(grammar.marks, production, operands);
 }
 
-/** A scalar as the text form writes it: a name bare, a number by its own lexeme (feature 0.3). */
-function scalar(value: JsonValue): string {
-  if (typeof value === 'string') return value;
+/** A text that binds nothing: a name, a literal, a call, a parenthesised group. */
+function atom(text: string): Printed {
+  return { text, binds: null, production: null, parts: 0 };
+}
+
+/**
+ * A scalar as the text form writes it.
+ *
+ * A *name* is bare; a literal that is text is **quoted**, which §4.13 asks for ("a literal is a
+ * number, `true`, `false` or a quoted string") and the reference base's own data insists on:
+ * `causal` is a literal in `mask = causal` and an argument in `causal = true`, and one of the two
+ * readings would be lost otherwise. A number is written by its own lexeme (feature 0.3), so that
+ * `1e-05` stays `1e-05`, and by Python's repr where the editor made it (D12).
+ */
+function scalar(value: JsonValue, quote: boolean): string {
+  if (typeof value === 'string') return quote ? quoted(value) : value;
   if (value === true || value === false) return String(value);
-  if (value === null) return 'null';
+  if (value === null) return UNPRINTABLE;
   if (isJsonNumber(value)) return value.lexeme ?? pyStr(toPython(value));
   return UNPRINTABLE;
 }
 
-/** The text of one value, with the precedence of what it printed. */
-function print(context: PrintContext, shape: Shape, value: JsonValue): Printed {
-  if (!isJsonObject(value)) return { text: scalar(value), binds: null };
-  const { registry, shapes, bindings } = context;
-
-  // Which alternative the value is, is the grammar's verdict and never a resemblance (2.3).
-  const alternation = alternationAt(registry.vocabulary(), shapes, unionAnchorOf(context, shape));
-  const chosen = alternation === undefined ? null : chosenOf(registry, alternation, value);
-  const at = chosen === null ? shape : shapes.at(chosen.alternative.anchor);
-
-  // A union may bind its alternatives by tag — `all` prints `and`, `not` prints `not` — which is
-  // a symbol on the *union's* own binding keyed by the member name (feature 2.2).
-  const union = bindingOf(bindings, shape);
-  for (const member of value.members) {
-    const tagged = union?.symbols?.get(member.name);
-    if (tagged === undefined) continue;
-    return applied(tagged, member.name, operandsOf(context, at, member.name, member.value));
-  }
-
-  // Otherwise the operator is the member whose own binding carries the symbols of an enumeration,
-  // and the operands are the other members, in the schema's order.
-  const members = value.members.filter((one) => shapes.propertyOrder(at).includes(one.name));
-  const order = members.length > 0 ? members : value.members;
-  let symbol: { name: string; binding: SymbolBinding | undefined } | null = null;
-  const operands: Printed[] = [];
-  for (const member of order) {
-    const memberShape = shapes.member(at, member.name);
-    const symbols = bindingOf(bindings, memberShape)?.symbols;
-    if (symbols !== undefined && typeof member.value === 'string') {
-      symbol = { name: member.value, binding: symbols.get(member.value) };
-      continue;
-    }
-    if (isJsonArray(member.value)) {
-      const item = shapes.item(memberShape, 0);
-      for (const one of member.value) operands.push(print(context, item, one));
-      continue;
-    }
-    // A member holding an object whose own members carry the operator — a `compare` — is walked
-    // into rather than printed: the alternative's one member *is* the application.
-    if (isJsonObject(member.value) && symbol === null && operands.length === 0 && order.length === 1) {
-      const inner = print(context, memberShape, member.value);
-      return inner;
-    }
-    operands.push(print(context, memberShape, member.value));
-  }
-
-  if (symbol !== null) return applied(symbol.binding, symbol.name, operands);
-
-  // No operator at all: a one-member alternative is the name or the literal it holds, printed
-  // with whatever prefix its place binds (`$layer`).
-  const only = order[0];
-  if (order.length === 1 && only !== undefined) {
-    const memberShape = shapes.member(at, only.name);
-    const prefix = bindingOf(bindings, memberShape)?.prefix ?? '';
-    const inner = operands[0] ?? print(context, memberShape, only.value);
-    return { text: `${prefix}${inner.text}`, binds: prefix === '' ? inner.binds : null };
-  }
-
-  // Several members and nothing that says how they combine: the generic form, named by the
-  // alternative the grammar chose, which is what §1 asks of a construct with no binding.
-  const name = chosen?.alternative.label ?? '';
-  return { text: `${name}(${operands.map((one) => one.text).join(', ')})`, binds: null };
-}
-
-/** The operands of a tag-bound application: a list of them, or the single value the tag holds. */
-function operandsOf(
-  context: PrintContext,
-  shape: Shape,
-  member: string,
-  value: JsonValue,
-): Printed[] {
-  const memberShape = context.shapes.member(shape, member);
-  if (!isJsonArray(value)) return [print(context, memberShape, value)];
-  const item = context.shapes.item(memberShape, 0);
-  return value.map((one) => print(context, item, one));
-}
-
 /** One application, printed in the form its symbol names. */
 function applied(
-  symbol: SymbolBinding | undefined,
-  name: string,
+  marks: readonly string[],
+  production: Production,
   operands: readonly Printed[],
 ): Printed {
+  const symbol = production.symbol;
   const listed = operands.map((one) => one.text).join(', ');
+  const name = callName(production) ?? production.label;
   // §4.13: "an operator without a symbol renders and parses as `name(args)`".
-  if (symbol === undefined) return { text: `${name}(${listed})`, binds: null };
+  if (symbol === undefined) return atom(`${name}(${listed})`);
   if (symbol.form === PREFIX) {
     const only = operands[0];
-    if (only === undefined) return { text: symbol.text, binds: null };
-    // `not true` needs the space and `-d` does not: a symbol ending in a word character runs into
-    // its argument, one ending in punctuation does not. A typographic rule, not the language's.
-    const gap = /\w$/.test(symbol.text) ? ' ' : '';
-    return { text: `${symbol.text}${gap}${wrap(only, Infinity)}`, binds: null };
+    if (only === undefined) return atom(symbol.text);
+    const operand = wrap(only, production, 0, Infinity);
+    const gap = runsTogether(symbol.text, operand, marks) ? ' ' : '';
+    return atom(`${symbol.text}${gap}${operand}`);
   }
   if (symbol.form === INFIX && operands.length >= 2) {
     const binds = symbol.precedence ?? null;
     const floor = binds ?? Infinity;
-    return { text: operands.map((one) => wrap(one, floor)).join(` ${symbol.text} `), binds };
+    const text = operands.map((one, at) => wrap(one, production, at, floor)).join(` ${symbol.text} `);
+    return { text, binds, production, parts: operands.length };
   }
-  return { text: `${symbol.text}(${listed})`, binds: null };
-}
-
-/** An operand, parenthesised where its own application binds more loosely than its parent. */
-function wrap(operand: Printed, floor: number): string {
-  return operand.binds !== null && operand.binds < floor ? `(${operand.text})` : operand.text;
+  // A function form — and an infix symbol with fewer operands than it can stand between, which
+  // the grammar admits (`all` takes one) and no repository file writes. It keeps its production,
+  // because a *call* of the operator that would absorb it still has to be parenthesised where a
+  // chain of that operator begins: `and(true) and x` would otherwise read as two clauses.
+  if (symbol.form === FUNCTION || symbol.form === INFIX) {
+    return { text: `${symbol.text}(${listed})`, binds: null, production, parts: operands.length };
+  }
+  // A form the interface has no rendering for: §1's "unknown constructs get the generic widget",
+  // which here is the same fallback an operator with no symbol at all gets.
+  return atom(`${name}(${listed})`);
 }
 
 /**
- * The anchor a place is read as a union by: the first of its chain that *is* one.
+ * An operand, parenthesised exactly where the parser would read the text differently without it.
  *
- * A member holding an expression is reached through its own property anchor
- * (`…/comparison_condition/properties/compare/properties/left`), which names no union at all; the
- * union is one `$ref` along, at `#/$defs/scalar_expression`. Taking the first anchor of the chain
- * would leave every nested application undiscriminated, and the operator's symbol with it — found
- * by this suite's own S7 line, which printed `modulo($layer, 5)`.
+ * Three reasons, and no fourth: it binds more loosely; it binds equally and stands to the right
+ * of a chain the parser reads left to right; or it is an application of the very operator that
+ * would absorb it into one list.
  */
-function unionAnchorOf(context: PrintContext, shape: Shape): string {
-  const vocabulary = context.registry.vocabulary();
-  for (const place of shape.all) {
-    if (vocabulary.unionAt(place.anchor) !== undefined) return place.anchor;
-  }
-  return shape.all[0]?.anchor ?? '';
+function wrap(operand: Printed, production: Production, at: number, floor: number): string {
+  const parenthesised = `(${operand.text})`;
+  // The operand a chain of this very operator would absorb into itself, whatever it is written as:
+  // a nested application of it, or a *call* of it with too few operands to stand between.
+  const list = production.list;
+  const absorbed =
+    at === 0 && list !== undefined && list.maximum > 2 && operand.production === production;
+  if (operand.binds === null) return absorbed ? parenthesised : operand.text;
+  if (operand.binds < floor) return parenthesised;
+  if (operand.binds > floor) return operand.text;
+  return at > 0 || absorbed ? parenthesised : operand.text;
 }
-
-/** The `form` an operator printed before its argument carries. */
-const PREFIX = 'prefix';
-
-/** The `form` an operator printed between its arguments carries. */
-const INFIX = 'infix';

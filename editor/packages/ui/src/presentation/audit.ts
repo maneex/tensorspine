@@ -73,6 +73,9 @@ const ALTERNATIVE = 'alternative';
 /** The marker a scoped reference rule writes: the enclosing declaration. */
 export const SCOPE = 'scope';
 
+/** The code of a keyword that introduces a member the definition does not declare. */
+const KEYWORD = 'keyword';
+
 /** Resolves every key of the bindings against the registry, and lists what nothing names. */
 export function auditPresentation(
   registry: SchemaRegistry,
@@ -114,6 +117,7 @@ export function auditPresentation(
     resolved += 1;
     problems.push(...symbolProblems(anchor, binding, place.anchor, vocabulary));
     problems.push(...faceProblems(anchor, binding, place.node));
+    problems.push(...keywordProblems(anchor, binding, place.node));
     problems.push(...scopeProblems(anchor, binding, bindings));
   }
 
@@ -167,12 +171,10 @@ function symbolProblems(
 function faceProblems(anchor: string, binding: Binding, node: unknown): PresentationProblem[] {
   const face = binding.face;
   if (face === undefined) return [];
-  const declared =
-    typeof node === 'object' && node !== null ? (node as Record<string, unknown>)['properties'] : undefined;
-  if (typeof declared !== 'object' || declared === null || Array.isArray(declared)) {
+  const names = declaredMembers(node);
+  if (names === null) {
     return [{ code: 'face', anchor, message: 'has a face, but declares no members' }];
   }
-  const names = new Set(Object.keys(declared));
   return face
     .filter((member) => !names.has(member))
     .map((member) => ({
@@ -180,6 +182,37 @@ function faceProblems(anchor: string, binding: Binding, node: unknown): Presenta
       anchor,
       message: `shows '${member}' on its face, which it does not declare`,
     }));
+}
+
+/**
+ * The keywords of a text form, against the members the definition declares.
+ *
+ * The same failure as a `face` naming a member that is not there, one level down: a keyword
+ * written for a member the definition does not declare introduces an operand nothing writes, so
+ * the text form would print a word with nothing after it and the parser would ask for one.
+ */
+function keywordProblems(anchor: string, binding: Binding, node: unknown): PresentationProblem[] {
+  const keywords = binding.keywords;
+  if (keywords === undefined) return [];
+  const names = declaredMembers(node);
+  if (names === null) {
+    return [{ code: KEYWORD, anchor, message: 'introduces members, but declares none' }];
+  }
+  return [...keywords.keys()]
+    .filter((member) => !names.has(member))
+    .map((member) => ({
+      code: KEYWORD,
+      anchor,
+      message: `introduces '${member}', which it does not declare`,
+    }));
+}
+
+/** The member names a definition declares, or `null` where it declares none. */
+function declaredMembers(node: unknown): ReadonlySet<string> | null {
+  const declared =
+    typeof node === 'object' && node !== null ? (node as Record<string, unknown>)['properties'] : undefined;
+  if (typeof declared !== 'object' || declared === null || Array.isArray(declared)) return null;
+  return new Set(Object.keys(declared));
 }
 
 /** The scope a binding's reference rules read against. */

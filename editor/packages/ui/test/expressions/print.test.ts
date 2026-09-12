@@ -48,7 +48,11 @@ describe('the text form of an expression', () => {
     expect(expression('{"literal": 4096}')).toBe('4096');
     expect(expression('{"literal": 1e-05}')).toBe('1e-05');
     expect(expression('{"literal": 1.0}')).toBe('1.0');
-    expect(expression('{"literal": "causal"}')).toBe('causal');
+    // Quoted, which §4.13 asks for ("a literal is a number, `true`, `false` or a quoted string")
+    // and which feature 2.11's parser makes load-bearing: `mask = "causal"` and `causal = true`
+    // are both written in the reference base, and a bare `causal` reads as the *argument* in
+    // both. The printed form changed at 2.11 for that reason and for no other.
+    expect(expression('{"literal": "causal"}')).toBe('"causal"');
     expect(expression('{"literal": true}')).toBe('true');
   });
 

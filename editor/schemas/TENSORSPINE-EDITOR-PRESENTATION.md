@@ -65,6 +65,7 @@ meanings: so the declaration is bound at
 | `create` | the label of the action beside that picker when what is wanted does not exist yet |
 | `prefix` | what is printed before a name written at this place, so a text form tells an index from a quantity |
 | `symbols` | a symbol per value of the enumeration at this anchor, or per tag of the union at it |
+| `keywords` | the word written before each member of the construct at this anchor: `if … then … else …` |
 | `format` | how a figure is shown: `bytes`, `elements`, `operations`, `count`, `status`, `shape` |
 | `statusBar` | this figure is one of the status bar's four totals, in this position and under this label |
 | `declares` | the kind of thing the map at this anchor declares |
@@ -89,9 +90,11 @@ startup audit as rendered generically. `min` and `max` therefore carry none: the
 their name, and writing it down would be repeating the schema.
 
 The same member binds the alternatives of a union by their tag, which is how the three boolean
-connectives get their text: `all` prints as `and`, `any` as `or`, `not` as `not`. `boolean`,
-`present` and `compare` carry none — a boolean condition prints as its own literal, a presence
-test as `present(path)`, and a comparison through its operator's symbol.
+connectives get their text: `all` prints as `and`, `any` as `or`, `not` as `not`. It is also how
+`present` gets its own — §4.13's symbol list ends with `present(path)`, and a presence test whose
+member carried no symbol would print as the bare argument path it holds, which is exactly how a
+*reference* to that argument prints. `boolean` and `compare` carry none, and need none: a boolean
+condition prints as its own literal and a comparison through its operator's symbol.
 
 An infix symbol also carries a **precedence**, and for the same reason the form is written rather
 than computed: an operator's enumeration says nothing about how a reader groups it. `layers - 1`,
@@ -99,6 +102,19 @@ than computed: an operator's enumeration says nothing about how a reader groups 
 and `(a + b) * c` cannot be; the numbers are what decide, and the parser of §4.13 reads the same
 ones so that text and tree round-trip. An infix symbol with no precedence parenthesises every
 nested application — always correct, rarely readable.
+
+### Keywords
+
+`{"if": "if", "then": "then", "else": "else"}`. A symbol names one operator and stands in one
+place — before its operand, between two, or around a list — and §4.13's symbol list also carries
+`if … then … else …`, which is none of those: three operands, each introduced by a word of its
+own. So the binding is a word **per member**, written at the alternative's own anchor, and the
+order the words come in is the *schema's* member order rather than the file's.
+
+Without it a conditional expression would fall to §1's generic form, `label(a, b, c)` — and the
+label a chooser gives that alternative is `if | then | else`, which is no name a text form can
+write or a parser can read. The audit checks each key against the members the definition declares,
+as it checks a `face`.
 
 ### Prefixes
 

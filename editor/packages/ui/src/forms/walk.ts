@@ -44,7 +44,7 @@ import {
 } from '@tensorspine/lang';
 import { pointerOf, SchemaShapes, type Shape } from '@tensorspine/store';
 
-import { presentation } from '../presentation/load.js';
+import { boundAlong, presentation } from '../presentation/load.js';
 import type { Binding, Presentation } from '../presentation/types.js';
 import { alternationAt, chosenOf, type Alternation, type Alternative } from './alternatives.js';
 import type {
@@ -323,7 +323,7 @@ class Walk {
    * is untouched.
    */
   private factsOfShape(shape: Shape): SchemaFacts {
-    return mergeFacts(chainOf(shape).map((place) => place.node));
+    return factsOfShape(shape);
   }
 
   /** The union at the first anchor of the chain that names one, flattened and kept. */
@@ -357,7 +357,6 @@ class Walk {
     const { shapes, bindings } = this.context;
     const shape = shapes.at(alternative.anchor);
     const facts = this.factsOfShape(shape);
-    const binding = bindings.firstOf(alternative.ancestry);
     const only = facts.members.length === 1 ? facts.members[0] : undefined;
     let member: { widget: string; facts: SchemaFacts } | undefined;
     if (only !== undefined) {
@@ -373,7 +372,10 @@ class Walk {
     }
     const inline =
       only !== undefined && facts.closed && member !== undefined && editsOneValue(member.widget);
-    const editor = inline ? undefined : binding?.widget;
+    // The editor is asked for *along* the chain rather than taken from its first binding: an
+    // alternative may carry a binding of its own — `conditional_expression`'s keywords — while
+    // the editor that owns it is bound at the union one step along (§4.13).
+    const editor = inline ? undefined : boundAlong(bindings, alternative.ancestry, 'widget');
     const tag = alternative.tags.length === 1 ? alternative.tags[0] : undefined;
     const symbols = bindings.at(alternative.union)?.symbols;
     // The same three conditions the presentation audit calls "named" (plan §1 (a)): a symbol at
@@ -392,7 +394,7 @@ class Walk {
       unbound: named ? [] : [alternative.anchor],
     };
     if (only !== undefined) mode.member = only;
-    const references = binding?.references ?? outer?.references;
+    const references = boundAlong(bindings, alternative.ancestry, 'references') ?? outer?.references;
     if (tag !== undefined && references?.includes(tag) === true) mode.referent = tag;
     if (inline && member?.facts.choices != null) mode.options = optionsOf(member.facts.choices);
     return { mode, editor: editor !== undefined };
@@ -625,8 +627,20 @@ class Walk {
  * branches there is the only reading available — and it is what the walk enters, so a definition
  * that comes round again is met and stopped.
  */
-function chainOf(shape: Shape): readonly { readonly anchor: string; readonly node: SchemaObject }[] {
+export function chainOf(shape: Shape): readonly { readonly anchor: string; readonly node: SchemaObject }[] {
   return shape.direct.length > 0 ? shape.direct : shape.all;
+}
+
+/**
+ * What a place asserts, read from its chain most specific first.
+ *
+ * Exported because the expression grammar of §4.13 asks the same question of the same places —
+ * whether a member holds a list, an object or a scalar, what its enumeration is, what bounds its
+ * arity has — and a second reading of a chain is a second answer waiting to disagree with this
+ * one.
+ */
+export function factsOfShape(shape: Shape): SchemaFacts {
+  return mergeFacts(chainOf(shape).map((place) => place.node));
 }
 
 /** The options of a select: the schema's `enum`, in its own order, each labelled by its value. */

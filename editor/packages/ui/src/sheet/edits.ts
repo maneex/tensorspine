@@ -35,7 +35,9 @@ import {
   type EditContext,
 } from '@tensorspine/store';
 
-import type { FormMode, FormOption } from '../forms/index.js';
+import { blankOf, type FormMode, type FormOption } from '../forms/index.js';
+
+export { blankOf };
 import type { ArgumentRow } from './arguments.js';
 
 /**
@@ -70,15 +72,27 @@ export function writeMode(
 ): Command {
   const member = mode.member;
   if (member === undefined) throw new Error(`the mode ${mode.tag} writes no single member`);
-  const written = jsonObject([{ name: member, value }]);
+  return writeValue(context, row, jsonObject([{ name: member, value }]));
+}
+
+/**
+ * Write a whole value at a row's place — what §4.13's expression editor answers.
+ *
+ * The editor of a shaped mode hands back the tagged JSON itself (`{"op": …, "args": […]}`), not a
+ * scalar to be wrapped in a member, so it writes through the same two cases {@link writeMode}
+ * does and shares them: **set** where the document already writes the row, so the map keeps its
+ * order and an unedited save writes the bytes that were read (D12); **appended** where it does
+ * not, which is §5.5's rule for what a gesture adds.
+ */
+export function writeValue(context: EditContext, row: ArgumentRow, value: JsonValue): Command {
   if (nodeAt(context.tree, row.at) !== undefined) {
-    return setValue(context, { path: row.at, value: written, label: `Set ${row.path}` });
+    return setValue(context, { path: row.at, value, label: `Set ${row.path}` });
   }
   const name = lastOf(row.at);
   return setMemberAt(context, {
     path: parentOf(row.at),
     name: typeof name === 'string' ? name : String(name),
-    value: written,
+    value,
     label: `Set ${row.path}`,
   });
 }
@@ -143,20 +157,6 @@ export function pinValue(context: EditContext, row: ArgumentRow, facts: SchemaFa
   return writeLiteral(context, row, scalarOf(effective, facts, row.options), facts);
 }
 
-/**
- * The blank a mode starts from: the first value the place admits.
- *
- * Not a default of the editor's — the language's defaults are the declaration's and are never
- * written (§4.12) — but the first thing the *grammar* accepts there, so that the document the
- * gesture leaves is on the schema (D5) and the core's own verdict is what judges it.
- */
-export function blankOf(facts: SchemaFacts, options: readonly FormOption[] | undefined): string | number | boolean {
-  const first = options?.[0]?.value;
-  if (first !== undefined && first !== null) return first;
-  if (facts.holdsTruth) return false;
-  if (facts.holdsWholeNumber || facts.holdsNumber) return 0;
-  return '';
-}
 
 /**
  * The printed value read back as the scalar the place admits.

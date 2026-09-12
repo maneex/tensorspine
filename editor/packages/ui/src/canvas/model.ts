@@ -25,6 +25,7 @@
  */
 import {
   derivedFacts,
+  languageAnchors,
   noDerivedFacts,
   pyStr,
   slotKey,
@@ -42,7 +43,7 @@ import type { Facts, Problem } from '@tensorspine/lang/api';
 import { pointerOf, type Path, type SchemaShapes } from '@tensorspine/store';
 
 import { sizeText } from '../documents/figures.js';
-import { printValue, type PrintContext } from '../expressions/index.js';
+import { printAt, printValue, type PrintContext } from '../expressions/index.js';
 import type { Binding, Presentation } from '../presentation/index.js';
 
 /** The roles `presentation.json` gives a construct on the canvas. */
@@ -351,14 +352,16 @@ function portTitle(port: SiteDescription['inputs'][number]): string {
  *
  * `ArgumentFact.structural` is the core's answer, read inside `resolve_arguments`' own walk; the
  * value is the expression the *document* writes, printed in §4.13's text form, which is what S2
- * draws (`width=d`, `mask=causal`) rather than the 4096 it resolves to.
+ * draws (`width=d`) rather than the 4096 it resolves to. The place it is printed at is the core's
+ * too (`ArgumentFact.at`): an expression is read against the schema at *its own* place, and the
+ * map it is written in is not one.
  */
-function summaryOf(site: SiteDescription | undefined, print: (value: JsonValue) => string): string {
+function summaryOf(site: SiteDescription | undefined, print: (path: Path, value: JsonValue) => string): string {
   if (site === undefined) return '';
   const parts: string[] = [];
   for (const fact of site.arguments.facts) {
     if (!fact.structural || fact.written === undefined) continue;
-    parts.push(`${fact.path}=${print(toJsonValue(fact.written))}`);
+    parts.push(`${fact.path}=${print([...fact.at] as Path, toJsonValue(fact.written))}`);
   }
   return parts.join(' · ');
 }
@@ -370,6 +373,9 @@ export function canvasModel(request: CanvasRequest): CanvasModel {
   const view = request.view ?? DEFAULT_VIEW;
   const collapsed = request.collapsed ?? new Set<string>();
   const context: PrintContext = { registry, shapes, bindings };
+  // Where a scalar expression is written in the schemas: the core names it, because naming a
+  // place of a schema in the interface is naming something the schema states (§1, `anchors.ts`).
+  const expressionAnchor = languageAnchors(registry).expression;
   const derived =
     request.derived === null ? noDerivedFacts() : derivedFacts(request.derived, folded);
   const described = descriptionsByBox(facts);
@@ -387,18 +393,18 @@ export function canvasModel(request: CanvasRequest): CanvasModel {
     const site = described.get(node.pointer);
     const mine = problems.filter((one) => under(one.path, node.pointer));
     const figures = derived.figures.get(node.pointer);
-    const summary = summaryOf(site, (value) =>
-      print([...node.segments, 'arguments'] as Path, value),
-    );
+    const summary = summaryOf(site, print);
     const inputs = portsOf(site, 'inputs');
     const outputs = portsOf(site, 'outputs');
     const slots = slotsOf(site, node.pointer, derived);
-    const handles = shut ? handlesOf(folded, node, print) : [];
+    const handles = shut
+      ? handlesOf(folded, node, (value) => printAt(context, expressionAnchor, value))
+      : [];
     const range =
       node.ranges.length === 0
         ? null
         : node.ranges
-            .map((one) => rangeText(one, (value) => print([...node.segments, 'indices'] as Path, value)))
+            .map((one) => rangeText(one, (value) => printAt(context, expressionAnchor, value)))
             .join(' · ');
     const derivedLine = view.derivedFigures ? figureLine(figures) : null;
     const box: CanvasBox = {
@@ -497,7 +503,13 @@ function noteOf(folded: FoldedGraph): string {
   return parts.join(' · ');
 }
 
-/** A composition's index range, as §4.7 and S3 print it: `layer ∈ [0, 32)`. */
+/**
+ * A composition's index range, as §4.7 and S3 print it: `layer ∈ [0, 32)`.
+ *
+ * The three values are scalar expressions by construction — that is what the core answers them as
+ * — so they are printed at the anchor the core names for one, rather than at a path: the map they
+ * are written in is no place to read an expression against.
+ */
 function rangeText(range: FoldedNode['ranges'][number], print: (value: JsonValue) => string): string {
   const step = range.step === null ? '' : ` by ${print(range.step)}`;
   return `${range.name} ∈ [${print(range.start)}, ${print(range.stop)})${step}`;
@@ -507,7 +519,7 @@ function rangeText(range: FoldedNode['ranges'][number], print: (value: JsonValue
 function handlesOf(
   folded: FoldedGraph,
   node: FoldedNode,
-  print: (path: Path, value: JsonValue) => string,
+  print: (value: JsonValue) => string,
 ): CanvasHandle[] {
   const handles: CanvasHandle[] = [];
   const seen = new Set<string>();
@@ -518,7 +530,7 @@ function handlesOf(
     ] as const) {
       if (end === null || !end.boundary || end.box !== node.pointer) continue;
       const indices = end.indices
-        .map((one) => `${one.name}=${one.value === null ? print(edge.segments, one.written) : pyStr(one.value)}`)
+        .map((one) => `${one.name}=${one.value === null ? print(one.written) : pyStr(one.value)}`)
         .join(', ');
       const label = `${end.name}[${indices}].${end.port}`;
       if (seen.has(label)) continue;

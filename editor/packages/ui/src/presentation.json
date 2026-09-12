@@ -43,6 +43,13 @@
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/index_expression/properties/index": {
     "prefix": "$"
   },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/conditional_expression": {
+    "keywords": {
+      "if": "if",
+      "then": "then",
+      "else": "else"
+    }
+  },
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/condition": {
     "widget": "condition",
     "symbols": {
@@ -157,8 +164,18 @@
       "argument"
     ]
   },
+  "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/conditional_expression": {
+    "keywords": {
+      "if": "if",
+      "then": "then",
+      "else": "else"
+    }
+  },
   "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/condition": {
     "widget": "condition",
+    "references": [
+      "present"
+    ],
     "symbols": {
       "all": {
         "text": "and",
@@ -173,6 +190,10 @@
       "not": {
         "text": "not",
         "form": "prefix"
+      },
+      "present": {
+        "text": "present",
+        "form": "function"
       }
     }
   },

@@ -95,7 +95,10 @@ describe('the rows of S6, by name and by state', () => {
     const row = rowOf(shown.rows, 'chunk');
     expect(row.applicable).toBe(false);
     // The condition itself, printed in §4.13's text form from the artifact's own annotation.
-    expect(row.presentWhen).toBe('mask = chunked');
+    // The literal is quoted since feature 2.11: §4.13's text form writes a string literal in
+    // quotes, which is what tells it from an argument of the same name (`causal = true` is
+    // written in the very same base). The condition itself is the declaration's own.
+    expect(row.presentWhen).toBe('mask = "chunked"');
   });
 
   it('gives a record row a section widget and its fields their own rows', () => {

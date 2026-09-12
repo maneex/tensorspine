@@ -191,7 +191,9 @@ test.describe('selecting an item', () => {
     // Another row, and the sheet follows it.
     await row(page, '/quantities/head_dim').click();
     await expect(sheet.locator('input[data-name-field]')).toHaveValue('head_dim');
-    await expect(sheet.locator('.ihn')).toHaveText('quantity');
+    // The Identity heading's own count; the sheet gained a second heading at feature 2.11 (the
+    // expressions the place writes), and this row is about the first.
+    await expect(sheet.locator('h2.ih').first().locator('.ihn')).toHaveText('quantity');
     await expect(sheet.locator('[data-place]')).toHaveText('/quantities/head_dim');
   });
 

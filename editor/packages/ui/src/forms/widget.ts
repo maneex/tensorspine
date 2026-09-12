@@ -20,6 +20,8 @@
  */
 import type { SchemaFacts } from '@tensorspine/lang';
 
+import type { FormOption } from './types.js';
+
 /** Free text. */
 export const TEXT = 'text';
 /** A whole number: plan §4.12's integer stepper. */
@@ -104,4 +106,28 @@ export function editsOneValue(widget: string): boolean {
     widget === SCALAR ||
     widget === NOTHING
   );
+}
+
+/**
+ * The blank a mode starts from: the first value the place admits.
+ *
+ * Not a default of the editor's — the language's defaults are the declaration's and are never
+ * written (§4.12) — but the first thing the *grammar* accepts there, so that the document the
+ * gesture leaves is on the schema (D5) and the core's own verdict is what judges it. It lives
+ * beside {@link widgetOf} because it is the same kind of rule over the same facts, and because
+ * both the argument sheet (§4.12) and the expression tree (§4.13) start a value from it.
+ */
+export function blankOf(
+  facts: SchemaFacts,
+  options: readonly FormOption[] | undefined,
+): string | number | boolean {
+  const first = options?.[0]?.value;
+  if (first !== undefined && first !== null) return first;
+  // A place that admits one type has one blank whatever the order below is; a place that admits
+  // several is the grammar's own `scalar_literal` — a literal of an expression — and there the
+  // number comes first, because that is what the repository's expressions are made of (678 number
+  // literals against 140 booleans, corpus and reference base together).
+  if (facts.holdsWholeNumber || facts.holdsNumber) return 0;
+  if (facts.holdsTruth) return false;
+  return '';
 }

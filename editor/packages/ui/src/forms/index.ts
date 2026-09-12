@@ -34,6 +34,7 @@ export {
   type FormRequest,
 } from './walk.js';
 export {
+  blankOf,
   CHOOSER,
   editsOneValue,
   FIXED,

@@ -39,6 +39,7 @@ import {
   nodeAt,
   pointerOf,
   remove,
+  setMemberAt,
   setValue,
   type Command,
   type EditContext,
@@ -61,9 +62,18 @@ import {
   SECTION,
   type Form,
   type FormContext,
+  type FormMode,
   type FormRow,
 } from '../forms/index.js';
-import { printValue } from '../expressions/index.js';
+import {
+  blankAt as blankExpression,
+  documentResolver,
+  editsExpression,
+  ExpressionEditor,
+  printValue,
+  unionAnchorOf,
+  type Resolver,
+} from '../expressions/index.js';
 import { presentation } from '../presentation/index.js';
 import { text, textWith } from '../shell/strings.js';
 import { argumentSheet, type ArgumentRow, type ArgumentSheet } from './arguments.js';
@@ -77,6 +87,7 @@ import {
   writeLiteral,
   writeMode,
   writeRecord,
+  writeValue,
 } from './edits.js';
 import { instanceSheet, type InstanceSheet, type PortRow, type SlotRow, type StateRow } from './instance.js';
 import { namesFor } from './names.js';
@@ -213,6 +224,7 @@ function PlaceSheet(): JSX.Element {
           <span className="fv mono">{row.tail}</span>
         </div>
       )}
+      <PlaceExpressions one={one} at={selection} />
       <p className="empty-sub">
         {text(
           'The sections of this sheet are the ones the feature that can answer them adds: the other declarations’ sheets and the tables, and the bindings and locations.',
@@ -220,6 +232,67 @@ function PlaceSheet(): JSX.Element {
       </p>
     </>
   );
+}
+
+/**
+ * Every expression and condition written under the selected place — §4.13, and only that.
+ *
+ * §4.13's own list is what this section is: "the same editor serves guards, index ranges,
+ * derivations, defaults, extents, domain bounds, location offsets, `present_when`, rule `when`s,
+ * invariants, cost entries and granularities". A quantity's `derivation` is one of them, and it is
+ * editable here before the **quantity sheet** exists, because that sheet — its type select, its
+ * source kind, its domain, its `Used by` — is feature 2.12's block and nothing of it is written
+ * here.
+ *
+ * The places are found by the generic walker (feature 2.3) and never by a path: whatever the
+ * schema puts an expression at, the section shows, and a grammar that grew another one needs no
+ * change here. Only what the document **writes** is listed; creating one is the gesture of the
+ * sheet that declares it.
+ */
+function PlaceExpressions({ one, at }: { one: OpenDocument; at: Path }): JSX.Element | null {
+  const context = contextFor(useDocuments((state) => state.registry));
+  const value = context === null ? undefined : nodeAt(one.session.store.tree, at);
+  if (context === null || value === undefined) return null;
+  const rows = expressionRowsOf(one, at, context);
+  if (rows.length === 0) return null;
+  return (
+    <>
+      <h2 className="ih">
+        {text('Expressions')}
+        <span className="ihn">{String(rows.length)}</span>
+      </h2>
+      {rows.map((row) => (
+        <ExpressionField
+          key={row.path}
+          one={one}
+          path={[...at, ...row.steps] as Path}
+          widget={row.widget}
+          name={row.label}
+          context={context}
+          label={row.path.slice(1).replace(/\//g, ' · ')}
+        />
+      ))}
+    </>
+  );
+}
+
+/** The expression rows of one place, memoised on the selection and the revision. */
+let lastExpressions: { key: string; rows: readonly FormRow[] } | null = null;
+
+function expressionRowsOf(one: OpenDocument, at: Path, context: FormContext): readonly FormRow[] {
+  // Walking the place is what finds them (feature 2.3), and a place can be a whole composition —
+  // 2.3 measured a whole document at 15.9 ms — so the walk is paid once per state of the tree and
+  // not once per keystroke of the editor it draws.
+  const key = `${one.id}@${String(one.session.store.revision)}#${pointerOf(at)}`;
+  if (lastExpressions !== null && lastExpressions.key === key) return lastExpressions.rows;
+  const value = nodeAt(one.session.store.tree, at);
+  const form =
+    value === undefined
+      ? { rows: [], notes: [] }
+      : formOf(context, { shape: shapeAt(context.shapes, at, one.session.store.role), value });
+  const rows = form.rows.filter((row) => editsExpression(row.widget) && row.present);
+  lastExpressions = { key, rows };
+  return rows;
 }
 
 /** The name row every sheet starts with — §4.4's "a value is edited in the sheet's row". */
@@ -435,6 +508,7 @@ function Identity({
           key={member.path}
           one={one}
           row={member}
+          base={[...site.segments] as Path}
           form={form}
           sheet={sheet}
           versions={versions}
@@ -449,6 +523,7 @@ function Identity({
 function MemberRow({
   one,
   row,
+  base,
   form,
   sheet,
   versions,
@@ -456,6 +531,17 @@ function MemberRow({
 }: {
   one: OpenDocument;
   row: FormRow;
+  /**
+   * Where the form the row belongs to starts, in the document.
+   *
+   * A generated form's `steps` are relative to the value it was given (feature 2.3), and the
+   * Identity section's form is the walker over the **site** — so a row's place in the document is
+   * the site's place and the row's steps, and a reading that took the steps alone named a member
+   * of the document's root. Feature 2.11 found it: the guard row read `/when`, which no document
+   * has, so it drew an em dash where its condition stands, and a version written from that row
+   * would have been written there too.
+   */
+  base: Path;
   form: Form;
   sheet: InstanceSheet;
   versions: ReadonlyMap<string, readonly string[]>;
@@ -469,7 +555,7 @@ function MemberRow({
   const label = row.label;
   if (row.widget === LIST) {
     return row.present ? (
-      <ListRow one={one} row={row} items={under} />
+      <ListRow one={one} row={row} base={base} items={under} />
     ) : (
       <div className="frow" data-member={row.label}>
         <span className="fk">{label}</span>
@@ -485,7 +571,7 @@ function MemberRow({
           {under.map((each) => (
             <span key={each.path} className="subfield">
               <i className="sublabel">{each.label}</i>
-              <ScalarField row={each} sheet={sheet} versions={versions} />
+              <ScalarField row={each} base={base} sheet={sheet} versions={versions} />
             </span>
           ))}
         </span>
@@ -500,23 +586,31 @@ function MemberRow({
       </div>
     );
   }
+  if (editsExpression(row.widget)) {
+    // A place a presentation binding gives an editor to — §4.13's, on the guard's own condition.
+    return (
+      <ExpressionField
+        one={one}
+        path={[...base, ...row.steps] as Path}
+        widget={row.widget}
+        name={row.label}
+        context={context}
+        label={label}
+      />
+    );
+  }
   if (!editsOneValue(row.widget)) {
-    // A place a presentation binding gives an editor to — the guard's condition (§4.13). The text
-    // form is the printer's, the editor is feature 2.11's, and the row says which.
-    const value = nodeAt(one.session.store.tree, [...row.steps] as Path);
+    // A place with an editor nobody has written yet: the printed value, and the row says so.
+    const value = nodeAt(one.session.store.tree, [...base, ...row.steps] as Path);
     return (
       <div className="frow" data-member={row.label}>
         <span className="fk">{label}</span>
-        <span
-          className="fv mono"
-          data-editor={row.widget}
-          title={text('The expression editors arrive with their own feature.')}
-        >
+        <span className="fv mono" data-editor={row.widget}>
           {value === undefined
             ? EMPTY
             : printValue(
                 { registry: context.registry, shapes: context.shapes, bindings: context.bindings },
-                shapeAt(context.shapes, [...row.steps] as Path, one.session.store.role),
+                shapeAt(context.shapes, [...base, ...row.steps] as Path, one.session.store.role),
                 value,
               )}
         </span>
@@ -527,20 +621,141 @@ function MemberRow({
     <div className="frow" data-member={row.label}>
       <span className="fk">{label}</span>
       <span className="fv">
-        <ScalarField row={row} sheet={sheet} versions={versions} />
+        <ScalarField row={row} base={base} sheet={sheet} versions={versions} />
       </span>
     </div>
   );
+}
+
+/**
+ * A field whose value is an expression or a condition — §4.13, artboard S7.
+ *
+ * The row of §4.11 that holds a guard is the one place of the instance sheet this happens today;
+ * the same component serves an index range, a derivation and every other place the plan's list
+ * names, since what it needs is a place of the document and the anchor its value stands at.
+ *
+ * The **anchor is the schema's**, stepped down from the document's root like every other reading
+ * of a place (feature 2.3's rule: a caller with a shape hands it over, never an anchor written
+ * here), and the union along that chain is what the grammar is read at.
+ */
+function ExpressionField({
+  one,
+  path,
+  widget,
+  name,
+  context,
+  label,
+}: {
+  one: OpenDocument;
+  path: Path;
+  widget: string;
+  name: string;
+  context: FormContext;
+  label: string;
+}): JSX.Element {
+  const store = useDocumentsStore();
+  const shape = shapeAt(context.shapes, path, one.session.store.role);
+  const anchor = unionAnchorOf(context, shape);
+  const value = nodeAt(one.session.store.tree, path);
+  return (
+    <div className="frow wide" data-member={name} data-editor={widget}>
+      <span className="fk">{label}</span>
+      <span className="fv">
+        <ExpressionEditor
+          anchor={anchor}
+          value={value}
+          context={context}
+          label={label}
+          names={namePicker(one, context, path)}
+          resolve={resolverFor(one)}
+          onChange={(next) => {
+            edit(store, (made) =>
+              nodeAt(made.tree, path) === undefined
+                ? setMember(made, path, next, `Set ${name}`)
+                : setValue(made, { path, value: next, label: `Set ${name}` }),
+            );
+          }}
+        />
+      </span>
+    </div>
+  );
+}
+
+/** A member written where the document has none: the map gains it, appended (§5.5). */
+function setMember(context: EditContext, path: Path, value: JsonValue, label: string): Command {
+  const name = path[path.length - 1];
+  return setMemberAt(context, {
+    path: path.slice(0, -1),
+    name: typeof name === 'string' ? name : String(name ?? ''),
+    value,
+    label,
+  });
+}
+
+/**
+ * What an expression editor's pickers offer — the same answer §4.12's referring modes get.
+ *
+ * `namesFor` is feature 2.10's, and it reads the *outline* (2.7's, which reads the presentation
+ * file's `declares`) rather than the document directly: a quantity is in scope everywhere and an
+ * index only under the composition that declares it, which is a fact about the document's shape
+ * and not about the expression being edited.
+ */
+function namePicker(
+  one: OpenDocument,
+  context: FormContext,
+  at: Path,
+): (referent: string) => readonly string[] {
+  return (referent) =>
+    namesFor({
+      outline: outlineOf({
+        tree: one.session.store.tree,
+        role: one.session.store.role,
+        shapes: context.shapes,
+        bindings: context.bindings,
+        openAll: true,
+      }),
+      referent,
+      at,
+      tree: one.session.store.tree,
+      role: one.session.store.role,
+      context,
+      shapes: context.shapes,
+    }).map((choice) => choice.name);
+}
+
+/** The resolver of one document, memoised on its tree as the outline is on its revision. */
+let lastResolver: { tree: JsonValue; resolve: Resolver } | null = null;
+
+/**
+ * What the core resolves a document's expressions to — S7's `4096` beside a quantity.
+ *
+ * Without an assignment, as the explorer's own figures are read (feature 2.7): a template's
+ * external quantities resolve to nothing until §4.6's assignment sheet exists, and an expression
+ * over them says nothing rather than saying something wrong.
+ *
+ * Kept per tree because building it resolves **every** quantity of the document, and the sheet is
+ * drawn on every keystroke: the tree is immutable (2.1), so its identity is what says whether the
+ * answer still holds.
+ */
+function resolverFor(one: OpenDocument): Resolver {
+  const tree = one.session.store.tree;
+  if (lastResolver !== null && lastResolver.tree === tree) return lastResolver.resolve;
+  const resolve = documentResolver(tree);
+  lastResolver = { tree, resolve };
+  return resolve;
 }
 
 /** A repeatable list of names — §4.11's chip editor, with the workspace's names as suggestions. */
 function ListRow({
   one,
   row,
+  base,
   items,
 }: {
   one: OpenDocument;
   row: FormRow;
+  /** Where the form starts in the document — see {@link MemberRow}. */
+  base: Path;
   items: readonly FormRow[];
 }): JSX.Element {
   const store = useDocumentsStore();
@@ -565,7 +780,7 @@ function ListRow({
               onClick={() => {
                 edit(store, (made) =>
                   remove(made, {
-                    path: [...item.steps] as Path,
+                    path: [...base, ...item.steps] as Path,
                     label: `Remove ${String(item.written ?? '')}`,
                   }),
                 );
@@ -591,7 +806,7 @@ function ListRow({
             if (written === '') return;
             edit(store, (made) =>
               insertItem(made, {
-                path: [...row.steps] as Path,
+                path: [...base, ...row.steps] as Path,
                 value: written,
                 label: `Add ${written}`,
               }),
@@ -612,10 +827,13 @@ function ListRow({
 /** One scalar member: a select where the schema or a picker enumerates, a field otherwise. */
 function ScalarField({
   row,
+  base,
   sheet,
   versions,
 }: {
   row: FormRow;
+  /** Where the form starts in the document — see {@link MemberRow}. */
+  base: Path;
   sheet: InstanceSheet;
   versions: ReadonlyMap<string, readonly string[]>;
 }): JSX.Element {
@@ -634,7 +852,7 @@ function ScalarField({
         onChange={(event) => {
           edit(store, (made) =>
             setValue(made, {
-              path: [...row.steps] as Path,
+              path: [...base, ...row.steps] as Path,
               value: event.target.value,
               label: `Set ${row.label}`,
             }),
@@ -652,7 +870,7 @@ function ScalarField({
       onChange={(event) => {
         edit(store, (made) =>
           setValue(made, {
-            path: [...row.steps] as Path,
+            path: [...base, ...row.steps] as Path,
             value: event.target.value,
             label: `Set ${row.label}`,
           }),
@@ -770,7 +988,9 @@ function ArgumentRowView({
   context: FormContext;
 }): JSX.Element {
   const store = useDocumentsStore();
+  const [open, setOpen] = useState(false);
   const facts = (artifact?.at(row.path) ?? NO_ARGUMENT_FACTS).facts;
+  const shaped = shapedMode(row);
   const classes = ['arow'];
   if (!row.applicable) classes.push('inapp');
   if (row.error !== undefined) classes.push('errrow');
@@ -803,7 +1023,7 @@ function ArgumentRowView({
         style={{ paddingLeft: `${String(row.depth * 14)}px` }}
         title={title === '' ? undefined : title}
       >
-        <ModeControl row={row} facts={facts} />
+        <ModeControl row={row} facts={facts} context={context} onOpen={() => { setOpen(true); }} />
         <span className="an mono">
           {row.label}
           {row.structural ? <i className="sbadge">{text('structural')}</i> : null}
@@ -811,7 +1031,16 @@ function ArgumentRowView({
             <i className="sbadge req">{text('required')}</i>
           ) : null}
         </span>
-        <Value one={one} row={row} facts={facts} outline={outline} context={context} />
+        <Value
+          one={one}
+          row={row}
+          facts={facts}
+          outline={outline}
+          context={context}
+          onOpen={() => {
+            setOpen((was) => !was);
+          }}
+        />
         {row.effective === undefined ? null : (
           <span className="ae mono" data-effective={row.effective}>
             {row.effective}
@@ -840,12 +1069,44 @@ function ArgumentRowView({
       {row.applicable || row.presentWhen === undefined ? null : (
         <div className="rowmsg faint">{`present_when: ${row.presentWhen}`}</div>
       )}
+      {open && shaped !== undefined ? (
+        <div className="arow-editor" data-editor-of={row.path}>
+          <ExpressionEditor
+            anchor={shaped.union}
+            value={nodeAt(one.session.store.tree, row.at)}
+            context={context}
+            label={row.path}
+            names={namePicker(one, context, row.at)}
+            resolve={resolverFor(one)}
+            type={row.kind}
+            onChange={(next) => {
+              edit(store, (made) => writeValue(made, row, next));
+            }}
+          />
+        </div>
+      ) : null}
     </>
   );
 }
 
+/** The mode of a row that §4.13's editor owns, when the row is in one. */
+function shapedMode(row: ArgumentRow): FormMode | undefined {
+  const mode = row.modes.find((one) => one.tag === row.mode);
+  return mode !== undefined && editsExpression(mode.widget) ? mode : undefined;
+}
+
 /** The source-mode control of §4.12 — one button per alternative the place offers. */
-function ModeControl({ row, facts }: { row: ArgumentRow; facts: SchemaFacts }): JSX.Element {
+function ModeControl({
+  row,
+  facts,
+  context,
+  onOpen,
+}: {
+  row: ArgumentRow;
+  facts: SchemaFacts;
+  context: FormContext;
+  onOpen: () => void;
+}): JSX.Element {
   const store = useDocumentsStore();
   return (
     <select
@@ -863,10 +1124,18 @@ function ModeControl({ row, facts }: { row: ArgumentRow; facts: SchemaFacts }): 
           edit(store, (made) => writeRecord(made, row, mode));
           return;
         }
+        if (editsExpression(mode.widget)) {
+          // §4.13's editor. The blank is the first value the *grammar* accepts at the union the
+          // mode's alternatives belong to, so the row has something on the schema to edit at once
+          // (D5) and the core's verdict is what judges it.
+          edit(store, (made) => writeValue(made, row, blankExpression(context, mode.union)));
+          onOpen();
+          return;
+        }
         if (mode.member === undefined || !mode.inline) {
-          // The expression editor is §4.13's and arrives with feature 2.11; the gesture is not
-          // refused for a semantic reason (Q5) — it has nothing to open yet, and says so.
-          store.getState().note(`sheet: the ${mode.tag} editor of ${row.path} arrives with §4.13's`);
+          // A shaped mode with no editor bound to it: the gesture is not refused for a semantic
+          // reason (Q5) — there is nothing to open yet, and the log says so.
+          store.getState().note(`sheet: the ${mode.tag} editor of ${row.path} has no editor yet`);
           return;
         }
         if (mode.referent !== undefined) {
@@ -893,12 +1162,14 @@ function Value({
   facts,
   outline,
   context,
+  onOpen,
 }: {
   one: OpenDocument;
   row: ArgumentRow;
   facts: SchemaFacts;
   outline: readonly OutlineRow[];
   context: FormContext;
+  onOpen: () => void;
 }): JSX.Element {
   const store = useDocumentsStore();
   const literal = literalMode(row.modes);
@@ -944,6 +1215,24 @@ function Value({
   // A place that holds a shape rather than a scalar — a record argument — has its fields as rows
   // of its own (§4.12's "a section header row; its fields as rows one level deeper"), so the value
   // column says which mode it is in and nothing is typed here.
+  if (shapedMode(row) !== undefined) {
+    // §4.13's text form, and the way into its editor: "every value editable in the sheet or by
+    // clicking the element" (§4.4, Q4), so the printed expression is the control.
+    return (
+      <span className="av" data-value={row.path}>
+        <button
+          type="button"
+          className="link mono"
+          data-open-expression={row.path}
+          aria-label={textWith('Edit the expression of {}', row.path)}
+          onClick={onOpen}
+        >
+          {row.expression ?? text('unset')}
+        </button>
+      </span>
+    );
+  }
+
   if ((row.mode !== undefined && literal !== undefined && row.mode !== literal.tag) ||
       !editsOneValue(row.widget)) {
     return (

@@ -138,6 +138,17 @@ export interface Binding {
   readonly prefix?: string;
   /** A symbol per value of the enumeration, or per tag of the union, at this anchor. */
   readonly symbols?: ReadonlyMap<string, SymbolBinding>;
+  /**
+   * The word that introduces each member of the construct at this anchor, in a text form that
+   * writes them one after another: `if … then … else …` (plan §4.13's own symbol list).
+   *
+   * A {@link SymbolBinding} cannot say it. A symbol names one operator and stands in one place —
+   * before its operand, between two, or around a list — and a conditional expression has three
+   * operands, each introduced by a word of its own, with the member order the schema's. So the
+   * binding is a word *per member*, and the order is read from the schema rather than from the
+   * file. The keys are members the definition declares; the audit checks exactly that.
+   */
+  readonly keywords?: ReadonlyMap<string, string>;
   /** How a figure at this place is shown: as a size, a count, a status, a shape. */
   readonly format?: string;
   /** That this figure is one of the status bar's totals, where it sits and what labels it. */

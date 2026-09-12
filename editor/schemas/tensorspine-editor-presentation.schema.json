@@ -72,6 +72,13 @@
           "additionalProperties": { "$ref": "#/$defs/symbol" },
           "description": "A symbol per value of the enumeration at this anchor, or per tag of the union at it. An operator with no symbol prints and parses as `name(args)` and is listed by the startup audit as rendered generically, which is why `min` and `max` have none."
         },
+        "keywords": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string", "minLength": 1 },
+          "propertyNames": { "type": "string", "minLength": 1 },
+          "description": "The word written before each member of the construct at this anchor, in a text form that writes them one after another: `if … then … else …` (the editor plan's §4.13). A symbol cannot say it — a symbol names one operator and stands in one place, before its operand, between two, or around a list — and a conditional expression has three operands, each introduced by a word of its own. The keys are members the definition declares and the order they are written in is the schema's, not the file's; the audit checks the first and the text form reads the second."
+        },
         "format": {
           "enum": ["bytes", "elements", "operations", "count", "status", "shape"],
           "description": "How a figure at this place is shown: a size in B/KiB/MiB/GiB with the exact number in the tooltip, a count of elements, a count of operations in `op`/`Mop`/`Gop`, a per-stream count, an epistemic status as a chip, a shape as its axes and extents. The renderings are `tools/view.py`'s own, which the editor takes over when that script is removed (the editor plan's finding F6). No component converts or rounds a figure of its own; the derived document's number is the fact and this is its rendering."

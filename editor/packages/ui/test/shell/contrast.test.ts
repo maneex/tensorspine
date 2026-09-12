@@ -128,6 +128,23 @@ const PAIRS: readonly [string, string, string][] = [
   ['--ink-3', '--struct-bg', 'its summary, its families and its fold'],
 ];
 
+/**
+ * The pairs one theme writes and the other does not — feature 2.11's own, and the only ones.
+ *
+ * `--accent` on `--bg-tint` reaches 6.76:1 in the dark theme and 4.21:1 in the light one, so the
+ * expression tree's operator chip (§4.13, artboard S7) is written in `--accent-dim` there: the
+ * darker end of the same ramp, which is what the light theme's own tokens do for every other ink.
+ * Stated here, beside the tokens, rather than left to the axe pass that found it on the page.
+ */
+const THEMED: readonly [keyof typeof THEMES, string, string, string][] = [
+  ['dark', '--accent', '--bg-tint', 'the operator chip of an expression tree'],
+  ['light', '--accent-dim', '--bg-tint', 'the same chip, stepped down the ramp for a light ground'],
+  ['dark', '--struct', '--bg-tint', 'a quantity chip'],
+  ['light', '--struct', '--bg-tint', 'a quantity chip'],
+  ['dark', '--derived', '--bg-tint', 'a literal and an index chip'],
+  ['light', '--derived', '--bg-tint', 'a literal and an index chip'],
+];
+
 describe('every ink the shell writes text in', () => {
   it('reaches §4.21’s 4.5:1 on the ground it is written on, in both themes', () => {
     const failures: string[] = [];
@@ -136,6 +153,10 @@ describe('every ink the shell writes text in', () => {
         const ratio = contrast(ink(theme, token), ink(theme, ground));
         if (ratio < 4.5) failures.push(`${theme}: ${token} on ${ground} is ${String(ratio)}:1 — ${where}`);
       }
+    }
+    for (const [theme, token, ground, where] of THEMED) {
+      const ratio = contrast(ink(theme, token), ink(theme, ground));
+      if (ratio < 4.5) failures.push(`${theme}: ${token} on ${ground} is ${String(ratio)}:1 — ${where}`);
     }
     expect(failures).toEqual([]);
   });

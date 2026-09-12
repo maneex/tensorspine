@@ -30,6 +30,7 @@ export {
   writeLiteral,
   writeMode,
   writeRecord,
+  writeValue,
 } from './edits.js';
 export {
   instanceSheet,

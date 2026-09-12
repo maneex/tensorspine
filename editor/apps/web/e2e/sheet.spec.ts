@@ -106,8 +106,10 @@ test.describe('the sheet of decoder/attn', () => {
     await expect(row(page, 'chunk')).toHaveCount(0);
     await sheet(page).locator('[data-sheet="inapplicable"]').click();
     await expect(row(page, 'chunk')).toHaveAttribute('data-applicable', 'false');
+    // The literal is quoted since feature 2.11: §4.13's text form writes a string literal in
+    // quotes, which is what tells it from an argument named the same way.
     await expect(sheet(page).locator('.rowmsg.faint').first()).toHaveText(
-      'present_when: mask = chunked',
+      'present_when: mask = "chunked"',
     );
 
     // The invariant block: every one the primitive declares, with the values it read.

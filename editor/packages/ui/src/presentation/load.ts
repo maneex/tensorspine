@@ -42,6 +42,7 @@ const MEMBERS = [
   'create',
   'prefix',
   'symbols',
+  'keywords',
   'format',
   'statusBar',
   'declares',
@@ -194,6 +195,17 @@ function bindingOf(value: unknown, anchor: string): Binding {
       }
       if (symbols.size === 0) throw new PresentationError(`${where}: names no symbol`);
       binding[member] = symbols;
+    } else if (member === 'keywords') {
+      if (!isRecord(one)) throw new PresentationError(`${where}: expected a word per member`);
+      const keywords = new Map<string, string>();
+      for (const [name, word] of Object.entries(one)) {
+        if (typeof word !== 'string' || word === '') {
+          throw new PresentationError(`${where}.${name}: expected the word written before it`);
+        }
+        keywords.set(name, word);
+      }
+      if (keywords.size === 0) throw new PresentationError(`${where}: names no member`);
+      binding[member] = keywords;
     } else {
       if (!Array.isArray(one)) throw new PresentationError(`${where}: expected reference rules`);
       binding[member] = one.map((rule, index) => ruleOf(rule, `${where}[${String(index)}]`));
@@ -225,6 +237,29 @@ export function readPresentation(parsed: unknown): Presentation {
       return undefined;
     },
   };
+}
+
+/**
+ * The first binding along a chain of anchors that carries a member.
+ *
+ * {@link Presentation.firstOf} answers the first *binding*, which is the right reading where a
+ * place has one binding that says everything about it. A chain can carry two, and the expression
+ * editors of §4.13 are where it does: `conditional_expression` names the keywords of its own text
+ * form and `scalar_expression`, one step along, names the editor that owns it and its six
+ * siblings. Asking per member is what lets the more specific binding *add* to the general one
+ * rather than hide it — a chooser that took the first binding whole would lose the editor and
+ * offer `if | then | else` as a source mode of its own.
+ */
+export function boundAlong<K extends keyof Binding>(
+  bindings: Presentation,
+  anchors: readonly string[],
+  member: K,
+): Binding[K] | undefined {
+  for (const anchor of anchors) {
+    const found = bindings.at(anchor)?.[member];
+    if (found !== undefined) return found;
+  }
+  return undefined;
 }
 
 let loaded: Presentation | undefined;

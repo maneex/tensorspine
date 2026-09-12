@@ -15,7 +15,7 @@ import type { Presentation } from './types.js';
 
 export { auditPresentation, genericLines, presentationLines, SCOPE } from './audit.js';
 export type { GenericConstruct, PresentationAudit, PresentationProblem } from './audit.js';
-export { presentation, PresentationError, readPresentation } from './load.js';
+export { boundAlong, presentation, PresentationError, readPresentation } from './load.js';
 export { referenceSelectors, type Scope } from './selectors.js';
 export type {
   Binding,

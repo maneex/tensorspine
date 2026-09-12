@@ -1,0 +1,77 @@
+/* ── the expression editor (feature 2.11, §4.13, artboard S7) ───────────────
+   The design's own `.xtree`, `.xn`, `.kind`, `.xtext` and `.xjson`
+   (`plans/graph-editor-design/_ts.css`), with three departures and their
+   reasons:
+
+     1. **an artboard is a picture and this is a program.** Every value on S7
+        is a span; here an operator is a `select` of the schema's enumeration,
+        a reference a `select` of what is in scope, a literal an `input` the
+        parser reads, and `wrap ▸` a real control. So the rows are built on
+        `.ctl`'s resets, hover and focus ring, and `.xn` keeps the board's
+        rhythm around them.
+
+     2. **the indentation is the path's depth**, computed per row, so the
+        board's three fixed rules (`.xn.l1`, `.l2`, `.l3`) are one inline
+        margin instead: an expression nests as deep as its author wrote it.
+
+     3. **§4.21 asks for "contrast ≥ 4.5:1 for text"** and feature 2.5
+        measured where the design's dim inks do not reach it. `--faint`
+        carries rules and never text, so the board's `.xn .add` (the actions)
+        and the arity note step up to `--ink-3`; the values themselves are
+        untouched. One pair needs the theme, and it is the only one in the
+        interface that does: the operator chip is `--accent` on `--bg-tint`,
+        which is 6.76:1 in the dark theme and **4.21:1** in the light one
+        (axe found it on the rendered page, `contrast.test.ts` states it
+        beside the tokens). The light theme steps it to `--accent-dim`, the
+        darker end of the same ramp, at 6.1:1; the three other chips reach
+        4.5:1 on both grounds as they are.                                  */
+
+.xed { display: flex; flex-direction: column; gap: 8px; }
+
+.xtree {
+  display: flex; flex-direction: column; gap: 3px; padding: 10px 12px;
+  background: var(--bg-raised); border: 1px solid var(--rule-2); border-radius: var(--r);
+}
+.xn {
+  display: flex; align-items: center; gap: 7px; padding: 3px 6px; border-radius: 2px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); min-height: 24px;
+  flex-wrap: wrap;
+}
+.xn.sel { background: var(--bg-tint); box-shadow: inset 2px 0 0 var(--accent); }
+.xn .kind {
+  padding: 0 6px; border-radius: 2px; background: var(--bg-tint); font-size: 9.5px;
+  color: var(--ink-3);
+}
+.xn .kind.op { color: var(--accent); }
+.theme-light .xn .kind.op { color: var(--accent-dim); }
+.xn .kind.q { color: var(--struct); }
+.xn .kind.lit, .xn .kind.idx { color: var(--derived); }
+.xn .xkw { color: var(--ink-3); font-size: 10px; }
+.xn .xval { color: var(--derived); }
+.xn .ctl { height: 20px; }
+.xn .ctl.mono { font-family: var(--mono); font-size: 11.5px; min-width: 5rem; }
+
+.xacts { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.xacts .ctl, .xacts .btn { height: 20px; font-size: 10px; padding: 0 6px; }
+.xarity { color: var(--ink-3); font-size: 10px; }
+
+.xtext {
+  width: 100%; box-sizing: border-box; padding: 8px 12px; background: var(--bg-sunk);
+  border: 1px solid var(--rule-2); border-radius: var(--r); font-family: var(--mono);
+  font-size: 13px; color: var(--ink);
+}
+.xtext:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.xfacts { display: flex; gap: 10px; font-size: 11px; color: var(--ink-3); }
+.xfacts span { color: var(--derived); }
+.xfacts:empty { display: none; }
+
+.xjson-holder > summary {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+  cursor: pointer;
+}
+.xjson {
+  margin: 6px 0 0; padding: 10px 12px; background: var(--bg-sunk);
+  border: 1px solid var(--rule-2); border-radius: var(--r); font-family: var(--mono);
+  font-size: 10.5px; line-height: 1.6; color: var(--ink-3); white-space: pre; overflow-x: auto;
+}
