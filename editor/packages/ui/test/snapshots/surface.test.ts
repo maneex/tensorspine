@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import * as canvas from '../../src/canvas/index.js';
 import * as documents from '../../src/documents/index.js';
+import * as expanded from '../../src/expanded/index.js';
 import * as explorer from '../../src/explorer/index.js';
 import * as layout from '../../src/layout/elk.js';
 import * as ui from '../../src/index.js';
@@ -41,5 +42,12 @@ describe('@tensorspine/ui', () => {
   // than in the shell's first bundle — 1.43 MB of its own chunk, measured (feature 0.4).
   it('exports the canvas surface the snapshot records', () => {
     expect(Object.keys(canvas).sort()).toMatchSnapshot();
+  });
+
+  // The expanded graph is the sixth, `@tensorspine/ui/expanded` — its own for the *opposite* of
+  // the canvas's reason: §4.9's view must not reach ELK at all, since a whole expanded layout
+  // sits at the two-second budget (feature 0.4), and `test/expanded/graph.test.ts` asserts it.
+  it('exports the expanded surface the snapshot records', () => {
+    expect(Object.keys(expanded).sort()).toMatchSnapshot();
   });
 });

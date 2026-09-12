@@ -190,6 +190,24 @@ export {
   type SiteDerived,
   type SiteFigures,
 } from './figures.js';
+export {
+  emittedGraph,
+  emittedSplit,
+  NO_EMITTED_GRAPH,
+  NO_FIGURES,
+  nodeFigures,
+  nodeIndices,
+  nodeProducts,
+  nodeWithin,
+  type EmittedEdge,
+  type EmittedGraph,
+  type EmittedIndex,
+  type EmittedNode,
+  type EmittedSplit,
+  type NodeFigures,
+  type NodeIndex,
+  type NodeProducts,
+} from './emitted.js';
 
 /** What `describe` needs beside the document. */
 export interface DescribeOptions {

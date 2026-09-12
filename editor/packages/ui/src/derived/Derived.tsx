@@ -23,7 +23,6 @@
 import { useMemo, type JSX } from 'react';
 
 import {
-  boxOfSite,
   declaredSite,
   identityInstanceOf,
   foldedGraph,
@@ -113,7 +112,7 @@ export function DerivedPanel(): JSX.Element {
                 'Every tab is held to {}: its block and the values crossing it are the rows below.',
                 subject.name,
               )}{' '}
-              {text('Shading the block on the expanded graph is not built yet.')}
+              {text('Its block is shaded on the expanded graph.')}
             </span>
           </div>
         )}
@@ -460,15 +459,9 @@ function follow(
   shell: ReturnType<ReturnType<typeof useShellStore>['getState']>,
 ): void {
   const graph = foldedGraph(one.session.store.tree);
-  const selectNode = (identifier: string): boolean => {
-    const pointer = boxOfSite(graph, identifier);
-    if (pointer === null) return false;
-    documents.selectPlace(pathOfPointer(pointer), one.id);
-    const box = graph.byPointer.get(pointer);
-    const index = indexOf(identifier);
-    if (box?.parent != null && index !== null) documents.setScrub(box.parent, index, one.id);
-    return true;
-  };
+  // The node identifier is taken apart by the core and the navigation is the documents store's
+  // (`selectNode`), so the expanded graph's rows (feature 2.16) and these links land in one place.
+  const selectNode = (identifier: string): boolean => documents.selectNode(identifier, one.id);
   if (named.kind === FOLLOW.node) {
     if (!selectNode(named.name)) shell.note(textWith('Derived: {} is on no box', named.name));
     return;
@@ -499,12 +492,14 @@ function follow(
     documents.selectPlace(pathOfPointer(found.pointer), one.id);
     return;
   }
-  // A split names nothing a document declares — §4.18's "Show split on canvas" shades its block on
-  // the *expanded* graph, which is its own feature. What the panel can do, and does, is hold every
-  // tab to it: the block and the crossing values are then what the reader is looking at.
+  // A split names nothing a document declares, so §4.18's "Show split on canvas" is two things at
+  // once: every tab held to it — the block and the crossing values are then the rows the reader is
+  // looking at — and its **block shaded on the expanded graph**, which feature 2.16 draws. Both
+  // happen, which is the whole of §4.18's sentence.
   shell.setDerivedView({ split: { tab: one.id, name: named.name }, filter: true });
+  documents.openExpanded(one.id);
   shell.note(
-    textWith('Derived: every tab is held to {}; the expanded graph is not open yet.', named.name),
+    textWith('Derived: every tab is held to {}, and its block is shaded on the expanded graph.', named.name),
   );
 }
 
@@ -531,13 +526,6 @@ const FOLLOWS: Readonly<Record<string, string>> = {
  * (§1 b) cannot tell one of them from a value of the four schemas.
  */
 const FOLLOW = { node: 'node', reference: 'reference', identity: 'identity' } as const;
-
-/** The index a node identifier carries, as §4.8's scrubber writes a point of the grid. */
-function indexOf(identifier: string): string | null {
-  const last = identifier.split('/').at(-1) ?? '';
-  const open = last.indexOf('[');
-  return open < 0 || !last.endsWith(']') ? null : last.slice(open + 1, -1);
-}
 
 /**
  * What every tab is held to: the split a reader chose, failing that the document's own selection.

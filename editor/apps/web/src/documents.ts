@@ -10,6 +10,8 @@ import type { Platform } from '@tensorspine/store/platform';
 import type { Lang } from '@tensorspine/lang/api';
 import {
   createDocuments,
+  documentTab,
+  drillOf,
   type DocumentsStore,
   type TabSink,
 } from '@tensorspine/ui/documents';
@@ -199,6 +201,25 @@ export function wireDocuments(wiring: DocumentsWiring): {
     // would write. Feature 2.17 gives it Monaco and the schema.
     'view.json-source': () => {
       now().showSource();
+    },
+    // §4.4's `View ▸ Expanded Graph` (§4.9): the read-only tab over D1, which feature 2.16 draws.
+    // `Layer Preview` is the same view restricted to one index value and is shown *in place* of a
+    // drill-in's canvas, so its command is the drill-in's own (`Canvas.tsx` binds it while one is
+    // open) and there is nothing for it here: a document with no drill-in open has no layer to
+    // preview, and the menu entry says so in the Log rather than opening something else.
+    'view.expanded-graph': () => {
+      now().openExpanded();
+    },
+    'view.layer-preview': () => {
+      const tab = current();
+      const composition = tab === null ? null : drillOf(tab);
+      if (tab === null || composition === null) {
+        now().note('Layer Preview: open a composition’s drill-in first — §4.9 shows it there, in place of its canvas');
+        return;
+      }
+      const id = documentTab(tab);
+      const one = now().open.find((open) => open.id === id);
+      now().setEmittedView({ preview: one?.emitted.preview === composition ? null : composition }, id);
     },
     // §4.4's `Document Properties` — "(the model id, `primitive_libraries`, `version`)", which is
     // §4.11's Document sheet: the sheet of the document's own place, which is the sheet shown

@@ -11,11 +11,16 @@ import {
 
 import {
   createDocuments,
+  documentTab,
   DOCUMENT_TAB,
+  EXPANDED_SUFFIX,
+  EXPANDED_TAB,
+  NO_EMITTED_VIEW,
   TABS_SETTING,
   WORKSPACE_SETTING,
   type Documents,
   type DocumentsStore,
+  type OpenDocument,
   type TabSink,
 } from '../../src/documents/store.js';
 import { corpusText, filesUnder, schemaTexts } from './source.js';
@@ -465,6 +470,89 @@ describe('what opens at launch (D11)', () => {
     await now(one).start();
     expect(asked).toBe(1);
     expect(now(one).workspace.name).toBe('granted');
+  }, 120_000);
+});
+
+describe('the expanded graph’s tab and its filters (§4.9, feature 2.16)', () => {
+  it('opens a tab of its own, which goes when the document goes', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const id = now(one).open[0]?.id ?? '';
+    now(one).openExpanded(id);
+    expect(one.tabs.tabs.map((tab) => tab.kind)).toEqual([DOCUMENT_TAB, EXPANDED_TAB]);
+    expect(one.tabs.tabs[1]?.title).toBe('llama3-8b › expanded graph');
+    expect(one.tabs.tabs[1]?.id).toBe(`${id}${EXPANDED_SUFFIX}`);
+    // Asking twice asks the strip twice, and one tab is the *shell*'s answer (`openTab` keeps the
+    // one it has) — as it is for a drill-in. The browser layer is where that is asserted.
+    // A command with no argument is about the document behind the tab.
+    expect(documentTab(`${id}${EXPANDED_SUFFIX}`)).toBe(id);
+    // And a view of a document is not a document: it closes without asking.
+    expect(await now(one).mayClose(`${id}${EXPANDED_SUFFIX}`)).toBe(true);
+    // Letting the document go takes its views with it (the shell is what closes the document's
+    // own tab, which is why closing it is what called this).
+    now(one).closeDocument(id);
+    expect(one.tabs.tabs.map((tab) => tab.kind)).toEqual([DOCUMENT_TAB]);
+  }, 120_000);
+
+  it('records the two filters §5.5 puts in the sidecar, and keeps the other three in session', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const id = now(one).open[0]?.id ?? '';
+    const held = (): OpenDocument | undefined => now(one).open.find((open) => open.id === id);
+    expect(held()?.emitted).toEqual(NO_EMITTED_VIEW);
+
+    now(one).setEmittedView({ families: ['decoder'] }, id);
+    now(one).setEmittedView({ indices: { layer: { from: 0, to: 3 } } }, id);
+    expect(held()?.session.layout.layout.expanded_view).toEqual({
+      filters: { families: ['decoder'], indices: { layer: { from: 0, to: 3 } } },
+    });
+
+    // The other three are session state: the sidecar's schema declares no member for them, so
+    // nothing is written and the file does not move.
+    const revision = held()?.session.layout.revision ?? 0;
+    now(one).setEmittedView({ search: 'attn', primitives: ['norm.rms'], node: 'embed' }, id);
+    expect(held()?.emitted.search).toBe('attn');
+    expect(held()?.emitted.primitives).toEqual(['norm.rms']);
+    expect(held()?.emitted.node).toBe('embed');
+    expect(held()?.session.layout.revision).toBe(revision);
+  }, 120_000);
+
+  it('seeds the filters from the sidecar a document was opened with', async () => {
+    const workspace = dataWorkspace();
+    await workspace.write(
+      'data/models/llama3-8b.layout.json',
+      `${JSON.stringify(
+        {
+          schema: 'tensorspine-editor-layout/1',
+          positions: {},
+          collapsed: [],
+          expanded_view: { filters: { families: ['decoder'], indices: { layer: { to: 5 } } } },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    const one = editor({ workspace });
+    await now(one).openDocument(MODEL);
+    expect(now(one).open[0]?.emitted.families).toEqual(['decoder']);
+    expect(now(one).open[0]?.emitted.indices).toEqual({ layer: { to: 5 } });
+    expect(now(one).open[0]?.emitted.search).toBe('');
+  }, 120_000);
+
+  it('selects the place a D1 node identifier names, and its index with it', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const id = now(one).open[0]?.id ?? '';
+    expect(now(one).selectNode('decoder/attn[layer=3]', id)).toBe(true);
+    const open = now(one).open.find((each) => each.id === id);
+    expect(open?.selection).toEqual(['compositions', 'decoder', 'instances', 'attn']);
+    // §4.18's "the folded node **and the index**", which is §4.8's scrubber.
+    expect(open?.scrub['/compositions/decoder']).toBe('layer=3');
+    // A root instance has no index and no composition to scrub.
+    expect(now(one).selectNode('embed', id)).toBe(true);
+    expect(now(one).open.find((each) => each.id === id)?.selection).toEqual(['instances', 'embed']);
+    // And an identifier no box stands for says so rather than selecting something else.
+    expect(now(one).selectNode('nothing/at[all=0]', id)).toBe(false);
   }, 120_000);
 });
 

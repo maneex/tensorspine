@@ -347,6 +347,19 @@ export class LayoutStore {
     });
   }
 
+  /**
+   * What the expanded view is filtered to — §4.9's index ranges and families, §5.5's own member.
+   *
+   * The one gesture that view records here, and it records only what the sidecar's schema
+   * declares: the primitive filter and the identifier search of §4.9 have no member in
+   * `expanded_view.filters`, so they are session state and are not written to the file.
+   */
+  filter(view: ExpandedView, label = 'Filter the expanded view'): Edit<Layout> {
+    return this.log.apply(label, (draft) => {
+      draft.expanded_view = view;
+    });
+  }
+
   /** Where the canvas is looking. */
   look(viewport: Viewport, label = 'Move the viewport'): Edit<Layout> {
     return this.log.apply(label, (draft) => {

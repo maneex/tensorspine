@@ -135,6 +135,14 @@ const PAIRS: readonly [string, string, string][] = [
   ['--derived', '--bg-panel', 'a figure of a totals strip'],
   ['--ink-3', '--bg-panel', 'a totals strip’s labels and a table’s headers'],
   ['--ink-2', '--bg-panel', 'a cell of a product’s table'],
+  // the expanded graph (feature 2.16): a card of the chain is the folded canvas's own ink on
+  // `--bg-raised` (above), and a card inside a D6 split's block carries the composition's ground.
+  // The board dims everything *outside* the block to 38 % opacity instead; that is a dimmed
+  // identifier, which §4.21's floor does not admit, so the block is what is marked and the rows
+  // beyond it are drawn as they always are (the stylesheet says so beside the rule).
+  ['--ink', '--struct-bg', 'the identifier of a card inside a split’s block'],
+  ['--ink-3', '--struct-bg', 'the primitive it pins'],
+  ['--derived', '--struct-bg', 'its byte figure'],
 ];
 
 /**

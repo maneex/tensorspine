@@ -10,6 +10,7 @@
     "./shell": "./src/shell/index.ts",
     "./documents": "./src/documents/index.ts",
     "./canvas": "./src/canvas/index.ts",
+    "./expanded": "./src/expanded/index.ts",
     "./explorer": "./src/explorer/index.ts",
     "./style.css": "./src/shell/shell.css"
   },

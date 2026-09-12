@@ -40,6 +40,7 @@ import {
   listTree,
   nameMember,
   newDocument,
+  pathOfPointer,
   pointerOf,
   readSidecar,
   readTree,
@@ -53,6 +54,8 @@ import {
   type Command,
   type DraftStanding,
   type EditContext,
+  type ExpandedView,
+  type IndexRange,
   type Path,
   type Position,
   type Shape,
@@ -61,10 +64,13 @@ import {
 } from '@tensorspine/store';
 import {
   BASE_MANIFEST,
+  boxOfSite,
   foldedGraph,
   isJsonObject,
   loadSchemas,
+  nodeIndices,
   parse,
+  pointLabel,
   primitiveVersions,
   templatePrimitives,
   type SchemaRegistry,
@@ -171,6 +177,16 @@ export interface OpenDocument {
   /** The compositions this document has a drill-in tab open for, by name (§4.2's tab per drill). */
   readonly drills: readonly string[];
   /**
+   * What the expanded graph of §4.9 is showing — its filters, its selected node, its preview.
+   *
+   * Per open document and not per tab, for the reason {@link scrub} is: a tab is unmounted
+   * whenever another one is showing, and a filter a reader set and then lost because they looked
+   * at the canvas is a filter they have to set again. Two of the five members are also the layout
+   * sidecar's ({@link ExpandedView}), which is where §5.5 puts them; the other three are session
+   * state the sidecar's schema does not declare, and they are not written to it.
+   */
+  readonly emitted: EmittedView;
+  /**
    * The outline rows whose openness the reader changed, by pointer (§4.5).
    *
    * A *deviation* from the default and not the open set: the default is the document's own shape
@@ -198,6 +214,50 @@ export interface OpenDocument {
    * is kept here and the panel shows it until the document is closed.
    */
   readonly dropped: readonly DroppedSidecarKey[];
+}
+
+/** What the expanded tab of §4.9 shows, per open document. */
+export interface EmittedView {
+  /** The D1 node the tab has selected, by the identifier §5.2 rule 2 gives it. */
+  readonly node: string | null;
+  /** A range per composition index — the sidecar's own member, seeded from it and written back. */
+  readonly indices: Readonly<Record<string, IndexRange>>;
+  /** The families kept; empty keeps every family. The sidecar's other member. */
+  readonly families: readonly string[];
+  /** The primitives kept, by name; empty keeps every primitive. Session state: see the note below. */
+  readonly primitives: readonly string[];
+  /** §4.9's search by identifier. Session state. */
+  readonly search: string;
+  /** The composition whose layer preview is shown in place of a drill-in's canvas (§4.9). */
+  readonly preview: string | null;
+}
+
+/** What the expanded tab opens on: every node, every edge, nothing selected. */
+export const NO_EMITTED_VIEW: EmittedView = {
+  node: null,
+  indices: {},
+  families: [],
+  primitives: [],
+  search: '',
+  preview: null,
+};
+
+/**
+ * The two filters the sidecar carries, read out of it when a document is opened (§5.5).
+ *
+ * `editor/schemas/tensorspine-editor-layout.schema.json` declares `expanded_view.filters` with
+ * `families` and `indices` and with nothing else — no primitive, no search text. So those two are
+ * seeded from the file and written back to it, and the other three live only as long as the
+ * document is open. The gap is stated rather than closed: the schema is the editor's own and
+ * changing it is a decision of its own, with the companion note §5.5's rule asks for.
+ */
+function emittedOf(session: DocumentSession): EmittedView {
+  const filters = session.layout.layout.expanded_view?.filters;
+  return {
+    ...NO_EMITTED_VIEW,
+    indices: { ...(filters?.indices ?? {}) },
+    families: [...(filters?.families ?? [])],
+  };
 }
 
 /** How the library and the schemas stand for the open workspace. */
@@ -353,6 +413,25 @@ export interface Documents extends DocumentsState {
    * (`documentTab` strips the suffix).
    */
   drillInto(composition: string, id?: string): void;
+  /**
+   * Open the expanded graph of §4.9 — `View ▸ Expanded Graph`, and §4.2's tab for it.
+   *
+   * A view of the document like the two above: it closes without asking and goes when the
+   * document goes.
+   */
+  openExpanded(id?: string): void;
+  /** Change what the expanded graph shows (§4.9), recording the two members §5.5 puts in the sidecar. */
+  setEmittedView(view: Partial<EmittedView>, id?: string): void;
+  /**
+   * Select the place a **D1 node identifier** names, and set its composition's scrubber to the
+   * index it carries — §4.18's "a D1 node id selects the folded node and the index".
+   *
+   * One reading and not two: the Derived panel's links and the expanded graph's rows both land
+   * here, so a node identifier is taken apart by the core in one place (`nodeIndices`) and the
+   * navigation it produces is the same from either. Answers whether the folded graph has a box
+   * for it, so a caller can say so rather than doing nothing.
+   */
+  selectNode(identifier: string, id?: string): boolean;
   /** Where the scrubber of one drill-in stands; `null` puts it back to unset (§4.8). */
   setScrub(composition: string, point: string | null, id?: string): void;
   /** Open or close an outline row, by the pointer of the place it stands for (§4.5). */
@@ -547,11 +626,17 @@ export const SOURCE_TAB = 'view.source';
 /** The `kind` a drill-in tab carries — §4.2's "one per drill-in (composition, template instance)". */
 export const DRILL_TAB = 'view.drill';
 
+/** The `kind` the expanded graph's tab carries — §4.9's read-only tab over D1. */
+export const EXPANDED_TAB = 'view.expanded';
+
 /** What a JSON source tab's identity adds to the document's, so the two tabs are two tabs. */
 export const SOURCE_SUFFIX = ':source';
 
 /** What a drill-in tab's identity adds to the document's, with the composition after it. */
 export const DRILL_SUFFIX = ':drill:';
+
+/** What the expanded tab's identity adds to the document's, so the two tabs are two tabs. */
+export const EXPANDED_SUFFIX = ':expanded';
 
 /** The composition a drill-in tab is over, or `null` where the tab is not one. */
 export function drillOf(id: string): string | null {
@@ -822,6 +907,7 @@ export function createDocuments(options: DocumentsOptions): {
         marked: [],
         scrub: {},
         drills: [],
+        emitted: emittedOf(session),
         ...(tag === null ? {} : { tag }),
       };
       set((state) => ({
@@ -1238,6 +1324,7 @@ export function createDocuments(options: DocumentsOptions): {
         // Its source view and its drill-ins go with it: a tab drawing a document nothing holds is
         // a tab drawing "No document", which is worse than no tab.
         tabs.close(`${id}${SOURCE_SUFFIX}`);
+        tabs.close(`${id}${EXPANDED_SUFFIX}`);
         for (const composition of get().open.find((one) => one.id === id)?.drills ?? []) {
           tabs.close(`${id}${DRILL_SUFFIX}${composition}`);
         }
@@ -1271,6 +1358,52 @@ export function createDocuments(options: DocumentsOptions): {
           drills: open.drills.includes(composition) ? open.drills : [...open.drills, composition],
         }));
         note(`drill-in: ${one.path} › ${composition}`);
+      },
+
+      openExpanded(id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        // §4.3's tab name, as the artboard's region head writes it: `llama3-8b › expanded graph`.
+        tabs.open({
+          id: `${one.id}${EXPANDED_SUFFIX}`,
+          title: `${one.title} › expanded graph`,
+          kind: EXPANDED_TAB,
+        });
+        note(`expanded graph: ${one.path}`);
+      },
+
+      setEmittedView(view: Partial<EmittedView>, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        let next: EmittedView | null = null;
+        patch(one.id, (open) => {
+          next = { ...open.emitted, ...view };
+          return { ...open, emitted: next };
+        });
+        // The two the sidecar declares, and only when one of them moved: a search keystroke is
+        // not a layout edit, and neither is choosing a node.
+        if (next === null) return;
+        if (view.indices === undefined && view.families === undefined) return;
+        const held: EmittedView = next;
+        const filters: ExpandedView = {
+          filters: { families: [...held.families], indices: { ...held.indices } },
+        };
+        one.session.layout.filter(filters);
+      },
+
+      selectNode(identifier: string, id?: string): boolean {
+        const one = current(id);
+        if (one === undefined) return false;
+        const graph = foldedGraph(one.session.store.tree);
+        const pointer = boxOfSite(graph, identifier);
+        if (pointer === null) return false;
+        get().selectPlace(pathOfPointer(pointer), one.id);
+        const box = graph.byPointer.get(pointer);
+        const indices = nodeIndices(identifier);
+        if (box?.parent != null && indices.length > 0) {
+          get().setScrub(box.parent, pointLabel(indices), one.id);
+        }
+        return true;
       },
 
       setScrub(composition: string, point: string | null, id?: string): void {
@@ -1837,6 +1970,7 @@ function documentOf(state: DocumentsState, id: string | null): OpenDocument | un
 export function documentTab(id: string): string {
   const at = id.indexOf(DRILL_SUFFIX);
   if (at >= 0) return id.slice(0, at);
+  if (id.endsWith(EXPANDED_SUFFIX)) return id.slice(0, -EXPANDED_SUFFIX.length);
   return id.endsWith(SOURCE_SUFFIX) ? id.slice(0, -SOURCE_SUFFIX.length) : id;
 }
 

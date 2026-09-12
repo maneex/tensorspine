@@ -68,7 +68,10 @@ exports[`@tensorspine/ui > exports the documents surface the snapshot records 1`
   "DocumentToast",
   "DocumentView",
   "DocumentsProvider",
+  "EXPANDED_SUFFIX",
+  "EXPANDED_TAB",
   "NO_DOCUMENTS",
+  "NO_EMITTED_VIEW",
   "Pipeline",
   "SOURCE_SUFFIX",
   "SOURCE_TAB",
@@ -94,6 +97,22 @@ exports[`@tensorspine/ui > exports the documents surface the snapshot records 1`
   "statusFigures",
   "useDocuments",
   "useDocumentsStore",
+]
+`;
+
+exports[`@tensorspine/ui > exports the expanded surface the snapshot records 1`] = `
+[
+  "EXPANDED_VIEWS",
+  "Expanded",
+  "ExpandedView",
+  "NO_FILTER",
+  "NO_READING",
+  "OVERSCAN",
+  "ROW_HEIGHT",
+  "expandedReading",
+  "filtering",
+  "keeps",
+  "windowOf",
 ]
 `;
 

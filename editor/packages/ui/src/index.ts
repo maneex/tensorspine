@@ -101,9 +101,17 @@ export {
  */
 
 /**
- * The canvas's automatic layout (plan §4.7, §4.9) — ELK's layered algorithm, top to bottom,
+ * The canvas's automatic layout (plan §4.7) — ELK's layered algorithm, top to bottom,
  * compositions as compound nodes — is the package's second entry point, `@tensorspine/ui/layout`
  * (`./src/layout/elk.ts`). It is deliberately not re-exported here: importing it pulls in a
  * megabyte and a half of compiled ELK, which belongs in the worker that lays a canvas out (§5.6),
  * never in the shell's first bundle.
+ */
+
+/**
+ * The expanded graph (plan §4.9) — the read-only, filtered, virtualised tab over D1 — is the
+ * package's sixth entry point, `@tensorspine/ui/expanded` (`./src/expanded/index.ts`). It is its
+ * own for the opposite of the canvas's reason: it must *not* reach the layout, since a whole
+ * expanded layout costs 1.5 s on the largest corpus graph (feature 0.4) and §4.9's view is
+ * D1's own topological order, virtualised.
  */

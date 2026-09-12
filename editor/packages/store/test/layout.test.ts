@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { rename } from '../src/commands.js';
 import { DocumentStore } from '../src/document.js';
+import { hasOverrides } from '../src/documents/session.js';
 import {
   emptyLayout,
   LAYOUT_SCHEMA,
@@ -242,6 +243,26 @@ describe('the sidecar’s own history (D13)', () => {
     expect(canvas.undoLabel).toBe('Drop stale layout keys');
     expect(canvas.prune(document.tree)).toEqual([]);
     expect(canvas.revision).toBe(1);
+  });
+
+  it('records what the expanded view is filtered to, which §5.5 puts in the file', () => {
+    // §4.9's index ranges and families, and only those two: the sidecar's schema declares no
+    // primitive filter and no search text, so the view keeps those as session state (feature 2.16).
+    const canvas = new LayoutStore();
+    canvas.filter({ filters: { families: ['decoder'], indices: { layer: { from: 0, to: 3 } } } });
+    expect(canvas.undoLabel).toBe('Filter the expanded view');
+    expect(canvas.layout.expanded_view).toEqual({
+      filters: { families: ['decoder'], indices: { layer: { from: 0, to: 3 } } },
+    });
+    // It travels through the file and comes back as it went, like every other member.
+    expect(readLayout(writeLayout(canvas.layout)).expanded_view).toEqual(
+      canvas.layout.expanded_view,
+    );
+    // And it is an override, so a Save writes the sidecar for it — §4.3's own condition.
+    expect(hasOverrides(canvas.layout)).toBe(true);
+    canvas.undo();
+    expect(canvas.layout.expanded_view).toBeUndefined();
+    expect(hasOverrides(canvas.layout)).toBe(false);
   });
 
   it('resets every override, which is what “Reset layout” is', () => {

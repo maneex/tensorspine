@@ -1,0 +1,178 @@
+/* ── the expanded graph (feature 2.16, §4.9, artboard S12) ────────────────────
+   S12 draws a region with a filter strip over a chain of `.xn2` cards, and an
+   inspector beside it. Three departures from the board, each with its reason:
+
+     1. **`.xn2.outblk { opacity: 0.38 }` is not here.** A dimmed *card* is a
+        dimmed identifier, and §4.21 asks for 4.5:1 on text a reader reads —
+        which 38 % of `--ink` on `--bg-raised` is nowhere near. So "shade the
+        block" shades the block: an in-block card takes `--struct-bg` with a
+        `--struct` edge, everything else is drawn as it always is, the banner
+        above says how many are on each side, and the row's accessible name
+        says which side it is on. The same correction feature 2.14 made for
+        `.elbl.dim`, one view along.
+     2. **A row is a fixed height, and the stylesheet is told the number** by
+        the component (`--xg-row`), so the virtual window's arithmetic and the
+        drawing cannot drift.
+     3. **The wire is drawn only where D1 has an edge.** A chain that joined
+        every consecutive pair would be asserting edges the product has not
+        got; a pair with none gets a dashed break, which a reader who sees no
+        colour also gets.                                                     */
+
+.xgraph { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.xg-body { flex: 1; min-height: 0; display: flex; align-items: stretch; }
+
+.xg-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 26px 30px 22px;
+}
+
+.xgraph .xg-facts {
+  flex: 0 0 340px;
+  min-width: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+  border-left: 1px solid var(--rule);
+  background: var(--bg-panel);
+}
+
+.xgraph .xg-facts .insp-title { overflow-wrap: anywhere; font-size: 15px; }
+.xgraph .xg-facts .arow { gap: 8px; }
+.xgraph .xg-facts .arow .av { margin-left: auto; text-align: right; overflow-wrap: anywhere; }
+.xgraph .xg-facts .frow { display: flex; gap: 10px; padding: 4px 0; font-size: 11.5px; }
+.xgraph .xg-facts .frow .fk {
+  flex: 0 0 110px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.xgraph .xg-facts .frow .fv { min-width: 0; overflow-wrap: anywhere; color: var(--ink-2); }
+.xgraph .xg-facts .frow .fv.der { color: var(--derived); font-family: var(--mono); }
+.xgraph .xg-facts .quiet { font-size: 11.5px; line-height: 1.6; color: var(--ink-3); }
+.xgraph .xg-counts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.xgraph .xg-chips { margin: 8px 0 0; }
+.xgraph .xg-chips .link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--accent);
+  cursor: pointer;
+}
+.theme-light .xgraph .xg-chips .link { color: var(--accent-dim); }
+
+/* ── the strip's own controls ──────────────────────────────────────────── */
+
+.xgraph .xg-range { display: inline-flex; align-items: center; gap: 6px; }
+.xgraph .xg-dash { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.xgraph .strip select.ctl {
+  height: 24px;
+  padding: 0 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--rule-2);
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink);
+}
+.xgraph .strip .search { width: 190px; height: 24px; }
+.xgraph .strip .right .note-line { max-width: none; }
+.xgraph .strip .tbtn.on { border-color: var(--accent); color: var(--accent); }
+.xgraph .banner { border-radius: 0; border-width: 0 0 1px 0; }
+
+/* ── the chain (S12's `.xchain`, `.xn2`, `.miwire`) ─────────────────────── */
+
+.xgraph .xchain {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.xgraph .xg-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: var(--xg-row, 40px);
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: 0;
+}
+/* The option is the whole row, wire included, and the shell's own `.app :focus-visible` would put
+   its ring around forty pixels of mostly empty column. So the ring moves onto the card the row is
+   about — the same ink and the same offset, drawn where the row is; the two selectors below are a
+   class more specific than the shell's, which is what it takes to move it rather than to change
+   it. (The wire cannot simply live outside the option: a `listbox` admits only options.) */
+.xgraph .xg-row:focus-visible { outline: 0; }
+.xgraph .xg-row:focus-visible .xn2 { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.xgraph .miwire {
+  flex: 0 0 auto;
+  width: 0;
+  height: 13px;
+  border-left: 1px solid var(--edge);
+}
+.xgraph .miwire.first { visibility: hidden; }
+.xgraph .miwire.gap { border-left-style: dashed; }
+
+.xgraph .xn2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 27px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--rule-2);
+  border-radius: 2px;
+  background: var(--bg-raised);
+  text-align: left;
+}
+.xgraph .xn2 b {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink);
+}
+.xgraph .xn2 .xp {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9.5px;
+  color: var(--ink-3);
+}
+.xgraph .xn2 .fig {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--derived);
+}
+.xgraph .xg-row:hover .xn2 { border-color: var(--accent-dim); }
+.xgraph .xn2.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+.xgraph .xn2.inblk {
+  border-color: var(--struct);
+  border-left-width: 3px;
+  background: var(--struct-bg);
+}

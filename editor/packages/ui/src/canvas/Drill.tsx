@@ -19,12 +19,13 @@
 import { Fragment, useMemo, type JSX } from 'react';
 
 import { foldedGraph, pointLabel, type FoldedGraph, type IndexBinding } from '@tensorspine/lang';
-import { pathOfPointer, type Path } from '@tensorspine/store';
+import { pathOfPointer, type IndexRange, type Path } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
 import { documentTab, drillOf, type OpenDocument } from '../documents/store.js';
 import { DocumentView } from '../documents/views.js';
 import { presentation } from '../presentation/index.js';
+import { Expanded, type PreviewContext } from '../expanded/Expanded.js';
 import { useShellStore, type Tab } from '../shell/index.js';
 import { text, textWith } from '../shell/strings.js';
 
@@ -78,10 +79,19 @@ export function Drill({ one, composition }: { one: OpenDocument; composition: st
   }
   const scrub = one.scrub[model.pointer] ?? null;
   const context: DrillContext = { composition, model, scrub };
+  // §4.9's last sentence: "the layer preview of the drill-in is this view restricted to one index
+  // value, **shown in place**" — in place of this canvas, with the strip and the alternation strip
+  // where they are. S5 draws its button beside the scrubber.
+  const previewing = one.emitted.preview === composition;
+  const preview = useMemo(() => previewOf(model, scrub), [model, scrub]);
   return (
     <div className="drill">
       <Strip one={one} model={model} scrub={scrub} />
-      <Canvas one={one} drill={context} />
+      {previewing ? (
+        <Expanded one={one} preview={preview} />
+      ) : (
+        <Canvas one={one} drill={context} />
+      )}
       <Alternation
         model={model}
         scrub={scrub}
@@ -210,9 +220,43 @@ function Strip({
         >
           {text('Unset')}
         </button>
+        {/* S5's own button, and §4.9's "shown in place": the expanded reading of D1 restricted to
+            this composition and to the index the scrubber stands on, drawn where the canvas is. */}
+        <button
+          type="button"
+          className={one.emitted.preview === model.name ? 'tbtn on' : 'tbtn'}
+          data-layer-preview={model.name}
+          aria-pressed={one.emitted.preview === model.name}
+          onClick={() => {
+            store
+              .getState()
+              .setEmittedView(
+                { preview: one.emitted.preview === model.name ? null : model.name },
+                one.id,
+              );
+          }}
+        >
+          {text('Layer preview')}
+        </button>
       </div>
     </div>
   );
+}
+
+/**
+ * What the layer preview is restricted to: the composition, and the point the scrubber stands on.
+ *
+ * An unset scrubber is §4.8's own state — "the canvas shows the representative iteration" — and
+ * has no one index value to restrict to, so the preview shows every iteration of the composition
+ * and says which of the two it is doing. The gesture is never refused for having nothing chosen.
+ */
+function previewOf(model: DrillModel, scrub: string | null): PreviewContext {
+  const point = model.points.find((each) => each.label === scrub) ?? null;
+  const indices: Record<string, IndexRange> = {};
+  for (const binding of point?.indices ?? []) {
+    indices[binding.name] = { from: Number(binding.value), to: Number(binding.value) };
+  }
+  return { composition: model.name, indices, point: point?.label ?? null };
 }
 
 /**
