@@ -136,6 +136,9 @@ export function wireDocuments(wiring: DocumentsWiring): {
     },
     'file.save-all': () => now().saveAll(),
     'file.download-zip': () => now().downloadZip(),
+    // §4.4's `Export Derived Document… (<model>.derived.json, validated against the derived
+    // schema)`, which feature 2.6 registered and left to the feature that has the products.
+    'file.export-derived': () => now().exportDerived(),
     'file.revert': () => now().revert(),
     'file.close-tab': () => {
       const id = current();

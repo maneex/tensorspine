@@ -151,6 +151,10 @@ export function StatusFields(): JSX.Element | null {
   if (one === undefined) return null;
   const validation = validationPill(one.reading);
   const derivation = derivationPill(one.reading);
+  // §5.4: "anything computed for an older revision is shown dimmed with `stale`". The four
+  // figures are the derived document's own and keep their last value while a newer revision is
+  // being derived; dimming them is what says they are about the document as it was.
+  const stale = one.reading.derived !== null && one.reading.derivedAt !== one.reading.revision;
   return (
     <>
       <span className="mono" data-document={one.path}>
@@ -176,7 +180,13 @@ export function StatusFields(): JSX.Element | null {
         {derivation.text}
       </span>
       {one.figures.map((figure) => (
-        <span className="fig d" key={figure.anchor} data-figure={figure.label} title={figure.figure.exact}>
+        <span
+          className={`fig d${stale ? ' stale' : ''}`}
+          key={figure.anchor}
+          data-figure={figure.label}
+          data-stale={stale ? '' : undefined}
+          title={figure.figure.exact}
+        >
           <b>{figure.figure.text}</b>
           {text(figure.label)}
           {figure.status === undefined ? null : <i className="chip">{figure.status}</i>}

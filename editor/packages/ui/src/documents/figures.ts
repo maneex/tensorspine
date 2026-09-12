@@ -27,7 +27,7 @@
  * names, never as string literals, and a test holds this table's key set to the editor's own
  * schema: the same discipline §1 (d) puts on the core's semantic tables, one schema along.
  */
-import type { PyValue } from '@tensorspine/lang';
+import { formatNumber, type PyValue } from '@tensorspine/lang';
 
 import type { Binding, Presentation } from '../presentation/index.js';
 
@@ -42,9 +42,21 @@ export interface Figure {
 /** What nothing at all is written as — `view.py`'s own em dash. */
 const NOTHING = '—';
 
-/** `fmt_int`: a whole number with its thousands separated, as `view.py` groups them. */
+/**
+ * `fmt_int`: a whole number with its thousands separated, as `view.py` groups them.
+ *
+ * A number that is **not** whole is written as the language writes one — D12's `formatNumber`,
+ * CPython's own float layout — with its integer part grouped, which is what `f"{n:,}"` does to a
+ * float in Python too. Rounding it away would be the interface inventing a figure (the component
+ * inventory's §7): D3's `activated_fraction` is `7.79690618762475e-06` and reads as itself, which
+ * is what feature 2.15's tables showed the first time one of them was drawn.
+ */
 export function groupedNumber(value: number): string {
-  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  if (!Number.isFinite(value)) return String(value);
+  const text = formatNumber(value, !Number.isInteger(value));
+  const point = text.search(/[.e]/);
+  const whole = point < 0 ? text : text.slice(0, point);
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}${point < 0 ? '' : text.slice(point)}`;
 }
 
 /** `fmt_bytes`: B, KiB, MiB, GiB — the sizes §4.18 names, at `view.py`'s own precisions. */

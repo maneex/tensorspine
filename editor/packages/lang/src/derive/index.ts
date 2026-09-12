@@ -89,4 +89,4 @@ export {
   type Rounding,
   type Status,
 } from './qualified.js';
-export { streamAxis, valueGeometry } from './labels.js';
+export { shapeAxes, shapeText, streamAxis, valueGeometry } from './labels.js';

@@ -160,8 +160,10 @@ export {
 } from './drill.js';
 export {
   boxOfSite,
+  declaredSite,
   derivedFacts,
   identityDerived,
+  identityInstanceOf,
   inputValue,
   noDerivedFacts,
   noIdentityDerived,

@@ -83,6 +83,20 @@
           "enum": ["bytes", "elements", "operations", "count", "status", "shape"],
           "description": "How a figure at this place is shown: a size in B/KiB/MiB/GiB with the exact number in the tooltip, a count of elements, a count of operations in `op`/`Mop`/`Gop`, a per-stream count, an epistemic status as a chip, a shape as its axes and extents. The renderings are `tools/view.py`'s own, which the editor takes over when that script is removed (the editor plan's finding F6). No component converts or rounds a figure of its own; the derived document's number is the fact and this is its rendering."
         },
+        "product": {
+          "type": "string",
+          "minLength": 1,
+          "description": "That the definition at this anchor is one of the derived products, and its name as the specification writes it (`Derived Parameter Tensor Inventory`). The derived schema names its products `d1` … `d6` and states what each one carries in a `description`; what it does not carry is the name a tab shows, so it is stated here and the Derived panel shows what it finds — a seventh product is a tab by gaining a binding, and no list of six lives in a component (the editor plan's §4.18)."
+        },
+        "names": {
+          "enum": ["node", "reference", "identity", "split"],
+          "description": "What a string written at this place names, so that a figure of a derived product can be a link and the selection filter can hold every product to one subject (the editor plan's §4.18). The schema says a place holds a `node_identifier`, a `value_reference`, an `identity_name` or a `graph_split_id`; it cannot say that clicking one should select the node, that a `<node>.<port>` names an edge, or which rows a reader who selected a site wants to see. How one of those strings names a subject is the core's (`declaredSite`, `splitMember`, `identityInstanceOf`), never a component's."
+        },
+        "header": {
+          "type": "string",
+          "minLength": 1,
+          "description": "That this member of a derived document belongs in the Derived panel's header rather than in a product's tab, and the word written beside it: §4.18's \"the header shows freshness … and the assignment used\". English, and the key of the interface's own dictionary (§4.21), since a schema member name is not a label a header can carry."
+        },
         "statusBar": {
           "type": "object",
           "required": ["order", "label"],

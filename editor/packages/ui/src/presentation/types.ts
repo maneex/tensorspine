@@ -151,6 +151,38 @@ export interface Binding {
   readonly keywords?: ReadonlyMap<string, string>;
   /** How a figure at this place is shown: as a size, a count, a status, a shape. */
   readonly format?: string;
+  /**
+   * That the definition at this anchor is one of the derived products, and its name.
+   *
+   * The derived schema names them `d1` … `d6` and says in a `description` what each carries; the
+   * name the specification gives a product — *Derived Parameter Tensor Inventory* — is not
+   * something a schema states, and §4.18 asks the panel to title its tabs with it. So the
+   * products are **found** in the derived document by walking its root against the schema, as the
+   * status bar's four figures are: a member whose place carries this is a tab, in the schema's
+   * own property order, and a seventh product becomes one by gaining a binding.
+   */
+  readonly product?: string;
+  /**
+   * What a string written at this place names — a node, a `<node>.<port>`, an identity, a split.
+   *
+   * The derived schema says a place holds a `node_identifier`, a `value_reference`, an
+   * `identity_name` or a `graph_split_id`, and that is all it can say. What §4.18 asks for beyond
+   * it is presentation: that such a figure is a **link** ("a D1 node id selects the folded node
+   * and the index; a value `node.port` the edge"), and that the **selection filter** holds every
+   * product to the subject the reader selected. How one of those strings names a subject stays
+   * the core's — `declaredSite`, `splitMember`, `identityInstanceOf` — since a component that
+   * took a node identifier apart would be the second reading of §5.2 rule 2.
+   */
+  readonly names?: string;
+  /**
+   * That this member of a derived document belongs in the Derived panel's header, and its word.
+   *
+   * §4.18: "The header shows freshness … and the assignment used." The assignment is a member of
+   * the derived document's own envelope rather than of a product, so the header finds it the way
+   * every other figure is found — by walking the document against the schema — and the word
+   * beside it is English, the key of the interface's dictionary (§4.21).
+   */
+  readonly header?: string;
   /** That this figure is one of the status bar's totals, where it sits and what labels it. */
   readonly statusBar?: StatusBarField;
   /** The kind of thing the map at this anchor declares: a quantity, a site, an index. */

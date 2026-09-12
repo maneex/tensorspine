@@ -118,6 +118,31 @@ describe('a key that resolves and still says nothing', () => {
     ]);
   });
 
+  it('reports a product named at a definition that declares nothing to show', () => {
+    // §4.18 builds a tab's body out of the members the product declares; a `product` at a place
+    // with none would be a tab with nothing in it — the same failure a `face` naming an absent
+    // member is, one construct along (feature 2.15).
+    const found = auditOf({ [`${DERIVED}#/$defs/node_identifier`]: { product: 'Nothing' } });
+    expect(found.resolved).toBe(1);
+    expect(found.problems.map((one) => `${one.code}: ${one.message}`)).toEqual([
+      'product: is named as a product, but declares no members',
+    ]);
+    expect(auditOf({ [`${DERIVED}#/$defs/d3`]: { product: 'Inventory' } }).problems).toEqual([]);
+  });
+
+  it('reports a naming binding at a place that admits no name', () => {
+    // `names` says what a *string* written there stands for, so a place that admits no string is
+    // a binding that resolves and still says nothing: the panel would look for a link and for a
+    // subject where neither can be written.
+    const found = auditOf({ [`${DERIVED}#/$defs/d3`]: { names: 'node' } });
+    expect(found.problems.map((one) => `${one.code}: ${one.message}`)).toEqual([
+      'names: says what a name there stands for, but admits no text',
+    ]);
+    expect(auditOf({ [`${DERIVED}#/$defs/identity_name`]: { names: 'identity' } }).problems).toEqual(
+      [],
+    );
+  });
+
   it('reports symbols at a place that is neither an enumeration nor a union', () => {
     const found = auditOf({
       [`${MODEL}#/$defs/instance_definition`]: { symbols: { add: { text: '+', form: 'infix' } } },

@@ -99,6 +99,7 @@ import {
   mapDeclaring,
 } from '../sheet/add.js';
 import { ArgumentSchema } from '../sheet/artifact.js';
+import { derivedBytes, derivedPathOf } from '../derived/export.js';
 import { statusFigures, type FigureShapes, type StatusFigure } from './figures.js';
 import { noReading, Pipeline, type Reading } from './pipeline.js';
 import { shapesFor } from './shapes.js';
@@ -480,6 +481,13 @@ export interface Documents extends DocumentsState {
   saveAll(): Promise<void>;
   revert(id?: string): Promise<void>;
   downloadZip(): Promise<void>;
+  /**
+   * `File ▸ Export Derived Document…` (§4.4, §4.18): `<model>.derived.json`, validated first.
+   *
+   * The bytes go through `Workspace.write`, so a folder the browser can write takes them in place
+   * and a snapshot hands them to the user as a download — the one path every Save already takes.
+   */
+  exportDerived(id?: string): Promise<void>;
 
   autosave(): Promise<void>;
   restoreDraft(id: string): void;
@@ -1597,6 +1605,36 @@ export function createDocuments(options: DocumentsOptions): {
         const archive = zipOf(entries);
         await platform.shell.download(`${reference.name || 'workspace'}.zip`, archive);
         note(`downloaded: ${String(entries.length)} files, ${String(archive.length)} bytes`);
+      },
+
+      async exportDerived(id?: string): Promise<void> {
+        const one = documentOf(get(), id ?? tabs.current());
+        if (one === undefined) return;
+        const derived = one.reading.derived;
+        if (derived === null) {
+          // Nothing is written for a document that has no products: §4.18's own three states say
+          // which of them it is, and the Log says the same thing in one line.
+          note(`${one.path}: nothing has been derived, so nothing was exported`);
+          set({ toast: { text: textWith('{} has not been derived', one.title) } });
+          return;
+        }
+        const path = derivedPathOf(one.path);
+        const written = derivedBytes(derived, get().registry);
+        // "Validated by the core against the derived schema before writing, as the tools do"
+        // (§4.18). The core's own self-check already ran inside `derive` (feature 1.8e), so a
+        // refusal here means the schemas this workspace carries are not the ones it was derived
+        // against — which plan §1 admits and which the log is where to say.
+        for (const problem of written.problems) note(`${path}: ${problem}`);
+        try {
+          await platform.workspace.write(path, written.text);
+          const where = platform.workspace.root().writable ? 'exported' : 'downloaded';
+          note(`${where}: ${path} (${String(written.text.length)} bytes)`);
+          set({ toast: { text: `${where} ${path}` } });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          note(`${path}: ${message}`);
+          set({ banner: { kind: 'stop', head: `${path} was not written.`, body: message } });
+        }
       },
 
       async autosave(): Promise<void> {

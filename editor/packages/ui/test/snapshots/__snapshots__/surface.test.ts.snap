@@ -142,6 +142,7 @@ exports[`@tensorspine/ui > exports the shell surface the snapshot records 1`] = 
   "LIGHT_CLASS",
   "MENUS",
   "MONOGRAM",
+  "NO_PRODUCT",
   "PALETTE_CHORD",
   "PANELS",
   "PANEL_TRANSFER",

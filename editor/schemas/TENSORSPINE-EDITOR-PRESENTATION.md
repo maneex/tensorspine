@@ -71,6 +71,9 @@ meanings: so the declaration is bound at
 | `keywords` | the word written before each member of the construct at this anchor: `if … then … else …` |
 | `format` | how a figure is shown: `bytes`, `elements`, `operations`, `count`, `status`, `shape` |
 | `statusBar` | this figure is one of the status bar's four totals, in this position and under this label |
+| `product` | the definition at this anchor is one of the derived products, under this name |
+| `names` | what a string written at this place names: `node`, `reference`, `identity`, `split` |
+| `header` | this member of a derived document belongs in the Derived panel's header, under this word |
 | `declares` | the kind of thing the map at this anchor declares |
 | `scope` | the anchor of the declaration this one lives inside |
 | `refers` | where a name declared here is referred to |
@@ -155,6 +158,34 @@ schema moves with it.
 The label is English and is the key of the interface's own dictionary (§4.21): the schema's member
 name (`append_bytes_per_cached_position`) is not a label a bar can carry, and inventing one in a
 component is what this file exists to prevent.
+
+### The derived products, their identifiers and the panel's header
+
+§4.18 gives the Derived panel a tab per product, "titled with the products' names from the
+specification". The derived schema names them `d1` … `d6` and states in a `description` what each
+one carries; the name — *Derived Parameter Tensor Inventory* — is not a thing a schema says, so
+`product` says it, and the panel **finds** its tabs by walking the derived document's root against
+the schema, in the schema's own property order. A seventh product becomes a tab by gaining a
+binding, and no list of six is written in a component.
+
+`names` is the other half of the same walk. The schema says that a place holds a
+`node_identifier`, a `value_reference`, an `identity_name` or a `graph_split_id`, and that is
+everything it can say. What §4.18 asks for beyond it is presentation: that such a figure is a
+**link** — "a D1 node id selects the folded node and the index; a value `node.port` the edge" —
+and that the **selection filter** holds every product to the node, identity or split the reader
+selected. So the four definitions carry `names`, and the panel compares what it finds there;
+*how* one of those strings names a subject stays the core's own reading (`declaredSite`,
+`splitMember`, `identityInstanceOf`), since a component that took a node identifier apart would be
+a second reading of §5.2 rule 2.
+
+`reference` rather than `value` for a `value_reference`, deliberately: `value` is an enumerated
+value of the four schemas (an axis space, a documentation kind), and catching rule (b) is a
+whole-literal scan of every interface source. The word a component compares against has to be one
+the language does not use.
+
+`header` is the panel's own envelope line. §4.18: "The header shows freshness … and the assignment
+used" — and the assignment is a member of the derived document's envelope rather than of a
+product, so it is found by the same walk and written beside the word this binding gives it.
 
 ## What a name refers to
 

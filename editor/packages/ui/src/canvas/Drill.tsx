@@ -19,7 +19,7 @@
 import { Fragment, useMemo, type JSX } from 'react';
 
 import { foldedGraph, pointLabel, type FoldedGraph, type IndexBinding } from '@tensorspine/lang';
-import type { Path } from '@tensorspine/store';
+import { pathOfPointer, type Path } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
 import { documentTab, drillOf, type OpenDocument } from '../documents/store.js';
@@ -89,7 +89,7 @@ export function Drill({ one, composition }: { one: OpenDocument; composition: st
           store.getState().setScrub(model.pointer, label, one.id);
         }}
         onSite={(pointer) => {
-          store.getState().selectPlace(pathOf(pointer), one.id);
+          store.getState().selectPlace(pathOfPointer(pointer), one.id);
         }}
       />
     </div>
@@ -334,14 +334,6 @@ function Row({
 function scaleLabel(at: number, columns: number): string {
   if (at === columns - 1) return String(at);
   return at % 5 === 0 ? String(at) : '';
-}
-
-/** An RFC 6901 pointer as a path of the document. */
-function pathOf(pointer: string): Path {
-  return pointer
-    .split('/')
-    .slice(1)
-    .map((step) => step.replace(/~1/g, '/').replace(/~0/g, '~'));
 }
 
 /**

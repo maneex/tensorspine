@@ -1,0 +1,148 @@
+/* ── the Derived panel (feature 2.15, §4.18, artboard S11) ────────────────────
+   S11 draws the panel as a rail of products beside a body: the products by
+   name, the filter chip under them, the export link under that, and on the
+   right the product's own header, its totals and its tables. The table itself
+   is the design's `table.t`, which `sheet.css` already carries — feature
+   2.12's own note says so ("which the Derived panel (2.15) … draws with too")
+   — and the `.totals` strip is the design's `_ts.css` rule, copied here with
+   the one departure every feature since 2.5 has had to make:
+
+     **§4.21 asks for a contrast of 4.5:1 for text, and `--muted` does not
+     reach it** on `--bg-panel` in the light theme (4.37:1, measured by feature
+     2.5). The design writes `.totals div span` and `.tstat` in `--muted`; both
+     are text a reader reads, so both step up to `--ink-3`. The token values
+     themselves are untouched, as they have been every time.                  */
+
+.derived {
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+  height: 100%;
+  margin: -10px -14px;
+}
+
+.der-rail {
+  flex: 0 0 214px;
+  min-width: 0;
+  padding: 10px 8px 12px 14px;
+  overflow-y: auto;
+  border-right: 1px solid var(--rule);
+  background: var(--bg-panel);
+}
+
+.der-rail .grp {
+  padding: 8px 4px 3px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.der-rail .row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+.der-rail .row:hover { background: var(--bg-tint); }
+.der-rail .row.sel { background: var(--bg-tint); color: var(--ink); }
+.der-rail .row .pn { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.der-rail .row .n { flex: 0 0 auto; font-family: var(--mono); font-size: 10px; color: var(--accent); }
+/* `--accent` on `--bg-tint` is 6.76:1 in the dark theme and **4.21:1** in the light one, which
+   §4.21's floor refuses — feature 2.11 measured the same pair for the operator chip and answered
+   it the same way, and axe found this one on the rendered page. */
+.theme-light .der-rail .row .n,
+.theme-light .der-rail .link,
+.theme-light .der-sect table.t td .link { color: var(--accent-dim); }
+
+.der-rail .quiet {
+  margin: 2px 6px 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.der-rail .chips { margin: 3px 6px 0; }
+.der-rail .badge .tbtn { padding: 0 2px; line-height: 1; }
+.der-rail .link { border: 0; background: transparent; font: inherit; font-size: 11.5px; color: var(--accent); cursor: pointer; text-align: left; padding: 0; }
+.der-rail .link:hover { text-decoration: underline; }
+
+.der-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 14px 14px;
+  overflow: auto;
+}
+
+.der-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.der-head h2 { margin: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+.der-head .note-line { flex: 1 1 220px; min-width: 0; font-size: 10.5px; color: var(--ink-3); }
+.der-head .pill { margin-left: auto; }
+.der-head .der-env { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+
+/* The totals strip: the design's own `.totals`, with `--ink-3` for its labels. */
+.der-body .totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 30px;
+  padding: 10px 0 11px;
+  border-bottom: 1px solid var(--rule);
+}
+.der-body .totals .tname {
+  flex: 0 0 100%;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.der-body .totals div span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.der-body .totals div b {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--derived);
+  font-variant-numeric: tabular-nums;
+}
+
+.der-sect { padding-top: 10px; }
+.der-sect table.t { table-layout: auto; }
+.der-sect table.t td { max-width: 320px; overflow-wrap: anywhere; }
+.der-sect table.t tr.more td { border-bottom: 0; }
+.der-sect table.t td .link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+.der-sect table.t td .link:hover { text-decoration: underline; }
+
+/* §5.4's freshness: "anything computed for an older revision is shown dimmed
+   with `stale`". The pill beside the product's name says which edit did it;
+   the figures keep their last value and dim, which is what S11 draws.        */
+.der-body .stale { opacity: 0.45; }

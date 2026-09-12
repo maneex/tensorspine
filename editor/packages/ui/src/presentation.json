@@ -302,6 +302,39 @@
   "https://tensorspine.dev/schema/2.0/primitive-library-unit.json#/$defs/state_port/properties/rules": {
     "widget": "ordered-list"
   },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d1": {
+    "product": "Derived Computation Graph"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d2": {
+    "product": "Derived Value Shapes and Lifetimes"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d3": {
+    "product": "Derived Parameter Tensor Inventory"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d4": {
+    "product": "Derived State Inventory and Behavior"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5": {
+    "product": "Derived Logical Resource Requirements and Costs"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d6": {
+    "product": "Derived Decomposition Options"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/node_identifier": {
+    "names": "node"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/value_reference": {
+    "names": "reference"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/identity_name": {
+    "names": "identity"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/graph_split_id": {
+    "names": "split"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/properties/assignment": {
+    "header": "assignment"
+  },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/bytes_by_input/additionalProperties": {
     "format": "bytes"
   },
@@ -359,6 +392,15 @@
       "order": 2,
       "label": "/ element"
     }
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/operations/properties/cached_position": {
+    "format": "operations"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/operations/properties/sequence": {
+    "format": "operations"
+  },
+  "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/operations/properties/invocation": {
+    "format": "operations"
   },
   "https://tensorspine.dev/schema/2.1/derived.json#/$defs/d5/properties/parameters/properties/bytes": {
     "format": "bytes"

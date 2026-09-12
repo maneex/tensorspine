@@ -22,6 +22,7 @@
  */
 import type { DragEvent, JSX } from 'react';
 
+import { DerivedPanel } from '../derived/index.js';
 import { useDocumentState } from '../documents/Pills.js';
 import { SelectionSheet } from '../sheet/index.js';
 import { ProblemControls, ProblemsPanel, useProblemCount } from '../problems/index.js';
@@ -86,9 +87,14 @@ function PanelBody({ panel }: { panel: PanelId }): JSX.Element {
     // the core, and the panel arranges them; it decides nothing about a document.
     return <ProblemsPanel />;
   }
+  if (panel === 'panel.derived') {
+    // §4.18's six products, generated from the derived schema — feature 2.15. Every figure is the
+    // core's own number and every table's columns are the schema's properties in order.
+    return <DerivedPanel />;
+  }
   // With a document open, the panel says what the core has said about it and nothing more: the
-  // rows of §4.17 are feature 2.8's and the six products of §4.18 are feature 2.15's, and a panel
-  // that went on saying "no document is open" over an open one would be saying something false.
+  // rows of §4.17 are feature 2.8's, and a panel that went on saying "no document is open" over
+  // an open one would be saying something false.
   return <PanelState panel={panel} />;
 }
 

@@ -126,6 +126,15 @@ const PAIRS: readonly [string, string, string][] = [
   ['--struct', '--struct-bg', 'a composition’s name and its count'],
   ['--derived', '--struct-bg', 'its index range'],
   ['--ink-3', '--struct-bg', 'its summary, its families and its fold'],
+  // the Derived panel (feature 2.15): the products rail, a product's header, a totals strip and
+  // the tables of §4.18, all on the panel's own ground and on a selected row's tint.
+  ['--ink-2', '--bg-panel', 'a product in the rail'],
+  ['--ink', '--bg-tint', 'the product whose tab is showing'],
+  ['--ink-3', '--bg-panel', 'the rail’s groups, its notes and the header’s envelope'],
+  ['--ink', '--bg-panel', 'a product’s name'],
+  ['--derived', '--bg-panel', 'a figure of a totals strip'],
+  ['--ink-3', '--bg-panel', 'a totals strip’s labels and a table’s headers'],
+  ['--ink-2', '--bg-panel', 'a cell of a product’s table'],
 ];
 
 /**
@@ -143,6 +152,13 @@ const THEMED: readonly [keyof typeof THEMES, string, string, string][] = [
   ['light', '--struct', '--bg-tint', 'a quantity chip'],
   ['dark', '--derived', '--bg-tint', 'a literal and an index chip'],
   ['light', '--derived', '--bg-tint', 'a literal and an index chip'],
+  // Feature 2.15's own, and the same pair one panel along: the short name beside a product and
+  // the links inside its tables are `--accent`, which a selected row's tint refuses in the light
+  // theme. Found by the axe pass over the rendered panel, as 2.11's was.
+  ['dark', '--accent', '--bg-tint', 'a product’s short name, and a link in its table'],
+  ['light', '--accent-dim', '--bg-tint', 'the same, stepped down the ramp for a light ground'],
+  ['dark', '--accent', '--bg-panel', 'the Export link of the rail'],
+  ['light', '--accent-dim', '--bg-panel', 'the same, stepped down'],
 ];
 
 describe('every ink the shell writes text in', () => {

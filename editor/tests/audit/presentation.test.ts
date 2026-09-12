@@ -191,6 +191,71 @@ describe('every figure of the derived products is bound', () => {
   });
 });
 
+describe('the derived products, their identifiers and their operation counts', () => {
+  /** The derived schema's own document. */
+  function schema(): SchemaObject {
+    const found = registry().byId(DERIVED);
+    if (found === undefined) throw new Error(`${DERIVED} is not in the registry`);
+    return found.document;
+  }
+
+  /** Its `$defs`, by name. */
+  function defs(): Record<string, Record<string, unknown>> {
+    return (schema()['$defs'] ?? {}) as Record<string, Record<string, unknown>>;
+  }
+
+  it('names every product the root reaches, so the panel finds six tabs and not five', () => {
+    // The products are found by walking the *document*'s root against the schema (feature 2.15),
+    // so a root member that refers to a definition the file does not bind would be a product with
+    // no tab. The set comes from the schema; a seventh fails here until it is named.
+    const properties = (schema()['properties'] ?? {}) as Record<string, { $ref?: string }>;
+    const products = Object.values(properties)
+      .map((one) => one.$ref)
+      .filter((one): one is string => one !== undefined && /^#\/\$defs\/d[0-9]+$/.test(one));
+    expect(products).toHaveLength(6);
+    for (const reference of products) {
+      expect(file.at(`${DERIVED}${reference}`)?.product, reference).toBeDefined();
+    }
+  });
+
+  it('says what every string definition of the derived schema names', () => {
+    // A `$def` that is a bare string is an identifier of the products — a node, a `<node>.<port>`,
+    // an identity, a split — and §4.18 makes each of them a link and a subject of the selection
+    // filter. The set is read off the schema, so a fifth one fails here until somebody says what a
+    // name written there stands for.
+    const strings = Object.entries(defs()).filter(
+      ([, node]) => node['type'] === 'string' && node['enum'] === undefined,
+    );
+    expect(strings.map(([name]) => name).sort()).toEqual([
+      'graph_split_id',
+      'identity_name',
+      'node_identifier',
+      'value_reference',
+    ]);
+    for (const [name] of strings) {
+      expect(file.at(`${DERIVED}#/$defs/${name}`)?.names, name).toBeDefined();
+    }
+  });
+
+  it('binds every operation count as one, as it binds every byte figure', () => {
+    // The byte figures are held to the schema above; these are the other four, and the same rule:
+    // a member of D5's `operations` with no binding shows a bare number where a reader expects
+    // `15.01 Gop`. Found in the schema rather than listed.
+    const d5 = defs()['d5'] as { properties: { operations: { properties: Record<string, unknown> } } };
+    const members = Object.keys(d5.properties.operations.properties);
+    expect(members.length).toBeGreaterThan(0);
+    for (const member of members) {
+      const anchor = `${DERIVED}#/$defs/d5/properties/operations/properties/${member}`;
+      expect(file.at(anchor)?.format, anchor).toBe('operations');
+    }
+  });
+
+  it('names the assignment in the header, which is the one envelope member §4.18 asks for', () => {
+    const headers = file.anchors.filter((anchor) => file.at(anchor)?.header !== undefined);
+    expect(headers).toEqual([`${DERIVED}#/properties/assignment`]);
+  });
+});
+
 // Every map the model schema keys by a *name* — the store finds them by reading the schemas, not
 // from a list — and what a name of it refers to. A map with no referent binding is not an
 // oversight if the reason is written down; a map with one that nothing explains is.

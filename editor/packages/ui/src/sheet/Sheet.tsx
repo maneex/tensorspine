@@ -50,6 +50,7 @@ import {
   pointerOf,
   remove,
   setMemberAt,
+  pathOfPointer,
   setValue,
   type Command,
   type EditContext,
@@ -1613,7 +1614,7 @@ function SlotActions({
       one.id,
     );
     try {
-      store.getState().edit((made) => tieTo(made, { target, held, into: pathOf(into.pointer) }));
+      store.getState().edit((made) => tieTo(made, { target, held, into: pathOfPointer(into.pointer) }));
     } catch (error) {
       store.getState().setToast({ text: error instanceof EditError ? error.message : String(error) });
       return;
@@ -1710,15 +1711,7 @@ function SlotActions({
 /** The place a rule is written at, as a path — the core's own reading of §5.2 rule 7. */
 function pathOfRule(identities: readonly IdentityReading[], rule: string): Path {
   const reading = identities.find((one) => one.rule === rule);
-  return reading === undefined ? [] : pathOf(reading.pointer);
-}
-
-/** A JSON pointer as the path the store's commands take. */
-function pathOf(pointer: string): Path {
-  return pointer
-    .split('/')
-    .slice(1)
-    .map((step) => step.replace(/~1/g, '/').replace(/~0/g, '~'));
+  return reading === undefined ? [] : pathOfPointer(reading.pointer);
 }
 
 /** §4.11's States: the applying rule and everything it decided. */

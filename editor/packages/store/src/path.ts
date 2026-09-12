@@ -54,6 +54,23 @@ export function keyOf(path: Path): string {
   return path.map((step) => String(step)).join('/');
 }
 
+/**
+ * An RFC 6901 pointer as a path — the inverse of {@link pointerOf}.
+ *
+ * The commands, the selection and the layout sidecar all take a path, while the core answers a
+ * *pointer* wherever it names a place (a problem's, an identity reading's, a folded box's), so
+ * the two are converted constantly. One conversion, because three components had written the same
+ * four lines out: a step is unescaped as the standard says (`~1` before `~0`), and a text that is
+ * not a pointer answers the root rather than a path of rubbish.
+ */
+export function pathOfPointer(pointer: string): Path {
+  if (pointer === '' || !pointer.startsWith('/')) return [];
+  return pointer
+    .split('/')
+    .slice(1)
+    .map((step) => step.replace(/~1/g, '/').replace(/~0/g, '~'));
+}
+
 /** The steps of a sidecar key, as a path. A step that reads as an index is one. */
 export function pathOfKey(key: string): Path {
   return key.split('/').map((step) => (/^(0|[1-9][0-9]*)$/.test(step) ? Number(step) : step));

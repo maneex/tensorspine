@@ -49,6 +49,7 @@ describe('what the shell’s state holds', () => {
       [
         "activeTab",
         "canvas",
+        "derived",
         "docsBase",
         "draggingPanel",
         "log",

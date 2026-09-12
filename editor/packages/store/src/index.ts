@@ -23,6 +23,7 @@ export {
   objectAt,
   parentOf,
   pathOfKey,
+  pathOfPointer,
   pointerOf,
   stepInto,
   type Path,

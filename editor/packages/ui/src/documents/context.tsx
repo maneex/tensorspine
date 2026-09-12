@@ -84,6 +84,7 @@ function nothingOpen(): Documents {
     saveAll: later,
     revert: later,
     downloadZip: later,
+    exportDerived: later,
     autosave: later,
     restoreDraft: nothing,
     discardDraft: later,

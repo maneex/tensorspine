@@ -38,7 +38,7 @@ import {
   type SchemaRegistry,
 } from '@tensorspine/lang';
 import type { Facts, Problem } from '@tensorspine/lang/api';
-import type { Path, SchemaShapes } from '@tensorspine/store';
+import { pathOfPointer, type Path, type SchemaShapes } from '@tensorspine/store';
 
 import { printAt, printValue, type PrintContext } from '../expressions/index.js';
 import type { Presentation } from '../presentation/index.js';
@@ -208,11 +208,11 @@ export function drillModel(request: DrillRequest): DrillModel | null {
           terminal.side === SIDE.left
             ? `${link.rule} → ${link.name}.${link.port}`
             : `${link.rule} ← ${link.name}.${link.port}`,
-        at: pathOf(link.pointer),
+        at: pathOfPointer(link.pointer),
       })),
     });
     const box: CanvasBox = {
-      ...blankBox(terminal.id, pathOf(terminal.links[0]?.pointer ?? terminal.id)),
+      ...blankBox(terminal.id, pathOfPointer(terminal.links[0]?.pointer ?? terminal.id)),
       name: label,
       role: ROLE.terminal,
       side: terminal.side,
@@ -363,15 +363,6 @@ function shapeAt(shapes: SchemaShapes, path: Path, role: string): ReturnType<Sch
   let shape = shapes.root(role);
   for (const step of path) shape = shapes.step(shape, step);
   return shape;
-}
-
-/** An RFC 6901 pointer as a path of the document. */
-function pathOf(pointer: string): Path {
-  if (!pointer.startsWith('/')) return [];
-  return pointer
-    .split('/')
-    .slice(1)
-    .map((step) => step.replace(/~1/g, '/').replace(/~0/g, '~'));
 }
 
 /** A box with nothing on it: what a synthetic terminal starts from. */

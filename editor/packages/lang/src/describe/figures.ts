@@ -408,8 +408,15 @@ export function noSiteDerived(): SiteDerived {
   return { tensors: [], states: [], corrections: [], nodes: 0, acrossPositions: null };
 }
 
-/** The declared site behind a node identifier: `decoder/attn[layer=0]` is `decoder/attn`. */
-function declaredSite(site: string): string {
+/**
+ * The declared site behind a node identifier: `decoder/attn[layer=0]` is `decoder/attn`.
+ *
+ * §5.2 rule 2's own reading, and the one place it is written. Exported because §4.18's selection
+ * filter asks the same question of the products' identifiers — a reader who selected `attn` on
+ * the canvas selected the *declaration*, and D1, D3, D4, D5 and D6 name its iterations — and the
+ * inventory's §7 forbids a component to take a node identifier apart for itself.
+ */
+export function declaredSite(site: string): string {
   return site
     .split('/')
     .map((part) => part.replace(/\[.*$/, ''))
@@ -561,7 +568,8 @@ export function identityDerived(derived: PyValue, identity: string, state: boole
   const states: DerivedStateRow[] = [];
   let bytes: bigint | null = null;
   let per: bigint | null = null;
-  const mine = (row: PyValue): boolean => instanceOf(pyStr(get(row, IDENTITY) ?? ''), identity);
+  const mine = (row: PyValue): boolean =>
+    identityInstanceOf(pyStr(get(row, IDENTITY) ?? ''), identity);
 
   if (!state) {
     for (const row of listOf(get(get(derived, D3) ?? null, TENSORS) ?? [])) {
@@ -587,8 +595,15 @@ export function identityDerived(derived: PyValue, identity: string, state: boole
   };
 }
 
-/** Whether an identity instance name is an instance of that identity. */
-function instanceOf(instance: string, identity: string): boolean {
+/**
+ * Whether an identity instance name is an instance of that identity.
+ *
+ * "An identity with indices has one instance per index point — `decoder.attn.q[layer=0]` …
+ * `[layer=31]` — and one without has exactly itself", which is the same rule read twice. Exported
+ * for §4.18's selection filter, which holds D3's and D4's rows to the identity a sheet is open
+ * on: one reading of what an instance name is, never a second.
+ */
+export function identityInstanceOf(instance: string, identity: string): boolean {
   return instance === identity || instance.startsWith(`${identity}[`);
 }
 

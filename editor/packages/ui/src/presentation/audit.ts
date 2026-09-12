@@ -25,8 +25,10 @@
  */
 import {
   alternativeLabel,
+  factsOf,
   followAnchor,
   parseAnchor,
+  type SchemaNode,
   type SchemaRegistry,
   type Vocabulary,
 } from '@tensorspine/lang';
@@ -76,6 +78,12 @@ export const SCOPE = 'scope';
 /** The code of a keyword that introduces a member the definition does not declare. */
 const KEYWORD = 'keyword';
 
+/** The code of a product named at a definition that declares nothing to show. */
+const PRODUCT = 'product';
+
+/** The code of a naming binding at a place that admits no name. */
+const NAMES = 'names';
+
 /** Resolves every key of the bindings against the registry, and lists what nothing names. */
 export function auditPresentation(
   registry: SchemaRegistry,
@@ -118,6 +126,8 @@ export function auditPresentation(
     problems.push(...symbolProblems(anchor, binding, place.anchor, vocabulary));
     problems.push(...faceProblems(anchor, binding, place.node));
     problems.push(...keywordProblems(anchor, binding, place.node));
+    problems.push(...productProblems(anchor, binding, place.node));
+    problems.push(...namingProblems(anchor, binding, place.node));
     problems.push(...scopeProblems(anchor, binding, bindings));
   }
 
@@ -205,6 +215,35 @@ function keywordProblems(anchor: string, binding: Binding, node: unknown): Prese
       anchor,
       message: `introduces '${member}', which it does not declare`,
     }));
+}
+
+/**
+ * A derived product, against the definition it names.
+ *
+ * The Derived panel builds a tab's body out of the members the product declares (§4.18: "an array
+ * of objects becomes a table whose columns are the schema's properties in order"), so a `product`
+ * at a definition that declares none is a tab with nothing in it — the same failure a `face`
+ * naming an absent member is, one construct along.
+ */
+function productProblems(anchor: string, binding: Binding, node: unknown): PresentationProblem[] {
+  if (binding.product === undefined) return [];
+  const names = declaredMembers(node);
+  if (names !== null && names.size > 0) return [];
+  return [{ code: PRODUCT, anchor, message: 'is named as a product, but declares no members' }];
+}
+
+/**
+ * A naming binding, against what the definition admits.
+ *
+ * `names` says what a *string* written at this place stands for, so a place that admits no string
+ * at all is a binding that resolves and still says nothing: the panel would look for a link and
+ * for a subject where neither can be written.
+ */
+function namingProblems(anchor: string, binding: Binding, node: unknown): PresentationProblem[] {
+  if (binding.names === undefined) return [];
+  return factsOf(node as SchemaNode).holdsText
+    ? []
+    : [{ code: NAMES, anchor, message: 'says what a name there stands for, but admits no text' }];
 }
 
 /** The member names a definition declares, or `null` where it declares none. */

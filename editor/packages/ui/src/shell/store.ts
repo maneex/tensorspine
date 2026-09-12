@@ -138,6 +138,16 @@ export interface ShellState {
    */
   readonly problems: ProblemView;
   /**
+   * What the Derived panel is showing — §4.18's tab, its filter and the split it was held to.
+   *
+   * Chrome, for the reason {@link ProblemView} is: the panel is unmounted whenever another of the
+   * bottom panel's three tabs is showing, and a reader who had D6 open and looked at Problems
+   * should find D6 open when they come back. Nothing of a document is kept here — the split is a
+   * *name the reader chose*, carried with the tab it was chosen in so that another document does
+   * not inherit it.
+   */
+  readonly derived: DerivedView;
+  /**
    * Where the documentation site is, relative to this page.
    *
    * The Help menu resolves its links against it and so does a problem's code (§4.17): the editor
@@ -145,6 +155,26 @@ export interface ShellState {
    * into any component.
    */
   readonly docsBase: string;
+}
+
+/**
+ * What the Derived panel opens with: the first product, the filter armed, no split chosen.
+ *
+ * The filter is **on** by default because §4.18 describes it as the panel's own behaviour ("a
+ * selection filter restricts every tab to the selected node, identity or split") and because with
+ * nothing selected it holds nothing back: the chip appears when there is a subject, and the `×`
+ * on it is how a reader turns it off.
+ */
+export const NO_PRODUCT: DerivedView = { product: null, filter: true, split: null };
+
+/** What the Derived panel is showing (§4.18). */
+export interface DerivedView {
+  /** The product whose tab is showing, by the member the derived document writes it under. */
+  readonly product: string | null;
+  /** Whether every tab is held to the document's own selection. */
+  readonly filter: boolean;
+  /** The graph split a reader chose in D6, with the tab it was chosen in. */
+  readonly split: { readonly tab: string; readonly name: string } | null;
 }
 
 /** What the Problems panel is showing (§4.17). */
@@ -176,6 +206,8 @@ export interface Shell extends ShellState {
   revealPanel(panel: PanelId): void;
   /** Change how the Problems panel is showing its rows (§4.17). */
   setProblemView(view: Partial<ProblemView>): void;
+  /** Change what the Derived panel is showing (§4.18). */
+  setDerivedView(view: Partial<DerivedView>): void;
   /**
    * `View ▸ Toggle Properties`.
    *
@@ -565,8 +597,12 @@ export function createShell(options: ShellOptions): { store: ShellStore; dispose
       workspace: platform.workspace.root(),
       log: [],
       problems: { ...NO_FILTER, group: 'node' },
+      derived: NO_PRODUCT,
       docsBase,
 
+      setDerivedView: (view) => {
+        set((state) => ({ derived: { ...state.derived, ...view } }));
+      },
       setProblemView: (view) => {
         set((state) => ({ problems: { ...state.problems, ...view } }));
       },

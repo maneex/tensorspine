@@ -2,6 +2,7 @@
 @import '../canvas/canvas.css';
 @import '../sheet/sheet.css';
 @import '../expressions/expressions.css';
+@import '../derived/derived.css';
 
 /* ─────────────────────────────────────────────────────────────────────────
    The shell — plan §4.2 as drawn on S1, component inventory §2.
@@ -445,6 +446,9 @@ body { margin: 0; }
 .status .bad { color: var(--bad); }
 .status .der { color: var(--derived); }
 .status .fig.d b { color: var(--derived); }
+/* §5.4's freshness in the bar: a figure computed for an older revision keeps its last value and
+   dims, so that it does not read as current while the core is deriving again (feature 2.15). */
+.status .fig.stale { opacity: 0.5; }
 .status .fig .chip {
   margin-left: 6px; padding: 0 5px; border: 1px solid var(--chip); border-radius: 2px;
   font-style: normal; font-size: 9.5px; color: var(--ink-3);
