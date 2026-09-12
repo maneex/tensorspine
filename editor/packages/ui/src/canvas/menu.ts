@@ -85,3 +85,26 @@ const NODE_ONLY: readonly string[] = [
   'model.upgrade-pins',
   'canvas.add-to-composition',
 ];
+
+/**
+ * The menu of a **port** — §4.15's two gestures.
+ *
+ * > Creating an input from an unfed port: right-click the port ▸ "Expose as input…" (name proposed
+ * > from the port). Creating an output: right-click an output port ▸ "Expose as output…" with the
+ * > generative toggle.
+ *
+ * Both are commands of §4.4's Model menu (`Add Input`, `Add Output`), so the rule that every
+ * context-menu command is also a command of the bar holds here as it holds for the box's menu; the
+ * labels are §4.15's own, because that is what a port's menu says. Which of the two a port offers
+ * is the side it is on, and nothing is hidden for a semantic reason (Q5): a **fed** input port
+ * still offers the gesture, and V7 is what says the port is then fed twice.
+ */
+export const PORT_MENU: readonly (MenuEntry & { readonly side: string })[] = [
+  { id: 'model.add-input', label: 'Expose as input…', command: true, side: 'inputs' },
+  { id: 'model.add-output', label: 'Expose as output…', command: true, side: 'outputs' },
+];
+
+/** What a port of one side offers. */
+export function portEntries(side: string): MenuEntry[] {
+  return PORT_MENU.filter((entry) => entry.side === side);
+}

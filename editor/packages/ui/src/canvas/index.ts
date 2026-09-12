@@ -39,7 +39,7 @@ export {
   type PlacedBox,
   type WireRoute,
 } from './layout.js';
-export { CONTEXT_MENU, entriesFor, type MenuEntry } from './menu.js';
+export { CONTEXT_MENU, entriesFor, PORT_MENU, portEntries, type MenuEntry } from './menu.js';
 export {
   canvasModel,
   DEFAULT_VIEW,

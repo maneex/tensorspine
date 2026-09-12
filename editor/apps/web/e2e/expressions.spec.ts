@@ -74,8 +74,10 @@ test.describe('head_dim’s derivation, in both views', () => {
     await openModel(page);
     await select(page, HEAD_DIM);
 
-    // The section §4.13 owns, and the one expression this place writes.
-    await expect(sheet(page).locator('h2.ih:text-is("Expressions")')).toBeVisible();
+    // Where §4.11 puts it: the quantity's own sheet, under the `source` its derivation belongs to
+    // ("literal with value and optional derivation"). Feature 2.11 drew it in a section of its own
+    // because that sheet did not exist yet; feature 2.12 built the sheet and the row moved into it.
+    await expect(sheet(page).locator('[data-chooser="/source"] [data-member="derivation"]')).toBeVisible();
     await expect(editor(page)).toHaveCount(1);
 
     // The tree: one row per node, with the operator select and the two quantity pickers.
@@ -241,13 +243,15 @@ test.describe('the editor without a pointer', () => {
     await select(page, HEAD_DIM);
 
     // Every control is a real one, so Tab walks them and each says what it is for.
+    // The label is the row's own — the member the schema declares the expression under — since
+    // the editor now sits on that row rather than in a section listing the place's expressions.
     await expect(editor(page).locator('[data-operator=""]')).toHaveAttribute(
       'aria-label',
-      'Operator of source · derivation',
+      'Operator of derivation',
     );
     await expect(editor(page).locator('.xtext')).toHaveAttribute(
       'aria-label',
-      'Expression text of source · derivation',
+      'Expression text of derivation',
     );
 
     // The keyboard's own way through: focus the operator select, change it, and the text follows.

@@ -141,3 +141,68 @@
 .arow-editor { padding: 6px 0 10px 28px; }
 .frow.wide { align-items: flex-start; }
 .frow.wide .fv { flex: 1; min-width: 0; }
+
+/* ── the other sheets of §4.11, and §4.16's tables (feature 2.12, S15) ──────
+   A generated form goes as deep as its `$def` does — a composition's indices
+   hold three expression rows each, an identity's members are a list of
+   sections — so a section and a map entry get a header of their own and a
+   body indented under it. The three departures from S15, with their reasons:
+
+     1. **a region is design-pass chrome** (inventory §2): S15 draws the four
+        as `.region` boxes side by side, because a specimen sheet shows states
+        next to each other. In the application they are one panel — the sheet
+        of the selection — so they are sections of it, under the headings the
+        rest of the sheet already uses;
+
+     2. **a table is wider than 340 px** and the Properties panel is that wide
+        until it is dragged (§4.2). The table scrolls sideways in its own
+        container, which is the one place the inventory admits it, and the
+        panel itself never scrolls horizontally;
+
+     3. **a cell is a control** where the place admits one (§4.16's "inline
+        editing"): the mode select of a chooser and the field of a scalar sit
+        in the cell, so the row's height is the control's.                  */
+
+.fsect { margin: 4px 0 2px; }
+.fsect-head {
+  display: flex; align-items: center; gap: 8px; padding: 3px 0;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+}
+.fsect-head .ihn { margin-left: 0; }
+.fsect-head .ctl { height: 20px; max-width: 128px; }
+.fsect-body { padding-left: 12px; border-left: 1px solid var(--rule); }
+.fentry { padding: 2px 0; }
+.fentry-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10.5px; color: var(--ink-3);
+}
+.fentry-head .mono { color: var(--ink-2); }
+
+/* A table of declarations. The design's own `table.t` and its cells, which the
+   Derived panel (2.15) and the Weights panel (4.2) draw with too. */
+.ttable { overflow-x: auto; }
+table.t { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+table.t th {
+  padding: 0 10px 6px 0; border-bottom: 1px solid var(--rule-strong);
+  font-family: var(--mono); font-size: 9.5px; font-weight: 400; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ink-3); text-align: left; white-space: nowrap;
+}
+table.t td {
+  padding: 4px 10px 4px 0; border-bottom: 1px solid var(--rule);
+  color: var(--ink-2); vertical-align: top;
+}
+table.t td.m { font-family: var(--mono); }
+table.t td.id { font-family: var(--mono); white-space: nowrap; }
+table.t td.id .link { font-family: var(--mono); }
+table.t td.num {
+  font-family: var(--mono); color: var(--derived); text-align: right; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+table.t td.dim { color: var(--ink-3); }
+table.t tr.on td { background: var(--bg-tint); }
+table.t tr.kid td { padding-left: 18px; color: var(--ink-3); font-family: var(--mono); font-size: 10.5px; }
+table.t .ctl { height: 20px; max-width: 112px; }
+.tstat {
+  margin-left: 6px; padding: 0 6px; border: 1px solid var(--chip); border-radius: 999px;
+  font-family: var(--sans); font-size: 9.5px; font-style: normal; color: var(--ink-3);
+}

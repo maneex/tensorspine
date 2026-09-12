@@ -57,8 +57,8 @@ import {
   type GestureContext,
 } from './gestures.js';
 import { fit, NO_PLACEMENT, place, routes, type Placement, type WireRoute } from './layout.js';
-import { entriesFor, type MenuEntry } from './menu.js';
-import { canvasModel, ROLE, type CanvasBox, type CanvasModel, type CanvasWire } from './model.js';
+import { entriesFor, portEntries, type MenuEntry } from './menu.js';
+import { canvasModel, ROLE, SIDE, type CanvasBox, type CanvasModel, type CanvasWire } from './model.js';
 
 /** What a palette drag carries onto the canvas — §4.7's "Drop a primitive from the palette". */
 export const PRIMITIVE_TRANSFER = 'application/x-tensorspine-primitive';
@@ -146,6 +146,10 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ box: CanvasBox; x: number; y: number } | null>(null);
+  /** §4.15's port menu: which port it was opened on, and where. */
+  const [portMenu, setPortMenu] = useState<
+    { box: CanvasBox; port: string; side: string; x: number; y: number } | null
+  >(null);
   const [announced, setAnnounced] = useState('');
 
   const bindings = presentation();
@@ -355,6 +359,24 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     // for. The Properties region is where §4.11's sheet is.
     shell.getState().revealPanel('panel.properties');
     announce(applied.label);
+  };
+
+  /**
+   * §4.15's `Expose as input…` / `Expose as output…`, from the port's own menu.
+   *
+   * The handle is the folded reading's — the same one a connection is made from — and what is
+   * written is the interface's own definition with that endpoint in it. Which map takes it is the
+   * *side* the terminal is drawn on, which `presentation.json` says and the store reads.
+   */
+  const expose = (box: CanvasBox, port: string, side: string): void => {
+    const handle = handleFor(folded, box, port);
+    if (handle === null) return;
+    const name = store
+      .getState()
+      .expose(handle, side === SIDE_OF.inputs ? SIDE.left : SIDE.right, one.id);
+    if (name === null) return;
+    shell.getState().revealPanel('panel.properties');
+    announce(textWith('Exposed {}', `${handle.name}.${handle.port} as ${name}`));
   };
 
   const run = (entry: MenuEntry, box: CanvasBox): void => {
@@ -606,6 +628,11 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
                   onPort={(port, side, pressed) => {
                     onPort(box, port, side, pressed);
                   }}
+                  onPortMenu={(port, side, x, y) => {
+                    select(box);
+                    setMenu(null);
+                    setPortMenu({ box, port, side, x, y });
+                  }}
                   onProblem={() => {
                     store.getState().revealPlace(box.path, one.id);
                     shell.getState().revealPanel('panel.problems');
@@ -635,12 +662,27 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
           }}
         />
       )}
+      {portMenu === null ? null : (
+        <PortMenu
+          side={portMenu.side}
+          x={portMenu.x}
+          y={portMenu.y}
+          onRun={() => {
+            const held = portMenu;
+            setPortMenu(null);
+            expose(held.box, held.port, held.side);
+          }}
+        />
+      )}
       <p className="offscreen" role="status" aria-live="polite">
         {announced}
       </p>
     </div>
   );
 }
+
+/** Which side of the canvas a terminal for a port of each kind sits on (feature 2.9's bindings). */
+const SIDE_OF = { inputs: 'inputs', outputs: 'outputs' } as const;
 
 /** The keys that nudge the selected box — §4.4's "arrows nudge". */
 const NUDGES: readonly string[] = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'];
@@ -867,6 +909,38 @@ function Wires({
         );
       })}
     </>
+  );
+}
+
+/** §4.15's port menu, at the pointer: the one gesture a port of that side offers. */
+function PortMenu({
+  side,
+  x,
+  y,
+  onRun,
+}: {
+  side: string;
+  x: number;
+  y: number;
+  onRun: (entry: MenuEntry) => void;
+}): JSX.Element {
+  return (
+    <div className="ctxmenu" style={{ left: `${String(x)}px`, top: `${String(y)}px` }} role="menu">
+      {portEntries(side).map((entry) => (
+        <button
+          key={entry.id}
+          type="button"
+          role="menuitem"
+          data-entry={entry.id}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRun(entry);
+          }}
+        >
+          {text(entry.label)}
+        </button>
+      ))}
+    </div>
   );
 }
 

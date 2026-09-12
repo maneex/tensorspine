@@ -251,7 +251,13 @@ function indexWith(
   walk(tree, root, [], Object.create(null) as Record<string, string>);
 
   const byTag = new Map<string, Occurrence[]>();
-  for (const occurrence of all) {
+  // Where each occurrence stands in the document, so that a selection can be put back in document
+  // order without walking every occurrence again: feature 2.8 measured `select` at 27.5 ms over
+  // deepseek-v4-pro's 1 245 occurrences and 22 quantities, and a table of declarations (§4.16)
+  // asks it once per row.
+  const position = new Map<Occurrence, number>();
+  for (const [index, occurrence] of all.entries()) {
+    position.set(occurrence, index);
     const key = `${occurrence.tag}\u0000${occurrence.name}`;
     const found = byTag.get(key);
     if (found === undefined) byTag.set(key, [occurrence]);
@@ -271,7 +277,9 @@ function indexWith(
           found.set(pointerOf(occurrence.path), occurrence);
         }
       }
-      return all.filter((occurrence) => found.get(pointerOf(occurrence.path)) === occurrence);
+      return [...found.values()].sort(
+        (left, right) => (position.get(left) ?? 0) - (position.get(right) ?? 0),
+      );
     },
   };
 }

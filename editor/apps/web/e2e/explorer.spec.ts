@@ -191,9 +191,10 @@ test.describe('selecting an item', () => {
     // Another row, and the sheet follows it.
     await row(page, '/quantities/head_dim').click();
     await expect(sheet.locator('input[data-name-field]')).toHaveValue('head_dim');
-    // The Identity heading's own count; the sheet gained a second heading at feature 2.11 (the
-    // expressions the place writes), and this row is about the first.
-    await expect(sheet.locator('h2.ih').first().locator('.ihn')).toHaveText('quantity');
+    // What the sheet says the selection *is* — the word the map it lives in declares. It moved
+    // from the Identity heading's count to the kind line at feature 2.12, which is where the
+    // site's own sheet has always written it (`.insp-kind`).
+    await expect(sheet.locator('.insp-kind')).toHaveText('quantity');
     await expect(sheet.locator('[data-place]')).toHaveText('/quantities/head_dim');
   });
 
@@ -281,8 +282,10 @@ test.describe('editing from the tree', () => {
     expect(shown).not.toContain('attention.dense');
     expect(shown).not.toContain('"site": "attn"');
     await expect(row(page, '/compositions/decoder/instances/attn')).toHaveCount(0);
-    // Nothing is selected any more: what was selected went.
-    await expect(page.locator('.insp .empty-sub')).toBeVisible();
+    // Nothing is selected any more: what was selected went — and §4.11's own last row says what
+    // the sheet then shows ("Nothing selected | the Document sheet"), which feature 2.12 built.
+    await expect(page.locator('.insp [data-place]')).toHaveText('/');
+    await expect(page.locator('.insp .insp-title')).toHaveText('llama3-8b');
   });
 
   test('answers §4.4’s Edit menu on the selection, and says so in the Log when there is none', async ({

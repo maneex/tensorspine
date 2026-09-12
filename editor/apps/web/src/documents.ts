@@ -32,6 +32,37 @@ export interface DocumentsWiring {
   readonly autosaveMs?: number;
 }
 
+/**
+ * §4.4's four `Add …` commands, each adding to the map that declares the word its identity carries.
+ *
+ * `Add Quantity`, `Add Constant`, `Add Input` and `Add Output` differ in one word, and that word
+ * is `presentation.json`'s `declares` — the same one a rename and a delete read (feature 2.2). So
+ * the four handlers are one handler over the four identities, and the wiring names no member of
+ * the grammar: which map holds the quantities is the schemas' and the bindings' answer, not this
+ * file's.
+ */
+function adding(documents: DocumentsStore, shell: ShellStore): Record<string, () => void> {
+  const handlers: Record<string, () => void> = {};
+  for (const id of ADD_COMMANDS) {
+    handlers[id] = (): void => {
+      const declares = id.slice(id.lastIndexOf('-') + 1);
+      const added = documents.getState().addDeclaration({ declares });
+      if (added === null) return;
+      shell.getState().revealPanel('panel.properties');
+      documents.getState().note(`added ${declares} ${added}`);
+    };
+  }
+  return handlers;
+}
+
+/** The commands of §4.4 that add a declaration to a map of them. */
+const ADD_COMMANDS: readonly string[] = [
+  'model.add-quantity',
+  'model.add-constant',
+  'model.add-input',
+  'model.add-output',
+];
+
 /** The shell's tab strip, as the documents drive it. */
 function tabsOf(shell: ShellStore): TabSink {
   return {
@@ -131,6 +162,15 @@ export function wireDocuments(wiring: DocumentsWiring): {
       shell.getState().revealPanel('panel.problems');
       now().lint();
     },
+    // §4.4's `Undo (Ctrl+Z, named)` and `Redo`, over the command log of D13. Feature 2.1 built
+    // the log and feature 2.5 registered the commands; this is where the two meet, and what an
+    // undo takes back is the *command* — a rename that rewrote ten references is one of them.
+    'edit.undo': () => {
+      now().undo();
+    },
+    'edit.redo': () => {
+      now().redo();
+    },
     // §4.4's Edit menu, on whatever is selected in the document (§4.5). The tree answers the
     // same two keys while it has the focus; these are what the menu and the palette reach.
     'edit.rename': edit.rename,
@@ -157,6 +197,14 @@ export function wireDocuments(wiring: DocumentsWiring): {
     'view.json-source': () => {
       now().showSource();
     },
+    // §4.4's `Document Properties` — "(the model id, `primitive_libraries`, `version`)", which is
+    // §4.11's Document sheet: the sheet of the document's own place, which is the sheet shown
+    // when nothing else is selected. The command is the way to it from the menu.
+    'model.document-properties': () => {
+      now().selectPlace([]);
+      shell.getState().revealPanel('panel.properties');
+    },
+    ...adding(documents, shell),
   });
 
   // §4.3's "Close with unsaved changes asks": the strip is the shell's, the answer is the

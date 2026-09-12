@@ -86,6 +86,25 @@ export function formContext(registry: SchemaRegistry, bindings?: Presentation): 
   };
 }
 
+/** One context per registry, so every sheet, table and command shares the walker's caches. */
+const CONTEXTS = new WeakMap<SchemaRegistry, FormContext>();
+
+/**
+ * The context of a registry, built once and kept.
+ *
+ * `formContext` makes a new one — the shapes, the vocabulary's readings and the flattened unions
+ * with it — and a component that built one per render would pay feature 2.2's measured 1–2.5 ms
+ * for the vocabulary alone on every keystroke. The sheets, the tables and the commands of §4.4 all
+ * read the same schemas, so they read the same context.
+ */
+export function formsFor(registry: SchemaRegistry, bindings?: Presentation): FormContext {
+  const held = CONTEXTS.get(registry);
+  if (held !== undefined) return held;
+  const made = formContext(registry, bindings);
+  CONTEXTS.set(registry, made);
+  return made;
+}
+
 /** What a form is asked for. */
 export interface FormRequest {
   /** Where it starts: `<$id>#<pointer>`, as a presentation binding is keyed. */

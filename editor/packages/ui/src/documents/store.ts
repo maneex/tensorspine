@@ -70,7 +70,7 @@ import {
   type SchemaRegistry,
 } from '@tensorspine/lang';
 import type { Facts, Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
-import type { PortRef, Verdict as CandidateVerdict } from '@tensorspine/lang';
+import type { FoldedHandle, PortRef, Verdict as CandidateVerdict } from '@tensorspine/lang';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import { outlineOf, revealing } from '../explorer/outline.js';
@@ -84,6 +84,13 @@ import {
   type DroppedSidecarKey,
 } from '../problems/notices.js';
 import { textWith } from '../shell/strings.js';
+import { formsFor, type FormContext } from '../forms/index.js';
+import {
+  addDeclaration as addDeclarationCommand,
+  exposeAt,
+  interfaceMap,
+  mapDeclaring,
+} from '../sheet/add.js';
 import { ArgumentSchema } from '../sheet/artifact.js';
 import { statusFigures, type FigureShapes, type StatusFigure } from './figures.js';
 import { noReading, Pipeline, type Reading } from './pipeline.js';
@@ -362,6 +369,37 @@ export interface Documents extends DocumentsState {
    */
   edit(make: (context: EditContext) => Command, id?: string): Applied | null;
   /**
+   * §4.4's `Undo` and `Redo`, over the command log of D13.
+   *
+   * The log is feature 2.1's and the commands are feature 2.5's; this is the seam between them,
+   * and it is one line each because every gesture of the editor is already a named command with
+   * its inverse patches. A move the command made is followed back by the layout, whose own log
+   * stays where D13 put it: "an undo of a semantic edit does not shuffle positions".
+   */
+  undo(id?: string): void;
+  redo(id?: string): void;
+  /**
+   * Add a declaration — §4.4's `Add Quantity`, `Add Constant`, `Add Input`, `Add Output`, and the
+   * button under §4.16's own tables.
+   *
+   * The map is named either by its **place** (the table's own button) or by the **word** it
+   * declares (a command of §4.4, whose identity carries that word): both answers come from
+   * `presentation.json`'s `declares`, so the four commands are four words and no member of the
+   * grammar is written in the wiring. The new declaration is selected, so the sheet that opens is
+   * the one the author is about to fill in — the same arrangement a dropped primitive gets (§4.7).
+   *
+   * Answers the name it added, or `null` where the document has no such map.
+   */
+  addDeclaration(what: { readonly at?: Path; readonly declares?: string }, id?: string): string | null;
+  /**
+   * `Expose as input…` / `Expose as output…` (§4.15), from a port of the canvas or of a sheet.
+   *
+   * The side decides which map takes it: the one whose terminals `presentation.json` draws on
+   * that side (feature 2.9's `role`/`side` bindings), which is the same reading the canvas uses to
+   * draw a terminal left or right. Answers the name it added.
+   */
+  expose(handle: FoldedHandle, side: string, id?: string): string | null;
+  /**
    * Offer a command that has to be confirmed before it is made — §4.4's "Delete (cascades with
    * confirmation)". The dialog says what would go; {@link confirmed} is what makes it.
    */
@@ -487,6 +525,9 @@ export function createDocuments(options: DocumentsOptions): {
   /** The command a confirmation is up for, held out of the state because it is a closure. */
   let pending: { id: string; command: Command } | null = null;
   let registry: SchemaRegistry | null = null;
+
+  /** The walker's context over whatever registry is loaded — one per registry (feature 2.3). */
+  const forms = (): FormContext | null => (registry === null ? null : formsFor(registry, presentation()));
   let shapes: SchemaShapes | null = null;
   /** The derived schema as the figure walk reads it, built once with the registry it reads. */
   let figureShapes: FigureShapes<Shape> | null = null;
@@ -1218,6 +1259,91 @@ export function createDocuments(options: DocumentsOptions): {
         const one = current(id);
         if (one === undefined) return null;
         return run(one, make(one.session.store.context));
+      },
+
+      undo(id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        const applied = one.session.store.undo();
+        if (applied === null) {
+          note('nothing to undo');
+          return;
+        }
+        if (applied.moves.length > 0) one.session.layout.follow(applied.moves);
+        note(`undo: ${applied.label}`);
+      },
+
+      redo(id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        const applied = one.session.store.redo();
+        if (applied === null) {
+          note('nothing to redo');
+          return;
+        }
+        if (applied.moves.length > 0) one.session.layout.follow(applied.moves);
+        note(`redo: ${applied.label}`);
+      },
+
+      addDeclaration(what: { at?: Path; declares?: string }, id?: string): string | null {
+        const one = current(id);
+        const context = forms();
+        if (one === undefined || context === null) return null;
+        const role = one.session.store.role;
+        const at =
+          what.at ??
+          (what.declares === undefined
+            ? null
+            : (mapDeclaring(context, one.session.store.tree, role, what.declares)?.path ?? null));
+        if (at === null) {
+          note(`there is no map of ${what.declares ?? 'declarations'} in this document`);
+          return null;
+        }
+        let added: string | null = null;
+        const applied = run(
+          one,
+          ((): Command => {
+            const command = addDeclarationCommand(one.session.store.context, {
+              context,
+              role,
+              path: at,
+            });
+            added = command.name;
+            return command;
+          })(),
+        );
+        if (applied === null || added === null) return null;
+        get().selectPlace([...at, added] as Path, one.id);
+        return added;
+      },
+
+      expose(handle: FoldedHandle, side: string, id?: string): string | null {
+        const one = current(id);
+        const context = forms();
+        if (one === undefined || context === null) return null;
+        const role = one.session.store.role;
+        const at = interfaceMap(context, one.session.store.tree, role, side);
+        if (at === null) {
+          note(`there is no interface on the ${side} of this document`);
+          return null;
+        }
+        let added: string | null = null;
+        const applied = run(
+          one,
+          ((): Command => {
+            const command = exposeAt(one.session.store.context, {
+              context,
+              role,
+              path: at,
+              handle,
+            });
+            added = command.name;
+            return command;
+          })(),
+        );
+        if (applied === null || added === null) return null;
+        get().selectPlace([...at, added] as Path, one.id);
+        return added;
       },
 
       offer(make: (context: EditContext) => Command, id?: string): void {

@@ -166,7 +166,10 @@ export function ModelExplorer(): JSX.Element {
 
   const select = (row: OutlineRow): void => {
     setFocused(row.pointer);
-    store.getState().selectPlace(row.kind === 'document' ? null : row.path);
+    // The document's own row selects the document: §4.11 gives it a sheet ("`model` id ·
+    // `version` · `primitive_libraries` … · counts"), which is the sheet of the root place, and
+    // feature 2.7 left the row clearing the selection because that sheet did not exist yet.
+    store.getState().selectPlace(row.path);
   };
 
   const toggle = (row: OutlineRow): void => {

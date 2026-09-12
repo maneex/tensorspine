@@ -23,8 +23,11 @@ export type {
 export { formLines, lineOf, noteLines } from './render.js';
 export {
   AMBIGUOUS,
+  chainOf,
+  factsOfShape,
   formContext,
   formOf,
+  formsFor,
   memberOrder,
   UNDECLARED,
   UNDISCRIMINATED,

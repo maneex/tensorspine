@@ -24,11 +24,18 @@
 import { useEffect, useState, type JSX } from 'react';
 
 import {
+  foldedGraph,
+  identityReadings,
   isJsonNumber,
   noSiteDerived,
   pyStr,
+  quantityReadings,
   siteDerived,
+  streamRows,
+  toPython,
+  valueRows,
   type JsonValue,
+  type PyRecord,
   type SchemaFacts,
   type SchemaRegistry,
   type SiteDescription,
@@ -51,7 +58,7 @@ import {
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
 import { sizeText } from '../documents/figures.js';
 import type { OpenDocument } from '../documents/store.js';
-import { NAME_FIELD, renameCommand, selectedRow } from '../explorer/Explorer.js';
+import { renameCommand } from '../explorer/Explorer.js';
 import { outlineOf, type OutlineRow } from '../explorer/outline.js';
 import {
   editsOneValue,
@@ -90,6 +97,8 @@ import {
   writeValue,
 } from './edits.js';
 import { instanceSheet, type InstanceSheet, type PortRow, type SlotRow, type StateRow } from './instance.js';
+import { PlaceView, type PlaceFacts } from './Place.js';
+import { NameRow } from './Rows.js';
 import { namesFor } from './names.js';
 
 /** The form context of one registry, built once — the walker's own caches live in it (2.3). */
@@ -130,7 +139,7 @@ function siteOf(one: OpenDocument, selection: Path | undefined): SiteDescription
   return undefined;
 }
 
-/** The sheet of the current selection, or the line that says there is none. */
+/** The sheet of the current selection — §4.11's table, row by row. */
 export function SelectionSheet(): JSX.Element {
   const store = useDocumentsStore();
   const current = useDocuments((state) => state.current);
@@ -138,8 +147,7 @@ export function SelectionSheet(): JSX.Element {
   const registry = useDocuments((state) => state.registry);
   const library = useDocuments((state) => state.library);
   const one = open.find((each) => each.id === current);
-  const selection = one?.selection;
-  const site = one === undefined ? undefined : siteOf(one, selection);
+  const site = one === undefined ? undefined : siteOf(one, one.selection);
   const identity =
     site === undefined ? undefined : primitiveId(pyStr(site.primitive), pyStr(site.version));
 
@@ -149,192 +157,99 @@ export function SelectionSheet(): JSX.Element {
     if (identity !== undefined) store.getState().loadArgumentSchema(identity);
   }, [identity, store]);
 
-  if (one === undefined || selection === undefined) {
-    return <p className="empty-sub">{text('Nothing is selected.')}</p>;
-  }
-  if (site === undefined) {
-    return <PlaceSheet />;
+  if (one === undefined) {
+    return <p className="empty-sub">{text('No document is open.')}</p>;
   }
   const context = contextFor(registry);
   if (context === null) {
     return <p className="empty-sub">{text('No schemas are loaded, so no form can be generated.')}</p>;
   }
-  const artifact = identity === undefined ? undefined : (library.arguments.get(identity) ?? undefined);
-  return <SitePanel one={one} site={site} context={context} artifact={artifact ?? undefined} />;
-}
-
-/** The sheet of a place that is not a site: the row every sheet of §4.11 starts with. */
-function PlaceSheet(): JSX.Element {
-  const store = useDocumentsStore();
-  const current = useDocuments((state) => state.current);
-  const open = useDocuments((state) => state.open);
-  const one = open.find((each) => each.id === current);
-  const selection = one?.selection;
-  const revision = one?.session.store.revision ?? -1;
-  const pointer = selection === undefined ? null : pointerOf(selection);
-  const row = selection === undefined ? null : selectedRow(store);
-  const [name, setName] = useState(row?.label ?? '');
-
-  // The sheet follows the selection and the document: a rename made in the tree, an undo, a
-  // selection that moved — the field shows what the document holds, never what was typed into it
-  // for something else.
-  useEffect(() => {
-    setName(row?.label ?? '');
-    // The row is rebuilt on every render; the selection and the revision are what change it.
-  }, [pointer, revision]);
-
-  if (one === undefined || row === null || selection === undefined) {
-    return <p className="empty-sub">{text('Nothing is selected.')}</p>;
+  if (site !== undefined) {
+    const artifact = identity === undefined ? undefined : (library.arguments.get(identity) ?? undefined);
+    return <SitePanel one={one} site={site} context={context} artifact={artifact ?? undefined} />;
   }
-
-  const commit = (): void => {
-    const to = name.trim();
-    if (to === '' || to === row.label) {
-      setName(row.label);
-      return;
-    }
-    try {
-      store.getState().edit(renameCommand(row, to));
-      store.getState().selectPlace([...row.path.slice(0, -1), to]);
-    } catch (error) {
-      store.getState().setToast({ text: error instanceof EditError ? error.message : String(error) });
-      setName(row.label);
-    }
-  };
-
+  // "Nothing selected | the Document sheet" (§4.11): the document's own place is the root, and
+  // the sheet of a place is the same sheet wherever the place is.
+  const path = (one.selection ?? ([]));
+  const rows = outlineFor(one);
+  const at = pointerOf(path);
   return (
-    <>
-      {/* `h2`, not the design's `h4`: the page's own heading is the open document's name, and a
-          heading that skipped two levels is a heading order a reader cannot follow — the same
-          correction feature 2.6 made to the dialogs, found the same way. */}
-      <h2 className="ih">
-        {text('Identity')}
-        {row.declares === undefined ? null : <span className="ihn">{row.declares}</span>}
-      </h2>
-      <NameRow value={name} onChange={setName} onCommit={commit} onRevert={() => { setName(row.label); }} editable={row.named} />
-      <div className="frow">
-        <span className="fk">{text('Place')}</span>
-        <span className="fv mono" data-place={pointer}>
-          {pointer}
-        </span>
-      </div>
-      {row.tail === undefined ? null : (
-        <div className="frow">
-          <span className="fk">{text('Holds')}</span>
-          <span className="fv mono">{row.tail}</span>
-        </div>
-      )}
-      <PlaceExpressions one={one} at={selection} />
-      <p className="empty-sub">
-        {text(
-          'The sections of this sheet are the ones the feature that can answer them adds: the other declarations’ sheets and the tables, and the bindings and locations.',
-        )}
-      </p>
-    </>
+    <PlaceView
+      one={one}
+      context={context}
+      path={path}
+      row={rows.find((row) => row.pointer === at) ?? null}
+      rows={new Map(rows.map((row) => [row.pointer, row]))}
+      facts={factsFor(one)}
+      names={(where: Path) => namePicker(one, context, where)}
+    />
   );
 }
 
 /**
- * Every expression and condition written under the selected place — §4.13, and only that.
+ * Everything the core and the products answered about a document, for the sheets of §4.11.
  *
- * §4.13's own list is what this section is: "the same editor serves guards, index ranges,
- * derivations, defaults, extents, domain bounds, location offsets, `present_when`, rule `when`s,
- * invariants, cost entries and granularities". A quantity's `derivation` is one of them, and it is
- * editable here before the **quantity sheet** exists, because that sheet — its type select, its
- * source kind, its domain, its `Used by` — is feature 2.12's block and nothing of it is written
- * here.
- *
- * The places are found by the generic walker (feature 2.3) and never by a path: whatever the
- * schema puts an expression at, the section shows, and a grammar that grew another one needs no
- * change here. Only what the document **writes** is listed; creating one is the gesture of the
- * sheet that declares it.
+ * Kept per `(tree, derived)` because the sheet is drawn on every keystroke and each of these is a
+ * walk of the whole document: the quantities are resolved, the identities are read through the
+ * hoist (§5.2 rule 7), the folded graph is the canvas's own reading, and D2's rows are the derived
+ * document's. The tree and the derived document are immutable (D1, 2.1), so their identity is what
+ * says whether the answers still hold.
  */
-function PlaceExpressions({ one, at }: { one: OpenDocument; at: Path }): JSX.Element | null {
-  const context = contextFor(useDocuments((state) => state.registry));
-  const value = context === null ? undefined : nodeAt(one.session.store.tree, at);
-  if (context === null || value === undefined) return null;
-  const rows = expressionRowsOf(one, at, context);
-  if (rows.length === 0) return null;
-  return (
-    <>
-      <h2 className="ih">
-        {text('Expressions')}
-        <span className="ihn">{String(rows.length)}</span>
-      </h2>
-      {rows.map((row) => (
-        <ExpressionField
-          key={row.path}
-          one={one}
-          path={[...at, ...row.steps] as Path}
-          widget={row.widget}
-          name={row.label}
-          context={context}
-          label={row.path.slice(1).replace(/\//g, ' · ')}
-        />
-      ))}
-    </>
-  );
+let lastFacts: {
+  tree: JsonValue;
+  derived: unknown;
+  verdict: unknown;
+  notices: unknown;
+  facts: PlaceFacts;
+} | null = null;
+
+function factsFor(one: OpenDocument): PlaceFacts {
+  const tree = one.session.store.tree;
+  const derived = one.reading.derived;
+  const verdict = one.reading.verdict;
+  const notices = one.reading.notices;
+  if (
+    lastFacts !== null &&
+    lastFacts.tree === tree &&
+    lastFacts.derived === derived &&
+    lastFacts.verdict === verdict &&
+    lastFacts.notices === notices
+  ) {
+    return lastFacts.facts;
+  }
+  const document = toPython(tree);
+  const facts: PlaceFacts = {
+    quantities: read(() => quantityReadings(document as PyRecord), []),
+    identities: read(() => identityReadings(document), []),
+    folded: read(() => foldedGraph(tree), null),
+    derived,
+    values: derived === null ? [] : valueRows(derived),
+    streams: derived === null ? [] : streamRows(derived),
+    problems: [...(one.reading.structural ?? []), ...(verdict?.problems ?? [])]
+      .filter((problem) => problem.path !== undefined)
+      .map((problem) => ({ path: problem.path, message: problem.message })),
+    // The editor's own rows (§4.17's `editor` source): what §4.16 calls a notice on a table's row.
+    notices,
+  };
+  lastFacts = { tree, derived, verdict, notices, facts };
+  return facts;
 }
 
-/** The expression rows of one place, memoised on the selection and the revision. */
-let lastExpressions: { key: string; rows: readonly FormRow[] } | null = null;
-
-function expressionRowsOf(one: OpenDocument, at: Path, context: FormContext): readonly FormRow[] {
-  // Walking the place is what finds them (feature 2.3), and a place can be a whole composition —
-  // 2.3 measured a whole document at 15.9 ms — so the walk is paid once per state of the tree and
-  // not once per keystroke of the editor it draws.
-  const key = `${one.id}@${String(one.session.store.revision)}#${pointerOf(at)}`;
-  if (lastExpressions !== null && lastExpressions.key === key) return lastExpressions.rows;
-  const value = nodeAt(one.session.store.tree, at);
-  const form =
-    value === undefined
-      ? { rows: [], notes: [] }
-      : formOf(context, { shape: shapeAt(context.shapes, at, one.session.store.role), value });
-  const rows = form.rows.filter((row) => editsExpression(row.widget) && row.present);
-  lastExpressions = { key, rows };
-  return rows;
-}
-
-/** The name row every sheet starts with — §4.4's "a value is edited in the sheet's row". */
-function NameRow({
-  value,
-  editable,
-  onChange,
-  onCommit,
-  onRevert,
-}: {
-  value: string;
-  editable: boolean;
-  onChange: (value: string) => void;
-  onCommit: () => void;
-  onRevert: () => void;
-}): JSX.Element {
-  return (
-    <div className="frow">
-      <span className="fk">{text('Name')}</span>
-      <span className="fv">
-        {editable ? (
-          <input
-            className="ctl wide mono"
-            value={value}
-            {...{ [NAME_FIELD]: 'true' }}
-            aria-label={text('Name')}
-            onChange={(event) => {
-              onChange(event.target.value);
-            }}
-            onBlur={onCommit}
-            onKeyDown={(event) => {
-              event.stopPropagation();
-              if (event.key === 'Enter') onCommit();
-              if (event.key === 'Escape') onRevert();
-            }}
-          />
-        ) : (
-          <span className="mono">{value}</span>
-        )}
-      </span>
-    </div>
-  );
+/**
+ * A reading of a document that may refuse it.
+ *
+ * The core raises where the tools raise (feature 1.2's rule), and a document being *edited* is
+ * off the grammar between two keystrokes: `normalise` refuses a duplicate binding name, the
+ * quantities refuse an unorderable bound. The sheet shows what it can either way — which is the
+ * canvas's own arrangement (feature 2.9's folded reading reads the tree, not the analysis) — so a
+ * reading that refuses answers nothing rather than taking the panel down with it.
+ */
+function read<T>(reading: () => T, fallback: T): T {
+  try {
+    return reading();
+  } catch {
+    return fallback;
+  }
 }
 
 /** The whole sheet of one site. */

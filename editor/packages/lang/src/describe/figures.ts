@@ -442,51 +442,14 @@ export function siteDerived(derived: PyValue, where: string): SiteDerived {
     const listed = listOf(get(row, MEMBERS) ?? []).map((one) => pyStr(one));
     const slot = listed.map((one) => slotHere(one)).find((one) => one !== null);
     if (slot === undefined || slot === null) continue;
-    const multiplicity = get(row, MULTIPLICITY) ?? null;
-    const sensitivity = get(row, SENSITIVITY) ?? null;
-    tensors.push({
-      identity: pyStr(get(row, IDENTITY) ?? ''),
-      slot,
-      role: pyStr(get(row, ROLE) ?? ''),
-      dtype: pyStr(get(row, DTYPE) ?? ''),
-      shape: shapeText(get(row, SHAPE) ?? []),
-      elements: integer(get(row, ELEMENTS) ?? null),
-      bytes: integer(get(row, BYTES) ?? null),
-      members: listed.length,
-      tied: get(row, TIED) === true,
-      located: get(row, LOCATION) !== null && get(row, LOCATION) !== undefined,
-      multiplicity: integer(multiplicity),
-      sensitivity: sensitivity === null ? null : pyStr(sensitivity),
-    });
+    tensors.push(tensorRow(row, slot));
   }
 
   for (const row of listOf(get(get(derived, D4) ?? null, STATES) ?? [])) {
     const listed = listOf(get(row, MEMBERS) ?? []).map((one) => pyStr(one));
     const port = listed.map((one) => slotHere(one)).find((one) => one !== null);
     if (port === undefined || port === null) continue;
-    const stream = get(row, STREAM) ?? null;
-    const writer = get(row, WRITER) ?? null;
-    states.push({
-      identity: pyStr(get(row, IDENTITY) ?? ''),
-      port,
-      evolution: pyStr(get(row, EVOLUTION) ?? ''),
-      access: pyStr(get(row, ACCESS) ?? ''),
-      sharing: pyStr(get(row, SHARING) ?? ''),
-      stream: stream === null ? null : pyStr(stream),
-      instanceKey: listOf(get(row, INSTANCE_KEY) ?? []).map((one) => pyStr(one)),
-      payload: listOf(get(row, PAYLOAD) ?? []).map((one) => ({
-        component: pyStr(get(one, COMPONENT) ?? ''),
-        dtype: pyStr(get(one, DTYPE) ?? ''),
-        shape: shapeText(get(one, SHAPE) ?? []),
-        bytes: integer(get(one, BYTES) ?? null),
-      })),
-      bytesPerCachedPosition: integer(get(row, PER_POSITION) ?? null),
-      bytesBounded: integer(get(row, BOUNDED) ?? null),
-      operations: listOf(get(row, OPERATIONS) ?? []).map((one) => pyStr(one)),
-      writer: writer === null ? null : pyStr(writer),
-      carriedAcrossFragments: get(row, CARRIED) === true,
-      members: listed.length,
-    });
+    states.push(stateRow(row, port));
   }
 
   for (const row of listOf(get(get(derived, D5) ?? null, CORRECTIONS) ?? [])) {
@@ -510,4 +473,252 @@ export function siteDerived(derived: PyValue, where: string): SiteDerived {
     if (identifier === where) across = get(node, ACROSS_POSITIONS) === true;
   }
   return { tensors, states, corrections, nodes: count, acrossPositions: across };
+}
+
+/** One D3 row, as a sheet shows it — the slot is the caller's, since it says why the row is there. */
+function tensorRow(row: PyValue, slot: string): DerivedTensorRow {
+  const multiplicity = get(row, MULTIPLICITY) ?? null;
+  const sensitivity = get(row, SENSITIVITY) ?? null;
+  return {
+    identity: pyStr(get(row, IDENTITY) ?? ''),
+    slot,
+    role: pyStr(get(row, ROLE) ?? ''),
+    dtype: pyStr(get(row, DTYPE) ?? ''),
+    shape: shapeText(get(row, SHAPE) ?? []),
+    elements: integer(get(row, ELEMENTS) ?? null),
+    bytes: integer(get(row, BYTES) ?? null),
+    members: listOf(get(row, MEMBERS) ?? []).length,
+    tied: get(row, TIED) === true,
+    located: get(row, LOCATION) !== null && get(row, LOCATION) !== undefined,
+    multiplicity: integer(multiplicity),
+    sensitivity: sensitivity === null ? null : pyStr(sensitivity),
+  };
+}
+
+/** One D4 row, likewise. */
+function stateRow(row: PyValue, port: string): DerivedStateRow {
+  const stream = get(row, STREAM) ?? null;
+  const writer = get(row, WRITER) ?? null;
+  return {
+    identity: pyStr(get(row, IDENTITY) ?? ''),
+    port,
+    evolution: pyStr(get(row, EVOLUTION) ?? ''),
+    access: pyStr(get(row, ACCESS) ?? ''),
+    sharing: pyStr(get(row, SHARING) ?? ''),
+    stream: stream === null ? null : pyStr(stream),
+    instanceKey: listOf(get(row, INSTANCE_KEY) ?? []).map((one) => pyStr(one)),
+    payload: listOf(get(row, PAYLOAD) ?? []).map((one) => ({
+      component: pyStr(get(one, COMPONENT) ?? ''),
+      dtype: pyStr(get(one, DTYPE) ?? ''),
+      shape: shapeText(get(one, SHAPE) ?? []),
+      bytes: integer(get(one, BYTES) ?? null),
+    })),
+    bytesPerCachedPosition: integer(get(row, PER_POSITION) ?? null),
+    bytesBounded: integer(get(row, BOUNDED) ?? null),
+    operations: listOf(get(row, OPERATIONS) ?? []).map((one) => pyStr(one)),
+    writer: writer === null ? null : pyStr(writer),
+    carriedAcrossFragments: get(row, CARRIED) === true,
+    members: listOf(get(row, MEMBERS) ?? []).length,
+  };
+}
+
+// --- one identity's own rows of the products (plan §4.11's Identity sheet) ------------------
+
+/** The members of D3 and D4 a row is named by; the slot a row is about is the product's own. */
+const SLOT = 'slot';
+const STATE = 'state';
+
+/** What the products say about one identity — §4.11's Identity row, and its totals. */
+export interface IdentityDerived {
+  /** The D3 rows of the identity's instances, in D3's own order; empty for a state identity. */
+  readonly tensors: readonly DerivedTensorRow[];
+  /** Its D4 rows, likewise. */
+  readonly states: readonly DerivedStateRow[];
+  /** The sum of the instances' bytes — D3's own numbers, added and not converted. */
+  readonly bytes: bigint | null;
+  /** The sum of the instances' bytes per cached position (D4). */
+  readonly bytesPerCachedPosition: bigint | null;
+  /** How many instances the identity has: one per index point the rule fired at. */
+  readonly instances: number;
+}
+
+/** Nothing at all: what an identity of a document nothing has been derived for shows. */
+export function noIdentityDerived(): IdentityDerived {
+  return { tensors: [], states: [], bytes: null, bytesPerCachedPosition: null, instances: 0 };
+}
+
+/**
+ * The D3 or D4 rows of one identity, by the name its instances carry.
+ *
+ * An identity with indices has one instance per index point — `decoder.attn.q[layer=0]` …
+ * `[layer=31]` — and one without has exactly itself, which is the same rule read twice: a row
+ * belongs to the identity when its own name is the identity's, or the identity's followed by the
+ * bracket the instances are written with. Nothing is summed that the products do not carry, and a
+ * total is the products' own numbers added — the same licence `derivedFacts` takes for a card.
+ */
+export function identityDerived(derived: PyValue, identity: string, state: boolean): IdentityDerived {
+  const tensors: DerivedTensorRow[] = [];
+  const states: DerivedStateRow[] = [];
+  let bytes: bigint | null = null;
+  let per: bigint | null = null;
+  const mine = (row: PyValue): boolean => instanceOf(pyStr(get(row, IDENTITY) ?? ''), identity);
+
+  if (!state) {
+    for (const row of listOf(get(get(derived, D3) ?? null, TENSORS) ?? [])) {
+      if (!mine(row)) continue;
+      const made = tensorRow(row, pyStr(get(row, SLOT) ?? ''));
+      tensors.push(made);
+      if (made.bytes !== null) bytes = (bytes ?? 0n) + made.bytes;
+    }
+  } else {
+    for (const row of listOf(get(get(derived, D4) ?? null, STATES) ?? [])) {
+      if (!mine(row)) continue;
+      const made = stateRow(row, pyStr(get(row, STATE) ?? ''));
+      states.push(made);
+      if (made.bytesPerCachedPosition !== null) per = (per ?? 0n) + made.bytesPerCachedPosition;
+    }
+  }
+  return {
+    tensors,
+    states,
+    bytes,
+    bytesPerCachedPosition: per,
+    instances: tensors.length + states.length,
+  };
+}
+
+/** Whether an identity instance name is an instance of that identity. */
+function instanceOf(instance: string, identity: string): boolean {
+  return instance === identity || instance.startsWith(`${identity}[`);
+}
+
+// --- D2's own rows (plan §4.11's Edge, Input and Output sheets) -----------------------------
+
+// The members of D2 the readings below walk, named here for the reason every other member of a
+// product is named in this file and not in a component (plan §1).
+const STREAMS = 'streams';
+const KIND = 'kind';
+const COUNT = 'count';
+const FRAGMENT_ALIGNMENT = 'fragment_alignment';
+const TO = 'to';
+const INPUT = 'input';
+const EXPOSED = 'exposed';
+const REQUIRED = 'required';
+const REQUIRED_FOR = 'required_for';
+const DOMAIN = 'domain';
+const PER_ELEMENT = 'bytes_per_element';
+
+/** One value of D2, as §4.11's Edge, Input and Output sheets show it. */
+export interface DerivedValueRow {
+  /** The producing `node.port`, or the name of the public input that delivers the value. */
+  readonly value: string;
+  /** The ports it feeds, as D2 names them. */
+  readonly to: readonly string[];
+  /** The shape as `[axis=extent, …]` — the products' own rendering. */
+  readonly shape: string;
+  /** The value type `--view` writes: `bf16[tokens, model.width=4096]` (`valueGeometry`). */
+  readonly geometry: string;
+  readonly role: string;
+  readonly dtype: string;
+  readonly elements: number | null;
+  readonly bytesPerElement: number | null;
+  /** Its domain, as `kind per stream` — the two members D2 writes, in D2's order. */
+  readonly domain: string;
+  /** The stream its domain names; `null` where D2 writes none, and never a reading of the text. */
+  readonly stream: string | null;
+  /** Its count per invocation, member by member, as D2 writes it. */
+  readonly count: string;
+  /** The public input that delivers it, or `null`. */
+  readonly input: string | null;
+  /** The public outputs that expose it. */
+  readonly exposed: readonly string[];
+  /** Whether some public output is not evaluated without this input (§7); `null` where D2 is silent. */
+  readonly required: boolean | null;
+  /** The public outputs not evaluated without it on a first delivery. */
+  readonly requiredFor: readonly string[];
+}
+
+/** One stream of D2 — what a public input's own sheet shows beside its value (§4.11). */
+export interface DerivedStreamRow {
+  readonly name: string;
+  readonly kind: string;
+  /** The elements it delivers per invocation, as D2 writes the count. */
+  readonly count: string;
+  /** The multiple every fragment delivers, for a fragmented stream; `null` where D2 writes none. */
+  readonly fragmentAlignment: bigint | null;
+}
+
+/** Every value D2 carries, in D2's own order. */
+export function valueRows(derived: PyValue): DerivedValueRow[] {
+  return listOf(get(get(derived, D2) ?? null, VALUES) ?? []).map((row) => {
+    const input = get(row, INPUT) ?? null;
+    const required = get(row, REQUIRED) ?? null;
+    const elements = get(row, ELEMENTS) ?? null;
+    const perElement = get(row, PER_ELEMENT) ?? null;
+    const domain = get(row, DOMAIN) ?? null;
+    const stream = domain === null ? null : (get(domain, STREAM) ?? null);
+    return {
+      value: pyStr(get(row, VALUE) ?? ''),
+      to: listOf(get(row, TO) ?? []).map((one) => pyStr(one)),
+      shape: shapeText(get(row, SHAPE) ?? []),
+      geometry: valueGeometry(row),
+      role: pyStr(get(row, ROLE) ?? ''),
+      dtype: pyStr(get(row, DTYPE) ?? ''),
+      elements: elements === null ? null : Number(elements),
+      bytesPerElement: perElement === null ? null : Number(perElement),
+      domain: recordText(domain),
+      stream: stream === null ? null : pyStr(stream),
+      count: recordText(get(row, COUNT) ?? null),
+      input: input === null ? null : pyStr(input),
+      exposed: listOf(get(row, EXPOSED) ?? []).map((one) => pyStr(one)),
+      required: typeof required === 'boolean' ? required : null,
+      requiredFor: listOf(get(row, REQUIRED_FOR) ?? []).map((one) => pyStr(one)),
+    };
+  });
+}
+
+/** Every stream D2 reports, in D2's own order. */
+export function streamRows(derived: PyValue): DerivedStreamRow[] {
+  const streams = get(get(derived, D2) ?? null, STREAMS) ?? null;
+  return entries(streams ?? {}).map(([name, row]) => ({
+    name,
+    kind: pyStr(get(row, KIND) ?? ''),
+    count: recordText(get(row, COUNT) ?? null),
+    fragmentAlignment: integer(get(row, FRAGMENT_ALIGNMENT) ?? null),
+  }));
+}
+
+/** The D2 value one end of an edge carries, by the identifier D2 keys it with; `null` for none. */
+export function valueOf(rows: readonly DerivedValueRow[], value: string): DerivedValueRow | null {
+  return rows.find((row) => row.value === value) ?? null;
+}
+
+/** The D2 value a public input delivers; `null` where nothing has been derived for it. */
+export function inputValue(rows: readonly DerivedValueRow[], name: string): DerivedValueRow | null {
+  return rows.find((row) => row.input === name) ?? null;
+}
+
+/** The D2 value a public output exposes. */
+export function outputValue(rows: readonly DerivedValueRow[], name: string): DerivedValueRow | null {
+  return rows.find((row) => row.exposed.includes(name)) ?? null;
+}
+
+/**
+ * A small record of the products written on one line: `token per tokens`, `tokens 1.0`.
+ *
+ * A domain and a count are records of a member or two whose names are the products' and whose
+ * values are names and numbers; a sheet shows them as the product wrote them, in the product's
+ * own order, with nothing converted or rounded.
+ */
+function recordText(value: PyValue): string {
+  if (value === null) return '';
+  if (!isPlainRecord(value)) return pyStr(value);
+  return entries(value)
+    .map(([name, held]) => `${name} ${pyStr(held)}`)
+    .join(' · ');
+}
+
+/** Whether a value of a product is one of its records. */
+function isPlainRecord(value: PyValue): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

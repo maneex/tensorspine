@@ -35,6 +35,8 @@ export interface BoxProps {
   readonly onGrab: (event: ReactPointerEvent<HTMLElement>) => void;
   /** A port handle was pressed (the drag's start) or clicked (the keyboard's form of it). */
   readonly onPort: (port: string, side: 'inputs' | 'outputs', pressed: boolean) => void;
+  /** A port handle's own menu — §4.15's "Expose as input…" and "Expose as output…". */
+  readonly onPortMenu: (port: string, side: 'inputs' | 'outputs', x: number, y: number) => void;
   readonly onProblem: () => void;
   /**
    * A part of the card was clicked: §4.7's "edits that element in place".
@@ -392,6 +394,13 @@ function Handle(
       onClick={(event) => {
         event.stopPropagation();
         props.onPort(props.port, props.side, false);
+      }}
+      onContextMenu={(event) => {
+        // The port's own menu, not the card's: §4.15's two gestures are about *this* port, and a
+        // menu that belonged to the box would have to name the port some other way.
+        event.preventDefault();
+        event.stopPropagation();
+        props.onPortMenu(props.port, props.side, event.clientX, event.clientY);
       }}
     >
       {props.port}
