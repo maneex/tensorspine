@@ -29,7 +29,8 @@ import {
 // measured on a loaded box — `validate` on `deepseek-v4-pro` is 111 ms alone and 326 ms beside the
 // rest of the suite. A budget asserted flat would fail for the machine's reasons and not the
 // code's, which the ledger has already paid for twice. So the guard is {@link TOLERANCE} times the
-// budget, which catches a regression of any real size and cannot be tripped by load. Making a
+// budget — with an absolute allowance beside it, because a proportion cannot price a scheduling
+// delay — which catches a regression of any real size and cannot be tripped by load. Making a
 // budget itself fail the job is feature X.2's, on an idle runner and after 2.18.
 
 /**
@@ -39,6 +40,24 @@ import {
  * the assertion a *regression* guard on a machine running six test files at once.
  */
 const TOLERANCE = 3;
+
+/**
+ * The allowance every guard gets on top, in milliseconds, whatever its budget.
+ *
+ * {@link TOLERANCE} is a *proportion* and what load costs is an *absolute*: one preemption of a
+ * test worker is some ten milliseconds whether the figure it interrupts is five milliseconds or
+ * two seconds. So at the small budgets the proportion is no guard at all — three times §5.6's
+ * 5 ms for Ajv is 15 ms, which is one scheduling delay, and it has failed twice for exactly that
+ * (features 2.10 and 2.14 both measured it past 3× under load, and both saw it pass alone at the
+ * same load a minute later). A guard that fails for the machine's reasons is the thing this file
+ * says it must not be.
+ *
+ * Adding the allowance keeps the guard tight where it was already tight — `budget * 3` dominates
+ * for every budget over 12 ms, so `validate`, `derive` and the library load are unmoved — and
+ * makes it mean something where it did not: Ajv is 0.45–3.70 ms measured, so a regression of any
+ * real size clears 30 ms by a wide margin.
+ */
+const ALLOWANCE = 25;
 
 /** §5.6's own table, as this feature can measure it. */
 const BUDGETS = {
@@ -92,13 +111,18 @@ async function timeAsync(run: () => Promise<unknown>, repeats = 3): Promise<numb
   return best;
 }
 
-/** The regression guard: a figure may not exceed its budget by more than {@link TOLERANCE}. */
+/**
+ * The regression guard: a figure may not exceed its budget by more than {@link TOLERANCE} times,
+ * nor by more than {@link ALLOWANCE} milliseconds — whichever of the two is the more forgiving,
+ * because load costs an absolute and a proportion cannot price it.
+ */
 function guard(measure: Measure): void {
   const budget = measure.budget;
   if (budget === null) return;
+  const limit = Math.max(budget * TOLERANCE, budget + ALLOWANCE);
   expect({
     what: measure.what,
-    beyond: measure.high > budget * TOLERANCE ? measure.high : null,
+    beyond: measure.high > limit ? measure.high : null,
   }).toEqual({ what: measure.what, beyond: null });
 }
 
