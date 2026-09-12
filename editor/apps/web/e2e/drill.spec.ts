@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { sourceText } from './source-text.js';
+
 /**
  * The composition drill-in — feature 2.14, plan §4.8 and §4.20, artboards S4 and S5.
  *
@@ -63,17 +65,6 @@ async function drillIn(page: Page, composition: string): Promise<void> {
 /** One box of the drill-in, by the place it stands for. */
 function box(page: Page, pointer: string): Locator {
   return page.locator(`[data-box="${pointer}"]`);
-}
-
-/** The document's own bytes, through `View ▸ JSON Source` (§4.2's own tab). */
-async function sourceText(page: Page): Promise<string> {
-  await command(page, 'View', 'view.json-source');
-  const pane = page.locator('.doc-json');
-  await expect(pane).toBeVisible();
-  const shown = await pane.innerText();
-  await page.keyboard.press('Control+w');
-  await expect(page.locator('.doc-json')).toHaveCount(0);
-  return shown;
 }
 
 test.describe('llama3-8b › decoder (S4)', () => {

@@ -41,10 +41,8 @@ export interface Resolution {
   readonly node: SchemaNode;
 }
 
-/** A JSON pointer segment, escaped as RFC 6901 escapes it. */
-export function pointerSegment(name: string): string {
-  return name.replace(/~/g, '~0').replace(/\//g, '~1');
-}
+/** A JSON pointer segment, escaped as RFC 6901 escapes it — `json/pointer.ts`'s, re-exported. */
+export { pointerSegment } from '../json/pointer.js';
 
 /** `<$id>#<pointer>` from its two parts. */
 export function anchorOf(schema: string, pointer: string): string {

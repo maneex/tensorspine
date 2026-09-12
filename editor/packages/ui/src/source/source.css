@@ -1,0 +1,27 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   The JSON source pane — plan §4.10, artboard S16, component inventory §5.
+
+   The chrome only: the head, the ground and the loading line. What Monaco
+   draws inside it is painted from the theme `source/monaco.ts` defines over
+   the same tokens, because an editor paints its own text from a palette it
+   is given rather than from CSS variables — which is why the two places
+   below and there read the *same* names and neither writes a colour.
+   ───────────────────────────────────────────────────────────────────────── */
+.src-pane {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  background: var(--bg-sunk);
+}
+.src-head {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  height: 30px; padding: 0 14px;
+  border-bottom: 1px solid var(--rule); background: var(--bg-chrome);
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  white-space: nowrap; overflow: hidden;
+}
+.src-head .src-name { color: var(--ink-2); }
+.src-head .src-schema { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+.src-head .right { margin-left: auto; display: flex; gap: 12px; flex-shrink: 0; }
+.src-head .src-bad { color: var(--bad); }
+.src-head .fig { font-variant-numeric: tabular-nums; }
+.src-body { flex: 1 1 auto; min-height: 0; }
+.src-loading { flex-shrink: 0; margin: 0; padding: 10px 14px; color: var(--ink-3); font-size: 11px; }

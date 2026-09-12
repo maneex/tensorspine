@@ -8,6 +8,7 @@
  * `json/tree.ts`, which keeps member order and each number's float-ness (D12). The two travel
  * together through the walk, because Ajv reads plain data and the messages read the tree.
  */
+import { jsonPointerOf } from '../json/pointer.js';
 import { toPlain, type JsonValue } from '../json/tree.js';
 import { comparePythonStrings } from './repr.js';
 
@@ -66,13 +67,7 @@ export function literalInstance(value: string): Instance {
  * the two characters a pointer escapes.
  */
 export function pointerOf(path: readonly PathSegment[]): string {
-  return path
-    .map((segment) =>
-      typeof segment === 'number'
-        ? `/${String(segment)}`
-        : `/${segment.replace(/~/g, '~0').replace(/\//g, '~1')}`,
-    )
-    .join('');
+  return jsonPointerOf(path);
 }
 
 /**

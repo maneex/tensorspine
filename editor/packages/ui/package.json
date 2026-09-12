@@ -11,6 +11,7 @@
     "./documents": "./src/documents/index.ts",
     "./canvas": "./src/canvas/index.ts",
     "./expanded": "./src/expanded/index.ts",
+    "./source": "./src/source/index.ts",
     "./explorer": "./src/explorer/index.ts",
     "./style.css": "./src/shell/shell.css"
   },
@@ -21,6 +22,7 @@
     "@tensorspine/lang": "workspace:*",
     "@tensorspine/store": "workspace:*",
     "elkjs": "^0.12.0",
+    "monaco-editor": "0.56.0",
     "react": "18.3.1",
     "zustand": "5.0.2"
   }

@@ -115,3 +115,11 @@ export {
  * expanded layout costs 1.5 s on the largest corpus graph (feature 0.4) and §4.9's view is
  * D1's own topological order, virtualised.
  */
+
+/**
+ * The JSON source view (plan §4.10) — its own entry point, `@tensorspine/ui/source`
+ * (`./src/source/index.ts`). It is separate for the reason the layout is:
+ * a text editor is two megabytes of compiled Monaco, and it belongs in the chunk a reader pays
+ * for when they open a source view — never in the shell's first bundle (feature 0.4's lesson, in
+ * its fourth instance). Nothing outside that directory names `monaco-editor` at all.
+ */

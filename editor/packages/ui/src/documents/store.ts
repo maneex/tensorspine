@@ -40,10 +40,12 @@ import {
   listTree,
   nameMember,
   newDocument,
+  nodeAt,
   pathOfPointer,
   pointerOf,
   readSidecar,
   readTree,
+  replaceRoot,
   schemaDifferences,
   SchemaShapes,
   sidecarOf,
@@ -67,14 +69,17 @@ import {
   boxOfSite,
   foldedGraph,
   isJsonObject,
+  JsonParseError,
   loadSchemas,
   nodeIndices,
   parse,
   pointLabel,
   primitiveVersions,
+  serialize,
   templatePrimitives,
   type SchemaRegistry,
 } from '@tensorspine/lang';
+import { schemaProblem } from '@tensorspine/lang/api';
 import type { Facts, Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
 import type {
   FoldedHandle,
@@ -214,6 +219,92 @@ export interface OpenDocument {
    * is kept here and the panel shows it until the document is closed.
    */
   readonly dropped: readonly DroppedSidecarKey[];
+  /**
+   * What the JSON source view has typed into this document, and what became of it (§4.10, §3).
+   *
+   * Present from the reader's **first source edit** and not from the moment the pane opens: a
+   * pane that has only read the document is a projection of the tree like every other, and the
+   * off-grammar banner and the confirmed save of §3 are about a source that was *written*.
+   * Read through {@link sourceReading}, which answers it only while it still stands for the
+   * document's own revision — a gesture on the canvas moves the tree past it and the pane goes
+   * back to being a projection.
+   */
+  readonly source?: SourceState;
+  /**
+   * A place the source view has been asked to reveal — §4.10's "Show in JSON … reveals its range".
+   *
+   * A *request* and not a state: the counter is what makes asking twice for the same place
+   * reveal it twice, which is what a reader who scrolled away and clicked again means.
+   */
+  readonly reveal?: RevealRequest;
+}
+
+/**
+ * The text the JSON source view holds, and what the document made of it (§4.10).
+ *
+ * **Two writers, one document.** The tree is the model (D1) and `serialize` is the writer of
+ * record (D12); the source view holds no second model, it holds an *edit in flight*. A text that
+ * parses to an object is written into the tree as one named command — off the grammar included,
+ * which is D5's own sentence ("a source edit that leaves the schema is shown as such, and
+ * semantic feedback resumes when it returns") and Q5's rule — and this then records the
+ * revision that edit produced, so the pane keeps the reader's own spacing until something else
+ * edits the document. A text the tree cannot take is not written at all: the document stays what
+ * it was, {@link problems} carries the core's own line about the text, and the canvas keeps its
+ * last drawable state.
+ */
+export interface SourceState {
+  /** The text as the reader left it. */
+  readonly text: string;
+  /** The document revision this text stands for: the one its own edit produced, or the one it was read at. */
+  readonly revision: number;
+  /** True where the tree could not take the text — it is not JSON, or not an object. */
+  readonly pending: boolean;
+  /** Where the refusal is, as an offset into {@link text}; absent where the text parsed. */
+  readonly refusedAt?: number;
+  /** The core's own rows about a text it could not take: `[V12] …`, or the grammar's. */
+  readonly problems: readonly Problem[];
+}
+
+/** A place the source view is asked to reveal, and how many times it has been asked. */
+export interface RevealRequest {
+  /** The JSON pointer of the place, as every problem and every selection names one. */
+  readonly pointer: string;
+  /** Bumped on every ask, so the same place can be revealed again. */
+  readonly seq: number;
+}
+
+/**
+ * The source view's own reading of a document, or `null` where the tree has moved past it.
+ *
+ * One rule, read by everything that cares: the pane (which text to draw), the banner (whether
+ * the source left the grammar) and Save (whether to ask). A reading whose revision is not the
+ * document's is a reading of a document that no longer exists.
+ */
+export function sourceReading(open: OpenDocument): SourceState | null {
+  const source = open.source;
+  if (source === undefined) return null;
+  return source.revision === open.session.store.revision ? source : null;
+}
+
+/**
+ * How a source edit has left the document, or `null` where it has not left it anywhere (§4.10).
+ *
+ * `pending` — the text is not a document the editor could take, so the tree is what it was and
+ * the pane holds something the rest of the editor has not seen. `off-grammar` — the text was
+ * taken and the grammar refuses it, which is D5's own compensation ("a source edit that leaves
+ * the schema is shown as such, and semantic feedback resumes when it returns").
+ *
+ * The grammar's half is the **pipeline's** rows (§5.4's synchronous Ajv on the page's own
+ * registry), so the banner, the canvas note, the confirmation and the Problems panel all read one
+ * verdict and cannot disagree. A build with no registry at all — the stub `Platform` reads no
+ * schemas — answers nothing, which is the honest answer where nothing said the document was off.
+ */
+export function sourceStanding(open: OpenDocument): 'pending' | 'off-grammar' | null {
+  const source = sourceReading(open);
+  if (source === null) return null;
+  if (source.pending) return 'pending';
+  const rows = open.reading.structural;
+  return rows !== null && rows.some((row) => row.severity === 'error') ? 'off-grammar' : null;
 }
 
 /** What the expanded tab of §4.9 shows, per open document. */
@@ -390,6 +481,26 @@ export interface Documents extends DocumentsState {
    * the schema and Ajv's ranges.
    */
   showSource(id?: string): void;
+  /**
+   * What the JSON source view typed — §4.10's "an edit in the source updates the tree after a
+   * successful parse (debounced)".
+   *
+   * One named command per settled text (D13), so the Edit menu says *Edit the JSON source* and
+   * one Ctrl+Z takes it back. A text that parses to an object is taken whether or not it is on
+   * the grammar (D5, Q5); a text that is not one is kept as {@link OpenDocument.source} with the
+   * core's own refusal beside it, and the document is left exactly as it was.
+   */
+  sourceEdit(text: string, id?: string): void;
+  /**
+   * Register what a source view is holding and has not given the document yet, or `null` to stop.
+   *
+   * Every path that reads a document's bytes goes through it first — Save, Save As, the autosave,
+   * the archive, and the close that asks — so a `Ctrl+S` typed one keystroke after an edit writes
+   * what the reader is looking at and not what the document held three hundred milliseconds ago.
+   * It is a callback rather than a state because what the pane holds is Monaco's, and asking is
+   * cheaper and truer than mirroring it here on every keystroke.
+   */
+  holdSource(id: string, flush: (() => void) | null): void;
   /** Whether a tab may close — the shell asks before it removes one (§4.3). */
   mayClose(id: string): Promise<boolean>;
   closeDocument(id: string): void;
@@ -695,6 +806,8 @@ export function createDocuments(options: DocumentsOptions): {
   const pipelines = new Map<string, Pipeline>();
   /** Per open document: the subscription that follows its edits. */
   const following = new Map<string, () => void>();
+  /** Per open document: what a mounted source view is holding and has not given it (§4.10). */
+  const holding = new Map<string, () => void>();
   /** The command a confirmation is up for, held out of the state because it is a closure. */
   let pending: { id: string; command: Command } | null = null;
   let registry: SchemaRegistry | null = null;
@@ -888,6 +1001,67 @@ export function createDocuments(options: DocumentsOptions): {
       return applied;
     };
 
+    /**
+     * Give the document what a mounted source view is holding — every path that reads its bytes.
+     *
+     * With no argument, every open document's; the source view registers its own flush through
+     * {@link Documents.holdSource} and unregisters it when it goes. The identity is the
+     * **document's**, so a tab id with a view's suffix on it is stripped first — which is what
+     * `Ctrl+S` typed inside the source view hands in (feature 2.16's own warning about
+     * `documentTab`, met here).
+     */
+    const flushSource = (id?: string): void => {
+      if (id === undefined) for (const flush of [...holding.values()]) flush();
+      else holding.get(documentTab(id))?.();
+    };
+
+    /**
+     * Whether a Save may go ahead — plan §3's confirmed save of an off-schema document.
+     *
+     * > saving an off-schema document is allowed with a confirmation (the file is the user's)
+     * > and the core's refusal is in the log.
+     *
+     * The row that sentence comes from is the one about **the JSON source**: "the user edits the
+     * JSON source into something the canvas cannot draw". So the question is asked exactly where
+     * that row puts it — where the source view has written into this document and what it wrote
+     * is not a document the core will take. A New Model is off the grammar by construction (its
+     * skeleton is the required members, empty: feature 2.6), and asking about that would be
+     * asking about the editor's own starting point rather than about anything the reader wrote.
+     *
+     * The refusal itself is the **core's** — the rows §5.4's synchronous Ajv published for this
+     * revision, which are the rows the Problems panel shows. Nothing here decides whether a
+     * document is valid.
+     */
+    const allowed = async (one: OpenDocument): Promise<boolean> => {
+      const standing = sourceStanding(one);
+      if (standing === null) return true;
+      const pending = standing === 'pending';
+      for (const problem of pending ? (sourceReading(one)?.problems ?? []) : (one.reading.structural ?? [])) {
+        note(`${one.path}: ${problem.message}`);
+      }
+      const go = await platform.shell.confirm(
+        pending
+          ? textWith(
+              'The JSON source of {} is not a document the editor could read, so it was not taken. Save the document as it stands?',
+              one.path,
+            )
+          : textWith('The JSON source left {} off the grammar. The file is yours — save it anyway?', one.path),
+      );
+      if (!go) note(`${one.path}: not saved`);
+      return go;
+    };
+
+    /**
+     * Ask the JSON source view to show a place — §4.10's "Show in JSON … reveals its range".
+     *
+     * A request with a counter rather than a state: the pane consumes it when it draws, and a
+     * reader who scrolled away and asked again means it again. It costs nothing where no source
+     * view is open, and it is waiting when one is.
+     */
+    const reveal = (id: string, pointer: string): void => {
+      patch(id, (open) => ({ ...open, reveal: { pointer, seq: (open.reveal?.seq ?? 0) + 1 } }));
+    };
+
     /** Put a session behind a tab and start its pipeline. */
     const hold = (session: DocumentSession, title: string): void => {
       const id = tabId(session.workspace, session.path);
@@ -1062,6 +1236,7 @@ export function createDocuments(options: DocumentsOptions): {
      * does.
      */
     const release = (id: string, path?: WorkspacePath): void => {
+      holding.delete(id);
       pipelines.get(id)?.stop();
       pipelines.delete(id);
       following.get(id)?.();
@@ -1305,9 +1480,85 @@ export function createDocuments(options: DocumentsOptions): {
           title: textWith('{} · JSON', one.title),
           kind: SOURCE_TAB,
         });
+        // §4.10's "Show in JSON from any selection reveals its range" — which is what the canvas
+        // context menu's own entry and `View ▸ JSON Source` both are, from a selection. With
+        // nothing selected the pane opens where it was, which is the honest answer to a command
+        // that was given nothing to show.
+        if (one.selection !== undefined) reveal(one.id, pointerOf(one.selection));
+      },
+
+      holdSource(id: string, flush: (() => void) | null): void {
+        if (flush === null) holding.delete(id);
+        else holding.set(id, flush);
+      },
+
+      sourceEdit(text: string, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        // The very bytes the document already holds: nothing to command, and nothing to record.
+        if (text === one.session.text && sourceReading(one) === null) return;
+        const role = one.session.store.role;
+        const rows = (): readonly Problem[] =>
+          registry === null ? [] : registry.structuralText(text, role).map((row) => schemaProblem(row, one.path));
+        let parsed: ReturnType<typeof parse>;
+        try {
+          parsed = parse(text);
+        } catch (error) {
+          if (!(error instanceof JsonParseError)) throw error;
+          // Not JSON at all. The document keeps what it had — the canvas its last drawable state
+          // — and the reader is told where, in CPython's own words (the line `--validate` would
+          // print for such a text, feature 1.1's reading of the same hole).
+          patch(one.id, (open) => ({
+            ...open,
+            source: {
+              text,
+              revision: open.session.store.revision,
+              pending: true,
+              refusedAt: error.offset,
+              problems: rows(),
+            },
+          }));
+          note(`${one.path}: the JSON source was not read — ${error.message}`);
+          return;
+        }
+        if (!isJsonObject(parsed)) {
+          // JSON, but not a document: every gesture of §4.7 edits a member of the root, and a
+          // root that is not an object is a text the store cannot hold. The grammar's own line
+          // says so.
+          patch(one.id, (open) => ({
+            ...open,
+            source: { text, revision: open.session.store.revision, pending: true, problems: rows() },
+          }));
+          note(`${one.path}: the JSON source is not an object`);
+          return;
+        }
+        // A text that *denotes* the document the tree already holds — a reader who typed
+        // something and typed it back, or who spaced a member differently — is not an edit: the
+        // serializer is the writer of record (D12) and it would write these very bytes. So the
+        // pane's own text is recorded and the command log is left alone; an identity command
+        // would be an undo entry for a keystroke that undid itself.
+        if (serialize(parsed) === one.session.text) {
+          patch(one.id, (open) => ({
+            ...open,
+            source: { text, revision: open.session.store.revision, pending: false, problems: [] },
+          }));
+          return;
+        }
+        const applied = run(one, replaceRoot(parsed, 'Edit the JSON source'));
+        const revision = one.session.store.revision;
+        patch(one.id, (open) => {
+          const held: OpenDocument = { ...open, source: { text, revision, pending: false, problems: [] } };
+          // A place the new text no longer has is no selection: every projection reads it, and a
+          // sheet opened on nothing is worse than nothing opened.
+          return held.selection !== undefined && nodeAt(held.session.store.tree, held.selection) === undefined
+            ? withoutSelection(held)
+            : held;
+        });
+        if (applied.changed) note(`${one.path}: ${applied.label}`);
       },
 
       async mayClose(id: string): Promise<boolean> {
+        flushSource(documentTab(id));
         // A JSON source tab is a second reading of a document its own tab still holds: closing
         // it closes a view, not a document, and asking about unsaved work there would be asking
         // about something that is not going away.
@@ -1444,6 +1695,11 @@ export function createDocuments(options: DocumentsOptions): {
         });
         const toggled = revealing(rows, one.toggled, pointerOf(path));
         patch(one.id, (open) => ({ ...open, toggled: [...toggled], selection: path }));
+        // §4.17's third navigation — "reveals the source range" — which feature 2.8 left to this
+        // one because it needs a text editor. The other two are the explorer's and the sheet's,
+        // and they are what `selection` above already is; a source view that is not open takes
+        // the request when it opens.
+        reveal(one.id, pointerOf(path));
       },
 
       lint(id?: string): void {
@@ -1649,8 +1905,10 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       async save(id?: string): Promise<void> {
+        flushSource(id ?? tabs.current() ?? undefined);
         const one = documentOf(get(), id ?? tabs.current());
         if (one === undefined) return;
+        if (!(await allowed(one))) return;
         try {
           const saved = await one.session.save(platform.workspace);
           await platform.drafts.remove(one.workspace, one.path);
@@ -1679,6 +1937,7 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       async saveAs(id: string, path: WorkspacePath): Promise<void> {
+        flushSource(id);
         const one = get().open.find((open) => open.id === id);
         if (one === undefined) return;
         const before = one.path;
@@ -1698,6 +1957,7 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       async saveAll(): Promise<void> {
+        flushSource();
         for (const one of get().open) if (one.dirty) await get().save(one.id);
       },
 
@@ -1717,6 +1977,7 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       async downloadZip(): Promise<void> {
+        flushSource();
         const workspace = platform.workspace;
         const reference = workspace.root();
         const paths = await listTree(workspace, '');
@@ -1741,6 +2002,7 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       async exportDerived(id?: string): Promise<void> {
+        flushSource(id ?? tabs.current() ?? undefined);
         const one = documentOf(get(), id ?? tabs.current());
         if (one === undefined) return;
         const derived = one.reading.derived;
@@ -1771,6 +2033,10 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       async autosave(): Promise<void> {
+        // §4.3's "every 30 s and on blur": a draft of what the reader has typed, which means the
+        // source view's own text first — losing a user's typing to an autosave is the one thing
+        // an autosave must never do.
+        flushSource();
         for (const one of get().open) {
           if (!one.dirty) continue;
           await platform.drafts.put(one.session.draftOf());

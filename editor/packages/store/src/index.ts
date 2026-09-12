@@ -66,6 +66,7 @@ export {
   insertItem,
   remove,
   rename,
+  replaceRoot,
   sameValue,
   setMemberAt,
   setValue,

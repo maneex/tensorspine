@@ -588,6 +588,35 @@ export function sameValue(left: JsonValue, right: JsonValue): boolean {
   return left === right;
 }
 
+/**
+ * Replace every member of the document's root, as one named command.
+ *
+ * The gesture behind it is always the same shape: a whole document arrived from outside the
+ * tree — the file a Revert reads back, the draft a Restore puts in, the text feature 2.17's
+ * source view parsed — and the tree has to become it *without* the history being thrown away.
+ * So it is a command like any other (D13): the patches are the log's, `Undo` names it, and a
+ * revert the reader did not want costs one Ctrl+Z.
+ *
+ * It moves nothing — `moves` is empty — and that is a statement rather than an omission: what
+ * moved between two whole documents cannot be read off them. A rename typed into the source
+ * view is therefore not a rename to the sidecar, whose keys are pruned of what no longer
+ * resolves and a line written for each (D6). The alternative would be to infer a rename from a
+ * text diff, which is a second reading of what a rename is.
+ */
+export function replaceRoot(tree: JsonObject, label: string): Command {
+  const members = tree.members.map((member) => ({ name: member.name, value: member.value }));
+  return {
+    label,
+    moves: [],
+    edit(draft) {
+      draft.members = members.map((member) => ({
+        name: member.name,
+        value: asDraftValue(member.value),
+      }));
+    },
+  };
+}
+
 function getMemberValue(node: JsonObject, name: string): JsonValue | undefined {
   return node.members.find((member) => member.name === name)?.value;
 }

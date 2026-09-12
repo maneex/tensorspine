@@ -24,8 +24,8 @@
  */
 import { isJsonObject, parse, type JsonObject } from '@tensorspine/lang';
 
+import { replaceRoot } from '../commands.js';
 import { DocumentStore, type Applied, type DocumentStoreOptions } from '../document.js';
-import { asDraftValue, type MutableObject } from '../draft.js';
 import {
   emptyLayout,
   LayoutStore,
@@ -195,19 +195,9 @@ export class DocumentSession {
     return this.replace(text, 'Restore the draft');
   }
 
-  /** Replace every member of the tree, as one named command. */
+  /** Replace every member of the tree, as one named command (`replaceRoot`, `../commands.ts`). */
   private replace(text: string, label: string): Applied {
-    const tree = rootOf(text);
-    return this.store.apply({
-      label,
-      edit: (draft: MutableObject) => {
-        draft.members = tree.members.map((member) => ({
-          name: member.name,
-          value: asDraftValue(member.value),
-        }));
-      },
-      moves: [],
-    });
+    return this.store.apply(replaceRoot(rootOf(text), label));
   }
 
   /** Give the session a new place without writing anything — a Save As that downloaded. */

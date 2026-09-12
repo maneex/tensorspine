@@ -16,6 +16,10 @@ import {
   EXPANDED_SUFFIX,
   EXPANDED_TAB,
   NO_EMITTED_VIEW,
+  SOURCE_SUFFIX,
+  SOURCE_TAB,
+  sourceReading,
+  sourceStanding,
   TABS_SETTING,
   WORKSPACE_SETTING,
   type Documents,
@@ -582,3 +586,226 @@ async function one_dirty(one: Open): Promise<void> {
   });
   await Promise.resolve();
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Feature 2.17 — the JSON source view's half of the store: §4.10's two-way sync, §3's off-schema
+// source and its confirmed save, and the flush every path that reads a document goes through.
+// What a browser has to answer is in `apps/web/e2e/source.spec.ts`; these are the questions about
+// *what the editor does*, asked where they can be asked exhaustively.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+describe('an edit typed into the JSON source (§4.10)', () => {
+  it('is taken into the tree as one named command, and one Undo gives the bytes back', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    const before = open?.session.text ?? '';
+    now(one).sourceEdit(before.replace('"literal": 32', '"literal": 16'), id);
+
+    const after = now(one).open[0];
+    expect(after?.session.text).toContain('"literal": 16');
+    expect(after?.session.store.undoLabel).toBe('Edit the JSON source');
+    now(one).undo(id);
+    expect(now(one).open[0]?.session.text).toBe(before);
+  }, 120_000);
+
+  it('leaves a number the edit did not touch written exactly as the file writes it', async () => {
+    // D12's own claim, through the source view: `1e-05` is not `0.00001`, and an edit somewhere
+    // else in the document may not change it. The whole file is compared, not the one lexeme.
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const before = open?.session.text ?? '';
+    expect(before).toContain('"value": 1e-05');
+    now(one).sourceEdit(before.replace('"literal": 32', '"literal": 16'), open?.id ?? '');
+    const after = now(one).open[0]?.session.text ?? '';
+    expect(after).toContain('"value": 1e-05');
+    expect(after).toBe(before.replace('"literal": 32', '"literal": 16'));
+  }, 120_000);
+
+  it('takes a text that leaves the grammar, and says the source is off it (D5, Q5)', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    now(one).sourceEdit((open?.session.text ?? '').replace('"quantities": {', '"kernels": {},\n  "quantities": {'), id);
+    const after = now(one).open.find((document) => document.id === id);
+    // The tree took it — no gesture is refused for a semantic reason — and the grammar says so.
+    expect(after?.session.text).toContain('"kernels": {}');
+    expect(sourceReading(after as OpenDocument)?.pending).toBe(false);
+    expect(sourceStanding(after as OpenDocument)).toBe('off-grammar');
+    expect((after?.reading.structural ?? []).map((row) => row.message).join(' ')).toContain(
+      "'kernels' was unexpected",
+    );
+  }, 120_000);
+
+  it('does not take a text that is not JSON, and states the core’s own refusal', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    const before = open?.session.text ?? '';
+    now(one).sourceEdit(`${before.slice(0, 40)}`, id);
+    const after = now(one).open.find((document) => document.id === id);
+    expect(after?.session.text).toBe(before);
+    const source = sourceReading(after as OpenDocument);
+    expect(source?.pending).toBe(true);
+    expect(source?.refusedAt).toBeGreaterThan(0);
+    expect(source?.problems[0]?.code).toBe('V12');
+    // CPython's own words and CPython's own position, which is what `--validate` would print.
+    expect(source?.problems[0]?.message).toMatch(/line \d+ column \d+ \(char \d+\)/);
+    expect(sourceStanding(after as OpenDocument)).toBe('pending');
+  }, 120_000);
+
+  it('does not take a text that is JSON and not a document', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    const before = open?.session.text ?? '';
+    now(one).sourceEdit('[1, 2, 3]\n', id);
+    const after = now(one).open.find((document) => document.id === id);
+    expect(after?.session.text).toBe(before);
+    expect(sourceReading(after as OpenDocument)?.pending).toBe(true);
+    expect(sourceReading(after as OpenDocument)?.problems.length).toBeGreaterThan(0);
+  }, 120_000);
+
+  it('commands nothing for a text that denotes the document it already holds', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    const at = open?.session.store.revision ?? 0;
+    // The very bytes…
+    now(one).sourceEdit(open?.session.text ?? '', id);
+    expect(now(one).open[0]?.session.store.revision).toBe(at);
+    // …and a text that *denotes* them: spaced differently, and typed back after a refusal. The
+    // serializer is the writer of record (D12) and would write the same bytes either way, so the
+    // command log is left alone and only the pane's own text is recorded.
+    now(one).sourceEdit('{ "nope"', id);
+    expect(sourceReading(now(one).open[0] as OpenDocument)?.pending).toBe(true);
+    const spaced = (open?.session.text ?? '').replace('{\n  "schema"', '{\n\n  "schema"');
+    now(one).sourceEdit(spaced, id);
+    expect(now(one).open[0]?.session.store.revision).toBe(at);
+    expect(now(one).open[0]?.dirty).toBe(false);
+    const source = sourceReading(now(one).open[0] as OpenDocument);
+    expect(source?.pending).toBe(false);
+    expect(source?.text).toBe(spaced);
+  }, 120_000);
+
+  it('goes stale the moment the document moves for another reason', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    now(one).sourceEdit((open?.session.text ?? '').replace('"literal": 32', '"literal": 16'), id);
+    expect(sourceReading(now(one).open[0] as OpenDocument)).not.toBeNull();
+    now(one).undo(id);
+    // The pane's reading is of a document that no longer exists: it is a projection again.
+    expect(sourceReading(now(one).open[0] as OpenDocument)).toBeNull();
+    expect(sourceStanding(now(one).open[0] as OpenDocument)).toBeNull();
+  }, 120_000);
+});
+
+describe('saving what the source view wrote (§3, §4.10)', () => {
+  it('asks before it writes a document the source left off the grammar, and takes no for an answer', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    const path = open?.path ?? '';
+    const file = (await one.workspace.read(path)).text;
+    now(one).sourceEdit((open?.session.text ?? '').replace('"quantities": {', '"kernels": {},\n  "quantities": {'), id);
+
+    one.platform.shellRecord.answer = false;
+    await now(one).save(id);
+    expect(one.platform.shellRecord.asked.at(-1)).toContain('off the grammar');
+    expect((await one.workspace.read(path)).text).toBe(file);
+    // The core's refusal is in the log, as §3 asks.
+    expect(one.log.join('\n')).toContain("'kernels' was unexpected");
+
+    one.platform.shellRecord.answer = true;
+    await now(one).save(id);
+    expect((await one.workspace.read(path)).text).toContain('"kernels": {}');
+  }, 120_000);
+
+  it('asks before it writes a document whose source it could not read', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    now(one).sourceEdit('{ "model":', id);
+    one.platform.shellRecord.answer = false;
+    await now(one).save(id);
+    expect(one.platform.shellRecord.asked.at(-1)).toContain('not a document');
+  }, 120_000);
+
+  it('asks nothing of a New Model, which is off the grammar by construction', async () => {
+    // Feature 2.6: the skeleton is the required members, empty, and carries three structural
+    // problems until the author adds a site and an interface. §3's confirmation is about a source
+    // *edit*, not about the editor's own starting point.
+    const one = editor();
+    await now(one).newModel();
+    one.platform.shellRecord.asked.length = 0;
+    await now(one).saveAll();
+    expect(one.platform.shellRecord.asked).toEqual([]);
+    expect((await one.workspace.read('untitled.json')).text).toContain('"model": "untitled"');
+  }, 120_000);
+
+  it('takes what a source view is holding before it reads the document', async () => {
+    // A `Ctrl+S` one keystroke after an edit writes what the reader is looking at: the pane
+    // registers its flush and every path that reads the bytes goes through it first.
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    const typed = (open?.session.text ?? '').replace('"literal": 32', '"literal": 16');
+    now(one).holdSource(id, () => {
+      now(one).sourceEdit(typed, id);
+    });
+    await now(one).save(id);
+    expect((await one.workspace.read(open?.path ?? '')).text).toContain('"literal": 16');
+  }, 120_000);
+
+  it('takes it when the Save is asked of the *source tab*, whose id carries a suffix', async () => {
+    // `Ctrl+S` typed inside the source view hands the current tab in, and that tab is the view's
+    // — feature 2.16's own warning about `documentTab`, met one feature along. A flush keyed on
+    // the tab rather than on the document would write what the document held a moment ago.
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const open = now(one).open[0];
+    const id = open?.id ?? '';
+    const typed = (open?.session.text ?? '').replace('"literal": 32', '"literal": 16');
+    now(one).holdSource(id, () => {
+      now(one).sourceEdit(typed, id);
+    });
+    await now(one).save(`${id}${SOURCE_SUFFIX}`);
+    expect((await one.workspace.read(open?.path ?? '')).text).toContain('"literal": 16');
+  }, 120_000);
+});
+
+describe('Show in JSON (§4.10)', () => {
+  it('opens the source tab and asks it for the place that is selected', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const id = now(one).open[0]?.id ?? '';
+    now(one).selectPlace(['instances', 'final_n'], id);
+    now(one).showSource(id);
+    expect(one.tabs.tabs.map((tab) => tab.kind)).toContain(SOURCE_TAB);
+    expect(now(one).open[0]?.reveal?.pointer).toBe('/instances/final_n');
+    // Asking again for the same place asks again: a reader who scrolled away means it.
+    const seq = now(one).open[0]?.reveal?.seq ?? 0;
+    now(one).showSource(id);
+    expect(now(one).open[0]?.reveal?.seq).toBe(seq + 1);
+  }, 120_000);
+
+  it('is what a Problems row asks for too — §4.17’s third navigation', async () => {
+    const one = editor();
+    await now(one).openDocument(MODEL);
+    const id = now(one).open[0]?.id ?? '';
+    now(one).revealPlace(['quantities', 'd'], id);
+    expect(now(one).open[0]?.reveal?.pointer).toBe('/quantities/d');
+    expect(now(one).open[0]?.selection).toEqual(['quantities', 'd']);
+  }, 120_000);
+});

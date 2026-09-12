@@ -81,6 +81,15 @@ export interface StructuralProblem {
   readonly segments: readonly PathSegment[];
   /** The keyword that refused it, `null` for the JSON layer and for the `false` schema. */
   readonly keyword: string | null;
+  /**
+   * The members of {@link path} the line refuses by name, where the keyword names some.
+   *
+   * Today that is `additionalProperties` alone, which reports the place of the object and names
+   * the extra members in its prose. The names are carried so that a reader of the line can be
+   * taken to them — §4.10's "structural errors at their range" — without anyone parsing the
+   * message the parity job pins.
+   */
+  readonly members?: readonly string[];
 }
 
 /** How a document is read: as the tools read it, or as the library loader reads a unit. */
@@ -472,5 +481,6 @@ function problemOf(error: SchemaError): StructuralProblem {
     path: pointerOf(segments),
     segments,
     keyword: error.keyword,
+    ...(error.members === undefined ? {} : { members: error.members }),
   };
 }

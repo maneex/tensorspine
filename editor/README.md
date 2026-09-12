@@ -26,9 +26,12 @@ editor/
 ├── packages/store    the document store: the ordered tree, commands and undo, the sidecars,
 │                     and the platform interfaces (@tensorspine/store/platform) with their stub
 ├── packages/ui       React: shell, activities, canvas, generated forms, sheets, panels.
-│                     Three entry points: the package root (the walker, the forms and the
-│                     presentation bindings — no React), `/shell` (the chrome) and
-│                     `/layout` (ELK), plus `/style.css`
+│                     Eight entry points: the package root (the walker, the forms and the
+│                     presentation bindings — no React), `/shell` (the chrome), `/documents`,
+│                     `/explorer`, `/canvas`, `/expanded`, `/layout` (ELK) and `/source`
+│                     (Monaco), plus `/style.css`. The last two are their own so that neither
+│                     engine reaches the page before a canvas is laid out or a source view is
+│                     opened
 ├── apps/web          the static application built by Vite, and the browser's platform:
 │                     the workspace, settings, drafts, the shell
 ├── schemas/          the editor's own schemas — the layout sidecar, the presentation

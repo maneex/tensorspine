@@ -48,10 +48,22 @@ import { text } from './strings.js';
 import { LIGHT_CLASS, resolveTheme } from './theme.js';
 import { SHELL_VIEWS } from './views.js';
 
-/** Whether the focus is somewhere a key belongs to what is being typed rather than to a command. */
+/**
+ * Whether the focus is somewhere a key belongs to what is being typed rather than to a command.
+ *
+ * Three readings, because a text field is three things in a browser: a form control, a
+ * contenteditable, and — the one feature 2.17 found — **an element that says it is one**. Monaco
+ * 0.56 takes its input through the EditContext API where a browser has it, and what holds the
+ * focus is then a plain `div` carrying `role="textbox"` and `aria-multiline`: no tag and no
+ * contenteditable flag to read, and every accelerator of §4.4 firing under the reader's typing
+ * until ARIA is what is asked. The rule is the general one and not Monaco's: an element whose
+ * role is a text input is a text input.
+ */
 export function isTyping(element: Element | null): boolean {
   if (element === null) return false;
   if (element instanceof HTMLElement && element.isContentEditable) return true;
+  const role = element.getAttribute('role');
+  if (role === 'textbox' || role === 'searchbox') return true;
   const tag = element.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }

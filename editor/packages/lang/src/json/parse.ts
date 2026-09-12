@@ -37,7 +37,26 @@
  * holds a duplicate is refused for being off-schema, as the tools refuse it (feature 1.3).
  */
 import { NON_FINITE_LEXEMES } from './number.js';
+import { pointerSegment } from './pointer.js';
 import type { JsonMember, JsonObject, JsonValue } from './tree.js';
+
+/**
+ * Where a value of a document stands in the text it was read from.
+ *
+ * Offsets into the text, not lines and columns: a line is a rendering and a caller that has the
+ * text can count them (a Monaco model does it in `getPositionAt`, `JsonParseError` does it in
+ * CPython's own way). What a span says is the two things a source view needs and cannot work
+ * out for itself — the extent of the **value**, and the extent of the **member name** above it,
+ * so that "Show in JSON" can reveal `"final_n": { … }` and not only its object.
+ */
+export interface JsonSpan {
+  /** The first character of the value, and the one after its last. */
+  readonly start: number;
+  readonly end: number;
+  /** The member name's own extent, quotes included; absent for the root and for array items. */
+  readonly nameStart?: number;
+  readonly nameEnd?: number;
+}
 
 /**
  * A text that cannot be read as the tools read it: a syntax error, or a duplicate member name.
@@ -100,6 +119,15 @@ const HEX = /^[0-9a-fA-F]{4}$/;
 /** How a duplicate member name is read. */
 export interface ParseOptions {
   /**
+   * Where to record a span per JSON pointer while the text is read (§4.10).
+   *
+   * A sink rather than a second walk: the parser is the one reading of the JSON grammar in the
+   * core (D3), and a map of places to offsets falls out of it for the cost of a `Map.set` per
+   * value. Absent — which is every caller but the source view — nothing is recorded and nothing
+   * is allocated.
+   */
+  readonly spans?: Map<string, JsonSpan>;
+  /**
    * `refuse` (the default) is V12: `json.load(object_pairs_hook=…)`, which both `model.py` and
    * `primitive_library.py` install. `last` is the plain `json.load` — the first occurrence's
    * place, the last occurrence's value, as `dict(pairs)` builds it.
@@ -118,22 +146,43 @@ export interface ParseOptions {
  * Throws {@link JsonParseError} for a text the tools would refuse, with the tools' wording.
  */
 export function parse(text: string, options: ParseOptions = {}): JsonValue {
-  const state = new Scanner(text, options.duplicates ?? 'refuse');
-  const value = state.value(state.skipWhitespace(0));
+  const state = new Scanner(text, options.duplicates ?? 'refuse', options.spans);
+  const value = state.value(state.skipWhitespace(0), '');
   const end = state.skipWhitespace(state.index);
   if (end !== text.length) state.fail('Extra data', end);
   return value;
 }
 
+/**
+ * Every place of a text and where it stands, keyed by its JSON pointer (§4.10).
+ *
+ * The text is read exactly as {@link parse} reads it — the same scanner, the same refusals — so
+ * a text this answers a map for is a text the editor's document store can take, and a text it
+ * refuses is refused in CPython's words. The root is `''`; a member of an object is
+ * `/instances/final_n`; an item of an array is `/families/0`.
+ */
+export function spansOf(text: string): ReadonlyMap<string, JsonSpan> {
+  const spans = new Map<string, JsonSpan>();
+  parse(text, { spans });
+  return spans;
+}
+
 class Scanner {
   readonly text: string;
   readonly duplicates: 'refuse' | 'last';
+  /** Where a span per pointer is recorded, or `undefined` where nobody asked for one. */
+  readonly spans: Map<string, JsonSpan> | undefined;
   /** Where the last value read ended. */
   index = 0;
 
-  constructor(text: string, duplicates: 'refuse' | 'last' = 'refuse') {
+  constructor(
+    text: string,
+    duplicates: 'refuse' | 'last' = 'refuse',
+    spans?: Map<string, JsonSpan>,
+  ) {
     this.text = text;
     this.duplicates = duplicates;
+    this.spans = spans;
   }
 
   /**
@@ -157,12 +206,23 @@ class Scanner {
     return i;
   }
 
-  /** The value at `from`, leaving `index` after it. */
-  value(from: number): JsonValue {
+  /** The value at `from`, leaving `index` after it, and its span where one is being recorded. */
+  value(from: number, pointer: string): JsonValue {
+    if (this.spans === undefined) return this.read(from, pointer);
+    const value = this.read(from, pointer);
+    const span = this.spans.get(pointer);
+    // An object or an array recorded its members before it closed; the name a member carries is
+    // written by `object` after this returns, so what is merged here is only the extent.
+    this.spans.set(pointer, { ...span, start: from, end: this.index });
+    return value;
+  }
+
+  /** The value at `from`, with no span of its own. */
+  private read(from: number, pointer: string): JsonValue {
     const character = this.text[from];
     if (character === '"') return this.string(from);
-    if (character === '{') return this.object(from);
-    if (character === '[') return this.array(from);
+    if (character === '{') return this.object(from, pointer);
+    if (character === '[') return this.array(from, pointer);
     if (this.text.startsWith('null', from)) {
       this.index = from + 4;
       return null;
@@ -230,7 +290,7 @@ class Scanner {
     }
   }
 
-  object(from: number): JsonObject {
+  object(from: number, pointer: string): JsonObject {
     const members: JsonMember[] = [];
     const nameAt: number[] = [];
     let i = this.skipWhitespace(from + 1);
@@ -242,10 +302,19 @@ class Scanner {
       if (this.text[i] !== '"') this.fail('Expecting property name enclosed in double quotes', i);
       const at = i;
       const name = this.string(i);
+      const nameEnd = this.index;
       i = this.skipWhitespace(this.index);
       if (this.text[i] !== ':') this.fail("Expecting ':' delimiter", i);
       i = this.skipWhitespace(i + 1);
-      const value = this.value(i);
+      const where = `${pointer}/${pointerSegment(name)}`;
+      const value = this.value(i, where);
+      if (this.spans !== undefined) {
+        const span = this.spans.get(where);
+        // The member's own name, so that revealing a place shows what it is called. A duplicate
+        // name is refused at the closing brace; under `duplicates: 'last'` the later member wins
+        // here as its value does, which is what `dict(pairs)` builds.
+        if (span !== undefined) this.spans.set(where, { ...span, nameStart: at, nameEnd });
+      }
       members.push({ name, value });
       nameAt.push(at);
       i = this.skipWhitespace(this.index);
@@ -278,7 +347,7 @@ class Scanner {
     return { kind: 'object', members };
   }
 
-  array(from: number): JsonValue[] {
+  array(from: number, pointer: string): JsonValue[] {
     const items: JsonValue[] = [];
     let i = this.skipWhitespace(from + 1);
     if (this.text[i] === ']') {
@@ -286,7 +355,7 @@ class Scanner {
       return items;
     }
     for (;;) {
-      items.push(this.value(i));
+      items.push(this.value(i, `${pointer}/${String(items.length)}`));
       i = this.skipWhitespace(this.index);
       if (this.text[i] === ']') {
         this.index = i + 1;

@@ -208,10 +208,14 @@ export function additionalPropertiesErrors(
       .sort(comparePythonStrings)
       .map((pattern) => pythonRepr(pattern))
       .join(', ');
-    return [schemaError(`${joined} ${verb} not match any of the regexes: ${regexes}`)];
+    return [schemaError(`${joined} ${verb} not match any of the regexes: ${regexes}`, { members: extras })];
   }
   const [joined, verb] = extrasMessage(extras);
-  return [schemaError(`Additional properties are not allowed (${joined} ${verb} unexpected)`)];
+  return [
+    schemaError(`Additional properties are not allowed (${joined} ${verb} unexpected)`, {
+      members: extras,
+    }),
+  ];
 }
 
 /**

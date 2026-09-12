@@ -31,6 +31,7 @@ export function schemaProblem(problem: StructuralProblem, file?: string): Proble
     message: formatProblem(problem),
     path: problem.path,
     ...(problem.keyword === null ? {} : { rule: problem.keyword }),
+    ...(problem.members === undefined ? {} : { members: problem.members }),
     ...(file === undefined ? {} : { file }),
     severity: 'error',
     source: 'schema',

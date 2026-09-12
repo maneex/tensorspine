@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { sourceText } from './source-text.js';
+
 /**
  * The expression editors — feature 2.11, plan §4.13, artboard S7, in a browser.
  *
@@ -39,17 +41,6 @@ async function openModel(page: Page, path = MODEL): Promise<void> {
   await command(page, 'File', 'file.open-model');
   await page.locator(`.dlg [data-document="${path}"]`).click();
   await expect(page.locator(`.gcanvas[data-canvas="${path}"]`)).toBeVisible();
-}
-
-/** The document's own bytes, through `View ▸ JSON Source` — what a Save would write (D12). */
-async function sourceText(page: Page): Promise<string> {
-  await command(page, 'View', 'view.json-source');
-  const pane = page.locator('.doc-json');
-  await expect(pane).toBeVisible();
-  const shown = await pane.innerText();
-  await page.keyboard.press('Control+w');
-  await expect(page.locator('.doc-json')).toHaveCount(0);
-  return shown;
 }
 
 /** The Properties panel's body. */

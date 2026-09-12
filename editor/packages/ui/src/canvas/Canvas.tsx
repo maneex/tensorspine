@@ -47,7 +47,7 @@ import {
 import { pointerOf, type Path } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
-import type { OpenDocument } from '../documents/store.js';
+import { sourceStanding, type OpenDocument } from '../documents/store.js';
 import { presentation } from '../presentation/index.js';
 import { bindPrivately, tieTo, type HeldMember, type SlotTarget } from '../sheet/bindings.js';
 import { useShell, useShellStore } from '../shell/context.js';
@@ -1126,7 +1126,15 @@ export function Canvas({ one, drill }: { one: OpenDocument; drill?: DrillContext
         shell.getState().setZoom(viewport.zoom * (event.deltaY < 0 ? 1.1 : 1 / 1.1));
       }}
     >
-      <span className="canvas-note">{textWith('folded document · {}', model.note)}</span>
+      <span className="canvas-note">
+        {sourceStanding(one) === null
+          ? textWith('folded document · {}', model.note)
+          : // §4.10: "the canvas keeps its last drawable state with a banner until the source is
+            // back on the grammar". What is drawn is the tree as it now stands — the folded
+            // reading is the tolerant one and draws whatever a document still has (feature 2.9)
+            // — so the note says so rather than the count changing meaning.
+            textWith('last drawable state · {}', model.note)}
+      </span>
       <span className="canvas-note right fig">{`${String(Math.round(viewport.zoom * 100))}%`}</span>
       <div className="viewport">
         <div

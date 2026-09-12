@@ -153,6 +153,16 @@ export interface Problem {
    * The checkpoint check does record one, because `artifact.check` walks D3 identity by identity.
    */
   readonly node?: string;
+  /**
+   * The members of {@link path} the row refuses by name, where the producing stage names some.
+   *
+   * The grammar's `additionalProperties` is the one that does today: it reports the place of the
+   * *object* and names the extra members in its prose, because that is where `jsonschema` puts
+   * them and the wording is the parity contract. The names the check already computed travel
+   * beside the line so that a reader can be taken to them — §4.10's "structural errors at their
+   * range" — without anyone reading an identifier back out of a message (§7 F1's own shape).
+   */
+  readonly members?: readonly string[];
   /** Which rule of the producing stage decided it: a loader kind, a lint rule, a V17 kind. */
   readonly rule?: string;
   /** The file the row is about: a unit, a document, a checkpoint shard. */

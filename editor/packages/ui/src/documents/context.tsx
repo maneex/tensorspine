@@ -80,6 +80,8 @@ function nothingOpen(): Documents {
     offer: nothing,
     confirmed: nothing,
     showSource: nothing,
+    sourceEdit: nothing,
+    holdSource: nothing,
     mayClose: () => Promise.resolve(true),
     closeDocument: nothing,
     save: later,

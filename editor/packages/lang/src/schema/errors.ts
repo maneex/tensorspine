@@ -47,6 +47,20 @@ export interface SchemaError {
   instance: JsonValue;
   /** The schema node the keyword belongs to. */
   schema: SchemaNode;
+  /**
+   * The members of {@link path} the line is about, where a keyword refuses some by name.
+   *
+   * `additionalProperties` names every extra member **inside its message** and reports the place
+   * of the *object*, because that is where `jsonschema` puts it and the wording is the parity
+   * contract (D2). A reader of that line then has nowhere to go but the prose — and parsing an
+   * identifier back out of a message is the one thing feature 2.8 refused to do. So the names the
+   * check already computed are carried beside the wording, which is finding F1's own shape
+   * ("the contract the code and the pointer, not the prose"), and the source view of §4.10 puts
+   * the marker under the member instead of under the whole document.
+   *
+   * Nothing prints it; every message is unchanged and every parity comparison is over messages.
+   */
+  members?: readonly string[];
 }
 
 /** An error, with the fields the walk fills in afterwards defaulted. */
@@ -64,6 +78,7 @@ export function schemaError(
     parent: fields.parent ?? null,
     instance: fields.instance ?? null,
     schema: fields.schema ?? true,
+    ...(fields.members === undefined ? {} : { members: fields.members }),
   };
 }
 

@@ -4,6 +4,7 @@
 @import '../expressions/expressions.css';
 @import '../derived/derived.css';
 @import '../expanded/expanded.css';
+@import '../source/source.css';
 
 /* ─────────────────────────────────────────────────────────────────────────
    The shell — plan §4.2 as drawn on S1, component inventory §2.
@@ -449,7 +450,15 @@ body { margin: 0; }
 .status .fig.d b { color: var(--derived); }
 /* §5.4's freshness in the bar: a figure computed for an older revision keeps its last value and
    dims, so that it does not read as current while the core is deriving again (feature 2.15). */
-.status .fig.stale { opacity: 0.5; }
+/* A stale figure is **marked**, not dimmed. §4.21's floor holds for text whatever it is saying,
+   and no ink of the ramp survives an opacity on this ground: `--muted` is 4.99:1 dark and 4.57:1
+   light at full strength, so a half-opacity figure reads at 2.11:1 and 1.94:1. What says "not
+   current" instead is the figure losing the emphasis it has when it is — its number takes the
+   label's own ink and weight — with the bar's derivation pill saying `stale` in words beside it.
+   Found by feature 2.17's axe pass, which is the first to audit the bar with its figures in it
+   (an off-grammar source holds them stale for as long as the source is off the grammar, where an
+   edit holds them stale for three hundred milliseconds). */
+.status .fig.stale b { color: var(--muted); font-weight: 400; }
 .status .fig .chip {
   margin-left: 6px; padding: 0 5px; border: 1px solid var(--chip); border-radius: 2px;
   font-style: normal; font-size: 9.5px; color: var(--ink-3);

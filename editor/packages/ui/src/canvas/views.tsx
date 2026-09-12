@@ -4,14 +4,16 @@
  * > The default editor of a model: the *folded* document — root instances, compositions as group
  * > boxes, interfaces as terminal nodes — the reading `--view` gives, made editable.
  *
- * The **source pane** feature 2.6 put in that tab moves to a tab of its own, which is where §4.2
+ * The **source pane** feature 2.6 put in that tab moved to a tab of its own, which is where §4.2
  * puts it ("one per JSON source view") and what S1's own strip draws beside `llama3-8b` and
- * `llama3-8b › decoder`. `View ▸ JSON Source` (Ctrl+Shift+J, "opens beside") is what opens it, and
- * feature 2.17 replaces the pane with Monaco and the schema attached.
+ * `llama3-8b › decoder`. `View ▸ JSON Source` (Ctrl+Shift+J, "opens beside") is what opens it;
+ * feature 2.17 gave that tab Monaco and the schema, in `@tensorspine/ui/source`, so the view is
+ * no longer composed here — a text editor must not reach the shell's first chunk (feature 0.4's
+ * lesson, the fourth time).
  */
 import type { JSX } from 'react';
 
-import { DOCUMENT_TAB, DocumentView, DRILL_TAB, SOURCE_TAB, SourcePane } from '../documents/index.js';
+import { DOCUMENT_TAB, DocumentView, DRILL_TAB } from '../documents/index.js';
 import type { Tab } from '../shell/index.js';
 
 import { Canvas } from './Canvas.js';
@@ -20,7 +22,6 @@ import { DrillView } from './Drill.js';
 /** The views this feature gives the shell, by the `kind` their tabs carry. */
 export const CANVAS_VIEWS: Readonly<Record<string, (tab: Tab) => JSX.Element>> = {
   [DOCUMENT_TAB]: (tab) => <DocumentView tab={tab} body={(one) => <Canvas one={one} />} />,
-  [SOURCE_TAB]: (tab) => <DocumentView tab={tab} body={(one) => <SourcePane one={one} />} />,
   // §4.2's "one per drill-in (composition, template instance)" — feature 2.14's own tab (§4.8).
   [DRILL_TAB]: (tab) => <DrillView tab={tab} />,
 };

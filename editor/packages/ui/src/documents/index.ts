@@ -48,6 +48,8 @@ export {
   NO_EMITTED_VIEW,
   SOURCE_SUFFIX,
   SOURCE_TAB,
+  sourceReading,
+  sourceStanding,
   TABS_SETTING,
   WORKSPACE_SETTING,
   type BannerLine,
@@ -59,6 +61,8 @@ export {
   type EmittedView,
   type LibraryState,
   type OpenDocument,
+  type RevealRequest,
+  type SourceState,
   type TabSink,
   type ToastLine,
 } from './store.js';
@@ -67,6 +71,7 @@ export {
   DOCUMENT_VIEWS,
   DocumentToast,
   DocumentView,
+  SourceBanner,
   SourcePane,
   WorkspaceBanner,
 } from './views.js';

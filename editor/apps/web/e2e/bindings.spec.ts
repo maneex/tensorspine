@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { sourceText } from './source-text.js';
+
 /**
  * Bindings, identities and the location editor — feature 2.13, plan §4.14, artboard S8.
  *
@@ -74,17 +76,6 @@ async function selectSite(page: Page, pointer: string, name: string): Promise<vo
   }
   await page.locator(`.tree [data-row="${pointer}"]`).click();
   await expect(sheet(page).locator('.insp-title')).toHaveText(name);
-}
-
-/** The document's own bytes, through `View ▸ JSON Source` (§4.2's own tab). */
-async function sourceText(page: Page): Promise<string> {
-  await command(page, 'View', 'view.json-source');
-  const pane = page.locator('.doc-json');
-  await expect(pane).toBeVisible();
-  const shown = await pane.innerText();
-  await page.keyboard.press('Control+w');
-  await expect(page.locator('.doc-json')).toHaveCount(0);
-  return shown;
 }
 
 test.describe('an identity a slot leaves and joins', () => {

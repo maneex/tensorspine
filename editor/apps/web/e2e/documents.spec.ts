@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import AxeBuilder from '@axe-core/playwright';
 import { chromium, expect, test, type Page } from '@playwright/test';
 
+import { sourceText } from './source-text.js';
+
 /**
  * Feature 2.6 — open and save, in a browser.
  *
@@ -71,27 +73,6 @@ async function openDocument(page: Page, path: string): Promise<void> {
   await command(page, 'File', 'file.open-model');
   await page.locator(`.dlg [data-document="${path}"]`).click();
   await expect(page.locator(`.gcanvas[data-canvas="${path}"]`)).toBeVisible();
-}
-
-/**
- * The document's own bytes, through `View ▸ JSON Source` (§4.4, §4.2's own tab).
- *
- * Feature 2.9 gave the model's tab its canvas (§4.7's "the default editor of a model") and the
- * source pane the tab of its own §4.2 puts it in; this is how a suite reads what a Save would
- * write, which is the same pane through the same serializer (D12).
- */
-async function sourceText(page: Page, path: string): Promise<string> {
-  await command(page, 'View', 'view.json-source');
-  const pane = page.locator(`.doc-json[data-path="${path}"]`);
-  await expect(pane).toBeVisible();
-  const shown = await pane.innerText();
-  // The source is a *view* of the document, in a tab of its own (§4.2): it is closed again so
-  // that what a suite counts afterwards is the documents it opened and not the readings of them.
-  // `Ctrl+W` rather than the tab's ×, because with fifteen documents open the strip is wider
-  // than the editor area and the × of the last one is behind the Properties region.
-  await page.keyboard.press('Control+w');
-  await expect(page.locator('.doc-json')).toHaveCount(0);
-  return shown;
 }
 
 test.describe('the Examples workspace', () => {

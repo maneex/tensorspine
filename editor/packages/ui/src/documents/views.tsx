@@ -18,7 +18,7 @@
 import { useEffect, useRef, type JSX } from 'react';
 
 import { useDocuments, useDocumentsStore } from './context.js';
-import { DOCUMENT_TAB, documentTab, SOURCE_TAB, type OpenDocument } from './store.js';
+import { DOCUMENT_TAB, documentTab, sourceStanding, type OpenDocument } from './store.js';
 import { text, textWith } from '../shell/strings.js';
 import type { Tab } from '../shell/store.js';
 
@@ -65,6 +65,48 @@ export function DocumentToast(): JSX.Element | null {
   );
 }
 
+/**
+ * The banner an off-grammar source stands behind — plan §4.10, §3, artboard S16.
+ *
+ * > An off-schema source is allowed to exist (§3): the canvas keeps its last drawable state with
+ * > a banner until the source is back on the grammar.
+ *
+ * It is about the **source** and not about the document, which is why it is drawn from
+ * {@link sourceStanding} and not from the problems: a New Model is off the grammar by
+ * construction (its skeleton is the required members, empty — feature 2.6) and there is nothing
+ * to say about that beyond what the Problems panel already says. What this says is that the text
+ * a reader typed is not what the rest of the editor is looking at, which is a fact about two
+ * writers and about nothing else.
+ */
+export function SourceBanner({ one }: { one: OpenDocument }): JSX.Element | null {
+  const standing = sourceStanding(one);
+  if (standing === null) return null;
+  return (
+    <div className="banner stop" role="status" data-source-banner={standing}>
+      <span className="bi" aria-hidden="true">
+        ■
+      </span>
+      <span>
+        {standing === 'pending' ? (
+          <>
+            <b>{text('The JSON source is not a document yet.')}</b>{' '}
+            {text(
+              'Nothing has been taken into the document, so the canvas and the panels show what it held. The refusal is in Problems and in the source, at its place.',
+            )}
+          </>
+        ) : (
+          <>
+            <b>{text('The source is off the grammar.')}</b>{' '}
+            {text(
+              'The canvas shows the last drawable state. Saving is allowed with a confirmation — the file is yours — and the core’s refusal stays in the log.',
+            )}
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
 /** The document behind a tab, or nothing where the tab is not one. */
 export function documentFor(tab: Tab, open: readonly OpenDocument[]): OpenDocument | undefined {
   const id = documentTab(tab.id);
@@ -105,6 +147,7 @@ export function DocumentView({ tab, body }: { tab: Tab; body?: (one: OpenDocumen
           the heading of, and drawn nowhere. Found by feature 2.6's own axe pass. */}
       <h1 className="offscreen">{one.title}</h1>
       <WorkspaceBanner />
+      <SourceBanner one={one} />
       {body === undefined ? <SourcePane one={one} /> : body(one)}
       <div className="doc-foot">
         <button
@@ -128,11 +171,12 @@ export function DocumentView({ tab, body }: { tab: Tab; body?: (one: OpenDocumen
 /**
  * The views this feature gives the shell, by the `kind` their tabs carry.
  *
- * The model's own tab draws the source pane here and the **canvas** where feature 2.9's views are
- * composed over these (§4.7: "the default editor of a model"); an application that composes only
- * these — a build with no canvas — still opens a document and shows what was opened.
+ * The model's own tab draws the read-only pane here and the **canvas** where feature 2.9's views
+ * are composed over these (§4.7: "the default editor of a model"); an application that composes
+ * only these — a build with no canvas — still opens a document and shows what was opened. The
+ * JSON source tab is no longer one of them: feature 2.17 gives it Monaco and its own entry point
+ * (`@tensorspine/ui/source`), which is what keeps a text editor out of the shell's first chunk.
  */
 export const DOCUMENT_VIEWS: Readonly<Record<string, (tab: Tab) => JSX.Element>> = {
   [DOCUMENT_TAB]: (tab) => <DocumentView tab={tab} />,
-  [SOURCE_TAB]: (tab) => <DocumentView tab={tab} />,
 };

@@ -143,6 +143,23 @@ const PAIRS: readonly [string, string, string][] = [
   ['--ink', '--struct-bg', 'the identifier of a card inside a split’s block'],
   ['--ink-3', '--struct-bg', 'the primitive it pins'],
   ['--derived', '--struct-bg', 'its byte figure'],
+  // the JSON source view (feature 2.17): the pane's head on the chrome's ground, and the text
+  // Monaco paints on `--bg-sunk` from the theme `source/monaco.ts` defines over these very names.
+  // The design's `_ts.css` writes a line number in `--faint` (3.04 dark, 2.16 light here) and a
+  // truth in `--muted` (4.89 / 3.81); both step up the ramp feature 2.5 established, and the
+  // string value steps down it in the light theme (below).
+  ['--ink-2', '--bg-chrome', 'the file name in the pane’s head'],
+  ['--ink-3', '--bg-chrome', 'the schema and the figures beside it'],
+  ['--bad', '--bg-chrome', 'the count of problems in the head'],
+  ['--ink-3', '--bg-sunk', 'a punctuation, a line number, a truth and a null'],
+  ['--ink', '--bg-sunk', 'a member name'],
+  ['--derived', '--bg-sunk', 'a number'],
+  ['--bad', '--bg-sunk', 'the ink a marker is drawn in'],
+  // …and the status bar's figures when they are stale (feature 2.6's `.status .fig.stale`, which
+  // feature 2.17's axe pass is the first to reach with a figure in it): the number takes the
+  // label's own ink rather than half its opacity, because no ink of the ramp survives an opacity
+  // on this ground — `--muted` is 4.99:1 dark and 4.57:1 light at full strength.
+  ['--muted', '--bg-chrome', 'the number of a status-bar figure that is stale'],
 ];
 
 /**
@@ -167,6 +184,11 @@ const THEMED: readonly [keyof typeof THEMES, string, string, string][] = [
   ['light', '--accent-dim', '--bg-tint', 'the same, stepped down the ramp for a light ground'],
   ['dark', '--accent', '--bg-panel', 'the Export link of the rail'],
   ['light', '--accent-dim', '--bg-panel', 'the same, stepped down'],
+  // Feature 2.17: a text value and the caret in the JSON source. `--accent` is 8.78:1 on
+  // `--bg-sunk` in the dark theme and 4.30:1 in the light one, which is the pair 2.11 and 2.15
+  // each met one component along; `--accent-dim` is 6.23:1 there.
+  ['dark', '--accent', '--bg-sunk', 'a text value, and the caret'],
+  ['light', '--accent-dim', '--bg-sunk', 'the same, stepped down the ramp for a light ground'],
 ];
 
 describe('every ink the shell writes text in', () => {

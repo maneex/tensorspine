@@ -75,6 +75,7 @@ exports[`@tensorspine/ui > exports the documents surface the snapshot records 1`
   "Pipeline",
   "SOURCE_SUFFIX",
   "SOURCE_TAB",
+  "SourceBanner",
   "SourcePane",
   "TABS_SETTING",
   "VALIDATE_DEBOUNCE_MS",
@@ -94,6 +95,8 @@ exports[`@tensorspine/ui > exports the documents surface the snapshot records 1`
   "renderedFormats",
   "shapesFor",
   "sizeText",
+  "sourceReading",
+  "sourceStanding",
   "statusFigures",
   "useDocuments",
   "useDocumentsStore",
@@ -212,6 +215,18 @@ exports[`@tensorspine/ui > exports the shell surface the snapshot records 1`] = 
   "useShell",
   "useShellStore",
   "writeThemeChoice",
+]
+`;
+
+exports[`@tensorspine/ui > exports the source surface the snapshot records 1`] = `
+[
+  "SOURCE_DEBOUNCE_MS",
+  "SOURCE_VIEWS",
+  "SourceEditor",
+  "markRange",
+  "markersFor",
+  "minimalEdit",
+  "revealRange",
 ]
 `;
 

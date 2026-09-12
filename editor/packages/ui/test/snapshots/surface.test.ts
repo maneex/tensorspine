@@ -7,6 +7,7 @@ import * as explorer from '../../src/explorer/index.js';
 import * as layout from '../../src/layout/elk.js';
 import * as ui from '../../src/index.js';
 import * as shell from '../../src/shell/index.js';
+import * as source from '../../src/source/index.js';
 
 // The snapshot layer of the plan's §0.3 holds the generated forms and the rendered strings.
 // Until they exist, it holds the package's public surface, so that an export appearing or
@@ -49,5 +50,13 @@ describe('@tensorspine/ui', () => {
   // sits at the two-second budget (feature 0.4), and `test/expanded/graph.test.ts` asserts it.
   it('exports the expanded surface the snapshot records', () => {
     expect(Object.keys(expanded).sort()).toMatchSnapshot();
+  });
+
+  // The JSON source view is `@tensorspine/ui/source`, its own for the reason the layout is, one
+  // order of magnitude along: Monaco is about 3.9 MB of editor and JSON language in chunks
+  // nothing but a source view pays for — and `test/source/bundle.test.ts` reads every source of
+  // every package to say that nothing else reaches them.
+  it('exports the source surface the snapshot records', () => {
+    expect(Object.keys(source).sort()).toMatchSnapshot();
   });
 });

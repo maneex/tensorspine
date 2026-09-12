@@ -29,5 +29,9 @@ export {
   type JsonValue,
 } from './tree.js';
 export { formatNumber, isNumberLexeme, lexemeDenotes, lexemeIsReal, NON_FINITE_LEXEMES } from './number.js';
-export { JsonParseError, parse, type ParseOptions } from './parse.js';
+export { JsonParseError, parse, spansOf, type JsonSpan, type ParseOptions } from './parse.js';
+// `pointerSegment` is *not* re-exported here: `schema/index.ts` already exports it and the
+// package root star-exports both, where two exports of one name are silently excluded (the
+// lesson of feature 1.4). One name, one place.
+export { jsonPointerOf } from './pointer.js';
 export { serialize } from './serialize.js';
