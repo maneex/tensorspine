@@ -66,8 +66,24 @@ export function streamAxis(count: PyValue): string {
 export function valueGeometry(value: PyValue): string {
   const count = optional(value, 'count', null);
   const axes = truthy(count) ? [streamAxis(count)] : [];
-  for (const axis of listOf(optional(value, 'shape', null) ?? [])) {
-    axes.push(`${pyStr(demand(axis, 'axis'))}=${pyStr(demand(axis, 'extent'))}`);
-  }
+  for (const axis of shapeAxes(optional(value, 'shape', null))) axes.push(axis);
   return `${pyStr(optional(value, 'dtype', ''))}[${axes.join(', ')}]`;
+}
+
+/**
+ * A derived shape's axes, each as `axis=extent` — what a D3 or a D4 row shows of its tensor.
+ *
+ * The half of {@link valueGeometry} that is not about a stream: the same rendering, in one place,
+ * so a sheet's `[attention.heads=4096, model.width=4096]` and an edge's value type agree about
+ * what a shape reads as (component inventory §7 — "no component adds, converts or rounds").
+ */
+export function shapeAxes(shape: PyValue): string[] {
+  return listOf(shape ?? []).map(
+    (axis) => `${pyStr(demand(axis, 'axis'))}=${pyStr(demand(axis, 'extent'))}`,
+  );
+}
+
+/** A derived shape as one line: `[attention.heads=4096, model.width=4096]`, `[]` where it has none. */
+export function shapeText(shape: PyValue): string {
+  return `[${shapeAxes(shape).join(', ')}]`;
 }

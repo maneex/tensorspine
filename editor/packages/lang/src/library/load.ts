@@ -156,6 +156,24 @@ export function primitiveOf(
   return library.primitives.get(reference.name);
 }
 
+/**
+ * The versions each primitive name carries, in the order `by_id` holds them.
+ *
+ * §4.11 gives the instance sheet a "primitive with version select", and which versions a base
+ * carries is a fact about the **library** rather than about the document — the same shape
+ * `templatePrimitives` answers for the template mark (feature 2.9). A projection and not the
+ * library itself: what travels out of the worker is what the interface reads.
+ */
+export function primitiveVersions(library: Library): Map<string, string[]> {
+  const found = new Map<string, string[]>();
+  for (const version of library.byId.values()) {
+    const held = found.get(version.name);
+    if (held === undefined) found.set(version.name, [version.version]);
+    else held.push(version.version);
+  }
+  return found;
+}
+
 /** `primitive_library.template_primitives`: the names whose primitive pins a template (§4.6). */
 export function templatePrimitives(library: Library): Set<string> {
   const found = new Set<string>();

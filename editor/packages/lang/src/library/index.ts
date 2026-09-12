@@ -31,6 +31,7 @@ export {
   templateOf,
   templatesOfManifest,
   templatePinOf,
+  primitiveVersions,
   templatePrimitives,
   SECTIONS,
   UNIT_SCHEMA,

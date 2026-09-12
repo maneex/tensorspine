@@ -53,8 +53,8 @@
           "description": "What a picker inside that editor offers, by the member each referent is named under: quantities and indices on the model side, argument paths on the unit side."
         },
         "picker": {
-          "enum": ["axes", "precision-roles"],
-          "description": "The list a select at this place is filled from when it is not an enumeration: the axes and the precision roles the gathered library declares, which the core answers."
+          "enum": ["axes", "precision-roles", "primitive-versions", "families"],
+          "description": "The list a select at this place is filled from when it is not an enumeration: the axes and the precision roles the gathered library declares and the versions it carries of the primitive an instance pins, which the core answers; and the family names the workspace's own documents already write, which the editor reads off the documents it holds."
         },
         "create": {
           "type": "string",

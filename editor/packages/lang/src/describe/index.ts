@@ -95,13 +95,20 @@ export {
   boxOfSite,
   derivedFacts,
   noDerivedFacts,
+  noSiteDerived,
+  siteDerived,
   slotKey,
   splitMember,
   tiedCount,
+  type DerivedCostRow,
   type DerivedFacts,
+  type DerivedPayloadRow,
+  type DerivedStateRow,
+  type DerivedTensorRow,
   type IdentityLink,
   type IdentityMembership,
   type IdentityPlace,
+  type SiteDerived,
   type SiteFigures,
 } from './figures.js';
 
@@ -140,6 +147,21 @@ export interface DescribeOptions {
    * instead of 195 on `llama3-8b`, 35 instead of 552 on `deepseek-v4-pro`.
    */
   readonly folded?: boolean;
+  /**
+   * Fill `tiesWith` and `sharesWith` — the identities a slot or a state port **may join** (V15,
+   * V9). Default true; `false` leaves both lists empty and changes nothing else.
+   *
+   * Feature 1.6d measured the walk at 3.9–63.7 ms and recorded why narrowing the *sites* does not
+   * narrow it: a partner is answered from every identity instance of the graph. Feature 2.10
+   * decided the knob, because it is the feature that knows what the sheet reads: §5.4 calls
+   * `describe` on every keystroke for the cards and the rows, and the lists are read only when
+   * "Tie to…" or "Share with…" opens a menu (§4.11), which is feature 2.13's gesture. So the
+   * pipeline asks without them and a menu asks for its one site with them.
+   *
+   * The identity a slot **belongs to** is not part of this: it is one pass over the identity
+   * instances, every card and every row shows it, and it is filled either way.
+   */
+  readonly compatibility?: boolean;
 }
 
 /** Everything the interface asks of one document (plan §5.3, `describe`). */
@@ -172,12 +194,14 @@ export function describe(tree: JsonValue, options: DescribeOptions): Description
   const analysis = analyse(toPython(tree), options.library, {
     ...(options.assignment === undefined ? {} : { assignment: options.assignment }),
   });
-  return {
-    conforms: true,
-    structural,
-    analysis,
-    sites: describedSites(analysis, options.only, options.folded),
-  };
+  return { conforms: true, structural, analysis, sites: describedSites(analysis, options) };
+}
+
+/** What narrows a description: the sites, the folding, and the compatibility lists. */
+export interface DescribedSitesOptions {
+  readonly only?: readonly string[];
+  readonly folded?: boolean;
+  readonly compatibility?: boolean;
 }
 
 /**
@@ -188,10 +212,9 @@ export function describe(tree: JsonValue, options: DescribeOptions): Description
  */
 export function describeAnalysis(
   analysis: Analysis,
-  only?: readonly string[],
-  folded?: boolean,
+  options: DescribedSitesOptions = {},
 ): Description {
-  return { conforms: true, structural: [], analysis, sites: describedSites(analysis, only, folded) };
+  return { conforms: true, structural: [], analysis, sites: describedSites(analysis, options) };
 }
 
 /**
@@ -223,15 +246,14 @@ export function check(description: Description, candidate: Candidate): Verdict {
  */
 function describedSites(
   analysis: Analysis,
-  only?: readonly string[],
-  folded?: boolean,
+  options: DescribedSitesOptions,
 ): ReadonlyMap<string, SiteDescription> {
-  const wanted = only === undefined ? null : new Set(only);
+  const wanted = options.only === undefined ? null : new Set(options.only);
   const drawn = new Set<string>();
   const sites = new Map<string, Mutable<SiteDescription>>();
   for (const [id, site] of analysis.resolved) {
     if (wanted !== null && !wanted.has(whereOfSite(site.key))) continue;
-    if (folded === true) {
+    if (options.folded === true) {
       // One card per declared site, over the first iteration that fired. `analysis.resolved` is
       // filled in the document's own order — the instances, then each composition's grid point by
       // point — so the first entry a declared site has is the representative §4.8 asks for.
@@ -241,6 +263,6 @@ function describedSites(
     }
     sites.set(id, describeSite(analysis, site));
   }
-  attachCompatibility(analysis, sites);
+  attachCompatibility(analysis, sites, options.compatibility !== false);
   return sites;
 }

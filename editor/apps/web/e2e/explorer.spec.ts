@@ -179,19 +179,20 @@ test.describe('selecting an item', () => {
     await expect(attn).toHaveClass(/\bsel\b/);
     await expect(attn).toHaveAttribute('aria-selected', 'true');
 
-    // Properties is the selection's (§4.2, §4.11): the name, what the map it is declared in
-    // declares, and the place — the same place the canvas node will be drawn from (2.9).
+    // Properties is the selection's (§4.2, §4.11). A **site** gets §4.11's own sheet from feature
+    // 2.10 — its name, the composition it sits in and the primitive it pins; anything else still
+    // gets the row every sheet starts with, the name and the place it is written at.
     const sheet = page.locator('.insp .panel-body');
-    await expect(sheet.locator('.ihn')).toHaveText('site');
+    await expect(sheet.locator('.insp-title')).toHaveText('attn');
+    await expect(sheet.locator('.insp-kind')).toContainText('decoder');
+    await expect(sheet.locator('.prim-chip')).toHaveText('attention.dense@1.0.0');
     await expect(sheet.locator('input[data-name-field]')).toHaveValue('attn');
-    await expect(sheet.locator('[data-place]')).toHaveText(
-      '/compositions/decoder/instances/attn',
-    );
 
     // Another row, and the sheet follows it.
     await row(page, '/quantities/head_dim').click();
     await expect(sheet.locator('input[data-name-field]')).toHaveValue('head_dim');
     await expect(sheet.locator('.ihn')).toHaveText('quantity');
+    await expect(sheet.locator('[data-place]')).toHaveText('/quantities/head_dim');
   });
 
   test('moves and opens with the arrow keys, one row of the tree taking the tab stop', async ({

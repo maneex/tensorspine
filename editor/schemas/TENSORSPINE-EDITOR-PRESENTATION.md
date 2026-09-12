@@ -61,7 +61,7 @@ meanings: so the declaration is bound at
 | `label` | `$key`: the construct is labelled by the name of the map member it is written under |
 | `widget` | the editor bound to a construct the generic walker has no reading for |
 | `references` | what a picker inside that editor offers, by the member each referent is named under |
-| `picker` | the list a select is filled from when it is not an enumeration: the base's axes, its precision roles |
+| `picker` | the list a select is filled from when it is not an enumeration: the base's axes, its precision roles, the versions it carries of a pinned primitive, the family names the workspace's documents write |
 | `create` | the label of the action beside that picker when what is wanted does not exist yet |
 | `prefix` | what is printed before a name written at this place, so a text form tells an index from a quantity |
 | `symbols` | a symbol per value of the enumeration at this anchor, or per tag of the union at it |

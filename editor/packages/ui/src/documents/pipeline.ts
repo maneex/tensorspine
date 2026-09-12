@@ -142,8 +142,17 @@ export interface PipelineOptions {
   readonly role?: string;
   /** The documents a lint run reads, asked for when one is asked for (feature 1.10). */
   readonly lintSet?: () => Promise<LintDocuments>;
-  /** The editor's own rows about the document, asked for when the core has answered. */
-  readonly notices?: (tree: JsonValue) => readonly Problem[];
+  /**
+   * The editor's own rows about the document (§4.17's `editor` source).
+   *
+   * It takes the **facts** beside the tree, because one of §4.17's six needs them: a binding that
+   * names a slot the instance's arguments no longer create is `describe`'s answer and no rule of
+   * §6 (feature 2.8 left it to 2.10 for that reason). So the notices are recomputed on both of
+   * §5.4's branches — when the facts arrive at once, and when the verdict arrives behind the
+   * debounce — and both are for the same revision, which is the only pair that can be shown
+   * together.
+   */
+  readonly notices?: (tree: JsonValue, facts: Facts | null) => readonly Problem[];
 }
 
 /**
@@ -236,11 +245,18 @@ export class Pipeline {
         library,
         revision,
         folded: true,
+        // Feature 1.11's finding, answered by the feature that knows what the sheet reads: the
+        // compatibility lists are 3.9–63.7 ms of a call this branch makes on **every keystroke**,
+        // and nothing this branch feeds reads them — the card draws the identity a chip belongs
+        // to, the sheet's Parameters and States rows draw the same, and "Tie to…" / "Share with…"
+        // are menus feature 2.13 opens, which is where the one site is described with them.
+        compatibility: false,
         signal: control.signal,
       });
       if (this.stopped || control.signal.aborted) return;
       if (this.options.read().revision !== revision) return;
-      publish((before) => ({ ...before, facts, factsAt: revision }));
+      const notices = this.options.notices?.(tree, facts) ?? [];
+      publish((before) => ({ ...before, facts, factsAt: revision, notices }));
     } catch (error) {
       if (error instanceof LangCancelled) return;
       // A refusal `describe` raises is the validation's to report: it takes the same three gates
@@ -283,12 +299,15 @@ export class Pipeline {
         ...(lintSet === undefined ? {} : { lint: lintSet }),
       });
       if (!mine()) return;
-      const notices = this.options.notices?.(tree) ?? [];
       publish((before) => ({
         ...before,
         revision,
         checking: false,
-        notices,
+        // The facts of this very revision where the `describe` branch has already answered for it;
+        // a reading still behind is no reading to build a row on, and the branch above publishes
+        // the same rows the moment it arrives.
+        notices:
+          this.options.notices?.(tree, before.factsAt === revision ? before.facts : null) ?? [],
         verdict: withoutStages(verdict, this.options.registry != null),
         verdictAt: revision,
         ...(lintSet === undefined

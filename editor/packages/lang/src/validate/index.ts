@@ -23,6 +23,7 @@ export {
   checkInvariants,
   describeArguments,
   resolveArguments,
+  type ArgumentDeprecation,
   type ArgumentDescription,
   type ArgumentFact,
   type ArgumentResolution,

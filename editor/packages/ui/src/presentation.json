@@ -26,6 +26,13 @@
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/physical_name": {
     "widget": "token-list"
   },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/primitive_reference/properties/version": {
+    "picker": "primitive-versions"
+  },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/family_list/items": {
+    "picker": "families",
+    "create": "New family…"
+  },
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_expression": {
     "widget": "expression",
     "references": [

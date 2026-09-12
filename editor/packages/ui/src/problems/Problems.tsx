@@ -23,7 +23,7 @@ import type { JSX } from 'react';
 
 import type { Problem, ProblemSeverity, ProblemSource } from '@tensorspine/lang/api';
 import { PROBLEM_SEVERITIES } from '@tensorspine/lang/api';
-import type { Path } from '@tensorspine/store';
+import type { Path, ReferenceIndex } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
 import { useCurrentDocument } from '../documents/Pills.js';
@@ -36,6 +36,7 @@ import { specificationLink } from '../shell/store.js';
 import { text, textWith } from '../shell/strings.js';
 import { bannerOf, type ProblemsBanner } from './banner.js';
 import { fixesFor } from './fixes.js';
+import { slotSites, type AbsentSlotSite } from './notices.js';
 import {
   aboutOf,
   FLAT,
@@ -269,6 +270,12 @@ export function ProblemsPanel(): JSX.Element {
   const docsBase = useShell((state) => state.docsBase);
   const { banner } = useRows();
   const { view: summary, outline } = useGrouped();
+  // The reading a rebind pill needs, and the notice's own: the slots `describe` answered for this
+  // revision, and where the document writes each name (§4.17's fix, feature 2.10).
+  const rebind =
+    one === undefined
+      ? {}
+      : { slots: slotSites(one.reading.facts), index: one.session.store.context.index };
 
   if (summary === null) {
     return (
@@ -325,7 +332,14 @@ export function ProblemsPanel(): JSX.Element {
             </div>
           )}
           {group.rows.map((row) => (
-            <Row key={row.key} row={row} outline={outline} docsBase={docsBase} onOpen={navigate} />
+            <Row
+              key={row.key}
+              row={row}
+              outline={outline}
+              rebind={rebind}
+              docsBase={docsBase}
+              onOpen={navigate}
+            />
           ))}
         </div>
       ))}
@@ -366,18 +380,21 @@ function Banner({ banner, stale }: { banner: ProblemsBanner; stale: boolean }): 
 function Row({
   row,
   outline,
+  rebind,
   docsBase,
   onOpen,
 }: {
   row: ProblemRow;
   outline: readonly OutlineRow[];
+  /** What a rebind reads: the described slots of each site, and the document's own names. */
+  rebind: { slots?: readonly AbsentSlotSite[]; index?: ReferenceIndex };
   docsBase: string;
   onOpen: (row: ProblemRow) => void;
 }): JSX.Element {
   const store = useDocumentsStore();
   const mark = MARK[row.problem.severity];
   const link = specificationLink(row.problem.code, docsBase);
-  const fixes = fixesFor(row.problem, { rows: outline });
+  const fixes = fixesFor(row.problem, { rows: outline, ...rebind });
   return (
     <div
       className={`prow${row.stale ? ' stale' : ''}`}

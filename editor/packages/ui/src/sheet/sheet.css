@@ -1,0 +1,137 @@
+/* ── the Properties sheet (feature 2.10, §4.11, §4.12, artboard S6) ─────────
+   The design's own `.insp-title`, `.insp-kind`, `.prim-chip`, `.arow`, `.an`,
+   `.av`, `.ae`, `.sbadge`, `.rowmsg`, `.inv` and `.drow`
+   (`plans/graph-editor-design/_ts.css`), with four departures and their
+   reasons:
+
+     1. **an artboard is a picture and this is a program.** Every value on a
+        board is a span; here the mode control is a select, the literal is an
+        `input` or a `select`, a family chip carries a remove button and
+        `Pin value` is a button. So the resets, the hover, the focus ring and
+        the heights of `.ctl` are what the rows are built on, and `.arow`
+        keeps the design's own rhythm around them.
+
+     2. **§4.21 asks for "contrast ≥ 4.5:1 for text"**, and feature 2.5
+        measured where the design's two dim inks do not reach it. `--faint`
+        carries rules and disabled marks and never text, so the board's
+        `.arow .mode` (`--faint` on `--bg-tint`), its `.av.dim`, its
+        `.arow.more` and its `.rowmsg` under an inapplicable row step up to
+        `--ink-3`; the values themselves are untouched, `tokens.css` holding
+        them byte for byte.
+
+     3. **the row's indentation is the path's depth**, computed per row (D7:
+        "indent by depth computed from the path"), so the board's two fixed
+        rules (`.arow.d1`, `.arow.d2`) are one inline padding instead — a
+        record nests as deep as the declaration does and `rope.scaling.kind`
+        is three levels in `attention.dense` alone.
+
+     4. **a row that cannot be edited says so rather than looking finished**:
+        the guard and the location tokens are the editors of features 2.11 and
+        2.13, and their rows carry `[data-editor]` with the printed text.    */
+
+.insp-title { font-family: var(--mono); font-size: 18px; color: var(--accent); margin: 0; }
+.insp-kind {
+  margin: 4px 0 10px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.insp-kind span { color: var(--struct); }
+.prim-chip {
+  display: inline-block; margin: 0 0 4px; padding: 3px 9px; border-radius: 2px;
+  background: var(--bg-tint); font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+}
+
+.arow {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0; flex-wrap: wrap;
+  border-bottom: 1px solid var(--rule); font-size: 12px;
+}
+.arow .an {
+  min-width: 0; overflow-wrap: anywhere;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+}
+.arow .av {
+  margin-left: auto; min-width: 0; display: flex; align-items: center; gap: 6px;
+  justify-content: flex-end;
+}
+.arow .av .ctl { height: 22px; min-width: 0; max-width: 88px; }
+.arow .av .dim { color: var(--ink-3); font-style: italic; font-size: 11px; }
+.arow .av .mono { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
+.arow .av .unit { font-style: normal; font-size: 10.5px; color: var(--ink-3); }
+.arow .ae {
+  flex-shrink: 0; min-width: 46px; max-width: 96px; margin-left: auto; text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--mono); font-size: 11px; color: var(--derived);
+}
+.arow .sbadge {
+  font-style: normal; margin-left: 6px; padding: 0 5px;
+  border: 1px solid var(--chip); border-radius: 999px;
+  font-family: var(--sans); font-size: 9px; color: var(--ink-3);
+}
+.arow .sbadge.req { border-color: var(--bad); color: var(--bad); }
+.arow.rec .an { color: var(--ink); }
+.arow.unset .an { color: var(--ink-3); }
+.arow.inapp { opacity: 0.7; }
+.arow.inapp .an { color: var(--ink-3); }
+.arow.errrow { background: var(--bad-bg); }
+.arow.dep .an { text-decoration: line-through; color: var(--ink-3); }
+.arow.more {
+  gap: 10px; color: var(--ink-3); font-size: 11px; border-bottom: 0; flex-wrap: wrap;
+}
+.arow .rowact {
+  padding: 0 4px; border: 0; background: transparent;
+  font-size: 10px; color: var(--ink-3);
+}
+.arow .rowact:hover { color: var(--accent); }
+
+/* The source-mode control — §4.12's "a small segmented control **or a prefix icon**".
+   A prefix, because the sheet is one column 340 px wide (S6) and five buttons on every row of
+   twenty-four leave nothing for the value; a select is the prefix that can also be *changed*, and
+   it is reachable from the keyboard, which a click target alone is not (§4.21). */
+.mode-seg {
+  flex-shrink: 0; width: 62px; height: 17px; padding: 0 0 0 3px;
+  background: var(--bg-tint); border: 0; border-radius: 2px;
+  font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+}
+.mode-seg:hover { color: var(--ink); }
+
+.rowmsg {
+  padding: 2px 0 7px 23px; border-bottom: 1px solid var(--rule);
+  font-size: 10.5px; color: var(--bad);
+}
+.rowmsg.faint { color: var(--ink-3); }
+
+.inv {
+  display: flex; gap: 8px; margin-top: 10px; padding: 8px 10px; border-radius: 2px;
+  background: var(--bg-tint); font-size: 11.5px; line-height: 1.5; color: var(--ink-2);
+}
+.inv .ok { color: var(--good); }
+.inv .no { color: var(--bad); }
+.inv em { font-style: normal; color: var(--ink-3); }
+.inv.fail { background: var(--bad-bg); }
+
+.drow {
+  display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding: 7px 9px;
+  border: 1px solid var(--rule-2); border-radius: 2px; background: var(--bg-raised);
+}
+.drow .dn { font-family: var(--mono); font-size: 11px; color: var(--accent); overflow-wrap: anywhere; }
+.drow .dm { font-size: 10.5px; line-height: 1.5; color: var(--ink-3); }
+.drow .dm b { font-family: var(--mono); font-weight: 400; color: var(--derived); }
+.drow.tot { background: transparent; border-style: dashed; }
+.drow.tot .dn { color: var(--ink-3); }
+
+/* A section's fields carry their own label: `primitive` holds a name and a version, and a column
+   of two unlabelled boxes says which is which to nobody. */
+.subfield { display: inline-flex; align-items: baseline; gap: 4px; }
+.sublabel { font-style: normal; font-size: 10px; color: var(--ink-3); }
+
+/* A slot chip on the sheet is a row's mark and not a target: binding it is feature 2.13's
+   gesture, and a cursor that promised one before it exists would be a lie. */
+.insp .slot { cursor: default; }
+
+/* A family chip carries its own remove button, which a board's span does not. */
+.insp .fchip { display: inline-flex; align-items: center; gap: 4px; }
+.insp .fchip .tbtn { padding: 0 2px; line-height: 1; }
+.insp .frow > .fv em { font-style: normal; color: var(--ink-3); }
+.insp .frow > .fv.none { color: var(--ink-3); }
+.insp .frow > .fk { overflow-wrap: anywhere; }
+.insp .frow > .fv { flex-wrap: wrap; }
+.insp .frow > .fv .ctl { height: 22px; max-width: 128px; }

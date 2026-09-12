@@ -1,0 +1,86 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the argument sheet of decoder/attn (S6) > has these invariants 1`] = `
+[
+  "holds heads is a multiple of kv_heads — heads = 32, kv_heads = 8",
+  "holds under yarn scaling, beta_slow does not exceed beta_fast — ",
+  "holds under llama3 scaling, the correction range low does not exceed high — ",
+  "holds a streaming attention looks back: its mask is causal or chunked, never none — mask = causal, streaming = False",
+]
+`;
+
+exports[`the argument sheet of decoder/attn (S6) > has these rows 1`] = `
+[
+  "integer width  required · structural · given · mode quantity · is d · = 4096",
+  "integer heads  required · structural · given · mode quantity · is heads · = 32",
+  "integer head_dim  required · structural · given · mode quantity · is head_dim · = 128",
+  "integer kv_heads  structural · given · mode quantity · is kv_heads · = 8 · upper <= heads (32)",
+  "number scale  absent",
+  "select mask  required · structural · given · mode literal · is causal · = causal · [causal|chunked|none]",
+  "section window  structural · absent · when mask = causal",
+  "section chunk  inapplicable · required · structural · absent · when mask = chunked",
+  "toggle cross  structural · default · = False",
+  "toggle streaming  structural · default · = False",
+  "select kv_source  structural · default · = own · [own|shared]",
+  "section rope  record · given · mode record",
+  "  number theta  required · given · mode literal · is 500000 · = 500000",
+  "  select layout  given · mode literal · is split · = split · [split|interleaved|2d]",
+  "  number partial  absent",
+  "  section mrope  absent",
+  "  section scaling  absent",
+  "section qk_norm  structural · absent",
+  "section temperature  absent",
+  "toggle q_bias  structural · default · = False",
+  "toggle k_bias  structural · default · = False",
+  "toggle v_bias  structural · default · = False",
+  "toggle out_bias  structural · default · = False",
+  "toggle output_gate  structural · default · = False",
+]
+`;
+
+exports[`the instance sheet of decoder/attn (S6) > has these sections 1`] = `
+{
+  "derived": {
+    "acrossPositions": true,
+    "nodes": 32,
+    "states": [
+      "decoder.attn.kv[layer=0] 4096",
+    ],
+    "tensors": [
+      "decoder.attn.q[layer=0] 33554432",
+      "decoder.attn.k[layer=0] 8388608",
+      "decoder.attn.v[layer=0] 8388608",
+      "decoder.attn.out[layer=0] 33554432",
+    ],
+  },
+  "identity": "attn · decoder · attention.dense@1.0.0",
+  "parameters": [
+    "q decoder.attn.q[layer=0]",
+    "q_gated absent",
+    "k decoder.attn.k[layer=0]",
+    "v decoder.attn.v[layer=0]",
+    "out decoder.attn.out[layer=0]",
+    "q_bias absent",
+    "k_bias absent",
+    "v_bias absent",
+    "out_bias absent",
+    "q_norm absent",
+    "k_norm absent",
+  ],
+  "partitions": [
+    "argument_axis attention.heads all_reduce /4",
+    "argument_axis attention.kv_heads all_reduce /1",
+    "instance_key_axis instance.session none /1",
+    "payload_axis kv.k.attention.kv_heads none /1",
+    "payload_axis kv.v.attention.kv_heads none /1",
+  ],
+  "ports": [
+    "inputs input [model.width=4096]",
+    "inputs source_values absent",
+    "outputs output [model.width=4096]",
+  ],
+  "states": [
+    "kv rule 4 of 4 decoder.attn.kv[layer=0]",
+  ],
+}
+`;

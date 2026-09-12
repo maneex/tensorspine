@@ -25,6 +25,8 @@ export interface DocumentsWiring {
   readonly shell: ShellStore;
   /** The schema files the build vendored — read by whoever knows where they are served from. */
   readonly vendoredSchemas: () => Promise<Readonly<Record<string, string>>>;
+  /** One primitive's generated argument schema, by identity — the same vendor (F5, §4.12). */
+  readonly vendoredArguments?: (id: string) => Promise<string | null>;
   /** A suite's: how long the pipeline waits after an edit, and how often a draft is written. */
   readonly debounceMs?: number;
   readonly autosaveMs?: number;
@@ -59,6 +61,9 @@ export function wireDocuments(wiring: DocumentsWiring): {
     platform,
     lang,
     vendoredSchemas: wiring.vendoredSchemas,
+    ...(wiring.vendoredArguments === undefined
+      ? {}
+      : { vendoredArguments: wiring.vendoredArguments }),
     log: (line) => {
       shell.getState().note(line);
     },

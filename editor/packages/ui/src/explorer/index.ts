@@ -28,7 +28,6 @@ export {
   type OutlineRow,
   type RowKind,
 } from './outline.js';
-export { SelectionSheet } from './Sheet.js';
 
 /** The activity the shell shows this panel under (§4.2's rail, §4.5's own name). */
 export const EXPLORER_ACTIVITY = 'activity.explorer';

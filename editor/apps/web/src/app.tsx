@@ -56,6 +56,13 @@ export interface StartOptions {
   readonly lang: Lang;
   /** The schema files the build vendored, read once when the first document needs them. */
   readonly vendoredSchemas: () => Promise<Readonly<Record<string, string>>>;
+  /**
+   * One primitive's generated argument schema, by `<name>@<version>` (F5, §4.12).
+   *
+   * Absent where the build has no vendor at all — the stub page — and the sheet then renders every
+   * literal from the grammar alone and says the artifact is not generated.
+   */
+  readonly vendoredArguments?: (id: string) => Promise<string | null>;
   /** A suite's: how long the pipeline waits after an edit, and how often a draft is written. */
   readonly debounceMs?: number;
   readonly autosaveMs?: number;
@@ -75,6 +82,9 @@ export function start(platform: Platform, options: StartOptions): Application {
     lang: options.lang,
     shell: store,
     vendoredSchemas: options.vendoredSchemas,
+    ...(options.vendoredArguments === undefined
+      ? {}
+      : { vendoredArguments: options.vendoredArguments }),
     ...(options.debounceMs === undefined ? {} : { debounceMs: options.debounceMs }),
     ...(options.autosaveMs === undefined ? {} : { autosaveMs: options.autosaveMs }),
   });

@@ -27,10 +27,10 @@
  * both halves.
  */
 import type { PyValue } from '../expr/value.js';
-import { get, listOf } from '../library/access.js';
+import { entries, get, listOf } from '../library/access.js';
 import { pyStr } from '../library/repr.js';
 
-import { valueGeometry } from '../derive/labels.js';
+import { shapeText, valueGeometry } from '../derive/labels.js';
 import type { FoldedGraph } from './folded.js';
 
 // The members of a derived document this reading walks: the derived schema's own, read in the
@@ -300,4 +300,214 @@ export function tiedCount(derived: PyValue): number {
     if (get(row, TIED) === true) tied += 1;
   }
   return tied;
+}
+
+// --- one site's own rows of the products (plan §4.11's Derived section) ---------------------
+
+// The members of a derived document the per-site reading walks, named here for the reason the
+// four above are: the derived schema's vocabulary is the core's to read (plan §1).
+const D1 = 'd1';
+const D5 = 'd5';
+const NODES = 'nodes';
+const ACROSS_POSITIONS = 'across_positions';
+const CORRECTIONS = 'corrections';
+const NODE = 'node';
+const ENTRY = 'entry';
+const PER = 'per';
+const STATUS = 'status';
+const ROLE = 'role';
+const DTYPE = 'dtype';
+const SHAPE = 'shape';
+const ELEMENTS = 'elements';
+const MULTIPLICITY = 'multiplicity';
+const SENSITIVITY = 'sensitivity';
+const EVOLUTION = 'evolution';
+const ACCESS = 'access';
+const SHARING = 'sharing';
+const STREAM = 'stream';
+const INSTANCE_KEY = 'instance_key';
+const PAYLOAD = 'payload';
+const COMPONENT = 'component';
+const BOUNDED = 'bytes_bounded';
+const OPERATIONS = 'operations';
+const WRITER = 'writer';
+const CARRIED = 'carried_across_fragments';
+
+/** One D3 tensor of a site, as the sheet's Derived section shows it (§4.11, artboard S6). */
+export interface DerivedTensorRow {
+  /** The identity instance: `decoder.attn.q[layer=0]`. */
+  readonly identity: string;
+  /** The slot on this site the row is about. */
+  readonly slot: string;
+  readonly role: string;
+  readonly dtype: string;
+  /** The shape as `[axis=extent, …]` — the products' own rendering (`shapeText`). */
+  readonly shape: string;
+  readonly elements: bigint | null;
+  readonly bytes: bigint | null;
+  /** How many slots are members of the identity: more than one is a tie. */
+  readonly members: number;
+  readonly tied: boolean;
+  /** Whether the document locates the tensor — D3's own `location`. */
+  readonly located: boolean;
+  readonly multiplicity: bigint | null;
+  readonly sensitivity: string | null;
+}
+
+/** One payload component of a D4 state row. */
+export interface DerivedPayloadRow {
+  readonly component: string;
+  readonly dtype: string;
+  readonly shape: string;
+  readonly bytes: bigint | null;
+}
+
+/** One D4 state of a site. */
+export interface DerivedStateRow {
+  readonly identity: string;
+  /** The state port on this site. */
+  readonly port: string;
+  readonly evolution: string;
+  readonly access: string;
+  readonly sharing: string;
+  readonly stream: string | null;
+  /** The axes the identity's instances are keyed on, in D4's own order. */
+  readonly instanceKey: readonly string[];
+  readonly payload: readonly DerivedPayloadRow[];
+  readonly bytesPerCachedPosition: bigint | null;
+  readonly bytesBounded: bigint | null;
+  readonly operations: readonly string[];
+  /** The node that writes it, as D4 names it; `null` where D4 records none. */
+  readonly writer: string | null;
+  readonly carriedAcrossFragments: boolean;
+  readonly members: number;
+}
+
+/** One applying cost correction of a node — D5's own row (§4.5). */
+export interface DerivedCostRow {
+  /** Its position in the primitive's `logical_cost`. */
+  readonly entry: number;
+  readonly per: string;
+  readonly status: string;
+  readonly value: number | null;
+}
+
+/** What the products say about one site: §4.11's "Derived" section, read and never computed. */
+export interface SiteDerived {
+  readonly tensors: readonly DerivedTensorRow[];
+  readonly states: readonly DerivedStateRow[];
+  readonly corrections: readonly DerivedCostRow[];
+  /** How many D1 nodes the *declared* site expands to — S6's `32 nodes`. */
+  readonly nodes: number;
+  /** This node's D1 `across_positions`; `null` where D1 does not carry the node. */
+  readonly acrossPositions: boolean | null;
+}
+
+/** Nothing at all: what a site of a document nothing has been derived for shows. */
+export function noSiteDerived(): SiteDerived {
+  return { tensors: [], states: [], corrections: [], nodes: 0, acrossPositions: null };
+}
+
+/** The declared site behind a node identifier: `decoder/attn[layer=0]` is `decoder/attn`. */
+function declaredSite(site: string): string {
+  return site
+    .split('/')
+    .map((part) => part.replace(/\[.*$/, ''))
+    .join('/');
+}
+
+/**
+ * The rows of D3, D4, D5 and D1 that name one site (plan §4.11's Derived section).
+ *
+ * The site is named as D1 and every refusal name it — `SiteDescription.where`, §5.2 rule 2 — which
+ * is one iteration of a declared site. A card and a sheet both stand for that one iteration
+ * (§4.8, feature 2.9), so its rows are that iteration's, and `nodes` says how many iterations the
+ * declared site has: S6's `32 nodes decoder/attn[layer=0…31]` printed for the one the sheet is of.
+ *
+ * Nothing is summed, converted or rounded here: every figure is the product's own number, and a
+ * shape is the products' own rendering of a shape (`shapeText`).
+ */
+export function siteDerived(derived: PyValue, where: string): SiteDerived {
+  const tensors: DerivedTensorRow[] = [];
+  const states: DerivedStateRow[] = [];
+  const corrections: DerivedCostRow[] = [];
+
+  /** The slot of a member identifier that names this site, or `null` where it names another. */
+  const slotHere = (identifier: string): string | null => {
+    const split = splitMember(identifier);
+    return split !== null && split.site === where ? split.slot : null;
+  };
+
+  for (const row of listOf(get(get(derived, D3) ?? null, TENSORS) ?? [])) {
+    const listed = listOf(get(row, MEMBERS) ?? []).map((one) => pyStr(one));
+    const slot = listed.map((one) => slotHere(one)).find((one) => one !== null);
+    if (slot === undefined || slot === null) continue;
+    const multiplicity = get(row, MULTIPLICITY) ?? null;
+    const sensitivity = get(row, SENSITIVITY) ?? null;
+    tensors.push({
+      identity: pyStr(get(row, IDENTITY) ?? ''),
+      slot,
+      role: pyStr(get(row, ROLE) ?? ''),
+      dtype: pyStr(get(row, DTYPE) ?? ''),
+      shape: shapeText(get(row, SHAPE) ?? []),
+      elements: integer(get(row, ELEMENTS) ?? null),
+      bytes: integer(get(row, BYTES) ?? null),
+      members: listed.length,
+      tied: get(row, TIED) === true,
+      located: get(row, LOCATION) !== null && get(row, LOCATION) !== undefined,
+      multiplicity: integer(multiplicity),
+      sensitivity: sensitivity === null ? null : pyStr(sensitivity),
+    });
+  }
+
+  for (const row of listOf(get(get(derived, D4) ?? null, STATES) ?? [])) {
+    const listed = listOf(get(row, MEMBERS) ?? []).map((one) => pyStr(one));
+    const port = listed.map((one) => slotHere(one)).find((one) => one !== null);
+    if (port === undefined || port === null) continue;
+    const stream = get(row, STREAM) ?? null;
+    const writer = get(row, WRITER) ?? null;
+    states.push({
+      identity: pyStr(get(row, IDENTITY) ?? ''),
+      port,
+      evolution: pyStr(get(row, EVOLUTION) ?? ''),
+      access: pyStr(get(row, ACCESS) ?? ''),
+      sharing: pyStr(get(row, SHARING) ?? ''),
+      stream: stream === null ? null : pyStr(stream),
+      instanceKey: listOf(get(row, INSTANCE_KEY) ?? []).map((one) => pyStr(one)),
+      payload: listOf(get(row, PAYLOAD) ?? []).map((one) => ({
+        component: pyStr(get(one, COMPONENT) ?? ''),
+        dtype: pyStr(get(one, DTYPE) ?? ''),
+        shape: shapeText(get(one, SHAPE) ?? []),
+        bytes: integer(get(one, BYTES) ?? null),
+      })),
+      bytesPerCachedPosition: integer(get(row, PER_POSITION) ?? null),
+      bytesBounded: integer(get(row, BOUNDED) ?? null),
+      operations: listOf(get(row, OPERATIONS) ?? []).map((one) => pyStr(one)),
+      writer: writer === null ? null : pyStr(writer),
+      carriedAcrossFragments: get(row, CARRIED) === true,
+      members: listed.length,
+    });
+  }
+
+  for (const row of listOf(get(get(derived, D5) ?? null, CORRECTIONS) ?? [])) {
+    if (pyStr(get(row, NODE) ?? '') !== where) continue;
+    const value = get(row, VALUE) ?? null;
+    corrections.push({
+      entry: Number(get(row, ENTRY) ?? 0n),
+      per: pyStr(get(row, PER) ?? ''),
+      status: pyStr(get(row, STATUS) ?? ''),
+      value: value === null ? null : Number(value),
+    });
+  }
+
+  const nodes = get(get(derived, D1) ?? null, NODES) ?? null;
+  const declared = declaredSite(where);
+  let count = 0;
+  let across: boolean | null = null;
+  for (const [identifier, node] of entries(nodes ?? {})) {
+    if (declaredSite(identifier) !== declared) continue;
+    count += 1;
+    if (identifier === where) across = get(node, ACROSS_POSITIONS) === true;
+  }
+  return { tensors, states, corrections, nodes: count, acrossPositions: across };
 }

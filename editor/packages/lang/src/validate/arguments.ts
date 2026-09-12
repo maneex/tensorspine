@@ -97,8 +97,38 @@ export type DomainVerdict =
 export interface ArgumentFact {
   /** The argument path: `heads`, `rope.scaling.beta_fast`. */
   readonly path: string;
+  /**
+   * Where the value is written in the document, or where it would be: the place a sheet edits.
+   *
+   * The walk knows it — it is the place the V2 and V3 refusals about this argument carry — and a
+   * caller that had to rebuild it would have to know that a record argument is written
+   * `{"record": {…}}`, which is a tag of the grammar and the shortcut §1 (b) forbids the
+   * interface. The last segment is the argument's own name, present or absent, so
+   * `[...at.slice(0, -1)]` is the map it belongs to and `at` is the member itself.
+   */
+  readonly at: readonly PathSegment[];
+  /**
+   * The `kind` its declared type carries — `argument_type.kind`, as the unit writes it.
+   *
+   * Read rather than rendered: `--document primitive-schema` maps a kind onto what JSON Schema
+   * can say (a cardinality and a whole-number physical are both `integer`, and a *set* domain on a
+   * cardinality is an `enum`), so the artifact cannot answer "whose type kind matches the
+   * argument's" — which is what §4.12 asks of the quantity mode's select. The interface compares
+   * this with the alternative a quantity's own `type` is, and branches on neither.
+   */
+  readonly kind: string;
   /** Whether `present_when` holds for these arguments; true when the declaration carries none. */
   readonly applicable: boolean;
+  /**
+   * Whether the declaration requires the argument.
+   *
+   * As the declaration writes it, not as the generated argument schema does: an argument that is
+   * required *under* a `present_when` is kept out of that artifact's `required` (it cannot be
+   * unconditional there), and the sheet's `required` badge is about the declaration —
+   * `applicable && required && source === 'absent'` is exactly V2's own condition for
+   * `required argument missing`.
+   */
+  readonly required: boolean;
   /**
    * Whether the declaration says the argument is `structural`.
    *
@@ -118,6 +148,26 @@ export interface ArgumentFact {
   readonly domain: DomainVerdict;
   /** The refusals about this argument — not those about its fields, which are on their own rows. */
   readonly problems: readonly SemanticProblem[];
+  /**
+   * The declaration's own `description` — plan §1's "Help text is the schema's", one level along:
+   * the tooltip of an argument row is what the unit says about that argument.
+   *
+   * Read here, in the walk that holds the declaration, for the reason `structural` is (feature
+   * 2.9): the sheet is handed facts and never a declaration to pick members out of. The three
+   * documentation fields below are the same answer — what `--document primitive-library` renders
+   * for a reader, rendered instead on the row that edits the value.
+   */
+  readonly description?: string;
+  /** One description per admissible value of an enum argument, keyed by the value as a string. */
+  readonly valueDescriptions?: Readonly<Record<string, string>>;
+  /** A deprecated declaration's own words, and the argument that supersedes it where it names one. */
+  readonly deprecation?: ArgumentDeprecation;
+}
+
+/** What a `deprecated` declaration says: why, and what to write instead (unit guide §4.1). */
+export interface ArgumentDeprecation {
+  readonly reason: string;
+  readonly supersededBy?: string;
 }
 
 /** What V8 said about one declared invariant of one instance (§4.1, unit guide §5). */
@@ -296,13 +346,39 @@ type MutableRecord = Record<string, PyValue>;
 /** A fact while the walk is still filling it in; a caller reads it as an {@link ArgumentFact}. */
 interface FactUnderWay {
   path: string;
+  at: readonly PathSegment[];
+  kind: string;
   applicable: boolean;
+  required: boolean;
   structural: boolean;
   source: ArgumentSource;
   value?: PyValue;
   written?: PyValue;
   domain: DomainVerdict;
   problems: readonly SemanticProblem[];
+  description?: string;
+  valueDescriptions?: Readonly<Record<string, string>>;
+  deprecation?: ArgumentDeprecation;
+}
+
+/** The documentation an `argument_declaration` carries, as a fact rather than as a node. */
+function documentationOf(declaration: PyValue, fact: FactUnderWay): void {
+  const description = optional(declaration, 'description', null);
+  if (description !== null) fact.description = pyStr(description);
+  const values = optional(declaration, 'value_descriptions', null);
+  if (values !== null) {
+    const found: Record<string, string> = {};
+    for (const [value, text] of entries(values)) found[value] = pyStr(text);
+    fact.valueDescriptions = found;
+  }
+  const deprecated = optional(declaration, 'deprecated', null);
+  if (deprecated !== null) {
+    const superseded = optional(deprecated, 'superseded_by', null);
+    fact.deprecation = {
+      reason: pyStr(demand(deprecated, 'reason')),
+      ...(superseded === null ? {} : { supersededBy: pyStr(superseded) }),
+    };
+  }
 }
 
 /** One call of `_resolve_record`: what it resolves, where it writes, and what it reads paths in. */
@@ -386,12 +462,19 @@ function resolveRecord(scope: Resolution): MutableRecord {
     const place = supplied.has(name) ? [...scope.at, name] : scope.at;
     const fact: FactUnderWay = {
       path: label,
+      // The member itself, written or not: a sheet that sets a value writes it there, and a sheet
+      // that clears one removes it from the map above it. `place` is the *problem's* place, which
+      // is the map where nothing is written — a refusal has no node to point at, a row has.
+      at: [...scope.at, name],
+      kind: pyStr(demand(demand(declaration, 'type'), 'kind')),
       applicable: true,
+      required: truthy(demand(declaration, 'required')),
       structural: truthy(optional(declaration, 'structural', false)),
       source: 'absent',
       domain: has(declaration, 'domain') ? 'unchecked' : 'undeclared',
       problems: [],
     };
+    documentationOf(declaration, fact);
     if (written !== undefined) fact.written = written;
     scope.facts.push(fact);
     const fromProblem = scope.problems.length;

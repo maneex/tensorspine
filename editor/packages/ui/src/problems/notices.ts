@@ -29,10 +29,18 @@
  * the rename and the delete cascade already (2.1, 2.2) — and not a rule of §6: `--validate` says
  * nothing about a quantity nothing reads, and neither does `--lint`.
  */
-import type { Problem } from '@tensorspine/lang/api';
+import type { Facts, Problem } from '@tensorspine/lang/api';
 import { PROBLEM_SEVERITY, PROBLEM_SOURCE } from '@tensorspine/lang/api';
 import { QUANTITIES } from '@tensorspine/lang';
-import { matches, pointerOf, type ReferenceIndex, type ReferenceSelector } from '@tensorspine/store';
+import {
+  isUnder,
+  matches,
+  pointerOf,
+  type Occurrence,
+  type Path,
+  type ReferenceIndex,
+  type ReferenceSelector,
+} from '@tensorspine/store';
 
 import { presentation } from '../presentation/index.js';
 import { referenceSelectors } from '../presentation/selectors.js';
@@ -47,6 +55,8 @@ export const NOTICE = {
   droppedKey: 'dropped-key',
   /** The workspace's own schemas differ from the ones the build vendored (§1). */
   schemaMismatch: 'schema-mismatch',
+  /** A binding naming a slot or a state port the instance's arguments no longer create (§3). */
+  absentSlot: 'absent-slot',
 } as const;
 
 /** One notice, built the same way every row of the panel is. */
@@ -171,4 +181,155 @@ export function schemaMismatches(differences: readonly SchemaMismatch[]): Proble
   return differences.map((one) =>
     notice(NOTICE.schemaMismatch, one.message, { file: one.path }),
   );
+}
+
+/**
+ * A binding that names a slot or a state port the instance's arguments no longer create.
+ *
+ * §4.17's first editor notice, and plan §3's own case: "turning `output_gate` on replaces the slot
+ * `q` by `q_gated`; `kv_source: shared` removes `k` and `v` … the editor lists the bindings that
+ * name absent slots or ports as Problems with a one-click fix ('Rebind q → q_gated'), and it never
+ * edits them silently."
+ *
+ * **The validator says nothing about it, which is why the row is the editor's.** `check_parameters`
+ * and `check_states` skip a slot that is not present *before they read anything of it*, so a
+ * binding left over from a structural change is neither refused nor reported — and, for the same
+ * reason, `SlotDescription.boundBy` is `null` there: the analysis never recorded the binding. The
+ * two halves of the condition are therefore the core's and the document's: `describe` says the
+ * declared slot is **absent**, and the document's own reference index says a binding **names** it.
+ * No rule of §6 is re-derived, which is why feature 2.8 left this notice to this one.
+ *
+ * **The row names the binding as the document writes it.** `SlotDescription.boundBy` is the rule of
+ * the *normalised* document (`decoder.attn.q`), and the file has `attn.q` inside the composition.
+ * The written name is found the way the delete cascade finds a rule: the nearest place the
+ * reference index records as a **key** above the place the slot's name is written at — the
+ * document's own reading, with nothing about §5.2 rule 7 restated here.
+ */
+export function absentSlotBindings(reading: AbsentSlotReading): Problem[] {
+  const found: Problem[] = [];
+  // Which `(site, slot)` pairs the document names at all, in one pass: the walk below asks only
+  // about the absent slots, and a document names none of them in the ordinary case.
+  const named = new Set<string>();
+  for (const one of reading.index.all) {
+    if (one.kind !== 'key') {
+      for (const qualifier of Object.values(one.qualifiers)) {
+        named.add(`${qualifier}\u0000${one.name}`);
+      }
+    }
+  }
+  for (const site of reading.sites) {
+    for (const slot of site.slots) {
+      if (slot.present || !named.has(`${site.name}\u0000${slot.name}`)) continue;
+      const place = bindingPlaceOf(reading.index, site.name, slot.name);
+      if (place === null) continue;
+      found.push({
+        ...notice(
+          NOTICE.absentSlot,
+          textWith('binding {} names a slot the arguments no longer create', place.rule),
+          { path: place.path, ...(reading.file === undefined ? {} : { file: reading.file }) },
+        ),
+        node: `${site.where}.${slot.name}`,
+      });
+    }
+  }
+  return found;
+}
+
+/** One site as {@link absentSlotBindings} reads it: the slots `describe` answered for it. */
+export interface AbsentSlotSite {
+  /** The site's own name, as the document's map keys it — what a binding's member names. */
+  readonly name: string;
+  /** How D1 and a refusal name it, for the row's `node`. */
+  readonly where: string;
+  /** Every declared slot and state port, present or not, with what bound it. */
+  readonly slots: readonly AbsentSlotCandidate[];
+}
+
+/** One declared slot or state port, as the notice and the rebind read it. */
+export interface AbsentSlotCandidate {
+  readonly name: string;
+  /** Which map of the primitive declares it: a rebind may only name a slot of the same kind. */
+  readonly kind: string;
+  readonly present: boolean;
+  /** The binding rule that bound it in the normalised document, or `null`. */
+  readonly boundBy: string | null;
+}
+
+/**
+ * The sites `describe` answered for, as the notice and its fix read them.
+ *
+ * One reading for both, because the fix's condition must be the notice's own fact and never a
+ * second look at the document: the row exists because a bound slot is absent, and the pill exists
+ * because exactly one present slot of that kind is unbound.
+ */
+export function slotSites(facts: Facts | null): AbsentSlotSite[] {
+  if (facts === null) return [];
+  const sites: AbsentSlotSite[] = [];
+  for (const site of facts.sites.values()) {
+    const slots: AbsentSlotCandidate[] = [];
+    for (const slot of [...site.parameters, ...site.constants]) {
+      slots.push({ name: slot.name, kind: slot.kind, present: slot.present, boundBy: slot.boundBy });
+    }
+    for (const state of site.states) {
+      slots.push({ name: state.name, kind: STATE_KIND, present: state.present, boundBy: state.boundBy });
+    }
+    sites.push({ name: site.key.name, where: site.where, slots });
+  }
+  return sites;
+}
+
+/**
+ * What a state port's kind is called here.
+ *
+ * `SlotDescription.kind` is the core's own word for which map of the primitive declares a slot
+ * (`parameter`, `constant`); a state port is declared in a third and the core gives it no such
+ * member, so the reading names it — a key of this module's own, never compared with anything of
+ * the language.
+ */
+const STATE_KIND = 'state-port';
+
+/** What {@link absentSlotBindings} reads: the described sites, and the document's own names. */
+export interface AbsentSlotReading {
+  readonly sites: readonly AbsentSlotSite[];
+  readonly index: ReferenceIndex;
+  readonly file?: string;
+}
+
+/** Where a binding names one slot of one site, and the rule it stands in, as written. */
+export interface BindingPlace {
+  /** The rule's own name, as the document writes it: `attn.q` inside `decoder`. */
+  readonly rule: string;
+  /** The rule's place, as an RFC 6901 pointer into the document as written. */
+  readonly path: string;
+  /** Where the slot's name itself is written — what a rebind sets. */
+  readonly slotPath: Path;
+}
+
+/**
+ * The place a binding names `(site, slot)`, found in the document as the author wrote it.
+ *
+ * Two readings of the reference index, neither of which names a member of the grammar: the slot's
+ * own occurrence is a **tagged** name equal to the slot, standing beside a name equal to the site
+ * (the selector's `site` or `instance`, which is what a qualifier is); the rule is the nearest
+ * **key** occurrence above it, which is how the delete cascade finds the unit a reference costs.
+ */
+export function bindingPlaceOf(
+  index: ReferenceIndex,
+  site: string,
+  slot: string,
+): BindingPlace | null {
+  const named = index.all.find(
+    (one) =>
+      one.kind === 'tagged' &&
+      one.name === slot &&
+      Object.values(one.qualifiers).includes(site),
+  );
+  if (named === undefined) return null;
+  let rule: Occurrence | null = null;
+  for (const one of index.all) {
+    if (one.kind !== 'key' || !isUnder(named.path, one.path)) continue;
+    if (rule === null || one.path.length > rule.path.length) rule = one;
+  }
+  if (rule === null) return null;
+  return { rule: rule.name, path: pointerOf(rule.path), slotPath: named.path };
 }

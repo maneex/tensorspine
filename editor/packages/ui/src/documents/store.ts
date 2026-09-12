@@ -65,22 +65,26 @@ import {
   isJsonObject,
   loadSchemas,
   parse,
+  primitiveVersions,
   templatePrimitives,
   type SchemaRegistry,
 } from '@tensorspine/lang';
-import type { Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
+import type { Facts, Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
 import type { PortRef, Verdict as CandidateVerdict } from '@tensorspine/lang';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import { outlineOf, revealing } from '../explorer/outline.js';
 import { presentation, startPresentation, type Presentation } from '../presentation/index.js';
 import {
+  absentSlotBindings,
   droppedKeys,
   schemaMismatches,
+  slotSites,
   unusedQuantities,
   type DroppedSidecarKey,
 } from '../problems/notices.js';
 import { textWith } from '../shell/strings.js';
+import { ArgumentSchema } from '../sheet/artifact.js';
 import { statusFigures, type FigureShapes, type StatusFigure } from './figures.js';
 import { noReading, Pipeline, type Reading } from './pipeline.js';
 import { shapesFor } from './shapes.js';
@@ -179,6 +183,21 @@ export interface LibraryState {
    * library activity's decision (3.1), not this one's.
    */
   readonly templates: ReadonlySet<string>;
+  /**
+   * The versions each primitive name carries, for §4.11's "primitive with version select".
+   *
+   * The same projection as {@link templates}, for the same reason: the sheet needs a list of
+   * versions and not the library itself.
+   */
+  readonly versions: ReadonlyMap<string, readonly string[]>;
+  /**
+   * The generated argument schema of each primitive identity the sheet has asked for (F5).
+   *
+   * `null` where the build carries none — a primitive declared in the editor, which F5 says is
+   * "served by the generic walker over its declaration, and the artifact is marked *not
+   * generated*". Read on demand and kept: there are thirty-five of them and a sheet reads one.
+   */
+  readonly arguments: ReadonlyMap<string, ArgumentSchema | null>;
 }
 
 /** A banner the chrome shows (component inventory §5: the dropped-folder snapshot, and its kin). */
@@ -325,6 +344,14 @@ export interface Documents extends DocumentsState {
    */
   lint(id?: string): void;
   /**
+   * Read one primitive's generated argument schema, once, and keep it (§4.12, F5).
+   *
+   * The sheet asks when its selection pins a primitive it has not seen; a second ask answers from
+   * what is held. A build with no vendor answers `null` and the sheet says the artifact is not
+   * generated, which is the same answer a primitive declared in the editor gets.
+   */
+  loadArgumentSchema(id: string): void;
+  /**
    * Make a gesture on the document — the one way a projection edits the tree (D1, D13).
    *
    * The command is built by the caller against {@link DocumentStore.context}, because what a
@@ -376,6 +403,15 @@ export interface DocumentsOptions {
   readonly debounceMs?: number;
   /** How often a dirty document is autosaved; zero switches the timer off (a suite's). */
   readonly autosaveMs?: number;
+  /**
+   * The text of one primitive's generated argument schema, by its `<name>@<version>` identity.
+   *
+   * The tools' own artifact, vendored with the build and consumed as it stands (plan §1, F5): the
+   * argument sheet reads the literal-mode widget, its bounds, its options and its unit from it.
+   * `null` where the build carries none, which is the honest answer for a primitive the build did
+   * not see, and what the whole option is absent means on a platform with no vendor at all.
+   */
+  readonly vendoredArguments?: (id: string) => Promise<string | null>;
 }
 
 /** What the shell gives the documents to open a tab with (§4.2's strip). */
@@ -571,6 +607,10 @@ export function createDocuments(options: DocumentsOptions): {
           // `primitive_library.template_primitives`: the core's own reading of which primitives
           // pin a template, which is what the explorer marks an instance of one by (§4.5).
           templates: templatePrimitives(loaded.library),
+          versions: primitiveVersions(loaded.library),
+          // What the sheet already read stays read: an artifact is a function of the primitive's
+          // identity and a base that reloads does not change one that was built.
+          arguments: get().library.arguments,
         },
       });
       note(
@@ -676,7 +716,10 @@ export function createDocuments(options: DocumentsOptions): {
      * index the tree and the sheet already read. They name no rule of §6: an unused quantity is a
      * question about references, and a dropped sidecar key is the editor's own event.
      */
-    const noticesOf = (id: string): readonly Problem[] => {
+    /** The artifacts a read is outstanding for, so a sheet redrawn per keystroke asks once. */
+    const reading = new Set<string>();
+
+    const noticesOf = (id: string, facts: Facts | null): readonly Problem[] => {
       const one = get().open.find((open) => open.id === id);
       if (one === undefined || shapes === null) return [];
       const rows = outlineOf({
@@ -686,9 +729,14 @@ export function createDocuments(options: DocumentsOptions): {
         role: one.session.store.role,
         openAll: true,
       });
+      const index = one.session.store.context.index;
       return [
-        ...unusedQuantities({ rows, index: one.session.store.context.index, file: one.path }),
+        ...unusedQuantities({ rows, index, file: one.path }),
         ...droppedKeys(one.dropped, one.path),
+        // §4.17's first editor notice, and the one that needed `describe`: a binding naming a slot
+        // an argument change took away. Nothing is walked where nothing is absent — `slotSites` is
+        // a projection of the facts the sheet and the cards already hold.
+        ...absentSlotBindings({ sites: slotSites(facts), index, file: one.path }),
       ];
     };
 
@@ -769,7 +817,7 @@ export function createDocuments(options: DocumentsOptions): {
         registry,
         role: one.session.store.role,
         lintSet,
-        notices: () => noticesOf(id),
+        notices: (_tree, facts) => noticesOf(id, facts),
         ...(options.debounceMs === undefined ? {} : { debounceMs: options.debounceMs }),
       });
       pipelines.set(id, pipeline);
@@ -822,7 +870,7 @@ export function createDocuments(options: DocumentsOptions): {
         workspace: reference,
         open: [],
         current: null,
-        library: { loading: false, handle: null, problems: [], files: 0, ms: 0, templates: new Set() },
+        library: NO_LIBRARY,
         banner: bannerFor(reference),
         dialog: null,
         documents: [],
@@ -863,7 +911,7 @@ export function createDocuments(options: DocumentsOptions): {
       workspace: platform.workspace.root(),
       open: [],
       current: null,
-      library: { loading: false, handle: null, problems: [], files: 0, ms: 0, templates: new Set() },
+      library: NO_LIBRARY,
       banner: null,
       toast: null,
       dialog: null,
@@ -1095,6 +1143,25 @@ export function createDocuments(options: DocumentsOptions): {
         }
         note(`lint: ${String(get().documents.length)} candidate file(s) in the workspace`);
         pipelines.get(one.id)?.lint();
+      },
+
+      loadArgumentSchema(id: string): void {
+        if (get().library.arguments.has(id) || reading.has(id)) return;
+        reading.add(id);
+        void (async () => {
+          let held: ArgumentSchema | null = null;
+          try {
+            const text = (await options.vendoredArguments?.(id)) ?? null;
+            held = text === null ? null : new ArgumentSchema(JSON.parse(text));
+          } catch (error) {
+            // A missing artifact is the honest answer, not a failure: F5's "not generated".
+            note(`argument schema: ${id} could not be read (${String(error)})`);
+          }
+          reading.delete(id);
+          set((state) => ({
+            library: { ...state.library, arguments: new Map(state.library.arguments).set(id, held) },
+          }));
+        })();
       },
 
       togglePlace(pointer: string, id?: string): void {
@@ -1365,6 +1432,18 @@ export function createDocuments(options: DocumentsOptions): {
     },
   };
 }
+
+/** A workspace with no library gathered yet — the state every session starts and returns to. */
+const NO_LIBRARY: LibraryState = {
+  loading: false,
+  handle: null,
+  problems: [],
+  files: 0,
+  ms: 0,
+  templates: new Set(),
+  versions: new Map(),
+  arguments: new Map(),
+};
 
 /** The `examples` workspace: the one a page may reopen by itself, needing nothing from anybody. */
 const EXAMPLES = 'examples';

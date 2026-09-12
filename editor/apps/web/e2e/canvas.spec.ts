@@ -270,8 +270,11 @@ test.describe('dropping a primitive from the palette', () => {
     expect(after).toContain('"arguments": {}');
 
     // "the sheet open": the Properties region shows the new instance, which is what is selected.
+    // A site's sheet is §4.11's own (feature 2.10) — its title, the primitive it pins and its
+    // name row — where before this feature it was the place-and-name row of every selection.
     await expect(page.locator('.insp')).toBeVisible();
-    await expect(page.locator('.insp [data-place]')).toHaveText('/instances/rms');
+    await expect(page.locator('.insp .insp-title')).toHaveText('rms');
+    await expect(page.locator('.insp .prim-chip')).toHaveText('norm.rms@1.0.0');
     await expect(page.locator('.insp input[data-name-field]')).toHaveValue('rms');
     await expect(added).toHaveClass(/sel/);
 

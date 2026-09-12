@@ -42,6 +42,13 @@ export interface VendorManifest {
   readonly repository_commit: string | null;
   readonly examples: { readonly root: string; readonly models: string; readonly primitive_library: string };
   readonly schemas: readonly { readonly path: string; readonly id: string | null }[];
+  /**
+   * The tools' generated argument schemas, by `<name>@<version>` — `--document primitive-schema`.
+   *
+   * Consumed as built and never regenerated (plan §1, F5): the argument sheet of §4.12 reads the
+   * literal-mode widget, its bounds, its options and its unit from the file this names.
+   */
+  readonly primitive_schemas?: Readonly<Record<string, string>>;
   readonly files: readonly VendorFile[];
 }
 
@@ -155,6 +162,19 @@ export class Vendor {
       },
       revision: (path) => held.get(path)?.sha256 ?? null,
     };
+  }
+
+  /**
+   * One primitive's generated argument schema, by its identity; `null` where the build has none.
+   *
+   * A primitive declared in the editor has no artifact, and neither has one a build predates — F5:
+   * "a unit the build did not see … is served by the generic walker over its declaration, and the
+   * artifact is marked *not generated*". The absence is an answer, so it is not an error here.
+   */
+  async primitiveSchema(id: string): Promise<string | null> {
+    const path = this.manifest.primitive_schemas?.[id];
+    if (path === undefined) return null;
+    return this.read(path);
   }
 
   /** The Examples workspace, saving through the shell (§4.3's "Save As to copy a document out"). */

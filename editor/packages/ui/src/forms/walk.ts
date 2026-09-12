@@ -92,6 +92,16 @@ export interface FormRequest {
   readonly anchor?: string;
   /** Or the role of a whole document — `model`, `primitive-library-unit`. */
   readonly role?: string;
+  /**
+   * Or the reading of a place already stepped down to, which is what a sheet of one *value* has.
+   *
+   * The argument sheet asks for the form of the value at `/…/instances/attn/arguments/heads`, and
+   * the way it knows that place is `argument_value` is by having walked there from the document's
+   * root (`SchemaShapes.step`, as the canvas does for a guard) — never by writing the anchor down,
+   * which would be an item of information the schema states (§1). A caller with a `Shape` hands it
+   * over; a caller with an anchor or a role names one.
+   */
+  readonly shape?: Shape;
   /** The value it edits, as the ordered tree; absent for the form of a `$def` alone. */
   readonly value?: JsonValue;
   /** The label of the root row; the last segment of the anchor otherwise. */
@@ -121,14 +131,17 @@ export function formOf(context: FormContext, request: FormRequest): Form {
   const rows: FormRow[] = [];
   const notes: FormNote[] = [];
   const shape =
-    request.anchor !== undefined
+    request.shape ??
+    (request.anchor !== undefined
       ? context.shapes.at(request.anchor)
-      : context.shapes.root(request.role ?? '');
+      : context.shapes.root(request.role ?? ''));
   new Walk(context, rows, notes, request).visit({
     shape,
     value: request.value,
     steps: [],
-    label: request.label ?? nameOf(request.anchor ?? request.role ?? ''),
+    label:
+      request.label ??
+      nameOf(request.anchor ?? request.shape?.direct[0]?.anchor ?? request.role ?? ''),
     pinned: request.label !== undefined,
     required: false,
     entered: [],
@@ -231,7 +244,11 @@ class Walk {
   visit(visit: Visit): void {
     const shape = visit.shape;
     const path = pointerOf(visit.steps);
-    const anchors = shape.direct.map((place) => place.anchor);
+    // The chain, which falls back to the alternatives where a place has no reading of its own: a
+    // member declared only inside an alternative — `theta` under an argument's `record`, `unit`
+    // under `argument_type` — is described by those and by nothing else, and a row that took
+    // `direct` alone would carry no anchors, hence no binding and no source modes at all.
+    const anchors = chainOf(shape).map((place) => place.anchor);
     const facts = this.factsOfShape(shape);
     const binding = this.context.bindings.firstOf(anchors);
     const alternation = this.alternationOf(anchors);

@@ -28,6 +28,7 @@ export {
   type SchemaError,
 } from './errors.js';
 export { factsOf, mergeFacts, NO_FACTS, type SchemaFacts } from './facts.js';
+export { languageAnchors, type LanguageAnchors } from './anchors.js';
 export { pythonPattern, pythonRegExp } from './pattern.js';
 export {
   anchorOf,

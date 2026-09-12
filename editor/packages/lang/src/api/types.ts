@@ -404,6 +404,17 @@ export interface DescribeOptions extends CallOptions {
    * instead of 195 on `llama3-8b`, 35 instead of 552 on `deepseek-v4-pro`.
    */
   readonly folded?: boolean;
+  /**
+   * Fill the compatibility lists — `tiesWith` and `sharesWith` (V15, V9). Default true.
+   *
+   * The one knob that narrows what {@link only} and {@link folded} cannot: the partners a slot may
+   * join are answered from every identity instance of the graph, so describing one site still pays
+   * the document's walk — 3.9–63.7 ms, feature 1.6d. Feature 2.10 turned it off in the pipeline of
+   * §5.4, which asks on every keystroke for facts the sheet and the cards show, and left it on for
+   * the one call a "Tie to…" or "Share with…" menu makes (§4.11, feature 2.13). It changes nothing
+   * else: the identity a slot *belongs to* is filled either way.
+   */
+  readonly compatibility?: boolean;
 }
 
 /** What {@link Lang.validate} takes beside a document. */

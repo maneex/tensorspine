@@ -126,6 +126,14 @@ export interface StateDescription {
   readonly rule: PyValue | null;
   /** Its position in the port's `rules`, so a sheet can point at the declaration; `null` with no rule. */
   readonly ruleIndex: number | null;
+  /**
+   * How many ordered rules the port declares — S6's `rule 4 of 4`.
+   *
+   * "Rules are ordered; the first matching rule wins" (§4.3), so *which of how many* is the fact a
+   * reader needs, and counting them off `declared` in a component would be the interface reading
+   * the unit schema's own members. Answered here, where the list is already in hand.
+   */
+  readonly rules: number;
   /** The rule's evolution, access geometry and sharing granularity; `null` with no rule. */
   readonly evolution: PyValue | null;
   readonly access: PyValue | null;
@@ -200,6 +208,14 @@ export interface SiteDescription {
   readonly version: PyValue;
   /** The site as the document writes it: its `families`, its `when`, its arguments as expressions. */
   readonly instance: PyValue;
+  /**
+   * The families the document gives it, in its own order.
+   *
+   * Lifted out of {@link instance} for the reason the folded reading lifts it for a card (feature
+   * 2.9): a component that picked the member out of the instance record would be naming a member
+   * of the grammar, and §4.11's chip editor and its suggestions are the sheet's, not the schema's.
+   */
+  readonly families: readonly PyValue[];
   /**
    * A template instance's interface — the public inputs and outputs its expansion resolved —
    * and `null` for every other instance (§4.6, §4.11 "Template instance").
@@ -294,6 +310,7 @@ export function describeSite(analysis: Analysis, site: ResolvedSite): SiteDescri
         present: here,
         rule: applying,
         ruleIndex: index === null || index < 0 ? null : index,
+        rules: rules.length,
         evolution: applying === null ? null : demand(applying, 'evolution'),
         access: applying === null ? null : demand(applying, 'access'),
         sharing: applying === null ? null : demand(applying, 'sharing'),
@@ -369,6 +386,7 @@ export function describeSite(analysis: Analysis, site: ResolvedSite): SiteDescri
     primitive: site.primitive,
     version: demand(definition, 'version'),
     instance: site.instance,
+    families: listOf(optional(site.instance, 'families', [])),
     interface: expansion === undefined ? null : expansion.ports,
     arguments: site.arguments,
     inputs: ports('inputs'),

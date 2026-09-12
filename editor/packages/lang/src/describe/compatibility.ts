@@ -36,6 +36,7 @@ import {
   tyingProblems,
   valueToken,
   type Analysis,
+  type IdentityMember,
   type ResolvedSite,
   type Signature,
   type StateAgreement,
@@ -55,13 +56,41 @@ import type {
  * The identity a slot already belongs to is filled here too: `analyse` keys its identity
  * instances by their members, and a description is keyed by its site — this is the one walk that
  * relates the two.
+ *
+ * **`partners` is what a caller that does not need the lists turns off.** The identity a slot
+ * *belongs to* is the cheap half — one pass over the identity instances, which a card's chip and
+ * a sheet's row both show — and the lists are the walk feature 1.6d measured at 3.9–63.7 ms,
+ * because the partners a slot may join are answered from every identity instance of the graph and
+ * narrowing the sites does not narrow it. Feature 2.10 is where that mattered: the sheet needs
+ * the facts on every keystroke (§5.4) and the lists only when "Tie to…" or "Share with…" opens a
+ * menu (§4.11, feature 2.13), so the pipeline asks without them and the menu asks for the one
+ * site with them. Nothing else changes: with `partners` false every other member of every
+ * description is what it was, which `test/describe/describe.test.ts` asserts document by document.
  */
 export function attachCompatibility(
   analysis: Analysis,
   sites: ReadonlyMap<string, Mutable<SiteDescription>>,
+  partners = true,
 ): void {
-  attachParameters(analysis, sites);
-  attachStates(analysis, sites);
+  attachParameters(analysis, sites, partners);
+  attachStates(analysis, sites, partners);
+}
+
+/** What both kinds of identity instance carry, of what the cheap half reads. */
+interface HeldIdentity {
+  readonly identity: string;
+  readonly rule: string;
+  readonly members: readonly IdentityMember[];
+}
+
+/** The identity each member of each instance belongs to, by `(site, slot)`: the cheap half. */
+function membersOf(instances: readonly HeldIdentity[]): Map<string, CompatibleIdentity> {
+  const found = new Map<string, CompatibleIdentity>();
+  for (const instance of instances) {
+    const identity: CompatibleIdentity = { identity: instance.identity, rule: instance.rule };
+    for (const member of instance.members) found.set(portKeyOf(member.site, member.name), identity);
+  }
+  return found;
 }
 
 // --- parameters: V15 --------------------------------------------------------
@@ -79,7 +108,18 @@ interface Grouped {
 function attachParameters(
   analysis: Analysis,
   sites: ReadonlyMap<string, Mutable<SiteDescription>>,
+  partners: boolean,
 ): void {
+  if (!partners) {
+    const held = membersOf(analysis.bindings.tensorInstances);
+    for (const [, description] of sites) {
+      description.parameters = description.parameters.map((slot) => ({
+        ...slot,
+        identity: held.get(portKeyOf(description.key, slot.name))?.identity ?? null,
+      }));
+    }
+    return;
+  }
   const representative = new Map<string, Signature>();
   // One signature per (site, slot), whether the slot is reached as a member of an identity or as
   // a candidate for one: the token costs a stored shape's evaluation, and a document has as many
@@ -181,7 +221,18 @@ function attachParameters(
 function attachStates(
   analysis: Analysis,
   sites: ReadonlyMap<string, Mutable<SiteDescription>>,
+  partners: boolean,
 ): void {
+  if (!partners) {
+    const held = membersOf(analysis.bindings.stateInstances);
+    for (const [, description] of sites) {
+      description.states = description.states.map((state) => ({
+        ...state,
+        identity: held.get(portKeyOf(description.key, state.name))?.identity ?? null,
+      }));
+    }
+    return;
+  }
   /** One state port, as a candidate member: what {@link compareStateMember} would read of it. */
   interface Port {
     readonly site: ResolvedSite;

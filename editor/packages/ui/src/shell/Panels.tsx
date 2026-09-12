@@ -23,7 +23,7 @@
 import type { DragEvent, JSX } from 'react';
 
 import { useDocumentState } from '../documents/Pills.js';
-import { SelectionSheet } from '../explorer/Sheet.js';
+import { SelectionSheet } from '../sheet/index.js';
 import { ProblemControls, ProblemsPanel, useProblemCount } from '../problems/index.js';
 import { useShell, useShellStore } from './context.js';
 import { BOUNDS, PANELS, panelById, type PanelId, type RegionId } from './regions.js';
@@ -76,10 +76,9 @@ function PanelBody({ panel }: { panel: PanelId }): JSX.Element {
     );
   }
   if (panel === 'panel.properties') {
-    // §4.11's sheet of the current selection. The sections each kind of selection gets are the
-    // features that can answer them (2.10 onwards); the row every one of them starts with — the
-    // name, edited here — is feature 2.7's, because §4.4 asks that a name be editable in the
-    // sheet as well as by clicking the thing.
+    // §4.11's sheet of the current selection — feature 2.10 for a site (Identity, Arguments,
+    // Ports, Parameters, Constants, States, Derived), and for anything else the row every sheet
+    // starts with, the name, which §4.4 asks be editable in the sheet as well as on the element.
     return <SelectionSheet />;
   }
   if (panel === 'panel.problems') {

@@ -20,6 +20,7 @@ void (async () => {
   const application = start(platform, {
     lang: startLang(),
     vendoredSchemas: async () => (await platform.workspaces.material()).readAll('schemas'),
+    vendoredArguments: async (id) => (await platform.workspaces.material()).primitiveSchema(id),
   });
 
   // A drop is a way into a workspace, so the window takes one (§4.3, D11).

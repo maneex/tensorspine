@@ -20,10 +20,17 @@ export {
   type FixReading,
 } from './fixes.js';
 export {
+  absentSlotBindings,
+  bindingPlaceOf,
   droppedKeys,
   NOTICE,
   schemaMismatches,
+  slotSites,
   unusedQuantities,
+  type AbsentSlotCandidate,
+  type AbsentSlotReading,
+  type AbsentSlotSite,
+  type BindingPlace,
   type DroppedSidecarKey,
   type QuantityReading,
   type SchemaMismatch,

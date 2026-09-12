@@ -85,7 +85,6 @@ exports[`@tensorspine/ui > exports the explorer surface the snapshot records 1`]
   "ModelExplorer",
   "NAME_FIELD",
   "SHARED",
-  "SelectionSheet",
   "TEMPLATE",
   "declarationOf",
   "outlineOf",
