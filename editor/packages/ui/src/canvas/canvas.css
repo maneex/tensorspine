@@ -213,3 +213,166 @@
 .slot.lit { outline: 1px solid var(--accent); }
 .canvas-note.tieverdict { left: 18px; top: 34px; right: auto; color: var(--bad); }
 .canvas-note.tieverdict.ok { color: var(--good); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   The drill-in — plan §4.8, artboards S4 and S5.
+
+   Every rule is the design's (`_ts.css`'s `.strip`, `.scrub`, `.ghostcol`,
+   `.bterm`, `.ribbon`, `.minode` blocks) except where the same three kinds
+   of otherwise apply as above: a `<span>` on a board is a control here, a
+   colour the board writes as `--faint` or `--muted` text steps up to
+   §4.21's floor, and the drawing is placed rather than stacked.
+
+   The scrubber's track is a real `<input type="range">` — a board draws a
+   div and a dot, and a reader without a pointer needs the control the
+   platform already gives them — so its appearance is reset onto the
+   board's own three rules (track, fill, thumb).
+   ───────────────────────────────────────────────────────────────────── */
+
+.drill { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.drill .canvas.graph { flex: 1; min-height: 0; }
+
+.strip {
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0; min-height: 42px;
+  padding: 4px 22px; background: var(--bg-panel); border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.strip .lbl {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.strip .ctl {
+  display: inline-flex; align-items: center; gap: 7px; height: 24px; padding: 0 8px;
+  background: var(--bg-raised); border: 1px solid var(--rule-2); border-radius: 2px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink); cursor: pointer;
+}
+.strip .ctl:hover { border-color: var(--accent-dim); color: var(--accent); }
+.strip .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.strip .tbtn {
+  padding: 3px 9px; border: 1px solid var(--rule-2); border-radius: var(--r); background: none;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-3); cursor: pointer;
+}
+.strip .tbtn:disabled { color: var(--faint); cursor: default; }
+
+.scrub { display: flex; align-items: center; gap: 9px; }
+.scrub .track {
+  appearance: none; -webkit-appearance: none; width: 250px; height: 11px; background: none;
+  cursor: pointer;
+}
+.scrub .track::-webkit-slider-runnable-track {
+  height: 3px; border-radius: 2px; background: var(--bg-tint);
+}
+.scrub .track::-moz-range-track { height: 3px; border-radius: 2px; background: var(--bg-tint); }
+.scrub .track::-moz-range-progress { height: 3px; border-radius: 2px; background: var(--accent-dim); }
+.scrub .track::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none; margin-top: -4px;
+  width: 11px; height: 11px; border: 0; border-radius: 999px; background: var(--accent);
+}
+.scrub .track::-moz-range-thumb {
+  width: 11px; height: 11px; border: 0; border-radius: 999px; background: var(--accent);
+}
+.scrub .track:disabled { cursor: default; }
+.scrub .val { font-family: var(--mono); font-size: 11.5px; color: var(--accent); min-width: 62px; }
+/* The board's `--faint` is 2.31–3.10:1 as text (feature 2.5's measurement), so the unset state
+   takes the tertiary ink instead: it is a value a reader has to read. */
+.scrub .val.off { color: var(--ink-3); }
+
+/* ── the ghost column (§4.8, inventory §3) ──────────────────────────── */
+.ghostcol {
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 10px;
+  border: 1px dashed var(--ghost); border-radius: var(--r); box-sizing: border-box;
+}
+.ghostcol .gc-cap {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ghostcol .node.tiny {
+  width: 100%; gap: 3px; padding: 6px 9px; border-style: dashed; background: transparent;
+  cursor: pointer; box-sizing: border-box;
+}
+.ghostcol .node.tiny .n-head { display: flex; align-items: baseline; gap: 8px; }
+.ghostcol .node.tiny b { font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--ink); }
+.ghostcol .node.tiny .n-prim { margin-left: auto; font-size: 9.5px; color: var(--ink-2); }
+.ghostcol .node.tiny .n-args { font-size: 9.5px; color: var(--ink-3); }
+.ghostcol.dim { opacity: 0.45; }
+
+/* ── the pinned boundary terminal (§4.8, inventory §3) ──────────────── */
+.bterm {
+  display: flex; flex-direction: column; gap: 2px; padding: 5px 10px;
+  border: 1px dashed var(--chip); border-radius: var(--r); background: var(--bg);
+  box-sizing: border-box;
+}
+.bterm b { font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--ink-3); }
+.bterm span { display: flex; flex-wrap: wrap; gap: 8px; }
+.bterm .bterm-rule {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: 9px; color: var(--ink-3);
+}
+.bterm .bterm-rule:hover { color: var(--accent); }
+.bterm.dim { opacity: 0.5; }
+
+/* ── what the scrubber dims (S4's `.w.dim`, `.elbl.dim`) ────────────── */
+.wires .w.dim { stroke: var(--ghost); stroke-dasharray: 4 3; }
+/* S4 draws the label of a dimmed edge in `--ghost`, and §4.21's floor admits neither `--ghost`
+   nor `--faint` as text (feature 2.5's ramp, measured): the name of a rule is text a reader has
+   to read wherever the scrubber stands. So the cue is not a colour at all — the wire is already
+   dashed and the guard says `— false` beside it — and the label is italic, which a reader who
+   sees no colour also gets. */
+.elbl.dim { font-style: italic; }
+.elbl .wguard { display: block; font-size: 9px; color: var(--derived); }
+
+/* ── a site drawn small, inside an open composition (S3) ────────────── */
+.node.minode { width: 100%; gap: 2px; padding: 6px 9px; }
+.node.minode .n-name { font-size: 11px; }
+.node.minode .mi-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.node.minode .mi-prim {
+  padding: 0; border: 0; background: none; cursor: pointer; font-size: 9.5px; color: var(--ink-2);
+}
+.node.minode .mi-prim:hover { color: var(--ink); }
+.node.minode .n-guard { font-size: 9.5px; }
+.node.minode .slot { font-size: 9px; }
+
+/* ── the rubber band (§4.4's Shift+drag) ────────────────────────────── */
+.band {
+  position: absolute; pointer-events: none; z-index: 3;
+  border: 1px solid var(--accent); background: var(--accent-dim); opacity: 0.22;
+}
+
+/* ── the alternation strip, below the canvas (§4.8, S5, inventory §6) ─ */
+.ribbon-strip {
+  /* The canvas is what the tab is for, so the strip takes what it needs and no more than a third
+     of the column; what does not fit scrolls (S5 draws four rows of thirty cells). */
+  flex: 0 1 auto; max-height: 34%; overflow: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 22px 10px; background: var(--bg-panel); border-top: 1px solid var(--rule);
+}
+.ribbon-strip .rib-head { display: flex; align-items: baseline; gap: 12px; }
+.ribbon-strip .rib-head b {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-2);
+}
+.ribbon { display: flex; flex-direction: column; gap: 5px; }
+.rrow { display: flex; align-items: center; gap: 8px; }
+.rrow .rname {
+  width: 132px; flex-shrink: 0; padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); text-align: right;
+}
+.rrow .rname:hover { color: var(--accent); }
+.rrow .rguard {
+  width: 210px; flex-shrink: 0; font-family: var(--mono); font-size: 9.5px; color: var(--derived);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rcells { display: flex; gap: 2px; cursor: pointer; }
+.rcells i {
+  width: 20px; height: 15px; border-radius: 1px; background: var(--bg-tint);
+  border: 1px solid transparent;
+}
+.rcells i.on { background: var(--accent-dim); }
+.rcells i.cur { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.rscale { display: flex; gap: 2px; margin-left: 358px; }
+.rscale span {
+  width: 20px; text-align: center; font-family: var(--mono); font-size: 8.5px; color: var(--ink-3);
+}
+.elbl .wguard b { font-weight: 400; color: var(--accent); }
+.elbl .wguard b.fails { color: var(--bad); }

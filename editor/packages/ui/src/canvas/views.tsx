@@ -11,13 +11,16 @@
  */
 import type { JSX } from 'react';
 
-import { DOCUMENT_TAB, DocumentView, SOURCE_TAB, SourcePane } from '../documents/index.js';
+import { DOCUMENT_TAB, DocumentView, DRILL_TAB, SOURCE_TAB, SourcePane } from '../documents/index.js';
 import type { Tab } from '../shell/index.js';
 
 import { Canvas } from './Canvas.js';
+import { DrillView } from './Drill.js';
 
 /** The views this feature gives the shell, by the `kind` their tabs carry. */
 export const CANVAS_VIEWS: Readonly<Record<string, (tab: Tab) => JSX.Element>> = {
   [DOCUMENT_TAB]: (tab) => <DocumentView tab={tab} body={(one) => <Canvas one={one} />} />,
   [SOURCE_TAB]: (tab) => <DocumentView tab={tab} body={(one) => <SourcePane one={one} />} />,
+  // §4.2's "one per drill-in (composition, template instance)" — feature 2.14's own tab (§4.8).
+  [DRILL_TAB]: (tab) => <DrillView tab={tab} />,
 };

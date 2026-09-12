@@ -149,6 +149,27 @@ export interface OpenDocument {
    */
   readonly selection?: Path;
   /**
+   * Every place a rubber band holds — §4.4's "Shift+drag rubber-bands", and §4.11's own sentence:
+   * "several selected instances show the intersection of their editable rows".
+   *
+   * {@link selection} stays what it was: the *one* place a sheet opens on, which every projection
+   * already reads. This is the whole set beside it, the selection included, and it is empty
+   * whenever one thing is selected — so nothing that reads a selection had to change, and the
+   * intersection is exactly the case where it is not empty.
+   */
+  readonly marked: readonly Path[];
+  /**
+   * Where the scrubber of each open drill-in stands, by the composition's pointer (§4.8).
+   *
+   * The label of a point of the grid (`layer=0`), or absent for "unset" — which is what §4.8 calls
+   * the state where "the canvas shows the representative iteration: every site, every scoped
+   * edge". It is session state and not the document's: a scrubber is a way of looking at a
+   * composition, and D6 keeps what a reader arranged out of the file.
+   */
+  readonly scrub: Readonly<Record<string, string>>;
+  /** The compositions this document has a drill-in tab open for, by name (§4.2's tab per drill). */
+  readonly drills: readonly string[];
+  /**
    * The outline rows whose openness the reader changed, by pointer (§4.5).
    *
    * A *deviation* from the default and not the open set: the default is the document's own shape
@@ -316,6 +337,23 @@ export interface Documents extends DocumentsState {
    * Select a place of the current document, or nothing — §4.5, and the canvas's own gesture (2.9).
    */
   selectPlace(path: Path | null, id?: string): void;
+  /**
+   * Select several places at once — §4.4's rubber band, and §4.11's intersection sheet.
+   *
+   * The first is the selection every projection already reads; the whole set is {@link
+   * OpenDocument.marked}. An empty list clears both, which is what a band over empty ground means.
+   */
+  selectPlaces(paths: readonly Path[], id?: string): void;
+  /**
+   * Open the drill-in of one composition — §4.8's tab, §4.2's "one per drill-in".
+   *
+   * The tab is a *view* of the document, as a JSON source tab is: it closes without asking, it
+   * goes when the document goes, and a command with no argument acts on the document behind it
+   * (`documentTab` strips the suffix).
+   */
+  drillInto(composition: string, id?: string): void;
+  /** Where the scrubber of one drill-in stands; `null` puts it back to unset (§4.8). */
+  setScrub(composition: string, point: string | null, id?: string): void;
   /** Open or close an outline row, by the pointer of the place it stands for (§4.5). */
   togglePlace(pointer: string, id?: string): void;
   /** Open or close a composition's box on the canvas (§4.7), recording it in the sidecar (D6). */
@@ -498,8 +536,20 @@ export const DOCUMENT_TAB = 'view.document';
 /** The `kind` a JSON source tab carries — §4.2's "one per JSON source view". */
 export const SOURCE_TAB = 'view.source';
 
+/** The `kind` a drill-in tab carries — §4.2's "one per drill-in (composition, template instance)". */
+export const DRILL_TAB = 'view.drill';
+
 /** What a JSON source tab's identity adds to the document's, so the two tabs are two tabs. */
 export const SOURCE_SUFFIX = ':source';
+
+/** What a drill-in tab's identity adds to the document's, with the composition after it. */
+export const DRILL_SUFFIX = ':drill:';
+
+/** The composition a drill-in tab is over, or `null` where the tab is not one. */
+export function drillOf(id: string): string | null {
+  const at = id.indexOf(DRILL_SUFFIX);
+  return at < 0 ? null : id.slice(at + DRILL_SUFFIX.length);
+}
 
 /**
  * Which compositions a session opens with expanded, from the sidecar it was read with (§4.7, D6).
@@ -761,6 +811,9 @@ export function createDocuments(options: DocumentsOptions): {
         figures: [],
         toggled: [],
         expanded: expandedOf(session),
+        marked: [],
+        scrub: {},
+        drills: [],
         ...(tag === null ? {} : { tag }),
       };
       set((state) => ({
@@ -1174,9 +1227,12 @@ export function createDocuments(options: DocumentsOptions): {
       },
 
       closeDocument(id: string): void {
-        // Its source view goes with it: a tab drawing a document nothing holds is a tab drawing
-        // "No document", which is worse than no tab.
+        // Its source view and its drill-ins go with it: a tab drawing a document nothing holds is
+        // a tab drawing "No document", which is worse than no tab.
         tabs.close(`${id}${SOURCE_SUFFIX}`);
+        for (const composition of get().open.find((one) => one.id === id)?.drills ?? []) {
+          tabs.close(`${id}${DRILL_SUFFIX}${composition}`);
+        }
         release(id);
         set((state) => ({
           open: state.open.filter((one) => one.id !== id),
@@ -1186,10 +1242,53 @@ export function createDocuments(options: DocumentsOptions): {
         rememberTabs();
       },
 
+      selectPlaces(paths: readonly Path[], id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        const first = paths[0];
+        patch(one.id, (open) => {
+          const held = first === undefined ? withoutSelection(open) : { ...open, selection: first };
+          return { ...held, marked: paths.length > 1 ? [...paths] : [] };
+        });
+      },
+
+      drillInto(composition: string, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        const tab = `${one.id}${DRILL_SUFFIX}${composition}`;
+        // §4.3's tab name for a drill-in, as §4.8 writes it: `llama3-8b › decoder`.
+        tabs.open({ id: tab, title: `${one.title} › ${composition}`, kind: DRILL_TAB });
+        patch(one.id, (open) => ({
+          ...open,
+          drills: open.drills.includes(composition) ? open.drills : [...open.drills, composition],
+        }));
+        note(`drill-in: ${one.path} › ${composition}`);
+      },
+
+      setScrub(composition: string, point: string | null, id?: string): void {
+        const one = current(id);
+        if (one === undefined) return;
+        patch(one.id, (open) => {
+          const scrub: Record<string, string> = { ...open.scrub };
+          if (point === null) delete scrub[composition];
+          else scrub[composition] = point;
+          return { ...open, scrub };
+        });
+      },
+
       selectPlace(path: Path | null, id?: string): void {
         const one = current(id);
         if (one === undefined) return;
-        patch(one.id, (open) => (path === null ? withoutSelection(open) : { ...open, selection: path }));
+        patch(one.id, (open) => {
+          if (path === null) return { ...withoutSelection(open), marked: [] };
+          // Selecting something the band already holds makes it the **primary** place and keeps
+          // the rest: a click on one of several selected boxes is how every gesture on the group
+          // is reached (the context menu of §4.7 selects the box it opens on), and clearing the
+          // band there would make a multi-selection unusable by touching it.
+          const held = pointerOf(path);
+          const marked = open.marked.some((each) => pointerOf(each) === held) ? open.marked : [];
+          return { ...open, selection: path, marked };
+        });
       },
 
       revealPlace(path: Path, id?: string): void {
@@ -1698,6 +1797,8 @@ function documentOf(state: DocumentsState, id: string | null): OpenDocument | un
  * Delete act on the document while its bytes are what the reader is looking at.
  */
 export function documentTab(id: string): string {
+  const at = id.indexOf(DRILL_SUFFIX);
+  if (at >= 0) return id.slice(0, at);
   return id.endsWith(SOURCE_SUFFIX) ? id.slice(0, -SOURCE_SUFFIX.length) : id;
 }
 

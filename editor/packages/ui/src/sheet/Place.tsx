@@ -18,6 +18,8 @@
 import { useEffect, useState, type JSX } from 'react';
 
 import {
+  compositionAt,
+  foldedGraph,
   locationAxisPlaces,
   pyStr,
   type DerivedStreamRow,
@@ -163,7 +165,7 @@ export function PlaceView(props: PlaceProps): JSX.Element {
       <IdentityFactsRows sheet={sheet} identity={identity} />
       <IdentityRows sheet={sheet} />
       <ValueRows sheet={sheet} />
-      <Held sheet={sheet} />
+      <Held sheet={sheet} one={props.one} />
     </>
   );
 }
@@ -727,9 +729,17 @@ function ValueRows({ sheet }: { sheet: PlaceSheet }): JSX.Element | null {
   );
 }
 
-/** §4.11's "scoped bindings summary (counts)" — S3's own line, which the core answers. */
-function Held({ sheet }: { sheet: PlaceSheet }): JSX.Element | null {
+/**
+ * §4.11's "scoped bindings summary (counts, with **Show in canvas**)" — S3's own line.
+ *
+ * The counts are the core's (`foldedGraph`'s `held`); the button is the second half of that row,
+ * which feature 2.12 left to this one: what a composition's scoped bindings are *shown in* is the
+ * drill-in (§4.8), where they are the edges and the chips, so "Show in canvas" opens it.
+ */
+function Held({ sheet, one }: { sheet: PlaceSheet; one: OpenDocument }): JSX.Element | null {
+  const store = useDocumentsStore();
   if (sheet.held.length === 0) return null;
+  const composition = compositionAt(foldedGraph(one.session.store.tree), sheet.pointer);
   return (
     <>
       <h3 className="ih">{text('Holds')}</h3>
@@ -739,6 +749,23 @@ function Held({ sheet }: { sheet: PlaceSheet }): JSX.Element | null {
           <span className="fv mono">{String(held.count)}</span>
         </div>
       ))}
+      {composition === null ? null : (
+        <div className="frow">
+          <span className="fk" />
+          <span className="fv">
+            <button
+              type="button"
+              className="btn"
+              data-show-in-canvas={composition}
+              onClick={() => {
+                store.getState().drillInto(composition, one.id);
+              }}
+            >
+              {text('Show in canvas')}
+            </button>
+          </span>
+        </div>
+      )}
     </>
   );
 }

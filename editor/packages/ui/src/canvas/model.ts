@@ -25,6 +25,7 @@
  */
 import {
   derivedFacts,
+  drillGraph,
   languageAnchors,
   noDerivedFacts,
   pyStr,
@@ -232,6 +233,18 @@ export interface CanvasRequest {
   readonly role?: string;
   /** The primitives that pin a template, by name — the core's `template_primitives` (§4.7). */
   readonly templates?: ReadonlySet<string>;
+  /**
+   * The document itself, so that a composition **opened in place** can draw its own edges.
+   *
+   * S3's note is the rule: "expanded in place the sites and their scoped edges are drawn as in the
+   * drill-in, smaller. The carry edges … are only drawn in the drill-in (S4), where the ghost
+   * column has room." So an open box gets the scoped rules whose two ends are its sites at the
+   * current iteration, and nothing else; feature 2.9 drew none of them and said so.
+   *
+   * Optional because the folded reading is the canvas's input and a caller that has no tree — a
+   * suite drawing a graph it built — still gets every top-level edge.
+   */
+  readonly tree?: JsonValue;
 }
 
 /** The model's own role, as the store reads a document under it. */
@@ -447,6 +460,36 @@ export function canvasModel(request: CanvasRequest): CanvasModel {
   for (const node of folded.nodes) build(node, false);
 
   const wires: CanvasWire[] = [];
+  // A composition drawn open carries its own edges (S3). They are the drill-in's own reading
+  // (`drillGraph`), narrowed to what fits inside a box: both ends a site of this composition, at
+  // the iteration the cards stand for.
+  if (request.tree !== undefined) {
+    for (const node of folded.nodes) {
+      if (node.children.length === 0 || collapsed.has(node.pointer)) continue;
+      const drill = drillGraph(request.tree, { composition: node.name, folded });
+      for (const edge of drill?.edges ?? []) {
+        if (!edge.scoped) continue;
+        if (edge.from === null || edge.to === null) continue;
+        if (edge.from.site === null || edge.to.site === null) continue;
+        if (edge.from.overridden || edge.to.overridden) continue;
+        wires.push({
+          id: edge.pointer,
+          path: edge.segments,
+          label: edge.rule,
+          from: edge.from.site,
+          to: edge.to.site,
+          fromPort: edge.from.port,
+          toPort: edge.to.port,
+          type: null,
+          guard:
+            edge.guard === null
+              ? null
+              : printValue(context, shapeAt(shapes, [...edge.segments, 'when'] as Path, role), edge.guard),
+          interface: false,
+        });
+      }
+    }
+  }
   for (const edge of folded.edges) {
     const from = edge.from === null ? null : boxFor(byPointer, edge.from.box, edge.from.site);
     const to = edge.to === null ? null : boxFor(byPointer, edge.to.box, edge.to.site);
@@ -565,8 +608,19 @@ function bytes(value: bigint): string {
   return sizeText(Number(value));
 }
 
+/** What a site drawn small measures — S3's `.minode`, two lines in a 176 px column. */
+const MINI = { width: 176, height: 40 } as const;
+
 /** How large the layout is told a box is, before the browser has measured the rendered one. */
 export function sizeOf(box: CanvasBox): { width: number; height: number } {
+  // A site inside an open composition is drawn as S3's smaller `.minode`: its name, its primitive
+  // and its slot marks on one line. A box has a parent only where its composition is open (a
+  // collapsed one has no children on the canvas at all), so the drawing and the size agree by
+  // construction.
+  if (box.role === ROLE.node && box.parent !== null) {
+    const rows = 1 + (box.guard === null && box.slots.length === 0 && box.primitive === null ? 0 : 1);
+    return { width: MINI.width, height: MINI.height + (rows - 2) * 14 };
+  }
   if (box.role === ROLE.terminal) {
     return {
       width: Math.max(TERMINAL.width, 60 + box.name.length * 8 + box.badges.join(' ').length * 6),

@@ -138,6 +138,7 @@ export function modelOf(
     ...options.view,
   };
   return canvasModel({
+    tree: read.tree,
     folded: read.folded,
     facts: read.facts,
     derived: options.derived === false ? null : read.derived,

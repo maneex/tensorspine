@@ -26,6 +26,20 @@ export interface BoxProps {
   readonly renaming: boolean;
   /** Whether a connection in flight is over one of this box's handles (S2's lit handle). */
   readonly litPort: string | null;
+  /**
+   * Whether the box is drawn as absent — §4.8's scrubber: "it dims every site and edge absent at
+   * that index". S5 draws it as `.node.ghosted`, which is the same shape a site with no facts is
+   * drawn in, for the same reason: the card is there and the iteration is not.
+   */
+  readonly dimmed?: boolean;
+  /**
+   * Whether the box is drawn **small** — S3's `.minode`, a composition expanded in place.
+   *
+   * "Expanded in place the sites and their scoped edges are drawn as in the drill-in, smaller"
+   * (S3's own note). The drill-in draws cards; a site inside an open group box draws its name, its
+   * primitive and its slots on one line, which is what leaves room for the box around them.
+   */
+  readonly mini?: boolean;
   /** The chip a tie in flight is over, by its `data-slot`; `null` when none is. */
   readonly litSlot?: string | null;
   readonly register: (element: HTMLElement | null) => void;
@@ -34,6 +48,12 @@ export interface BoxProps {
   readonly onStartRename: () => void;
   readonly onFold: () => void;
   readonly onMenu: (x: number, y: number) => void;
+  /**
+   * The box was opened — a double-click, which §4.8 and S3 make the way into a composition
+   * ("double-click or Ctrl+Enter drills in"). Feature 2.7 left the same gesture on the explorer's
+   * own rows; here it is the box's.
+   */
+  readonly onOpen?: () => void;
   readonly onGrab: (event: ReactPointerEvent<HTMLElement>) => void;
   /** A port handle was pressed (the drag's start) or clicked (the keyboard's form of it). */
   readonly onPort: (port: string, side: 'inputs' | 'outputs', pressed: boolean) => void;
@@ -84,9 +104,10 @@ export function Box(props: BoxProps): JSX.Element {
   const { box } = props;
   const classes = [
     box.role === ROLE.group ? 'group' : box.role === ROLE.terminal ? 'term' : 'node',
+    props.mini === true && box.role !== ROLE.group && box.role !== ROLE.terminal ? 'minode' : '',
     props.selected ? 'sel' : '',
     box.role === ROLE.group && !box.collapsed ? 'open' : '',
-    box.role === ROLE.node && !box.facts ? 'ghosted' : '',
+    (box.role === ROLE.node && !box.facts) || props.dimmed === true ? 'ghosted' : '',
     box.template ? 'tmpl' : '',
   ]
     .filter((one) => one !== '')
@@ -102,6 +123,10 @@ export function Box(props: BoxProps): JSX.Element {
       onClick={(event) => {
         event.stopPropagation();
         props.onSelect();
+      }}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        props.onOpen?.();
       }}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -129,7 +154,9 @@ export function Box(props: BoxProps): JSX.Element {
       )}
       {box.role === ROLE.terminal ? <Terminal {...props} /> : null}
       {box.role === ROLE.group ? <Group {...props} /> : null}
-      {box.role !== ROLE.terminal && box.role !== ROLE.group ? <Card {...props} /> : null}
+      {box.role !== ROLE.terminal && box.role !== ROLE.group ? (
+        props.mini === true ? <MiniCard {...props} /> : <Card {...props} />
+      ) : null}
     </div>
   );
 }
@@ -167,6 +194,14 @@ function Name(props: BoxProps): JSX.Element {
       title={box.template ? text('an instance of a template primitive') : undefined}
       onClick={(event) => {
         event.stopPropagation();
+        // A double-click **opens** the box — §4.8's drill-in, S3's own caption — and the name's
+        // own editor is the slow second click. `detail` is the click count, which is where the
+        // browser tells them apart; without it the name is replaced by its input before the
+        // double-click can be dispatched and the gesture is lost.
+        if (event.detail >= 2 && props.onOpen !== undefined) {
+          props.onOpen();
+          return;
+        }
         // §4.5's rule, taken again: the first click selects, and a click on the name of a row
         // that is already selected opens the editor. A name that renamed on the first click would
         // rename on the click that only meant to select.
@@ -275,6 +310,74 @@ function Group(props: BoxProps): JSX.Element {
           {box.stale ? <span className="stalebdg">{text('stale')}</span> : null}
         </div>
       )}
+    </>
+  );
+}
+
+/**
+ * A site drawn small — S3's `.minode`, a composition expanded in place.
+ *
+ * The board writes `<b>attn</b><span>attention.dense · ◆ q k v out · ▣ kv</span>`: the name, the
+ * primitive and the slot marks on one line, and nothing else. Every one of them is still a
+ * control, because §4.4's rule does not stop being true because a card is small — the name
+ * renames, the primitive opens its row, a chip selects its identity — and the ports are reached
+ * in the drill-in, which is where §4.8 puts them (Ctrl+Enter, or a double-click).
+ */
+function MiniCard(props: BoxProps): JSX.Element {
+  const { box } = props;
+  return (
+    <>
+      <Name {...props} />
+      <span className="mi-line">
+        {box.primitive === null ? null : (
+          <button
+            type="button"
+            className="mi-prim"
+            data-primitive={box.pointer}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onChip(box.primitive ?? '');
+            }}
+          >
+            {box.primitive}
+          </button>
+        )}
+        {box.guard === null ? null : (
+          <button
+            type="button"
+            className="n-guard"
+            data-guard={box.pointer}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onChip(box.guard ?? '');
+            }}
+          >
+            <span aria-hidden="true">⚑</span>
+            {box.guard}
+          </button>
+        )}
+        {box.slots.map((slot) => (
+          <button
+            key={slot.name}
+            type="button"
+            className={slotClass(slot)}
+            data-slot={`${box.pointer}:${slot.name}`}
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.stopPropagation();
+              props.onSlot(slot, true);
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onSlot(slot, false);
+            }}
+          >
+            <span aria-hidden="true">{slotMark(slot.kind)}</span>
+            {slot.shared ? <span aria-hidden="true">{SHARED}</span> : null}
+            {slot.name}
+          </button>
+        ))}
+      </span>
     </>
   );
 }

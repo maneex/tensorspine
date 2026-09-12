@@ -10,19 +10,47 @@
  * layout — and through it a megabyte and a half of compiled ELK, which feature 0.4 measured and
  * which is loaded on the first drawing rather than in the shell's first bundle.
  */
-export { Canvas, handleFor, primitiveOf, PRIMITIVE_TRANSFER, splitPort, type PrimitiveTransfer } from './Canvas.js';
+export {
+  Canvas,
+  handleFor,
+  primitiveOf,
+  PRIMITIVE_TRANSFER,
+  splitPort,
+  withGhosts,
+  type DrillContext,
+  type PrimitiveTransfer,
+} from './Canvas.js';
+export { Drill, DrillView } from './Drill.js';
+export {
+  drillModel,
+  type AlternationRow,
+  type DrillGhostBox,
+  type DrillModel,
+  type DrillRequest,
+  type DrillStripRange,
+  type DrillTerminalBox,
+} from './drill.js';
 export { Box, slotClass, slotMark, type BoxProps } from './Box.js';
 export { CANVAS_VIEWS } from './views.js';
 export {
   addInstance,
+  addSite,
+  connectFromPreviousIteration,
   connectHandles,
+  connectScoped,
   declarationAt,
   declaresAt,
   duplicateAt,
+  duplicateWithComplementaryGuard,
+  moveIntoComposition,
+  proposeGuard,
   referencesTo,
   removeAt,
   renameAt,
+  scopedValuesOf,
+  sitesOf,
   type GestureContext,
+  type ScopedEnd,
 } from './gestures.js';
 export {
   collapsedGroups,
@@ -39,7 +67,17 @@ export {
   type PlacedBox,
   type WireRoute,
 } from './layout.js';
-export { CONTEXT_MENU, entriesFor, PORT_MENU, portEntries, type MenuEntry } from './menu.js';
+export {
+  CARRY,
+  compositionEntries,
+  CONTEXT_MENU,
+  DRILL_MENU,
+  drillEntriesFor,
+  entriesFor,
+  PORT_MENU,
+  portEntries,
+  type MenuEntry,
+} from './menu.js';
 export {
   canvasModel,
   DEFAULT_VIEW,

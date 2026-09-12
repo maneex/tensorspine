@@ -34,6 +34,8 @@ import {
   formatSemanticProblem,
   identityReadings,
   literalIndex,
+  PROPOSED_COMPOSITION,
+  PROPOSED_INDEX,
   rootSite,
   toPython,
   type FoldedGraph,
@@ -52,16 +54,40 @@ import { useShell, useShellStore } from '../shell/context.js';
 import { text, textWith } from '../shell/strings.js';
 
 import { Box } from './Box.js';
+import type { DrillGhostBox, DrillModel } from './drill.js';
 import {
   addInstance,
+  addSite,
+  connectFromPreviousIteration,
   connectHandles,
+  connectScoped,
   duplicateAt,
+  duplicateWithComplementaryGuard,
+  moveIntoComposition,
+  proposeGuard,
   removeAt,
   renameAt,
+  scopedValuesOf,
+  sitesOf,
   type GestureContext,
 } from './gestures.js';
-import { fit, NO_PLACEMENT, place, routes, type Placement, type WireRoute } from './layout.js';
-import { entriesFor, portEntries, type MenuEntry } from './menu.js';
+import {
+  fit,
+  NO_PLACEMENT,
+  place,
+  routes,
+  type PlacedBox,
+  type Placement,
+  type WireRoute,
+} from './layout.js';
+import {
+  CARRY,
+  compositionEntries,
+  drillEntriesFor,
+  entriesFor,
+  portEntries,
+  type MenuEntry,
+} from './menu.js';
 import {
   canvasModel,
   ROLE,
@@ -109,6 +135,12 @@ interface Flight {
   /** The `data-port` of the handle the pointer is over. */
   readonly over: string | null;
   readonly verdict: CandidateVerdict | null;
+  /**
+   * The index this connection takes its source at the previous value of — §4.8's carry.
+   *
+   * Absent for the ordinary connection, which is every connection the folded canvas makes.
+   */
+  readonly carry?: string;
 }
 
 /**
@@ -153,6 +185,24 @@ function readIdentities(tree: Parameters<typeof foldedGraph>[0]): readonly Ident
   }
 }
 
+/**
+ * What tells the canvas it is drawing a **drill-in** rather than the folded document (§4.8).
+ *
+ * The drill-in is the same canvas one level down: the same cards, the same connection gesture, the
+ * same context menu, the same keyboard. What changes is the *model* it draws — one composition's
+ * sites, its scoped edges, its ghost columns and its pinned terminals — and what a gesture writes:
+ * a connection inside a composition is a scoped rule, a dropped primitive is a site. So the drill
+ * is a parameter of this component and not a second one; a second would be a second drawing to
+ * keep in step (feature 2.9's own reason for not wrapping React Flow).
+ */
+export interface DrillContext {
+  /** The composition the tab is over, by name. */
+  readonly composition: string;
+  readonly model: DrillModel;
+  /** The point the scrubber stands on, or `null` while it is unset. */
+  readonly scrub: string | null;
+}
+
 /** A box being moved: which, and where it is now. */
 interface Move {
   readonly pointer: string;
@@ -161,6 +211,22 @@ interface Move {
   readonly dy: number;
   readonly x: number;
   readonly y: number;
+  /**
+   * Whether the drag makes a **copy** — §4.4's "Alt+drag duplicates".
+   *
+   * The copy is made where the drag ends rather than where it starts: a duplicate that appeared
+   * under the pointer at the first pixel of movement would be a gesture the author could not
+   * abandon, and the original stays where it was either way.
+   */
+  readonly copy?: boolean;
+}
+
+/** The rubber band of §4.4's "Shift+drag rubber-bands": where it started and where it is now. */
+interface Band {
+  readonly x: number;
+  readonly y: number;
+  readonly toX: number;
+  readonly toY: number;
 }
 
 /** Where the canvas is looking. */
@@ -178,8 +244,8 @@ function useFolded(one: OpenDocument): FoldedGraph {
   return useMemo(() => foldedGraph(tree), [id, revision]);
 }
 
-/** The whole canvas of one open document. */
-export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
+/** The whole canvas of one open document, folded (§4.7) or drilled into (§4.8). */
+export function Canvas({ one, drill }: { one: OpenDocument; drill?: DrillContext }): JSX.Element {
   const store = useDocumentsStore();
   const shell = useShellStore();
   const registry = useDocuments((state) => state.registry);
@@ -200,6 +266,9 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
   const [tying, setTying] = useState<Tie | null>(null);
   const [move, setMove] = useState<Move | null>(null);
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
+  /** §4.4's rubber band, and §4.7's "Add to Composition…" chooser, both at the pointer. */
+  const [band, setBand] = useState<Band | null>(null);
+  const [choosing, setChoosing] = useState<{ box: CanvasBox; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ box: CanvasBox; x: number; y: number } | null>(null);
   /** §4.15's port menu: which port it was opened on, and where. */
@@ -207,6 +276,14 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     { box: CanvasBox; port: string; side: string; x: number; y: number } | null
   >(null);
   const [announced, setAnnounced] = useState('');
+  /**
+   * Whether the click that closes the current gesture belongs to it.
+   *
+   * A pointer press on a card's ground starts a move; the browser sends the `click` after the
+   * release, and a copy made by an Alt+drag would be selected and then unselected by that click
+   * landing back on the original. The click is part of the drag, so it is skipped once.
+   */
+  const consumed = useRef(false);
 
   const bindings = presentation();
   const expanded = useMemo(() => new Set(one.expanded), [one.expanded]);
@@ -220,6 +297,7 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
   );
 
   const model: CanvasModel | null = useMemo(() => {
+    if (drill !== undefined) return drill.model.canvas;
     if (registry === null) return null;
     return canvasModel({
       folded,
@@ -234,8 +312,9 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
       bindings,
       role: one.session.store.role,
       templates,
+      tree: one.session.store.tree,
     });
-  }, [folded, registry, one.reading, problems, expanded, toggles, shapes, bindings, one.session.store.role, templates]);
+  }, [drill, folded, registry, one.reading, problems, expanded, toggles, shapes, bindings, one.session.store.role, templates]);
 
   // The layout runs when the *shape* of the drawing changes, and never while a pointer is down
   // (feature 0.4's own reservation about what a layout costs).
@@ -275,15 +354,28 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     if (moved) setMeasured(found);
   });
 
+  /**
+   * The placement the drawing uses: ELK's, with the ghost columns put beside it (§4.8).
+   *
+   * A ghost is a *copy* of a card that is already drawn, so it is no node of the graph: letting
+   * ELK route around one would move the real chain to make room for a picture of it. It is placed
+   * on the side its override is on, level with the wires that reach it, and the drawing is shifted
+   * to make the column's width room rather than letting it fall off the left edge.
+   */
+  const placed: Placement = useMemo(() => {
+    if (drill === undefined || drill.model.ghosts.length === 0) return placement;
+    return withGhosts(placement, drill.model.ghosts);
+  }, [placement, drill]);
+
   const fitNow = useCallback(() => {
     const element = surface.current;
     if (element === null) return;
-    const answer = fit(placement, { width: element.clientWidth, height: element.clientHeight });
+    const answer = fit(placed, { width: element.clientWidth, height: element.clientHeight });
     setViewport(answer);
     shell.getState().setZoom(answer.zoom);
-  }, [placement, shell]);
+  }, [placed, shell]);
 
-  const extent = `${String(placement.width)}x${String(placement.height)}`;
+  const extent = `${String(placed.width)}x${String(placed.height)}`;
   useEffect(() => {
     fitNow();
   }, [one.id, extent]);
@@ -309,8 +401,63 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     });
   }, [shell, store, one.id, fitNow]);
 
+  /**
+   * What the scrubber dims — §4.8: "set to a value it dims every site and edge absent at that
+   * index". Absence is D1's answer ({@link DrillModel.presence}); the drawing only reads it.
+   */
+  const dimmed = useMemo(() => {
+    const boxes = new Set<string>();
+    const edges = new Set<string>();
+    const ghosts = new Set<string>();
+    const scrub = drill?.scrub ?? null;
+    if (drill === undefined || scrub === null) return { boxes, edges, ghosts };
+    const { presence, terminals, canvas, ghosts: columns } = drill.model;
+    for (const box of canvas.boxes) {
+      const present = presence.sites.get(box.name);
+      if (present !== undefined && !present.has(scrub)) boxes.add(box.pointer);
+    }
+    for (const wire of canvas.wires) {
+      const present = presence.edges.get(wire.id);
+      if (present !== undefined && !present.has(scrub)) edges.add(wire.id);
+    }
+    for (const [id, terminal] of terminals) {
+      if (terminal.links.every((link) => edges.has(link.at.join('/') === '' ? '' : pointerOf(link.at)))) {
+        boxes.add(id);
+      }
+    }
+    for (const column of columns) {
+      if (canvas.wires.filter((wire) => wire.from === column.id || wire.to === column.id).every((wire) => edges.has(wire.id))) {
+        ghosts.add(column.id);
+      }
+    }
+    return { boxes, edges, ghosts };
+  }, [drill]);
+  const dimmedWires = dimmed.edges;
+
+  /**
+   * What each guard evaluates to where the scrubber stands — S4's `when layer ≥ 1 — false`.
+   *
+   * §4.8 asks the scrubber to "show the guard's evaluation", which D1 cannot say: an absent node
+   * says that a site is not there, never why. The truth is the core's ({@link DrillPresence}), read
+   * at the point the scrubber is on.
+   */
+  const truths = useMemo(() => {
+    const found = new Map<string, boolean | null>();
+    const scrub = drill?.scrub ?? null;
+    if (drill === undefined || scrub === null) return found;
+    for (const [what, values] of drill.model.presence.guards) {
+      found.set(what, values.get(scrub) ?? null);
+    }
+    return found;
+  }, [drill]);
+
   const gestures: GestureContext = { shapes, bindings, role: one.session.store.role };
   const selection = one.selection === undefined ? null : pointerOf(one.selection);
+  /** Every place the rubber band holds — §4.4's Shift+drag, and §4.11's intersection. */
+  const marked = useMemo(
+    () => new Set((one.marked ?? []).map((path) => pointerOf(path))),
+    [one.marked],
+  );
   const announce = (line: string): void => {
     setAnnounced(line);
   };
@@ -319,9 +466,56 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     store.getState().selectPlace(box.path, one.id);
   };
 
-  /** The connection, made whatever the verdict said (Q5). */
-  const connect = (from: FoldedHandle, to: FoldedHandle): void => {
-    const applied = store.getState().edit((edit) => connectHandles(edit, from, to), one.id);
+  /**
+   * The guard "Connect from previous iteration…" proposes — §4.8's "a proposal the user confirms".
+   *
+   * The edge is made first, because Q5 says a gesture is never held back by what the core will
+   * say about it; the guard is the *fact of its own* the model guide asks the author to state, so
+   * it is offered beside the edge with the one action that writes it. Refusing it leaves a
+   * document the validator refuses at the first iteration, which is what the Problems panel is
+   * for — and the row says so in the core's own words.
+   */
+  const proposeCarryGuard = (
+    from: FoldedHandle,
+    to: FoldedHandle,
+    context: DrillContext,
+    index: string,
+  ): void => {
+    const rule = [...scopedValuesOf(context.composition), `${to.name}.${to.port}`] as Path;
+    store.getState().setToast({
+      text: textWith(
+        'Connected {} from the previous iteration. It fires at every index; the guard states where it may.',
+        `${from.name}.${from.port}`,
+      ),
+      action: textWith('Add guard {}', `${index} >= 1`),
+      run: () => {
+        const applied = store.getState().edit((edit) => proposeGuard(edit, rule, index), one.id);
+        store.getState().setToast(null);
+        if (applied !== null) announce(applied.label);
+      },
+    });
+  };
+
+  /**
+   * The connection, made whatever the verdict said (Q5).
+   *
+   * §4.7's own table: "the new binding is named `<to>.<port>` (uniquified), **or is a scoped rule
+   * in a drill-in**". Inside a composition both ends are its sites, so the rule is written in the
+   * composition's own `bindings/values` with site endpoints — and `carry` is §4.8's
+   * "Connect from previous iteration…", which is the same rule with the override on its source
+   * and the guard proposed after it.
+   */
+  const connect = (from: FoldedHandle, to: FoldedHandle, carry?: string): void => {
+    const applied = store.getState().edit((edit) => {
+      if (drill === undefined) return connectHandles(edit, from, to);
+      const ends = {
+        composition: drill.composition,
+        from: { site: from.name, port: from.port },
+        to: { site: to.name, port: to.port },
+      };
+      if (carry === undefined) return connectScoped(edit, ends);
+      return connectFromPreviousIteration(edit, { ...ends, index: carry });
+    }, one.id);
     if (applied === null) return;
     if (applied.replaced !== undefined) {
       const gone = pointerOf(applied.replaced);
@@ -334,6 +528,10 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
         },
       });
     }
+    // The carry's **proposal** is the last word, because it is the one thing left to decide: the
+    // replacement is already made and `Edit ▸ Undo` takes the whole gesture back either way (the
+    // connection and its replacement are one command, D13).
+    if (carry !== undefined && drill !== undefined) proposeCarryGuard(from, to, drill, carry);
     announce(applied.label);
   };
 
@@ -479,7 +677,7 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
       // A connection runs from a producer to a consumer, and a drag that starts on an input is
       // §4.7's "drag from an input handle to empty space" — the library picker of feature 3.1.
       if (side !== 'outputs') return;
-      const at = placement.boxes.get(box.pointer);
+      const at = placed.boxes.get(box.pointer);
       setFlight({
         from: handle,
         port: attribute,
@@ -497,8 +695,9 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     if (flight.port === attribute) return;
     if (side !== 'inputs') return;
     const from = flight.from;
+    const carry = flight.carry;
     setFlight(null);
-    connect(from, handle);
+    connect(from, handle, carry);
   };
 
   /** What the core says about the candidate the pointer is over — shown *during* the drag (§4.7). */
@@ -527,12 +726,20 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     const at = pointOf(event.clientX, event.clientY, surface.current, viewport);
     let added: string | null = null;
     const applied = store.getState().edit((edit) => {
-      const command = addInstance(edit, { primitive: carried.primitive, version: carried.version });
+      // §4.7's own table: the drop "adds an instance (root canvas) or a site (drill-in)".
+      const command =
+        drill === undefined
+          ? addInstance(edit, { primitive: carried.primitive, version: carried.version })
+          : addSite(edit, {
+              composition: drill.composition,
+              primitive: carried.primitive,
+              version: carried.version,
+            });
       added = command.name;
       return command;
     }, one.id);
     if (applied === null || added === null) return;
-    const path = ['instances', added] as Path;
+    const path = (drill === undefined ? ['instances', added] : [...sitesOf(drill.composition), added]) as Path;
     // Where it was dropped is where it goes: a manual place, which is D6's own override.
     store.getState().moveBox(path, { x: Math.round(at.x), y: Math.round(at.y) }, one.id);
     store.getState().selectPlace(path, one.id);
@@ -563,6 +770,31 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
   const run = (entry: MenuEntry, box: CanvasBox): void => {
     setMenu(null);
     select(box);
+    if (entry.id === 'canvas.drill-in') {
+      drillInto(box);
+      return;
+    }
+    if (entry.id === 'canvas.add-to-composition') {
+      // §4.7 writes the entry with an ellipsis: what it asks is *which* composition, and the
+      // answer is the document's own list (`compositionEntries`).
+      setChoosing({ box, x: menu?.x ?? 0, y: menu?.y ?? 0 });
+      return;
+    }
+    if (entry.id.startsWith('canvas.add-to-composition:')) {
+      moveInto(entry.id.slice('canvas.add-to-composition:'.length), [box]);
+      return;
+    }
+    if (entry.id === 'canvas.extract-to-composition') {
+      moveInto(null, selectedBoxes(box));
+      return;
+    }
+    if (entry.id === 'canvas.duplicate-complementary') {
+      const applied = store
+        .getState()
+        .edit((edit) => duplicateWithComplementaryGuard(edit, box.path), one.id);
+      if (applied !== null) announce(applied.label);
+      return;
+    }
     if (entry.id === 'canvas.open-sheet') {
       shell.getState().revealPanel('panel.properties');
       return;
@@ -595,6 +827,94 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
   };
 
   /**
+   * §4.4's `Ctrl+Enter`: "drills into a composition or template" — §4.8's own tab.
+   *
+   * The tab is the store's (one per drill-in, §4.2), and what is handed over is the composition's
+   * *name*, which is the map key the document writes and what a tab is named after.
+   */
+  const drillInto = (box: CanvasBox): void => {
+    if (box.role !== ROLE.group) return;
+    const name = box.path[box.path.length - 1];
+    if (typeof name !== 'string') return;
+    store.getState().drillInto(name, one.id);
+  };
+
+  /**
+   * §4.20's move, in both its forms: into a composition that exists, or into one it creates.
+   *
+   * The reading is the core's and the command is `gestures.ts`'s; what is here is what the
+   * *interface* owes it — the name a created composition is proposed under (§9 Q4's own kind of
+   * convention, changed in the sheet like any other name), the selection it acts on, and the note
+   * a move that could not decide something leaves in the toast.
+   */
+  const moveInto = (composition: string | null, boxes: readonly CanvasBox[]): void => {
+    const instances = boxes
+      .filter((box) => box.role === ROLE.node && box.parent === null)
+      .map((box) => box.name);
+    if (instances.length === 0) return;
+    const taken = new Set(
+      folded.nodes.filter((node) => node.children.length > 0).map((node) => node.name),
+    );
+    let proposed = composition ?? PROPOSED_COMPOSITION;
+    for (let at = 2; composition === null && taken.has(proposed); at += 1) {
+      proposed = `${PROPOSED_COMPOSITION}_${String(at)}`;
+    }
+    let notes: readonly string[] = [];
+    const applied = store.getState().edit((edit) => {
+      const command = moveIntoComposition(edit, {
+        instances,
+        composition: proposed,
+        ...(composition === null ? { index: PROPOSED_INDEX } : {}),
+      });
+      if (command === null) throw new Error('nothing to move');
+      notes = command.notes;
+      return command;
+    }, one.id);
+    if (applied === null) return;
+    announce(applied.label);
+    store.getState().selectPlace(['compositions', proposed] as Path, one.id);
+    for (const note of notes) store.getState().note(note);
+    const first = notes[0];
+    if (first !== undefined) store.getState().setToast({ text: first });
+  };
+
+  /**
+   * What a rubber band selected — §4.4's "Shift+drag rubber-bands", and the multi-selection
+   * §4.11 asks for ("several selected instances show the intersection of their editable rows").
+   *
+   * Every box whose rectangle the band touches, in the drawing's own order; the first of them is
+   * the selection the sheets open on, and the whole set is what the intersection is taken over. A
+   * band that caught nothing clears the selection, which is what dragging over empty ground means.
+   */
+  const markBand = (held: Band): void => {
+    const left = Math.min(held.x, held.toX);
+    const right = Math.max(held.x, held.toX);
+    const top = Math.min(held.y, held.toY);
+    const bottom = Math.max(held.y, held.toY);
+    if (right - left < 3 && bottom - top < 3) {
+      store.getState().selectPlaces([], one.id);
+      return;
+    }
+    const caught = (model?.boxes ?? []).filter((box) => {
+      const at = placed.boxes.get(box.pointer);
+      if (at === undefined) return false;
+      return at.x < right && at.x + at.width > left && at.y < bottom && at.y + at.height > top;
+    });
+    store.getState().selectPlaces(
+      caught.filter((box) => box.path.length > 0).map((box) => box.path),
+      one.id,
+    );
+    announce(textWith('{} selected', String(caught.length)));
+  };
+
+  /** The boxes a gesture on one box acts on: the whole selection where it holds that box. */
+  const selectedBoxes = (box: CanvasBox): CanvasBox[] => {
+    const held = new Set((one.marked ?? []).map((path) => pointerOf(path)));
+    if (!held.has(box.pointer)) return [box];
+    return model?.boxes.filter((each) => held.has(each.pointer)) ?? [box];
+  };
+
+  /**
    * §4.4's canvas shortcuts, the ones this feature owns.
    *
    * > Enter opens the sheet of the selection; Escape clears; arrows nudge; Tab cycles the
@@ -612,7 +932,23 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
       if (flight !== null) setFlight(null);
       else if (tying !== null) setTying(null);
       else if (menu !== null) setMenu(null);
+      else if (choosing !== null) setChoosing(null);
       else store.getState().selectPlace(null, one.id);
+      return;
+    }
+    // §4.4's two shortcuts into and out of a drill-in. They carry a modifier, so they are not the
+    // plain Enter and Arrow a control inside a box answers, and they work wherever the focus is —
+    // which is what makes Ctrl+↑ a way back rather than a thing to aim at.
+    const modified = event.ctrlKey || event.metaKey;
+    if (modified && event.key === 'Enter') {
+      event.preventDefault();
+      const chosenBox = model.boxes.find((box) => box.pointer === (selection ?? ''));
+      if (chosenBox !== undefined) drillInto(chosenBox);
+      return;
+    }
+    if (modified && event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (drill !== undefined) store.getState().select(one.id);
       return;
     }
     // Enter and the arrows belong to whatever has the focus while a control has it: Enter on the
@@ -629,11 +965,11 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     if (!NUDGES.includes(event.key)) return;
     event.preventDefault();
     if (chosen === undefined) {
-      const first = model.boxes.find((box) => placement.boxes.has(box.pointer));
+      const first = model.boxes.find((box) => placed.boxes.has(box.pointer));
       if (first !== undefined) select(first);
       return;
     }
-    const at = placement.boxes.get(chosen.pointer);
+    const at = placed.boxes.get(chosen.pointer);
     if (at === undefined) return;
     const step = event.shiftKey ? 1 : 8;
     const dx = (event.key === 'ArrowRight' ? step : 0) - (event.key === 'ArrowLeft' ? step : 0);
@@ -641,7 +977,7 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     store.getState().moveBox(chosen.path, { x: Math.round(at.x + dx), y: Math.round(at.y + dy) }, one.id);
   };
 
-  const wires = useMemo(() => (model === null ? [] : routes(model, placement)), [model, placement]);
+  const wires = useMemo(() => (model === null ? [] : routes(model, placed)), [model, placed]);
 
   if (model === null) {
     return (
@@ -651,7 +987,7 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     );
   }
 
-  const drawn = model.boxes.filter((box) => placement.boxes.has(box.pointer));
+  const drawn = model.boxes.filter((box) => placed.boxes.has(box.pointer));
 
   return (
     <div
@@ -672,10 +1008,22 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
         // closing it here would close it before the entry's own click could land on it.
         if (target.closest('[data-box]') !== null || target.closest('.ctxmenu') !== null) return;
         setMenu(null);
+        setChoosing(null);
         if (event.button !== 0 && event.button !== 1) return;
+        // §4.4: "Shift+drag rubber-bands". A band selects; a plain drag on the ground pans.
+        if (event.shiftKey && event.button === 0) {
+          const at = pointOf(event.clientX, event.clientY, surface.current, viewport);
+          setBand({ x: at.x, y: at.y, toX: at.x, toY: at.y });
+          return;
+        }
         setPan({ x: event.clientX - viewport.x, y: event.clientY - viewport.y });
       }}
       onPointerMove={(event) => {
+        if (band !== null) {
+          const at = pointOf(event.clientX, event.clientY, surface.current, viewport);
+          setBand({ ...band, toX: at.x, toY: at.y });
+          return;
+        }
         if (pan !== null) {
           setViewport((before) => ({ ...before, x: event.clientX - pan.x, y: event.clientY - pan.y }));
           return;
@@ -709,7 +1057,31 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
       }}
       onPointerUp={(event) => {
         setPan(null);
+        if (band !== null) {
+          const held = band;
+          setBand(null);
+          markBand(held);
+          return;
+        }
         if (move !== null) {
+          // §4.4's Alt+drag: the copy is made where the drag ended, and the original stays.
+          if (move.copy === true) {
+            let added: string | null = null;
+            const applied = store.getState().edit((edit) => {
+              const command = duplicateAt(gestures, edit, move.path);
+              added = command.name;
+              return command;
+            }, one.id);
+            if (applied !== null && added !== null) {
+              const path = [...move.path.slice(0, -1), added] as Path;
+              store.getState().moveBox(path, { x: Math.round(move.x), y: Math.round(move.y) }, one.id);
+              store.getState().selectPlace(path, one.id);
+              consumed.current = true;
+              announce(applied.label);
+            }
+            setMove(null);
+            return;
+          }
           store.getState().moveBox(move.path, { x: Math.round(move.x), y: Math.round(move.y) }, one.id);
           setMove(null);
           return;
@@ -742,8 +1114,9 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
         }
         const to = handleFor(folded, target, port);
         const from = flight.from;
+        const carry = flight.carry;
         setFlight(null);
-        if (to !== null) connect(from, to);
+        if (to !== null) connect(from, to, carry);
       }}
       onWheel={(event) => {
         // §4.4's own: "wheel zooms". The canvas has nothing to scroll — `.canvas` is
@@ -767,16 +1140,87 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
             wires={model.wires}
             routes={wires}
             links={model.links}
-            placement={placement}
+            placement={placed}
+            dimmed={dimmedWires}
+            truths={truths}
             selection={selection}
             flight={flight}
             onSelect={(wire) => {
               store.getState().selectPlace(wire.path, one.id);
             }}
           />
-          {drawn.map((box) => {
-            const at = placement.boxes.get(box.pointer);
+          {drill?.model.ghosts.map((ghost) => {
+            const at = placed.boxes.get(ghost.id);
             if (at === undefined) return null;
+            return (
+              <div
+                key={ghost.id}
+                className={dimmed.ghosts.has(ghost.id) ? 'abs ghostcol dim' : 'abs ghostcol'}
+                style={{ left: `${String(at.x)}px`, top: `${String(at.y)}px`, width: `${String(at.width)}px` }}
+                data-ghost={ghost.id}
+              >
+                <span className="gc-cap">{text('ghost')}</span>
+                <button
+                  type="button"
+                  className="node tiny ghosted"
+                  title={text(
+                    'A copy of the site at another iteration, generated from the rule. Edit the rule to change it.',
+                  )}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    store.getState().selectPlace(pathOfPointer(ghost.site), one.id);
+                  }}
+                >
+                  <span className="n-head">
+                    <b>{ghost.name}</b>
+                    <span className="n-prim">{ghost.label}</span>
+                  </span>
+                  {ghost.primitive === null ? null : <span className="n-args">{ghost.primitive}</span>}
+                </button>
+              </div>
+            );
+          })}
+          {drawn.map((box) => {
+            const at = placed.boxes.get(box.pointer);
+            if (at === undefined) return null;
+            const terminal = drill?.model.terminals.get(box.pointer);
+            if (terminal !== undefined) {
+              return (
+                <div
+                  key={box.pointer}
+                  className="abs"
+                  style={{ left: `${String(at.x)}px`, top: `${String(at.y)}px`, width: `${String(at.width)}px` }}
+                >
+                  <div
+                    className={dimmed.boxes.has(box.pointer) ? 'bterm dim' : 'bterm'}
+                    data-terminal={terminal.id}
+                    ref={(element) => {
+                      if (element === null) elements.current.delete(box.pointer);
+                      else elements.current.set(box.pointer, element);
+                    }}
+                  >
+                    <b>{terminal.label}</b>
+                    <span>
+                      {terminal.links.map((link) => (
+                        <button
+                          key={link.rule}
+                          type="button"
+                          className="bterm-rule"
+                          data-rule={link.rule}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            store.getState().selectPlace(link.at, one.id);
+                            shell.getState().revealPanel('panel.properties');
+                          }}
+                        >
+                          {link.text}
+                        </button>
+                      ))}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
             const dragged = move?.pointer === box.pointer;
             const litPort =
               flight?.over?.startsWith(`${box.pointer}:`) === true
@@ -794,7 +1238,9 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
               >
                 <Box
                   box={box}
-                  selected={box.pointer === selection}
+                  selected={box.pointer === selection || marked.has(box.pointer)}
+                  dimmed={dimmed.boxes.has(box.pointer)}
+                  mini={box.parent !== null}
                   renaming={renaming === box.pointer}
                   litPort={litPort}
                   register={(element) => {
@@ -802,6 +1248,10 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
                     else elements.current.set(box.pointer, element);
                   }}
                   onSelect={() => {
+                    if (consumed.current) {
+                      consumed.current = false;
+                      return;
+                    }
                     select(box);
                   }}
                   onRename={(to) => {
@@ -822,6 +1272,9 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
                     select(box);
                     setMenu({ box, x, y });
                   }}
+                  onOpen={() => {
+                    drillInto(box);
+                  }}
                   onGrab={(event: ReactPointerEvent<HTMLElement>) => {
                     const point = pointOf(event.clientX, event.clientY, surface.current, viewport);
                     setMove({
@@ -831,6 +1284,7 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
                       dy: point.y - at.y,
                       x: at.x,
                       y: at.y,
+                      ...(event.altKey ? { copy: true } : {}),
                     });
                   }}
                   onPort={(port, side, pressed) => {
@@ -873,9 +1327,50 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
           {tying.verdict.ok ? text('No refusal.') : refusalText(tying.verdict)}
         </span>
       )}
+      {band === null ? null : (
+        <div
+          className="band"
+          data-band="true"
+          style={{
+            left: `${String(viewport.x + Math.min(band.x, band.toX) * viewport.zoom)}px`,
+            top: `${String(viewport.y + Math.min(band.y, band.toY) * viewport.zoom)}px`,
+            width: `${String(Math.abs(band.toX - band.x) * viewport.zoom)}px`,
+            height: `${String(Math.abs(band.toY - band.y) * viewport.zoom)}px`,
+          }}
+        />
+      )}
+      {choosing === null ? null : (
+        <div
+          className="ctxmenu"
+          style={{ left: `${String(choosing.x)}px`, top: `${String(choosing.y)}px` }}
+          role="menu"
+        >
+          {compositionEntries(
+            folded.nodes.filter((node) => node.children.length > 0).map((node) => node.name),
+          ).map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="menuitem"
+              data-entry={entry.id}
+              onClick={(event) => {
+                event.stopPropagation();
+                const held = choosing;
+                setChoosing(null);
+                moveInto(entry.label, selectedBoxes(held.box));
+              }}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      )}
       {menu === null ? null : (
         <ContextMenu
           box={menu.box}
+          // A **site** offers the drill-in's own entries wherever it is drawn: in the tab of
+          // §4.8, and inside a composition opened in place on the folded canvas (S3).
+          drill={drill !== undefined || menu.box.parent !== null}
           x={menu.x}
           y={menu.y}
           onRun={(entry) => {
@@ -886,12 +1381,36 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
       {portMenu === null ? null : (
         <PortMenu
           side={portMenu.side}
+          indices={drill === undefined ? [] : drill.model.ranges.map((range) => range.name)}
           x={portMenu.x}
           y={portMenu.y}
-          onRun={() => {
+          onRun={(entry) => {
             const held = portMenu;
             setPortMenu(null);
-            expose(held.box, held.port, held.side);
+            if (!entry.id.startsWith(`${CARRY}:`)) {
+              expose(held.box, held.port, held.side);
+              return;
+            }
+            // §4.8's "Connect from previous iteration…": the same connection, armed with the
+            // override. The author then names the consuming port, which is where the rule's own
+            // name comes from — one gesture, two clicks, as every connection here is.
+            const handle = handleFor(folded, held.box, held.port);
+            const at = placed.boxes.get(held.box.pointer);
+            if (handle === null) return;
+            setFlight({
+              from: handle,
+              port: `${held.box.pointer}:${held.port}`,
+              box: held.box.pointer,
+              x: at === undefined ? 0 : at.x + at.width / 2,
+              y: at === undefined ? 0 : at.y + at.height,
+              pressed: false,
+              over: null,
+              verdict: null,
+              carry: entry.id.slice(CARRY.length + 1),
+            });
+            announce(
+              textWith('Connecting from {} at the previous iteration', `${handle.name}.${handle.port}`),
+            );
           }}
         />
       )}
@@ -904,6 +1423,8 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
 
 /** Which side of the canvas a terminal for a port of each kind sits on (feature 2.9's bindings). */
 const SIDE_OF = { inputs: 'inputs', outputs: 'outputs' } as const;
+
+
 
 /** The keys that nudge the selected box — §4.4's "arrows nudge". */
 const NUDGES: readonly string[] = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'];
@@ -944,6 +1465,53 @@ function refusalText(verdict: CandidateVerdict): string {
   const first = verdict.problems[0];
   return first === undefined ? (verdict.unknown ?? '') : formatSemanticProblem(first);
 }
+
+/**
+ * The placement with the ghost columns beside it — §4.8's "a ghost column on the left".
+ *
+ * A left column needs room that ELK did not leave, so the whole drawing is shifted by its width
+ * and the columns are put in the space that opens; a right column is put past the drawing's own
+ * right edge. Each sits level with the wires that reach it, which is what makes the copy read as
+ * the source of the edge it feeds.
+ */
+export function withGhosts(placement: Placement, ghosts: readonly DrillGhostBox[]): Placement {
+  if (ghosts.length === 0) return placement;
+  const left = ghosts.filter((ghost) => ghost.side === SIDE.left);
+  const width = Math.max(0, ...ghosts.map((ghost) => ghost.width));
+  const shift = left.length === 0 ? 0 : width + GHOST_GAP;
+  const boxes = new Map<string, PlacedBox>();
+  for (const [pointer, box] of placement.boxes) boxes.set(pointer, { ...box, x: box.x + shift });
+  let right = 0;
+  for (const box of boxes.values()) right = Math.max(right, box.x + box.width);
+  for (const ghost of ghosts) {
+    const levels = ghost.targets
+      .map((target) => boxes.get(target))
+      .filter((box): box is PlacedBox => box !== undefined);
+    const top =
+      levels.length === 0
+        ? 0
+        : levels.reduce((total, box) => total + box.y + box.height / 2, 0) / levels.length -
+          ghost.height / 2;
+    boxes.set(ghost.id, {
+      pointer: ghost.id,
+      x: ghost.side === SIDE.left ? 0 : right + GHOST_GAP,
+      y: Math.max(0, Math.round(top)),
+      width: ghost.width,
+      height: ghost.height,
+      manual: false,
+    });
+  }
+  let full = 0;
+  let height = placement.height;
+  for (const box of boxes.values()) {
+    full = Math.max(full, box.x + box.width);
+    height = Math.max(height, box.y + box.height);
+  }
+  return { ...placement, boxes, width: full, height };
+}
+
+/** The room between a ghost column and the drawing beside it. */
+const GHOST_GAP = 44;
 
 /** Which compositions are drawn shut: everything the reader has not opened (§4.7). */
 function collapsedOf(folded: FoldedGraph, expanded: ReadonlySet<string>): Set<string> {
@@ -1054,6 +1622,8 @@ function Wires({
   routes: drawn,
   links,
   placement,
+  dimmed,
+  truths,
   selection,
   flight,
   onSelect,
@@ -1062,6 +1632,10 @@ function Wires({
   routes: readonly WireRoute[];
   links: CanvasModel['links'];
   placement: Placement;
+  /** The wires the scrubber dimmed — §4.8, S4's `.w.dim` and `.elbl.dim`. */
+  dimmed?: ReadonlySet<string>;
+  /** What each guard evaluates to where the scrubber stands — S4's `— false` beside it. */
+  truths?: ReadonlyMap<string, boolean | null>;
   selection: string | null;
   flight: Flight | null;
   onSelect: (wire: CanvasWire) => void;
@@ -1074,7 +1648,12 @@ function Wires({
         {drawn.map((route) => {
           const wire = byId.get(route.id);
           if (wire === undefined) return null;
-          const classes = ['w', wire.interface ? 'iface' : '', wire.id === selection ? 'sel' : '']
+          const classes = [
+            'w',
+            wire.interface ? 'iface' : '',
+            wire.id === selection ? 'sel' : '',
+            dimmed?.has(wire.id) === true ? 'dim' : '',
+          ]
             .filter((one) => one !== '')
             .join(' ');
           return <path key={route.id} className={classes} d={route.d} />;
@@ -1105,7 +1684,7 @@ function Wires({
           <button
             key={`${route.id}:label`}
             type="button"
-            className="elbl"
+            className={dimmed?.has(wire.id) === true ? 'elbl dim' : 'elbl'}
             data-wire={wire.id}
             style={{ left: `${String(route.label.x)}px`, top: `${String(route.label.y)}px` }}
             onClick={(event) => {
@@ -1115,6 +1694,18 @@ function Wires({
           >
             {wire.label}
             {wire.type === null ? null : <span className="wtype">{wire.type}</span>}
+            {wire.guard === null ? null : (
+              <span className="wguard" data-guard={wire.id}>
+                {`⚑ ${wire.guard}`}
+                {truths?.has(wire.id) === true ? (
+                  <b className={truths.get(wire.id) === true ? 'holds' : 'fails'}>
+                    {truths.get(wire.id) === null
+                      ? ` — ${text('unresolved')}`
+                      : ` — ${truths.get(wire.id) === true ? text('true') : text('false')}`}
+                  </b>
+                ) : null}
+              </span>
+            )}
           </button>
         );
       })}
@@ -1140,25 +1731,28 @@ function Wires({
   );
 }
 
-/** §4.15's port menu, at the pointer: the one gesture a port of that side offers. */
+/** §4.15's port menu, at the pointer, with §4.8's carry where the canvas is a drill-in. */
 function PortMenu({
   side,
+  indices,
   x,
   y,
   onRun,
 }: {
   side: string;
+  indices: readonly string[];
   x: number;
   y: number;
   onRun: (entry: MenuEntry) => void;
 }): JSX.Element {
   return (
     <div className="ctxmenu" style={{ left: `${String(x)}px`, top: `${String(y)}px` }} role="menu">
-      {portEntries(side).map((entry) => (
+      {portEntries(side, indices).map((entry) => (
         <button
           key={entry.id}
           type="button"
           role="menuitem"
+          className={entry.separated === true ? 'sep' : ''}
           data-entry={entry.id}
           onClick={(event) => {
             event.stopPropagation();
@@ -1175,18 +1769,21 @@ function PortMenu({
 /** §4.7's context menu, at the pointer. */
 function ContextMenu({
   box,
+  drill,
   x,
   y,
   onRun,
 }: {
   box: CanvasBox;
+  /** Whether the canvas is a drill-in: §4.20's entries stand where §4.7's three do not. */
+  drill: boolean;
   x: number;
   y: number;
   onRun: (entry: MenuEntry) => void;
 }): JSX.Element {
   return (
     <div className="ctxmenu" style={{ left: `${String(x)}px`, top: `${String(y)}px` }} role="menu">
-      {entriesFor(box.role, ROLE).map((entry) => (
+      {(drill ? drillEntriesFor(box.role, ROLE) : entriesFor(box.role, ROLE)).map((entry) => (
         <button
           key={entry.id}
           type="button"

@@ -20,29 +20,52 @@
  * and the second is read from `presentation.json`, never remembered.
  */
 import {
+  complementOf,
+  compositionMove,
+  COMPOSITION_MAP,
   FED_END,
+  GUARD,
   instanceSkeleton,
+  jsonObject,
+  previousIteration,
   PRODUCING_END,
   proposedFamily,
   proposedName,
+  reachedIteration,
   ROOT_INSTANCES,
+  SCOPED_VALUES,
+  scopedEndpoint,
+  SITE_MAP,
   VALUE_BINDINGS,
   valueEndpoint,
+  type DrillIndex,
   type FoldedHandle,
 } from '@tensorspine/lang';
 import type { JsonObject, JsonValue } from '@tensorspine/lang';
 import {
   addToMap,
+  asDraftValue,
   connect,
+  draftAt,
+  EditError,
+  isMutableArray,
+  isMutableObject,
+  lastOf,
+  memberIndex,
   objectAt,
+  objectDraftAt,
   parentOf,
   pointerOf,
   remove,
+  removeMember,
   rename,
+  setMember,
+  setMemberAt,
   unique,
   type Command,
   type EditContext,
   type Path,
+  type PathMove,
   type SchemaShapes,
 } from '@tensorspine/store';
 
@@ -228,4 +251,267 @@ function membersOf(node: JsonObject): Record<string, JsonValue> {
   const values: Record<string, JsonValue> = {};
   for (const member of node.members) values[member.name] = member.value;
   return values;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The drill-in's own gestures — plan §4.8 and §4.20, feature 2.14.
+// ---------------------------------------------------------------------------------------------
+
+/** The place a composition's sites are written at. */
+export function sitesOf(composition: string): Path {
+  return [...COMPOSITION_MAP, composition, ...SITE_MAP] as Path;
+}
+
+/** The place a composition's scoped value rules are written at. */
+export function scopedValuesOf(composition: string): Path {
+  return [...COMPOSITION_MAP, composition, ...SCOPED_VALUES] as Path;
+}
+
+/**
+ * Drop a primitive into a drill-in: §4.7's first gesture, one level down.
+ *
+ * > Drop a primitive from the palette | adds an instance (root canvas) or a **site** (drill-in)
+ *
+ * The same skeleton, the same proposals (§9 Q4); what differs is the map it is written into.
+ */
+export function addSite(
+  edit: EditContext,
+  request: { readonly composition: string; readonly primitive: string; readonly version: string; readonly name?: string },
+): Command & { readonly name: string } {
+  const path = sitesOf(request.composition);
+  const name = unique(request.name ?? proposedName(request.primitive), namesUnder(edit, path));
+  return {
+    ...addToMap(edit, {
+      path,
+      name,
+      values: membersOf(instanceSkeleton(request.primitive, request.version)),
+      label: `Add site ${name}`,
+    }),
+    name,
+  };
+}
+
+/** One end of a scoped connection: a site of the composition, at the current indices unless told. */
+export interface ScopedEnd {
+  readonly site: string;
+  readonly port: string;
+  /** The index overrides — what "Connect from previous iteration…" puts on the producing end. */
+  readonly indices?: readonly DrillIndex[];
+}
+
+/**
+ * Connect two sites inside a composition — §4.7's "or is a scoped rule in a drill-in".
+ *
+ * The rule goes into the composition's own `bindings/values`, which the grammar makes optional: a
+ * composition that has none gains the map with this rule in it, written where the schema puts it.
+ * The endpoints are the core's (`scopedEndpoint`), as every endpoint the canvas writes is.
+ */
+export function connectScoped(
+  edit: EditContext,
+  request: { readonly composition: string; readonly from: ScopedEnd; readonly to: ScopedEnd },
+): Command {
+  const { composition, from, to } = request;
+  const values = {
+    [PRODUCING_END]: scopedEndpoint(from.site, from.port, from.indices ?? []),
+    [FED_END]: scopedEndpoint(to.site, to.port, to.indices ?? []),
+  };
+  const label = `Connect ${from.site}.${from.port} → ${to.site}.${to.port}`;
+  const name = `${to.site}.${to.port}`;
+  const map = scopedValuesOf(composition);
+  if (objectAt(edit.tree, map) !== undefined) {
+    return connect(edit, { path: map, name, values, into: FED_END, label });
+  }
+  // No `bindings` at all, or no `values` in it: the map is created holding this one rule. The
+  // grammar admits a composition with no bindings (`scoped_bindings` is optional), so this is the
+  // first rule of one and not a repair.
+  const bindings = [...COMPOSITION_MAP, composition, SCOPED_VALUES[0] as string] as Path;
+  const rule = jsonObject(
+    Object.entries(values).map(([member, value]) => ({ name: member, value })),
+  );
+  if (objectAt(edit.tree, bindings) === undefined) {
+    return setMemberAt(edit, {
+      path: [...COMPOSITION_MAP, composition] as Path,
+      name: SCOPED_VALUES[0] as string,
+      value: jsonObject([
+        { name: SCOPED_VALUES[1] as string, value: jsonObject([{ name, value: rule }]) },
+      ]),
+      label,
+    });
+  }
+  return setMemberAt(edit, {
+    path: bindings,
+    name: SCOPED_VALUES[1] as string,
+    value: jsonObject([{ name, value: rule }]),
+    label,
+  });
+}
+
+/**
+ * "Connect from previous iteration…" (§4.8): the same connection, with the override on its source.
+ *
+ * > writes the override `{"op": "subtract", "args": [{"index": "layer"}, {"literal": 1}]}` and
+ * > proposes the guard `layer ≥ 1` (a proposal the user confirms — the guard states a fact of its
+ * > own, as the model guide says).
+ *
+ * The override is written here; the guard is *proposed* and written by {@link proposeGuard} when
+ * the author accepts it, which is what "confirms" means.
+ */
+export function connectFromPreviousIteration(
+  edit: EditContext,
+  request: { readonly composition: string; readonly index: string; readonly from: ScopedEnd; readonly to: ScopedEnd },
+): Command {
+  const command = connectScoped(edit, {
+    composition: request.composition,
+    from: {
+      ...request.from,
+      indices: [{ name: request.index, written: previousIteration(request.index) }],
+    },
+    to: request.to,
+  });
+  return {
+    ...command,
+    label: `Connect ${request.from.site}.${request.from.port} from the previous iteration`,
+  };
+}
+
+/** The guard "Connect from previous iteration…" proposes, written when the author accepts it. */
+export function proposeGuard(edit: EditContext, path: Path, index: string): Command {
+  return setMemberAt(edit, {
+    path,
+    name: GUARD,
+    value: reachedIteration(index),
+    label: `Guard ${String(lastOf(path))} with ${index} ≥ 1`,
+  });
+}
+
+/**
+ * "Duplicate with complementary guard" (§4.20, S5): the periodic pattern, in one gesture.
+ *
+ * > Periodic patterns (Gemma 3n's `attn` / `attn_full`, Qwen's `attn` / `gdn`): two sites with
+ * > complementary guards; a site's context menu offers "Duplicate with complementary guard".
+ *
+ * The copy is the duplicate of §4.7 with one member replaced: the guard, negated. It is **not**
+ * the comparison flipped — `not (layer < 10)` and not `layer ≥ 10` — because rewriting a
+ * comparison is a logical transformation the editor would be inventing; the core's
+ * {@link complementOf} says so, and the author edits the condition like any other.
+ */
+export function duplicateWithComplementaryGuard(
+  edit: EditContext,
+  path: Path,
+): Command & { readonly name: string } {
+  const written = objectAt(edit.tree, path);
+  if (written === undefined) throw new EditError(`${pointerOf(path)} is nothing to duplicate`);
+  const guard = written.members.find((one) => one.name === GUARD);
+  if (guard === undefined) {
+    throw new EditError(`${pointerOf(path)} carries no guard to complement`);
+  }
+  const copy = jsonObject(
+    written.members.map((one) =>
+      one.name === GUARD ? { name: one.name, value: complementOf(one.value) } : one,
+    ),
+  );
+  const map = parentOf(path);
+  const step = path[path.length - 1];
+  const name = unique(`${String(step)}_alt`, namesUnder(edit, map));
+  return {
+    ...addToMap(edit, {
+      path: map,
+      name,
+      values: membersOf(copy),
+      label: `Duplicate ${String(step)} with the complementary guard`,
+    }),
+    name,
+  };
+}
+
+/**
+ * "Extract to Composition" and "Add to Composition…" — §4.20's move, as one command (D13).
+ *
+ * The *reading* is the core's ({@link compositionMove}): which rules move inside, which endpoints
+ * are rewritten, what the composition is written as. What is here is the one thing a command owes
+ * the rest of the editor — that all of it is **one** edit, so that one undo puts the document
+ * back, and that the places which moved are declared, so the layout sidecar's keys follow (D6).
+ */
+export function moveIntoComposition(
+  edit: EditContext,
+  request: { readonly instances: readonly string[]; readonly composition: string; readonly index?: string },
+): (Command & { readonly notes: readonly string[] }) | null {
+  const plan = compositionMove(edit.tree, {
+    instances: request.instances,
+    composition: request.composition,
+    ...(request.index === undefined ? {} : { index: request.index }),
+  });
+  if (plan === null) return null;
+  const moves: PathMove[] = plan.moved.map((one) => ({
+    from: [...ROOT_INSTANCES, one.from] as Path,
+    to: [...sitesOf(plan.composition), one.name] as Path,
+  }));
+  const label = plan.created
+    ? `Extract ${String(plan.moved.length)} instances to composition ${plan.composition}`
+    : `Add ${String(plan.moved.length)} instances to composition ${plan.composition}`;
+  return {
+    label,
+    moves,
+    notes: plan.notes,
+    edit(draft) {
+      // The composition first, so that everything below is written into a place that exists.
+      const compositions = objectDraftAt(draft, COMPOSITION_MAP);
+      if (plan.definition !== null) {
+        const order = ['indices', 'families', 'instances'] as const;
+        setMember(
+          compositions,
+          plan.composition,
+          asDraftValue(
+            jsonObject(
+              order.map((name) => ({ name, value: (plan.definition ?? {})[name] as JsonValue })),
+            ),
+          ),
+        );
+      }
+      const sites = objectDraftAt(draft, sitesOf(plan.composition));
+      const roots = objectDraftAt(draft, ROOT_INSTANCES);
+      for (const one of plan.moved) {
+        setMember(sites, one.name, asDraftValue(one.value));
+        removeMember(roots, one.from);
+      }
+      // The rules that move inside leave their maps and are written under the composition's.
+      const composition = objectDraftAt(draft, [...COMPOSITION_MAP, plan.composition] as Path);
+      for (const rule of plan.absorbed) {
+        removeMember(objectDraftAt(draft, rule.from.slice(0, -1)), rule.from[2] as string);
+        if (memberIndex(composition, SCOPED_VALUES[0] as string) < 0) {
+          setMember(composition, SCOPED_VALUES[0] as string, asDraftValue(jsonObject([])));
+        }
+        const bindings = objectDraftAt(
+          draft,
+          [...COMPOSITION_MAP, plan.composition, SCOPED_VALUES[0] as string] as Path,
+        );
+        if (memberIndex(bindings, rule.map) < 0) {
+          setMember(bindings, rule.map, asDraftValue(jsonObject([])));
+        }
+        setMember(
+          objectDraftAt(draft, [
+            ...COMPOSITION_MAP,
+            plan.composition,
+            SCOPED_VALUES[0] as string,
+            rule.map,
+          ] as Path),
+          rule.name,
+          asDraftValue(rule.value),
+        );
+      }
+      // The endpoints that stay outside now name the site at an index.
+      for (const place of plan.rewritten) {
+        const path = place.path;
+        const step = path[path.length - 1];
+        const holder = draftAt(draft, path.slice(0, -1));
+        if (isMutableArray(holder) && typeof step === 'number') {
+          holder[step] = asDraftValue(place.value);
+          continue;
+        }
+        if (isMutableObject(holder) && typeof step === 'string') {
+          setMember(holder, step, asDraftValue(place.value));
+        }
+      }
+    },
+  };
 }

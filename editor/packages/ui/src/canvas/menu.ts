@@ -66,7 +66,7 @@ export function entriesFor(role: string, roles: { node: string; group: string; t
   return CONTEXT_MENU.filter((entry) => {
     if (role === roles.terminal) return TERMINAL_ENTRIES.includes(entry.id);
     if (role === roles.group) return !NODE_ONLY.includes(entry.id);
-    return entry.id !== 'canvas.extract-to-composition';
+    return true;
   });
 }
 
@@ -79,11 +79,20 @@ const TERMINAL_ENTRIES: readonly string[] = [
   'view.json-source',
 ];
 
-/** What only an instance offers: a primitive, a pin, a template. */
+/**
+ * What only an instance offers: a primitive, a pin, and §4.20's two moves.
+ *
+ * `Extract to Composition` "turns selected **roots** into a new composition with a fresh index"
+ * and `Add to Composition…` "moves a root **instance** into a composition as a site" (§4.7,
+ * §4.20), so both are gestures on an instance and neither is one on a composition — a composition
+ * is what they make. Feature 2.9 had the first the other way round, with no test either way;
+ * feature 2.14, which owns the three composition flows, is where it is decided.
+ */
 const NODE_ONLY: readonly string[] = [
   'library.edit-unit',
   'model.upgrade-pins',
   'canvas.add-to-composition',
+  'canvas.extract-to-composition',
 ];
 
 /**
@@ -104,7 +113,82 @@ export const PORT_MENU: readonly (MenuEntry & { readonly side: string })[] = [
   { id: 'model.add-output', label: 'Expose as output…', command: true, side: 'outputs' },
 ];
 
-/** What a port of one side offers. */
-export function portEntries(side: string): MenuEntry[] {
-  return PORT_MENU.filter((entry) => entry.side === side);
+/**
+ * What a port of one side offers, with §4.8's carry where the canvas is a drill-in.
+ *
+ * > Dragging a handle onto a ghost is offered through the context menu "Connect from previous
+ * > iteration…" which writes the override … and proposes the guard.
+ *
+ * A ghost column is generated from a rule and is not a drop target, so the gesture is offered
+ * where the *rule* would start: on the producing port. Choosing it arms the same connection the
+ * drag makes, with the override on its source — and there is one entry **per index**, because a
+ * composition over two indices has two previous iterations and the plan's own sentence names one
+ * (`layer`). With a single index it reads as §4.8 writes it.
+ */
+export function portEntries(side: string, indices: readonly string[] = []): MenuEntry[] {
+  const own = PORT_MENU.filter((entry) => entry.side === side);
+  if (side !== 'outputs' || indices.length === 0) return own;
+  const carry = indices.map((index) => ({
+    id: `${CARRY}:${index}`,
+    label: indices.length === 1 ? 'Connect from previous iteration…' : `Connect from previous ${index}…`,
+    command: false,
+    separated: true as const,
+  }));
+  return [...own, ...carry];
+}
+
+/** The entry "Connect from previous iteration…" carries, with the index it is about after it. */
+export const CARRY = 'canvas.connect-previous';
+
+/**
+ * The entries a **drill-in** offers on a site — §4.8's canvas, one level down.
+ *
+ * Three of §4.7's thirteen have no meaning inside a composition, and their absence is a fact
+ * about where the reader is rather than a refusal (the rule {@link entriesFor} already states):
+ * `Drill In` and `Add to Composition…` are the way *into* one, and `Extract to Composition` turns
+ * root instances into a composition, which a site already is. What is offered instead is §4.20's
+ * own: **Duplicate with complementary guard**, the gesture that writes the second half of a
+ * periodic pattern (`attn` / `attn_full`, `ffn_sparse` / `ffn`).
+ */
+export const DRILL_MENU: readonly MenuEntry[] = [
+  {
+    id: 'canvas.duplicate-complementary',
+    label: 'Duplicate with complementary guard',
+    command: false,
+  },
+];
+
+/** Which entries a box of one role offers inside a drill-in. */
+export function drillEntriesFor(
+  role: string,
+  roles: { node: string; group: string; terminal: string },
+): MenuEntry[] {
+  const entries = entriesFor(role, roles).filter((entry) => !INSIDE_A_COMPOSITION.includes(entry.id));
+  if (role !== roles.node) return entries;
+  const at = entries.findIndex((entry) => entry.id === 'edit.duplicate');
+  const before = entries.slice(0, at + 1);
+  return [...before, ...DRILL_MENU, ...entries.slice(at + 1)];
+}
+
+/** The three entries that are the way into a composition, and so are not offered inside one. */
+const INSIDE_A_COMPOSITION: readonly string[] = [
+  'canvas.drill-in',
+  'canvas.add-to-composition',
+  'canvas.extract-to-composition',
+];
+
+/**
+ * The compositions "Add to Composition…" offers — one entry per composition of the document.
+ *
+ * §4.7 writes the entry with an ellipsis, which is what a gesture that asks something looks like;
+ * what it asks is *which* composition, and the answer is a list of the document's own. A document
+ * with no composition is offered nothing, which is the same rule again: an entry that does not
+ * apply is absent, never a refusal.
+ */
+export function compositionEntries(names: readonly string[]): MenuEntry[] {
+  return names.map((name) => ({
+    id: `canvas.add-to-composition:${name}`,
+    label: name,
+    command: false,
+  }));
 }

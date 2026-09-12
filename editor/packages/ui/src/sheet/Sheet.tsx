@@ -101,6 +101,7 @@ import {
 } from './edits.js';
 import { bindPrivately, tieTo, type HeldMember, type SlotTarget } from './bindings.js';
 import { instanceSheet, type InstanceSheet, type PortRow, type SlotRow, type StateRow } from './instance.js';
+import { multiSheet } from './multi.js';
 import { TokenList } from './Tokens.js';
 import { editsTokens, type TokenOffers } from './tokens.js';
 import { PlaceView, type PlaceFacts } from './Place.js';
@@ -154,6 +155,13 @@ export function SelectionSheet(): JSX.Element {
   const library = useDocuments((state) => state.library);
   const one = open.find((each) => each.id === current);
   const site = one === undefined ? undefined : siteOf(one, one.selection);
+  // §4.11's multi-selection: every marked place that is a site, in the selection's own order.
+  const marked =
+    one === undefined
+      ? []
+      : one.marked
+          .map((path) => siteOf(one, path))
+          .filter((each): each is SiteDescription => each !== undefined);
   const identity =
     site === undefined ? undefined : primitiveId(pyStr(site.primitive), pyStr(site.version));
 
@@ -169,6 +177,9 @@ export function SelectionSheet(): JSX.Element {
   const context = contextFor(registry);
   if (context === null) {
     return <p className="empty-sub">{text('No schemas are loaded, so no form can be generated.')}</p>;
+  }
+  if (marked.length > 1) {
+    return <MultiPanel one={one} sites={marked} context={context} />;
   }
   if (site !== undefined) {
     const artifact = identity === undefined ? undefined : (library.arguments.get(identity) ?? undefined);
@@ -356,6 +367,123 @@ function SitePanel({
       >
         {text('Show in Explorer')}
       </button>
+    </>
+  );
+}
+
+/**
+ * §4.11's sheet of a **multi-selection**: the intersection of the selected sites' editable rows.
+ *
+ * > several selected instances show the intersection of their editable rows (primitive, families,
+ * > a common argument) with "multiple values" where they differ.
+ *
+ * The rows are §4.12's own — the same generated rows, the same widgets, the same modes — because
+ * they *are* the same rows: one per site, matched by argument path (`multi.ts`). An edit made on
+ * one of them is made on every site it stands for, as one command with one undo (`editRows`).
+ *
+ * What is **not** here, and why: the name (every site has its own, and a shared one would be a
+ * rename of several things at once), the ports, the slots and the states (each is about one
+ * instance's bindings and §4.11 lists none of them in the intersection), and the derived rows
+ * (a figure of several sites is a sum nobody asked for — §4.18's panel is where totals live).
+ */
+function MultiPanel({
+  one,
+  sites,
+  context,
+}: {
+  one: OpenDocument;
+  sites: readonly SiteDescription[];
+  context: FormContext;
+}): JSX.Element {
+  const [inapplicable, setInapplicable] = useState(false);
+  const [problemsFirst, setProblemsFirst] = useState(false);
+  const outline = outlineFor(one);
+  const sheets = sites.map((site) => ({
+    site,
+    sheet: argumentSheet({
+      facts: site.arguments.facts,
+      invariants: site.arguments.invariants,
+      tree: one.session.store.tree,
+      role: one.session.store.role,
+      context,
+      shapes: context.shapes,
+      showInapplicable: inapplicable,
+      problemsFirst,
+    }),
+  }));
+  const multi = multiSheet(sheets);
+  return (
+    <>
+      <h2 className="insp-title">{textWith('{} selected', String(multi.count))}</h2>
+      <p className="insp-kind" data-selected={multi.names.join(' ')}>
+        {multi.names.join(', ')}
+      </p>
+      <p className="prim-chip mono" data-multi-primitive={multi.primitive ?? ''}>
+        {multi.primitive === null
+          ? text('multiple values')
+          : `${multi.primitive}@${multi.version ?? text('multiple values')}`}
+      </p>
+      <h3 className="ih">{text('Families')}</h3>
+      <div className="frow" data-member="families">
+        <span className="fk">{text('in common')}</span>
+        <span className="fv">
+          {multi.families.length === 0 ? (
+            <span className="dim">{text('none in common')}</span>
+          ) : (
+            multi.families.map((family) => (
+              <em key={family} className="fchip">
+                {family}
+              </em>
+            ))
+          )}
+          {multi.familiesDiffer ? <span className="dim"> {text('multiple values')}</span> : null}
+        </span>
+      </div>
+      <h2 className="ih">
+        {text('Arguments')}
+        <span className="ihn">
+          {textWith('{} in common', `${String(multi.rows.length)}`)}
+        </span>
+      </h2>
+      {multi.rows.map((row) => (
+        <ArgumentRowView
+          key={row.path}
+          one={one}
+          row={row.row}
+          also={row.also}
+          differs={row.differs}
+          artifact={undefined}
+          outline={outline}
+          context={context}
+        />
+      ))}
+      <div className="arow more">
+        {multi.dropped === 0
+          ? text('every argument is in common')
+          : textWith('{} arguments are not in common', String(multi.dropped))}
+        <button
+          type="button"
+          className="link"
+          data-sheet="inapplicable"
+          aria-pressed={inapplicable}
+          onClick={() => {
+            setInapplicable(!inapplicable);
+          }}
+        >
+          {text('Show inapplicable')}
+        </button>
+        <button
+          type="button"
+          className="link"
+          data-sheet="problems-first"
+          aria-pressed={problemsFirst}
+          onClick={() => {
+            setProblemsFirst(!problemsFirst);
+          }}
+        >
+          {text('Sort problems first')}
+        </button>
+      </div>
     </>
   );
 }
@@ -932,17 +1060,24 @@ function Arguments({
 function ArgumentRowView({
   one,
   row,
+  also,
+  differs,
   artifact,
   outline,
   context,
 }: {
   one: OpenDocument;
   row: ArgumentRow;
+  /** The same row at the other selected sites — §4.11's intersection; empty for one selection. */
+  also?: readonly ArgumentRow[];
+  /** Whether the selected sites write different values here: §4.11's "multiple values". */
+  differs?: boolean;
   artifact: ArgumentSchema | undefined;
   outline: readonly OutlineRow[];
   context: FormContext;
 }): JSX.Element {
   const store = useDocumentsStore();
+  const rows = [row, ...(also ?? [])];
   const [open, setOpen] = useState(false);
   const facts = (artifact?.at(row.path) ?? NO_ARGUMENT_FACTS).facts;
   const shaped = shapedMode(row);
@@ -989,6 +1124,8 @@ function ArgumentRowView({
         <Value
           one={one}
           row={row}
+          also={also ?? []}
+          differs={differs === true}
           facts={facts}
           outline={outline}
           context={context}
@@ -1010,9 +1147,9 @@ function ArgumentRowView({
             title={text('Pin value — write the effective value as a literal')}
             onClick={() => {
               if (row.source === 'default') {
-                edit(store, (made) => pinValue(made, row, facts));
+                editRows(store, rows, (made, each) => pinValue(made, each, facts));
               } else {
-                edit(store, (made) => clearValue(made, row));
+                editRows(store, rows, (made, each) => clearValue(made, each));
               }
             }}
           >
@@ -1035,7 +1172,7 @@ function ArgumentRowView({
             resolve={resolverFor(one)}
             type={row.kind}
             onChange={(next) => {
-              edit(store, (made) => writeValue(made, row, next));
+              editRows(store, rows, (made, each) => writeValue(made, each, next));
             }}
           />
         </div>
@@ -1114,6 +1251,8 @@ function ModeControl({
 function Value({
   one,
   row,
+  also,
+  differs,
   facts,
   outline,
   context,
@@ -1121,15 +1260,40 @@ function Value({
 }: {
   one: OpenDocument;
   row: ArgumentRow;
+  /** The same row at the other selected sites (§4.11); an edit here reaches every one of them. */
+  also: readonly ArgumentRow[];
+  /** Whether those sites write different values: §4.11's "multiple values". */
+  differs: boolean;
   facts: SchemaFacts;
   outline: readonly OutlineRow[];
   context: FormContext;
   onOpen: () => void;
 }): JSX.Element {
   const store = useDocumentsStore();
+  const rows = [row, ...also];
   const literal = literalMode(row.modes);
   const referring = referringModes(row.modes).find((mode) => mode.tag === row.mode);
   const label = textWith('Value of {}', row.path);
+
+  // §4.11's own state: the selected sites do not agree, so the column says so rather than showing
+  // one of them. What the *edit* does is unchanged — a value typed here is written to all of them
+  // — which is why the row stays editable and only the reading of it changes.
+  if (differs) {
+    return (
+      <span className="av" data-value={row.path} data-multiple="true">
+        <button
+          type="button"
+          className="link"
+          aria-label={label}
+          onClick={() => {
+            editRows(store, rows, (made, each) => clearValue(made, each));
+          }}
+        >
+          {text('multiple values')}
+        </button>
+      </span>
+    );
+  }
 
   if (referring !== undefined) {
     const choices = namesFor({
@@ -1151,7 +1315,7 @@ function Value({
           aria-label={label}
           value={held}
           onChange={(event) => {
-            edit(store, (made) => writeMode(made, row, referring, event.target.value));
+            editRows(store, rows, (made, each) => writeMode(made, each, referring, event.target.value));
           }}
         >
           {choices.some((choice) => choice.name === held) ? null : (
@@ -1206,7 +1370,7 @@ function Value({
           aria-label={label}
           value={scalarText(row.value)}
           onChange={(event) => {
-            edit(store, (made) => writeLiteral(made, row, event.target.value, facts));
+            editRows(store, rows, (made, each) => writeLiteral(made, each, event.target.value, facts));
           }}
         >
           {row.value === undefined ? <option value="">{EMPTY}</option> : null}
@@ -1234,7 +1398,7 @@ function Value({
           aria-label={label}
           checked={row.value === true || (row.value === undefined && row.effective === 'True')}
           onChange={(event) => {
-            edit(store, (made) => writeLiteral(made, row, event.target.checked, facts));
+            editRows(store, rows, (made, each) => writeLiteral(made, each, event.target.checked, facts));
           }}
         />
       </span>
@@ -1254,7 +1418,7 @@ function Value({
           onChange={(event) => {
             const held = Number(event.target.value);
             if (event.target.value === '' || Number.isNaN(held)) return;
-            edit(store, (made) => writeLiteral(made, row, held, facts));
+            editRows(store, rows, (made, each) => writeLiteral(made, each, held, facts));
           }}
         />
         {row.unit === undefined ? null : <i className="unit">{row.unit}</i>}
@@ -1271,7 +1435,7 @@ function Value({
         value={scalarText(row.value)}
         placeholder={row.effective ?? ''}
         onChange={(event) => {
-          edit(store, (made) => writeLiteral(made, row, event.target.value, facts));
+          editRows(store, rows, (made, each) => writeLiteral(made, each, event.target.value, facts));
         }}
       />
     </span>
@@ -1791,4 +1955,33 @@ function edit(
       text: error instanceof EditError ? error.message : String(error),
     });
   }
+}
+
+/**
+ * The same edit on **every** selected site — §4.11's intersection sheet, in one command (D13).
+ *
+ * §4.11: "several selected instances show the intersection of their editable rows … with
+ * *multiple values* where they differ". An edit made on such a row is one gesture, so it is one
+ * command with one undo: the row of each site is the same row at its own place (`ArgumentRow.at`),
+ * and each command is computed against the tree as it stands before any of them ran — which is
+ * sound here because the places are disjoint, one per instance.
+ */
+function editRows(
+  store: ReturnType<typeof useDocumentsStore>,
+  rows: readonly ArgumentRow[],
+  make: (context: EditContext, row: ArgumentRow) => Command,
+): void {
+  edit(store, (context) => {
+    const commands = rows.map((row) => make(context, row));
+    const first = commands[0];
+    if (first === undefined) throw new EditError('nothing to edit');
+    if (commands.length === 1) return first;
+    return {
+      label: `${first.label} — ${String(commands.length)} sites`,
+      moves: commands.flatMap((command) => [...command.moves]),
+      edit(draft) {
+        for (const command of commands) command.edit(draft);
+      },
+    };
+  });
 }

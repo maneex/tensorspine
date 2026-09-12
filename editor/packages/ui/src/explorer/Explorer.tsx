@@ -26,6 +26,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent } from 'react';
 
+import { compositionAt, foldedGraph } from '@tensorspine/lang';
 import { EditError, pointerOf, remove, rename, type EditContext, type Path } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
@@ -177,6 +178,27 @@ export function ModelExplorer(): JSX.Element {
     store.getState().togglePlace(row.pointer);
   };
 
+  /**
+   * A double-click on a row: §4.8's drill-in where the row is a composition, the fold elsewhere.
+   *
+   * Feature 2.7 left the double-click toggling every row "(2.14 owns the drill-in tab)"; this is
+   * that hand-over. A composition is the one row of the outline that has a canvas of its own, and
+   * opening the thing you double-click is what the gesture means everywhere else in the editor
+   * (S3's own caption: "double-click, or Ctrl+Enter to drill in").
+   */
+  const openRow = (row: OutlineRow): void => {
+    // Whether the row is a composition is the **core's** answer, not a reading of the path: the
+    // interface names no map of the grammar (§1), and the folded graph already knows which box
+    // holds sites.
+    const tree = one?.session.store.tree;
+    const composition = tree === undefined ? null : compositionAt(foldedGraph(tree), row.pointer);
+    if (composition !== null) {
+      store.getState().drillInto(composition);
+      return;
+    }
+    toggle(row);
+  };
+
   const move = (from: OutlineRow, by: number): void => {
     // The line that says what a row holds is passed over: it is a row of the tree and not a
     // place of the document, so there is nothing to select, rename or delete on it.
@@ -269,7 +291,7 @@ export function ModelExplorer(): JSX.Element {
                   if (row.kind !== 'note' && !editable) select(row);
                 }}
                 onDoubleClick={() => {
-                  toggle(row);
+                  openRow(row);
                 }}
                 onDragStart={(event) => {
                   const held: DeclarationTransfer = {
@@ -317,6 +339,17 @@ export function ModelExplorer(): JSX.Element {
                         className="n-name"
                         data-name={row.pointer}
                         onClick={(event) => {
+                          // The **second** click of a double-click is not the click that renames:
+                          // a double-click opens the row (§4.8's drill-in), and the rename the
+                          // name offers is the *slow* second click. `detail` is the click count,
+                          // which is the one place a browser tells the two apart — and without
+                          // this the row is replaced by its editor before the double-click can be
+                          // dispatched, so the gesture would simply be lost.
+                          if (event.detail >= 2) {
+                            event.stopPropagation();
+                            openRow(row);
+                            return;
+                          }
                           if (!row.named || !chosen) return;
                           event.stopPropagation();
                           setEditing(row.pointer);

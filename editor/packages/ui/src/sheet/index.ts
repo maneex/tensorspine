@@ -47,6 +47,7 @@ export {
   type SlotRow,
   type StateRow,
 } from './instance.js';
+export { multiSheet, type MultiRow, type MultiSheet } from './multi.js';
 export { namesFor, type NameChoice, type NameRequest } from './names.js';
 export {
   addDeclaration,

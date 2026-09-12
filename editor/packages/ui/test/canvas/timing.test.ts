@@ -4,8 +4,18 @@ import { readdirSync, statSync } from 'node:fs';
 
 import type { Lang } from '@tensorspine/lang/api';
 import { createLang } from '@tensorspine/lang/api/engine';
-import { basesOf, foldedGraph, parse, toPython, type PortRef } from '@tensorspine/lang';
+import {
+  basesOf,
+  drillGraph,
+  drillPresence,
+  foldedGraph,
+  parse,
+  toPython,
+  type DrillGraph,
+  type PortRef,
+} from '@tensorspine/lang';
 
+import { drillModel, type DrillModel } from '../../src/canvas/drill.js';
 import { canvasModel, DEFAULT_VIEW } from '../../src/canvas/model.js';
 import { place, routes } from '../../src/canvas/layout.js';
 import { bindings, everyComposition, reading, registry, shapes } from './source.js';
@@ -183,3 +193,62 @@ function baseFiles(base: string): Record<string, string> {
   walk(base.replace(/\/$/, ''));
   return found;
 }
+
+describe('the cost of the drill-in (§4.8)', () => {
+  // The drill-in is built on the same branch a keystroke runs (§5.4's `describe` at once), so its
+  // reading is held to the same budget as the folded canvas's: the model, the presence over D1 and
+  // the placement of the ghost columns, over the three documents the table above measures.
+  for (const name of MODELS) {
+    it(`reads and models ${name}'s first composition inside the keystroke budget`, () => {
+      const read = reading(name);
+      const composition = read.folded.nodes.find((node) => node.children.length > 0);
+      expect(composition, name).toBeDefined();
+      const times: number[] = [];
+      let model: DrillModel | null = null;
+      for (let run = 0; run < 10; run += 1) {
+        const at = performance.now();
+        model = drillModel({
+          tree: read.tree,
+          composition: composition?.name ?? '',
+          folded: foldedGraph(read.tree),
+          facts: read.facts,
+          derived: read.derived,
+          problems: read.problems,
+          registry,
+          shapes,
+          bindings,
+        });
+        times.push(performance.now() - at);
+      }
+      const best = median(times);
+      console.log(
+        `${name} › ${composition?.name ?? ''}: ${String(model?.canvas.boxes.length ?? 0)} boxes, ` +
+          `${String(model?.canvas.wires.length ?? 0)} wires, ${String(model?.ghosts.length ?? 0)} ghosts, ` +
+          `${String(model?.points.length ?? 0)} iterations, ${String(model?.rows.length ?? 0)} strip rows, ` +
+          `median ${best.toFixed(2)} ms (§5.6 gives a keystroke 16)`,
+      );
+      expect(best, name).toBeLessThan(BOUND_MS);
+    });
+  }
+
+  it('costs the presence over D1 what a reading of the expanded graph costs', () => {
+    for (const name of MODELS) {
+      const read = reading(name);
+      const composition = read.folded.nodes.find((node) => node.children.length > 0);
+      const drill = drillGraph(read.tree, { composition: composition?.name ?? '', folded: read.folded });
+      expect(drill, name).not.toBeNull();
+      const times: number[] = [];
+      for (let run = 0; run < 10; run += 1) {
+        const at = performance.now();
+        drillPresence(drill as DrillGraph, read.derived);
+        times.push(performance.now() - at);
+      }
+      const best = median(times);
+      console.log(
+        `${name} › ${composition?.name ?? ''}: presence over ${String(drill?.points.length ?? 0)} ` +
+          `iterations and ${String(drill?.sites.length ?? 0)} sites, median ${best.toFixed(2)} ms`,
+      );
+      expect(best, name).toBeLessThan(BOUND_MS);
+    }
+  });
+});
