@@ -59,6 +59,21 @@ describe('Parameters', () => {
   it('says the primitive declares no constant slot', () => {
     expect(sheet.constants).toEqual([]);
   });
+
+  it('carries what §4.11’s gestures act on: the member’s place, the tie and the location', () => {
+    const q = sheet.parameters.find((row) => row.name === 'q');
+    // Where the member is written in its rule — what "Bind privately" and "Tie to…" remove; the
+    // interface cannot find it, since an endpoint is a selector (feature 2.13).
+    expect(q?.boundAt).toBe(0);
+    // D3's own two facts for the slot: §4.11's "location summary", and whether the identity is a
+    // tie — which is what says "Bind privately" would do anything at all.
+    expect(q?.located).toBe(true);
+    expect(q?.members).toBe(1);
+    // A slot nothing binds has neither, and the row says so rather than guessing.
+    const absent = sheet.parameters.find((row) => !row.present);
+    expect(absent?.boundAt).toBeNull();
+    expect(absent?.located).toBeNull();
+  });
 });
 
 describe('States', () => {
@@ -76,6 +91,12 @@ describe('States', () => {
     expect(kv?.indexedBy).toBe('self');
     expect(kv?.written).toBe(true);
     expect(kv?.identity).toBe('decoder.attn.kv[layer=0]');
+  });
+
+  it('carries the member’s place and how many ports share the identity', () => {
+    const kv = sheet.states.find((row) => row.name === 'kv');
+    expect(kv?.boundAt).toBe(0);
+    expect(kv?.members).toBe(1);
   });
 
   it('shows the payload with each component’s evaluated shape', () => {

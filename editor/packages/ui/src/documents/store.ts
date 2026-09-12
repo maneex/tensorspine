@@ -70,7 +70,14 @@ import {
   type SchemaRegistry,
 } from '@tensorspine/lang';
 import type { Facts, Lang, LibraryHandle, Problem, SchemasHandle } from '@tensorspine/lang/api';
-import type { FoldedHandle, PortRef, Verdict as CandidateVerdict } from '@tensorspine/lang';
+import type {
+  FoldedHandle,
+  IdentityFacts,
+  MemberCandidate,
+  PortRef,
+  SiteDescription,
+  Verdict as CandidateVerdict,
+} from '@tensorspine/lang';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import { outlineOf, revealing } from '../explorer/outline.js';
@@ -339,6 +346,29 @@ export interface Documents extends DocumentsState {
    * first answer and not a refusal.
    */
   checkEdge(from: PortRef, to: PortRef, id?: string): Promise<CandidateVerdict | null>;
+  /**
+   * The verdict on one slot **joining** an identity — §4.7's chip-onto-chip, §4.11's two menus.
+   *
+   * The same reading `checkEdge` takes, on the other candidate of §5.3: V1 and V7 about the slot
+   * itself, then V15 for a parameter identity or V9 for a state one. Never a veto (Q5): the
+   * gesture is made whatever it says, and the refusal lands in Problems on the next validation.
+   */
+  checkMember(candidate: MemberCandidate, id?: string): Promise<CandidateVerdict | null>;
+  /**
+   * The compatibility lists of one site — the one call that asks `describe` for them.
+   *
+   * Feature 2.10 measured why the pipeline does not (48.0 ms against 4.5 on `deepseek-v4-pro`)
+   * and left the menus of §4.11 to ask for their one site. The answer is the whole
+   * {@link SiteDescription}, with `tiesWith` and `sharesWith` filled.
+   */
+  partnersOf(where: string, id?: string): Promise<SiteDescription | null>;
+  /**
+   * What §4.14's sheet shows about one identity: its members, its dtypes, its location's facts.
+   *
+   * Asked per revision by the sheet that has an identity selected; answered off the reading the
+   * worker already holds for that revision (§5.4), so it costs a projection and not an analysis.
+   */
+  identityFacts(rule: string, state: boolean, id?: string): Promise<IdentityFacts | null>;
   /**
    * `Model ▸ Lint` (§4.4): the advisories, over the workspace's own model documents.
    *
@@ -1505,6 +1535,62 @@ export function createDocuments(options: DocumentsOptions): {
           // A document nothing has described yet has no analysis to read the candidate against,
           // and a drag is not the place to report that: the drop happens anyway (Q5) and the
           // validation that follows it says whatever there is to say.
+          return null;
+        }
+      },
+
+      async checkMember(
+        candidate: MemberCandidate,
+        id?: string,
+      ): Promise<CandidateVerdict | null> {
+        const one = current(id);
+        if (one === undefined) return null;
+        try {
+          return await lang.check(one.path, { member: candidate });
+        } catch {
+          // The same answer a drag before the first description gets: nothing decidable yet, and
+          // the gesture happens anyway.
+          return null;
+        }
+      },
+
+      async partnersOf(where: string, id?: string): Promise<SiteDescription | null> {
+        const one = current(id);
+        const handle = get().library.handle;
+        if (one === undefined || handle === null) return null;
+        try {
+          const facts = await lang.describe(one.session.store.tree, one.path, {
+            library: handle,
+            revision: one.session.store.revision,
+            only: [where],
+            compatibility: true,
+          });
+          return facts.sites.get(where) ?? null;
+        } catch {
+          return null;
+        }
+      },
+
+      async identityFacts(
+        rule: string,
+        state: boolean,
+        id?: string,
+      ): Promise<IdentityFacts | null> {
+        const one = current(id);
+        const handle = get().library.handle;
+        if (one === undefined || handle === null) return null;
+        try {
+          const facts = await lang.describe(one.session.store.tree, one.path, {
+            library: handle,
+            revision: one.session.store.revision,
+            // No site at all: what is wanted is the identity, and the sites are what the pipeline
+            // already answered for this very revision.
+            only: [],
+            compatibility: false,
+            identity: { rule, state },
+          });
+          return facts.identity ?? null;
+        } catch {
           return null;
         }
       },

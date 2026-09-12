@@ -79,6 +79,16 @@ export interface IdentityMember {
   readonly site: SiteKey;
   /** The parameter slot or the state port. */
   readonly name: PyValue;
+  /**
+   * Its position in the binding's **written** member list, where it came from one.
+   *
+   * The tools read the list and keep the values; a gesture that takes a slot out of an identity
+   * has to name the item it removes, and the position is the only thing that does — an endpoint is
+   * a selector, and reading one back in the interface is the second implementation §1 forbids.
+   * Kept here for the same reason `TensorInstance.env` is (feature 1.6d). Absent for a member the
+   * validator makes up rather than reads: the port a V20 check names when nothing bound it.
+   */
+  readonly at?: number;
 }
 
 /** One parameter identity instance — one per rule per index environment, for D3. */

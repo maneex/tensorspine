@@ -201,8 +201,24 @@ describe('`argument_value`: a union of a union, and the source modes of §4.12',
     expect(mode('{"op": "negate", "args": [{"literal": 1}]}')).toBe('expression');
     expect(mode('{"op": "add", "args": [{"literal": 1}, {"quantity": "d"}]}')).toBe('expression');
     expect(mode('{"record": {}}')).toBe('record');
-    // Nothing accepts it: a state the row shows and never refuses (Q5).
-    expect(mode('{"quantity": 4}')).toBeUndefined();
+    // Nothing is written: no mode at all, which is what an absent value is.
+    expect(formOf(context(), { anchor }).rows[0]?.mode).toBeUndefined();
+  });
+
+  it('shows the mode a refused value resembles, so the rows that repair it are drawn', () => {
+    // Feature 2.13's own defect, found by its own case: a chooser writes the **blank** of the
+    // alternative it is set to, and a blank identifier is no `stack` to Ajv — so a form that drew
+    // only what Ajv accepts would hide the very rows that repair what it had just written.
+    //
+    // Which alternative a value *is* stays Ajv's answer (the three operation forms above); which
+    // alternative's rows are *drawn* is that answer, or — where there is none — the alternative
+    // whose discriminating keys the value carries, with the grammar's refusal on the row that
+    // breaks it (§4.17, and Q5: nothing is refused, everything is reported).
+    const form = formOf(context(), { anchor, value: parse('{"quantity": 4}') });
+    expect(form.rows[0]?.mode).toBe('quantity');
+    expect(form.rows[0]?.written).toBe(4);
+    // And a value that resembles nothing at all still has no mode.
+    expect(formOf(context(), { anchor, value: parse('{"nothing": 1}') }).rows[0]?.mode).toBeUndefined();
   });
 
   it('recurses through a record, one level of indent per level of the value', () => {

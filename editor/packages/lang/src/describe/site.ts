@@ -94,6 +94,14 @@ export interface SlotDescription {
   readonly shape: DescribedShape | null;
   /** The binding that bound this slot, or `null` when nothing did (V7's unbound chip). */
   readonly boundBy: string | null;
+  /**
+   * Where the member is written in that binding's list, or `null` where nothing bound the slot.
+   *
+   * What a gesture that takes the slot out of its identity removes (§4.11's "Bind privately",
+   * "Tie to…"). The interface cannot find it — an endpoint is a selector — so it travels with the
+   * slot, as `IdentityMember.at` does.
+   */
+  readonly boundAt: number | null;
   /** The identity instance the slot is a member of: `wq[layer=3]`, or `null` while it is unbound. */
   readonly identity: string | null;
   /**
@@ -158,6 +166,8 @@ export interface StateDescription {
   /** Whether the primitive's own carrying condition holds for these arguments (§5.3, V16). */
   readonly carriedAcross: boolean;
   readonly boundBy: string | null;
+  /** Where the member is written in that binding's list; `null` while nothing bound the port. */
+  readonly boundAt: number | null;
   readonly identity: string | null;
   /** The state identity instances this port may share (V9): "compatible partners for sharing". */
   readonly sharesWith: readonly CompatibleIdentity[];
@@ -285,6 +295,7 @@ export function describeSite(analysis: Analysis, site: ResolvedSite): SiteDescri
             : null,
           shape: here ? describeShape(storageShape(slot), args) : null,
           boundBy: bound === null ? null : bound.rule,
+          boundAt: bound?.at ?? null,
           identity: null,
           tiesWith: [],
           declared: slot,
@@ -339,6 +350,7 @@ export function describeSite(analysis: Analysis, site: ResolvedSite): SiteDescri
         carriedAcross:
           truthy(carried) && truthy(primitiveCondition(demand(carried, 'when'), args)),
         boundBy: bound === null ? null : bound.rule,
+        boundAt: bound?.at ?? null,
         identity: null,
         sharesWith: [],
         declared: port,

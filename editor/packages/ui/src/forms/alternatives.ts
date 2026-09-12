@@ -34,6 +34,7 @@
  */
 import {
   alternativeLabel,
+  isJsonObject,
   mergeFacts,
   type JsonValue,
   type SchemaRegistry,
@@ -164,6 +165,37 @@ function factsOfMember(
 /** A scalar as a label prints it. */
 function printed(value: VocabularyValue): string {
   return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/**
+ * The alternative a value **resembles**, by the keys it carries — the reading a repair needs.
+ *
+ * {@link chosenOf} is the grammar's verdict and stays it; this is the answer to a different
+ * question: *which alternative's rows does a form draw* when the value matches none. A value
+ * being edited is between two states — a `stack` whose `axis` is still empty is no `stack` to
+ * Ajv — and a form that drew nothing there would be a form that could not repair what it had just
+ * written itself (the chooser writes the blank of the alternative, and a blank identifier is not
+ * one). So the rows shown are the alternative whose discriminating `const` the value carries, or
+ * whose required keys it all carries; Ajv's refusal is on the row that breaks it.
+ *
+ * `undefined` where nothing is written or nothing resembles, which is the honest empty answer.
+ */
+export function resembling(
+  alternation: Alternation,
+  value: JsonValue | undefined,
+): Alternative | undefined {
+  if (value === undefined || !isJsonObject(value)) return undefined;
+  const names = new Set(value.members.map((member) => member.name));
+  if (alternation.discriminator !== null) {
+    const written = value.members.find((member) => member.name === alternation.discriminator)?.value;
+    if (typeof written === 'string') {
+      const found = alternation.alternatives.find((one) => one.label === written);
+      if (found !== undefined) return found;
+    }
+  }
+  return alternation.alternatives.find(
+    (one) => one.tags.length > 0 && one.tags.every((tag) => names.has(tag)),
+  );
 }
 
 /**

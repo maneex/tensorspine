@@ -26,6 +26,9 @@
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/physical_name": {
     "widget": "token-list"
   },
+  "https://tensorspine.dev/schema/2.0/model.json#/$defs/instance_definition/properties/weights_location_prefix": {
+    "widget": "token-list"
+  },
   "https://tensorspine.dev/schema/2.0/model.json#/$defs/primitive_reference/properties/version": {
     "picker": "primitive-versions"
   },

@@ -206,3 +206,10 @@
 
 /* The strip of canvas controls the tab bar carries (S1's `.tabs-right`). */
 .canvas-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* The tie in flight (§4.7's chip onto chip, feature 2.13): the chip the pointer
+   is over lights as a handle does, and the core's verdict stands where the
+   connection's ghost stands — one wording for both gestures. */
+.slot.lit { outline: 1px solid var(--accent); }
+.canvas-note.tieverdict { left: 18px; top: 34px; right: auto; color: var(--bad); }
+.canvas-note.tieverdict.ok { color: var(--good); }

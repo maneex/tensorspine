@@ -62,6 +62,21 @@ export interface SlotRow {
   readonly identity: string | null;
   /** The binding rule that bound it, as the normalised document names it. */
   readonly boundBy: string | null;
+  /** Where the member is written in that rule's list: what a gesture that moves the slot removes. */
+  readonly boundAt: number | null;
+  /**
+   * Whether a physical tensor names it — S2's located tick, and §4.11's "location summary".
+   *
+   * D3's own `located`, taken from the row of this slot; `null` while nothing has been derived.
+   */
+  readonly located: boolean | null;
+  /**
+   * How many slots the identity holds — D3's own count; `null` while nothing has been derived.
+   *
+   * What tells a private identity from a tie, which is what says whether "Bind privately" has
+   * anything to do: a slot that is already alone in its identity is already bound privately.
+   */
+  readonly members: number | null;
   /** The declared multiplicity, evaluated; `null` where the slot declares none. */
   readonly multiplicity: string | null;
   /** How many identities the slot may join, when the description carries the list (feature 2.13). */
@@ -90,6 +105,10 @@ export interface StateRow {
   readonly carried: boolean;
   readonly identity: string | null;
   readonly boundBy: string | null;
+  /** Where the member is written in that rule's list; `null` while nothing bound the port. */
+  readonly boundAt: number | null;
+  /** How many ports share the identity — D4's own count; `null` before a derivation. */
+  readonly members: number | null;
   readonly partners: number;
 }
 
@@ -138,9 +157,9 @@ export function instanceSheet(site: SiteDescription, derived: SiteDerived): Inst
     version: pyStr(site.version),
     inputs: site.inputs.map(portRow),
     outputs: site.outputs.map(portRow),
-    parameters: site.parameters.map(slotRow),
-    constants: site.constants.map(slotRow),
-    states: site.states.map(stateRow),
+    parameters: site.parameters.map((slot) => slotRow(slot, derived)),
+    constants: site.constants.map((slot) => slotRow(slot, derived)),
+    states: site.states.map((state) => stateRow(state, derived)),
     partitions: site.partitions.map((one) => ({
       target: targetText(one.target),
       communication: one.communication.map((each) => pyStr(each)),
@@ -197,7 +216,10 @@ function portRow(port: PortDescription): PortRow {
   };
 }
 
-function slotRow(slot: SlotDescription): SlotRow {
+function slotRow(slot: SlotDescription, derived: SiteDerived): SlotRow {
+  // D3's row for this slot, where the document has been derived: its `located` is §4.11's
+  // "location summary", and no component decides what located means.
+  const tensor = derived.tensors.find((row) => row.slot === slot.name);
   return {
     name: slot.name,
     kind: slot.kind,
@@ -206,12 +228,16 @@ function slotRow(slot: SlotDescription): SlotRow {
     shape: shapeLine(slot.shape),
     identity: slot.identity,
     boundBy: slot.boundBy,
+    boundAt: slot.boundAt,
+    located: tensor === undefined ? null : tensor.located,
+    members: tensor === undefined ? null : tensor.members,
     multiplicity: slot.multiplicity === null ? null : pyStr(slot.multiplicity),
     partners: slot.tiesWith.length,
   };
 }
 
-function stateRow(state: StateDescription): StateRow {
+function stateRow(state: StateDescription, derived: SiteDerived): StateRow {
+  const row = derived.states.find((each) => each.port === state.name);
   return {
     name: state.name,
     present: state.present,
@@ -227,6 +253,8 @@ function stateRow(state: StateDescription): StateRow {
     carried: state.carriedAcross,
     identity: state.identity,
     boundBy: state.boundBy,
+    boundAt: state.boundAt,
+    members: row === undefined ? null : row.members,
     partners: state.sharesWith.length,
   };
 }

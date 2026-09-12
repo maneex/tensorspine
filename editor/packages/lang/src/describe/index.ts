@@ -39,6 +39,7 @@ import { analyse, whereOfSite, type Analysis } from '../validate/index.js';
 
 import { attachCompatibility } from './compatibility.js';
 import { checkCandidate, type Candidate, type Verdict } from './check.js';
+import { identityFacts, type IdentityFacts, type IdentityRequest } from './identity.js';
 import { describeSite, type Mutable, type SiteDescription } from './site.js';
 
 export type { DescribedAxis, DescribedShape } from './shape.js';
@@ -72,6 +73,25 @@ export {
   identityReadings,
   type IdentityReading,
 } from './identities.js';
+export {
+  identityFacts,
+  identityMember,
+  identitySymbol,
+  locationAxisPlaces,
+  prefixTokens,
+  LOCATION,
+  MEMBERS,
+  PARAMETER_BINDINGS,
+  STATE_BINDINGS,
+  STATE_SYMBOL,
+  TENSOR_SYMBOL,
+  type IdentityFacts,
+  type IdentityInstance,
+  type IdentityMemberFacts,
+  type IdentityRequest,
+  type SlicedName,
+  type TokenNames,
+} from './identity.js';
 export {
   FACE_MEMBERS,
   FED_END,
@@ -178,6 +198,14 @@ export interface DescribeOptions {
    * instances, every card and every row shows it, and it is filled either way.
    */
   readonly compatibility?: boolean;
+  /**
+   * Answer {@link Description.identity} for one binding rule as well — §4.14's own sheet.
+   *
+   * The location editor, the member rows and the dtype set are about *one identity*, and a
+   * description is about sites: this is the same call asking the second question, over the very
+   * analysis the first was answered from (§5.4's one reading per revision).
+   */
+  readonly identity?: IdentityRequest;
 }
 
 /** Everything the interface asks of one document (plan §5.3, `describe`). */
@@ -193,6 +221,8 @@ export interface Description {
   readonly analysis: Analysis | null;
   /** One entry per resolved site, keyed as the analysis keys its own maps (`keyOf`). */
   readonly sites: ReadonlyMap<string, SiteDescription>;
+  /** What §4.14's sheet asks about one identity, where the caller named one. */
+  readonly identity?: IdentityFacts | null;
 }
 
 /**
@@ -210,7 +240,15 @@ export function describe(tree: JsonValue, options: DescribeOptions): Description
   const analysis = analyse(toPython(tree), options.library, {
     ...(options.assignment === undefined ? {} : { assignment: options.assignment }),
   });
-  return { conforms: true, structural, analysis, sites: describedSites(analysis, options) };
+  return {
+    conforms: true,
+    structural,
+    analysis,
+    sites: describedSites(analysis, options),
+    ...(options.identity === undefined
+      ? {}
+      : { identity: identityFacts(analysis, options.library, options.identity) }),
+  };
 }
 
 /** What narrows a description: the sites, the folding, and the compatibility lists. */

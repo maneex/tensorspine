@@ -116,7 +116,12 @@ function outline(name: string): readonly OutlineRow[] {
 
 describe('every declaration of the corpus gets a sheet', () => {
   for (const name of [LLAMA, 'qwen3.5-4b-text', 'gemma3n-kvshare']) {
-    it(`generates one for every place ${name} declares`, () => {
+    // A sheet per declaration, and `gemma3n-kvshare` declares the most: 1.65 s on an idle box,
+    // against Vitest's default five-second timeout. The unit layer runs a hundred-odd files at
+    // once, where that default is a **load** guard and not a claim of this test's — which is
+    // that every place gets a form with rows (feature 2.13 saw it time out at 5.4 s under the
+    // full run, and every assertion below is untouched).
+    it(`generates one for every place ${name} declares`, { timeout: 30_000 }, () => {
       const rows = outline(name).filter((row) => row.kind === 'entry' || row.kind === 'document');
       expect(rows.length).toBeGreaterThan(10);
       for (const row of rows) {

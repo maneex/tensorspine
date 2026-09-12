@@ -23,6 +23,7 @@ export interface StrippedDescribeOptions extends StrippedOptions {
   readonly only?: readonly string[];
   readonly folded?: boolean;
   readonly compatibility?: boolean;
+  readonly identity?: DescribeOptions['identity'];
 }
 
 /** The options as the session takes them. */
@@ -43,5 +44,6 @@ export function strippedDescribe(options: DescribeOptions): StrippedDescribeOpti
     ...(options.only === undefined ? {} : { only: options.only }),
     ...(options.folded === undefined ? {} : { folded: options.folded }),
     ...(options.compatibility === undefined ? {} : { compatibility: options.compatibility }),
+    ...(options.identity === undefined ? {} : { identity: options.identity }),
   };
 }

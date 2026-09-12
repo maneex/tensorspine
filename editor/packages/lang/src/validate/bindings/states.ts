@@ -190,9 +190,13 @@ export function checkStates(bindings: Bindings): void {
       values = null;
     }
     for (const env of bindings.loopEnvs(binding, rule, at)) {
-      const members: IdentityMember[] = listOf(demand(binding, 'members')).map((member) => ({
+      // The position travels with the member (`IdentityMember.at`): the tools read the list and
+      // keep the values, and a gesture that takes a slot out of an identity has to name the item
+      // it removes. Named `position` here because `at` is already this block's path.
+      const members: IdentityMember[] = listOf(demand(binding, 'members')).map((member, position) => ({
         site: bindings.select(demand(member, 'instance'), env),
         name: demand(member, 'state'),
+        at: position,
       }));
       if (members.some((member) => stage.absent.has(keyOf(member.site)))) continue; // §5.2 rule 3
       stateIdentities += 1;

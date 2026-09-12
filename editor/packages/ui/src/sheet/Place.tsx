@@ -18,15 +18,17 @@
 import { useEffect, useState, type JSX } from 'react';
 
 import {
+  locationAxisPlaces,
   pyStr,
   type DerivedStreamRow,
   type DerivedValueRow,
   type FoldedGraph,
+  type IdentityFacts,
   type IdentityReading,
   type PyValue,
   type QuantityReading,
 } from '@tensorspine/lang';
-import { EditError, pointerOf, type Path } from '@tensorspine/store';
+import { EditError, nodeAt, pointerOf, type Path } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
 import { sizeText } from '../documents/figures.js';
@@ -36,6 +38,7 @@ import type { OutlineRow } from '../explorer/outline.js';
 import { CHOOSER, editsOneValue, type FormContext, type FormRow } from '../forms/index.js';
 import { text, textWith } from '../shell/strings.js';
 import { referentNames } from './add.js';
+import { locationPreview, type LocationPreview } from './location.js';
 import { placeSheet, shapeAt, type PlaceSheet, type PlaceTable, type TableRow } from './places.js';
 import { FormRows, ModeSelect, NameRow, ScalarField } from './Rows.js';
 
@@ -105,6 +108,15 @@ export function PlaceView(props: PlaceProps): JSX.Element {
 
   // What a member that refers to a declaration offers, read once per tree (feature 2.2's rules).
   const offers = referentNames(context, one.session.store.tree, one.session.store.role);
+  // And what §4.14 asks the core for about the identity written here: its members, the dtypes V14
+  // admits, the axes a location may name and what its names evaluate to.
+  const identity = useIdentityFacts(one, sheet.identity?.reading ?? null);
+  // Where the location names an axis of the slot's shape: the core's walk over the **tree** the
+  // sheet holds, so the places follow a form the author has just chosen even while the grammar
+  // refuses what it wrote (a blank axis is no identifier). The *names* those places offer are the
+  // slot's, from the last analysis there was.
+  const axisPlaces =
+    sheet.identity === null ? [] : locationAxisPlaces(nodeAt(one.session.store.tree, path) ?? null);
   const title = sheet.name === '' ? one.title : sheet.name;
   return (
     <>
@@ -135,17 +147,79 @@ export function PlaceView(props: PlaceProps): JSX.Element {
           form={sheet.form}
           context={context}
           names={props.names(path)}
-          picks={(row) => offers(lastStep(row))}
+          // An axis of a location is picked from the slot's own stored shape, at the places the
+          // core says name one (`axisPlaces`) — never at a row the interface recognised by name.
+          picks={(row) =>
+            identity.facts !== null && axisPlaces.includes(row.path)
+              ? identity.facts.axes
+              : offers(lastStep(row))
+          }
+          tokens={identity.facts?.tokens ?? []}
         />
       )}
       <Libraries sheet={sheet} />
       <Resolved sheet={sheet} />
       <UsedBy sheet={sheet} />
+      <IdentityFactsRows sheet={sheet} identity={identity} />
       <IdentityRows sheet={sheet} />
       <ValueRows sheet={sheet} />
       <Held sheet={sheet} />
     </>
   );
+}
+
+/** What the core answered about the identity a place declares, and whether it is still fresh. */
+export interface HeldIdentity {
+  readonly facts: IdentityFacts | null;
+  /** Whether the answer was computed for the revision the document now holds (§5.4's `stale`). */
+  readonly fresh: boolean;
+}
+
+/**
+ * The core's facts for the identity a place declares, asked once per revision.
+ *
+ * §5.4 puts `describe` on the branch that runs at once and feature 2.10 measured why the
+ * compatibility lists are not on it; this is the same arrangement one question along — the sheet
+ * that *has an identity open* asks for that identity, off the reading the worker already holds
+ * for the revision, and shows the previous answer dimmed until the new one lands.
+ */
+function useIdentityFacts(one: OpenDocument, reading: IdentityReading | null): HeldIdentity {
+  const store = useDocumentsStore();
+  const [held, setHeld] = useState<{ rule: string; revision: number; facts: IdentityFacts | null }>({
+    rule: '',
+    revision: -1,
+    facts: null,
+  });
+  const revision = one.session.store.revision;
+  const rule = reading?.rule ?? '';
+  const state = reading?.state ?? false;
+  useEffect(() => {
+    if (rule === '') {
+      setHeld({ rule: '', revision, facts: null });
+      return;
+    }
+    let live = true;
+    void store
+      .getState()
+      .identityFacts(rule, state, one.id)
+      .then((facts) => {
+        if (!live) return;
+        // A document *between two keystrokes* is off the grammar — a blank axis is no identifier —
+        // and the core answers nothing about it, rightly. What the sheet shows then is the last
+        // answer, **dimmed**: §5.4's own arrangement for a figure computed for an older revision,
+        // and the axes a picker offers are the slot's, which no edit of the location changes.
+        setHeld((before) =>
+          facts === null && before.rule === rule && before.facts !== null
+            ? { ...before, revision: -1 }
+            : { rule, revision, facts },
+        );
+      });
+    return (): void => {
+      live = false;
+    };
+  }, [store, one.id, rule, state, revision]);
+  if (held.rule !== rule) return { facts: null, fresh: rule === '' };
+  return { facts: held.facts, fresh: held.revision === revision };
 }
 
 /** The member a row is: the last step of its place, which is what a reference rule names. */
@@ -437,6 +511,115 @@ function UsedBy({ sheet }: { sheet: PlaceSheet }): JSX.Element | null {
         </div>
       ))}
     </>
+  );
+}
+
+/**
+ * What the core says about the identity written here — §4.14's own sections.
+ *
+ * Three things, each a fact no schema and no component can state: the **members** as the sites
+ * they resolve to, the **dtypes** V14 admits for every member's role, and the **evaluated names**
+ * the location produces, instance by instance (S8's `.evald` block). The form above edits the
+ * document; this says what the document then means.
+ *
+ * The dtype row is a *statement*, not a limit: the select in the form is the schema's own
+ * enumeration, because Q5 forbids the editor to refuse a gesture for a semantic reason and a
+ * document may already carry a dtype outside the set. V14's line is what says so, in Problems.
+ */
+function IdentityFactsRows({
+  sheet,
+  identity,
+}: {
+  sheet: PlaceSheet;
+  identity: HeldIdentity;
+}): JSX.Element | null {
+  if (sheet.identity === null) return null;
+  const facts = identity.facts;
+  if (facts === null) return null;
+  const preview = locationPreview(facts);
+  return (
+    <>
+      <h3 className="ih">
+        {text('Members')}
+        <span className="ihn">{String(facts.members.length)}</span>
+      </h3>
+      {facts.members.map((member) => (
+        <div className="frow" key={`${member.where}.${member.slot}`}>
+          <span className="fk mono">{member.slot}</span>
+          <span className="fv mono" data-member-site={`${member.where}.${member.slot}`}>
+            {member.where}
+            {member.present ? '' : ` · ${text('absent under these arguments')}`}
+          </span>
+        </div>
+      ))}
+      {facts.dtypes.length === 0 ? null : (
+        <>
+          <h3 className="ih">{text('Precision')}</h3>
+          <div className="frow">
+            <span className="fk">{text('roles admit')}</span>
+            <span className="fv mono" data-admissible={facts.rule}>
+              {facts.dtypes.join(', ')}
+            </span>
+          </div>
+        </>
+      )}
+      {facts.state ? null : (
+        <>
+          <h3 className="ih">
+            {text('Location')}
+            <span className="ihn">
+              {textWith('{} located', `${String(preview.located)} / ${String(preview.instances)}`)}
+            </span>
+          </h3>
+          {facts.axes.length === 0 ? null : (
+            <div className="frow">
+              <span className="fk">{text('axes')}</span>
+              <span className="fv mono" data-axes={facts.rule}>
+                {facts.axes.join(', ')}
+              </span>
+            </div>
+          )}
+          <Preview preview={preview} fresh={identity.fresh} rule={facts.rule} />
+        </>
+      )}
+    </>
+  );
+}
+
+/** S8's evaluated preview: the head, what is not drawn, and the last. */
+function Preview({
+  preview,
+  fresh,
+  rule,
+}: {
+  preview: LocationPreview;
+  fresh: boolean;
+  rule: string;
+}): JSX.Element {
+  if (preview.instances === 0 || preview.located === 0) {
+    return (
+      <div className="evald" data-preview={rule}>
+        <span className="dim">{text('This identity has no location.')}</span>
+      </div>
+    );
+  }
+  return (
+    <div className={fresh ? 'evald' : 'evald stale'} data-preview={rule}>
+      {preview.lines.map((line, at) => (
+        <div key={line.identity}>
+          {at === 2 && preview.more > 0 ? (
+            <div className="more" data-preview-more={rule}>
+              {textWith('… {} more', String(preview.more))}
+            </div>
+          ) : null}
+          <span className="ix">{line.indices === '' ? line.identity : line.indices}</span>{' '}
+          <span className="nm" data-preview-name={line.identity}>
+            {[...line.names, ...line.slices].join(' · ')}
+            {line.moreNames === 0 ? '' : ` · ${textWith('{} more', String(line.moreNames))}`}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -206,3 +206,71 @@ table.t .ctl { height: 20px; max-width: 112px; }
   margin-left: 6px; padding: 0 6px; border: 1px solid var(--chip); border-radius: 999px;
   font-family: var(--sans); font-size: 9.5px; font-style: normal; color: var(--ink-3);
 }
+
+/* ── the physical-name tokens and the evaluated preview (feature 2.13, §4.14,
+   artboard S8) ───────────────────────────────────────────────────────────────
+   The design's own `.toks`, `.tok` (`.lit`, `.idx`, `.coord`, `.add`) and
+   `.evald` (`plans/graph-editor-design/_ts.css`), with two departures and
+   their reasons:
+
+     1. **an artboard is a picture and this is a program.** A chip on S8 is a
+        span; here it is a `select` for the form, an `input` for the text and a
+        `×` for the removal, all three reachable from the keyboard (§4.4's rule
+        that no edit is reachable only by a pointer). So the chip is a flex row
+        of controls sized down to the board's own 11 px, and its colour stays
+        the board's.
+
+     2. **§4.21 asks for "contrast ≥ 4.5:1 for text"**, and feature 2.5
+        measured where the design's dim inks do not reach it. The board's
+        `.tok.add` is `--faint`, which carries rules and never text, so it
+        steps to `--ink-3`; the three chip colours are `--ink-2`, `--struct`
+        and `--derived` on their own grounds, which `contrast.test.ts` holds
+        to 4.5:1 in both themes.                                              */
+
+.toks {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex: 1; min-width: 0;
+  padding: 5px 6px; background: var(--bg-raised); border: 1px solid var(--rule-2);
+  border-radius: var(--r);
+}
+.tok {
+  display: inline-flex; align-items: center; gap: 3px; padding: 1px 4px; border-radius: 2px;
+  font-family: var(--mono); font-size: 11px;
+}
+.tok .ctl { height: 19px; font-size: 10.5px; padding: 0 4px; }
+.tok .ctl.sel { max-width: 92px; }
+.tok input.ctl { max-width: 168px; min-width: 56px; }
+.tok .tbtn { padding: 0 2px; line-height: 1; }
+.tok.lit { background: var(--bg-tint); color: var(--ink-2); }
+.tok.idx { background: var(--struct-bg); border: 1px solid var(--struct-bd); color: var(--struct); }
+.tok.coord { background: var(--derived-bg); border: 1px solid var(--struct-bd); color: var(--derived); }
+.tok.add {
+  padding: 2px 7px; border: 1px dashed var(--chip); background: transparent; color: var(--ink-3);
+  cursor: pointer; font-family: var(--mono); font-size: 10.5px;
+}
+.tok.add:hover { color: var(--accent); border-color: var(--accent); }
+
+.evald {
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.7; color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.evald.stale { opacity: 0.65; }
+.evald .ix { color: var(--ink-2); }
+.evald .nm { color: var(--ink-2); }
+.evald .more { color: var(--ink-3); font-style: italic; }
+.evald .dim { color: var(--ink-3); font-style: italic; }
+
+/* The gestures beside a slot row (§4.11's "Bind privately", "Tie to…",
+   "Edit location…") and the list of identities one of them opens. `.rowact`
+   is the design's own row action; `.fit` marks the identities the core's
+   compatibility list names, so the mark is a fact and not a filter. */
+.slotacts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.slotacts .rowact { font-size: 10.5px; }
+.tielist {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%;
+  padding: 4px 0 2px 10px; border-left: 1px solid var(--rule);
+}
+.tielist .rowact { font-family: var(--mono); }
+.tielist .rowact.fit { color: var(--accent); }
+.tielist .rowact.fit::before { content: '✓ '; }
+.tielist .rowact:disabled { color: var(--ink-3); cursor: default; }
+.tielist .dim { color: var(--ink-3); font-style: italic; font-size: 10.5px; }

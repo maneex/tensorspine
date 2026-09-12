@@ -17,9 +17,12 @@ But some things a schema cannot say, and they still have to be said somewhere:
 * that an `instance_definition` is drawn as a **node** and a `composition_definition` as a
   **group**, that a `value_binding` is an **edge** labelled by the name of the map member it is
   written under, that a `public_input` is a terminal on the **left**;
-* that a `physical_name` gets a token editor, a `scalar_expression` an expression tree, a unit's
-  `shape` the axis-row editor, a state port's `rules` an ordered list where dragging a row is a
-  real edit;
+* that a `physical_name` gets a token editor — and that an instance's `weights_location_prefix`,
+  which the grammar writes as an array of that definition's *items* rather than as the definition
+  itself, is the same one (the editor plan's §4.14: "a `weights_location_prefix` on a template
+  instance is the same token editor") — that a `scalar_expression` gets an expression tree, a
+  unit's `shape` the axis-row editor, a state port's `rules` an ordered list where dragging a row
+  is a real edit;
 * that `add` prints as `+` between its arguments and `absolute` as `abs(…)` around its own;
 * that a `bytes` of a derived product is shown in B/KiB/MiB/GiB, with the exact number in the
   tooltip;

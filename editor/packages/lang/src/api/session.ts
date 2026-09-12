@@ -33,7 +33,9 @@ import { expand as expandOf } from '../d1/expand.js';
 import {
   checkCandidate,
   describeAnalysis,
+  identityFacts,
   type Candidate,
+  type IdentityRequest,
   type SiteDescription,
   type Verdict as CandidateVerdict,
 } from '../describe/index.js';
@@ -131,6 +133,8 @@ export interface DescribeArguments extends DocumentOptions {
   readonly folded?: boolean | undefined;
   /** Whether to fill the compatibility lists (`DescribeOptions.compatibility`); default true. */
   readonly compatibility?: boolean | undefined;
+  /** The identity §4.14's sheet is open on (`DescribeOptions.identity`). */
+  readonly identity?: IdentityRequest | undefined;
 }
 
 /** {@link DocumentOptions} with the set the lint stage reads (feature 1.10: the answer is the set's). */
@@ -525,7 +529,16 @@ export class LangSession {
     });
     const sites = new Map<string, SiteDescription>();
     for (const site of description.sites.values()) sites.set(site.where, site);
-    return { conforms: true, structural: [], sites };
+    return {
+      conforms: true,
+      structural: [],
+      sites,
+      // The second question of one reading (§4.14): the identity the sheet has open, answered
+      // from the analysis the sites were described from.
+      ...(options.identity === undefined
+        ? {}
+        : { identity: identityFacts(analysis, held.library, options.identity) }),
+    };
   }
 
   /**

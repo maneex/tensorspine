@@ -32,6 +32,7 @@ import {
   setMemberAt,
   setValue,
   type Command,
+  type Path,
   type EditContext,
 } from '@tensorspine/store';
 
@@ -182,3 +183,26 @@ function scalarOf(
 
 /** How the core prints a truth — Python's own word, which `pyStr` writes. */
 const TRUE = 'True';
+
+/**
+ * Write a value at a place the document may not yet have a member for (§5.5's "appended").
+ *
+ * Every widget that owns a whole subtree writes through it — the rows of a generated form, the
+ * expression editor, the physical-name tokens — because the two cases a place can be in are the
+ * store's two commands and neither caller should have to know which it is looking at.
+ */
+export function writeMember(
+  context: EditContext,
+  at: Path,
+  value: JsonValue,
+  label: string,
+): Command {
+  if (nodeAt(context.tree, at) !== undefined) return setValue(context, { path: at, value, label });
+  const name = at[at.length - 1];
+  return setMemberAt(context, {
+    path: at.slice(0, -1),
+    name: typeof name === 'string' ? name : String(name ?? ''),
+    value,
+    label,
+  });
+}

@@ -158,6 +158,9 @@ export function referentNames(
 /** The reference kind that is a map's own name rather than a name written under a member. */
 const KEY = 'key';
 
+/** What a map with no word of its own calls one of its members — the table's own label. */
+const ENTRY = 'entry';
+
 /** What an addition is asked for. */
 export interface AddRequest {
   readonly context: FormContext;
@@ -186,12 +189,18 @@ export function addDeclaration(
 ): Command & { readonly name: string } {
   const { context, path } = request;
   const declares = declaresAt(context, path, request.role);
+  // A map `presentation.json` gives no word to is still a map a sheet can add to — the binding
+  // rules are the case, and §4.14 asks for exactly that ("identities are created from slot chips
+  // **or the Identities list**"). The table already calls such an entry an `entry`; the name
+  // proposed is the same word, so that the new member has a name the grammar admits rather than
+  // the empty one, which `propertyNames` refuses and nobody meant.
+  const word = declares === '' ? ENTRY : declares;
   const shape = shapeAt(context.shapes, path, request.role);
   // The value shape of a map is the shape of any of its entries: the walker steps into it by a
   // name, and which name it is does not change the definition.
-  const entry = context.shapes.step(shape, request.name ?? declares);
+  const entry = context.shapes.step(shape, request.name ?? word);
   const blank = blankValue(context, entry);
-  const name = unique(request.name ?? declares, namesUnder(edit, path));
+  const name = unique(request.name ?? word, namesUnder(edit, path));
   const values: Record<string, JsonValue> = {};
   if (blank !== null && typeof blank === 'object' && 'members' in blank) {
     for (const member of (blank).members) values[member.name] = member.value;
@@ -202,7 +211,7 @@ export function addDeclaration(
       path,
       name,
       values,
-      label: request.label ?? `Add ${declares} ${name}`,
+      label: request.label ?? `Add ${declares === '' ? name : `${declares} ${name}`}`,
     }),
     name,
   };

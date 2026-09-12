@@ -32,10 +32,13 @@ import {
 import {
   foldedGraph,
   formatSemanticProblem,
+  identityReadings,
   literalIndex,
   rootSite,
+  toPython,
   type FoldedGraph,
   type FoldedHandle,
+  type IdentityReading,
   type PortRef,
   type Verdict as CandidateVerdict,
 } from '@tensorspine/lang';
@@ -44,6 +47,7 @@ import { pointerOf, type Path } from '@tensorspine/store';
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
 import type { OpenDocument } from '../documents/store.js';
 import { presentation } from '../presentation/index.js';
+import { bindPrivately, tieTo, type HeldMember, type SlotTarget } from '../sheet/bindings.js';
 import { useShell, useShellStore } from '../shell/context.js';
 import { text, textWith } from '../shell/strings.js';
 
@@ -58,7 +62,15 @@ import {
 } from './gestures.js';
 import { fit, NO_PLACEMENT, place, routes, type Placement, type WireRoute } from './layout.js';
 import { entriesFor, portEntries, type MenuEntry } from './menu.js';
-import { canvasModel, ROLE, SIDE, type CanvasBox, type CanvasModel, type CanvasWire } from './model.js';
+import {
+  canvasModel,
+  ROLE,
+  SIDE,
+  type CanvasBox,
+  type CanvasModel,
+  type CanvasSlot,
+  type CanvasWire,
+} from './model.js';
 
 /** What a palette drag carries onto the canvas — §4.7's "Drop a primitive from the palette". */
 export const PRIMITIVE_TRANSFER = 'application/x-tensorspine-primitive';
@@ -97,6 +109,48 @@ interface Flight {
   /** The `data-port` of the handle the pointer is over. */
   readonly over: string | null;
   readonly verdict: CandidateVerdict | null;
+}
+
+/**
+ * A tie in flight: a slot chip pressed, and the chip the pointer is over.
+ *
+ * The same state machine as a connection (§4.7's two shapes of one gesture): a press arms it and a
+ * release over another chip makes it, or a click arms it and a second click makes it — which is
+ * the keyboard's form. A release over the chip it started on is the *click*, and the chip's own
+ * gesture (select the identity) is what happens instead.
+ */
+interface Tie {
+  /** The chip it started on, as `data-slot` writes it — which is all {@link slotAt} needs. */
+  readonly chip: string;
+  /** Whether a pointer is down: a click-armed tie waits for a second click. */
+  readonly pressed: boolean;
+  /** The chip the pointer is over, or `null`. */
+  readonly over: string | null;
+  /** What the core says about the candidate, shown during the drag (§4.7). */
+  readonly verdict: CandidateVerdict | null;
+}
+
+/** What a chip stands for: the slot, where its member is written, and the rule that holds it. */
+interface TiedSlot {
+  readonly target: SlotTarget;
+  readonly held: HeldMember | null;
+  /** The place the rule is written at, or `null` where nothing binds the slot (V7's chip). */
+  readonly rule: Path | null;
+}
+
+/**
+ * The identities a document declares, or none where the reading refuses it.
+ *
+ * `identityReadings` normalises the document to read §5.2 rule 7's names, and `normalise` refuses
+ * a document being edited between two keystrokes (a duplicate rule name) — the canvas draws
+ * either way, as feature 2.9's folded reading does.
+ */
+function readIdentities(tree: Parameters<typeof foldedGraph>[0]): readonly IdentityReading[] {
+  try {
+    return identityReadings(toPython(tree));
+  } catch {
+    return [];
+  }
 }
 
 /** A box being moved: which, and where it is now. */
@@ -142,6 +196,8 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
   );
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [flight, setFlight] = useState<Flight | null>(null);
+  /** §4.7's other drag: a slot chip onto another slot chip, which ties or shares (2.13). */
+  const [tying, setTying] = useState<Tie | null>(null);
   const [move, setMove] = useState<Move | null>(null);
   const [pan, setPan] = useState<{ x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -279,6 +335,131 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
       });
     }
     announce(applied.label);
+  };
+
+  /** The identities the document declares, read once per revision (§5.2 rule 7's own names). */
+  const identities = useMemo(
+    () => readIdentities(one.session.store.tree),
+    [one.id, one.session.store.revision],
+  );
+
+  /**
+   * The slot a chip stands for: the site the card is drawn over, and where its member is written.
+   *
+   * Everything in it is the core's — the site is the representative iteration `describe(folded)`
+   * answered, the rule and the position are what bound the slot (`boundBy`, `boundAt`), and the
+   * place the rule is written at is the reading of §5.2 rule 7. The canvas reads none of it.
+   */
+  const slotAt = (chip: string): TiedSlot | null => {
+    const [pointer, slot] = splitPort(chip);
+    const node = folded.byPointer.get(pointer);
+    const described = node?.where === null || node?.where === undefined
+      ? undefined
+      : one.reading.facts?.sites.get(node.where);
+    if (node?.site === undefined || node.site === null || described === undefined) return null;
+    const state = described.states.find((each) => each.name === slot);
+    const parameter = described.parameters.find((each) => each.name === slot);
+    const bound = state ?? parameter;
+    if (bound === undefined) return null;
+    const rule = bound.boundBy;
+    const reading = rule === null ? undefined : identities.find((each) => each.rule === rule);
+    return {
+      target: { site: node.site, slot, state: state !== undefined },
+      held:
+        rule === null || reading === undefined
+          ? null
+          : { rule: pathOfPointer(reading.pointer), at: bound.boundAt },
+      rule: reading === undefined ? null : pathOfPointer(reading.pointer),
+    };
+  };
+
+  /** The tie, made whatever the verdict said (Q5) — "creates or extends the identity" (§4.7). */
+  const tie = (from: string, onto: string): void => {
+    const source = slotAt(from);
+    const target = slotAt(onto);
+    if (source === null || target === null) return;
+    // Asked before the gesture is made, for the reason §4.7 gives the drag its verdict at all:
+    // `check` reads the analysis the session holds, and after the edit that analysis is of a
+    // document already carrying the member.
+    const asked = store.getState().checkMember(
+      {
+        kind: source.target.state ? 'state' : 'parameter',
+        slot: { site: source.target.site, name: source.target.slot },
+        into: { slot: { site: target.target.site, name: target.target.slot } },
+      },
+      one.id,
+    );
+    const applied = store.getState().edit((edit) => {
+      // The chip dropped on carries the identity: its rule takes the member. Where it carries
+      // none — a document already refused by V7 — the identity is created holding both.
+      if (target.rule !== null) {
+        return tieTo(edit, { target: source.target, held: source.held, into: target.rule });
+      }
+      return bindPrivately(edit, {
+        target: target.target,
+        held: target.held,
+        joining: { target: source.target, held: source.held },
+      });
+    }, one.id);
+    if (applied === null) return;
+    announce(applied.label);
+    void asked.then((verdict) => {
+      const first = verdict?.problems[0];
+      if (first !== undefined) {
+        store.getState().setToast({ text: `[${first.code}] ${first.message}` });
+      }
+    });
+  };
+
+  /**
+   * Press or click on a slot chip: the tie of §4.7, and the chip's own gesture.
+   *
+   * A press arms the tie; a release or a click over **another** chip makes it; a click on the chip
+   * it started on is the chip's own gesture — the identity is selected and the sheet opens, which
+   * is what §4.7 gives a click on a chip.
+   */
+  const onSlot = (box: CanvasBox, slot: CanvasSlot, pressed: boolean): void => {
+    const chip = `${box.pointer}:${slot.name}`;
+    if (tying === null) {
+      setTying({ chip, pressed, over: null, verdict: null });
+      announce(textWith('Tying from {}', `${box.name}.${slot.name}`));
+      return;
+    }
+    if (tying.chip === chip) {
+      // The click that follows the press that armed this tie: the same gesture, and the chip's own
+      // when nothing else happened.
+      if (pressed) return;
+      setTying(null);
+      select(box);
+      shell.getState().revealPanel('panel.properties');
+      announce(textWith('Editing {}', `${slot.name} of ${box.name}`));
+      return;
+    }
+    if (pressed) return;
+    const from = tying.chip;
+    setTying(null);
+    tie(from, chip);
+  };
+
+  /** What the core says about the tie the pointer is over — shown *during* the drag (§4.7). */
+  const askTie = (from: string, over: string | null): void => {
+    if (over === null) return;
+    const source = slotAt(from);
+    const target = slotAt(over);
+    if (source === null || target === null) return;
+    void store
+      .getState()
+      .checkMember(
+        {
+          kind: source.target.state ? 'state' : 'parameter',
+          slot: { site: source.target.site, name: source.target.slot },
+          into: { slot: { site: target.target.site, name: target.target.slot } },
+        },
+        one.id,
+      )
+      .then((verdict) => {
+        setTying((before) => (before === null || before.over !== over ? before : { ...before, verdict }));
+      });
   };
 
   /**
@@ -429,6 +610,7 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
     if (model === null) return;
     if (event.key === 'Escape') {
       if (flight !== null) setFlight(null);
+      else if (tying !== null) setTying(null);
       else if (menu !== null) setMenu(null);
       else store.getState().selectPlace(null, one.id);
       return;
@@ -503,6 +685,18 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
           setMove({ ...move, x: at.x - move.dx, y: at.y - move.dy });
           return;
         }
+        if (tying !== null && tying.pressed) {
+          const overChip = slotUnder(event.clientX, event.clientY);
+          setTying((before) =>
+            before === null || before.over === overChip
+              ? before
+              : { ...before, over: overChip, verdict: null },
+          );
+          if (overChip !== null && overChip !== tying.over && overChip !== tying.chip) {
+            askTie(tying.chip, overChip);
+          }
+          return;
+        }
         if (flight === null) return;
         const at = pointOf(event.clientX, event.clientY, surface.current, viewport);
         const over = portUnder(event.clientX, event.clientY);
@@ -518,6 +712,20 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
         if (move !== null) {
           store.getState().moveBox(move.path, { x: Math.round(move.x), y: Math.round(move.y) }, one.id);
           setMove(null);
+          return;
+        }
+        if (tying !== null && tying.pressed) {
+          const onto = slotUnder(event.clientX, event.clientY);
+          if (onto === null || onto === tying.chip) {
+            // A release over nothing, or back on the chip it started on, leaves the tie **armed**:
+            // the click that follows is the second half of the gesture, exactly as a connection's
+            // is, and the chip's own click is what a release on itself becomes.
+            setTying((before) => (before === null ? null : { ...before, pressed: false }));
+            return;
+          }
+          const from = tying.chip;
+          setTying(null);
+          tie(from, onto);
           return;
         }
         if (flight === null || !flight.pressed) return;
@@ -642,6 +850,10 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
                     shell.getState().revealPanel('panel.properties');
                     announce(textWith('Editing {}', `${what} of ${box.name}`));
                   }}
+                  onSlot={(slot, pressed) => {
+                    onSlot(box, slot, pressed);
+                  }}
+                  litSlot={tying?.over ?? null}
                   onHandle={(site) => {
                     store.getState().revealPlace(pathOfPointer(site), one.id);
                   }}
@@ -652,6 +864,15 @@ export function Canvas({ one }: { one: OpenDocument }): JSX.Element {
         </div>
       </div>
       {flight === null ? null : <FlightNote flight={flight} surface={surface.current} viewport={viewport} />}
+      {tying === null || tying.verdict === null ? null : (
+        <span
+          className={tying.verdict.ok ? 'canvas-note tieverdict ok' : 'canvas-note tieverdict'}
+          data-tie-verdict={tying.verdict.ok ? 'ok' : 'bad'}
+          role="status"
+        >
+          {tying.verdict.ok ? text('No refusal.') : refusalText(tying.verdict)}
+        </span>
+      )}
       {menu === null ? null : (
         <ContextMenu
           box={menu.box}
@@ -767,6 +988,13 @@ function portUnder(clientX: number, clientY: number): string | null {
   const element = document.elementFromPoint(clientX, clientY);
   const handle = element === null ? null : (element as HTMLElement).closest('[data-port]');
   return handle === null ? null : handle.getAttribute('data-port');
+}
+
+/** The slot chip under the pointer, by its `data-slot` — §4.7's chip-onto-chip gesture. */
+function slotUnder(clientX: number, clientY: number): string | null {
+  const element = document.elementFromPoint(clientX, clientY);
+  const chip = element === null ? null : (element as HTMLElement).closest('[data-slot]');
+  return chip === null ? null : chip.getAttribute('data-slot');
 }
 
 /** Which side the handle under the pointer is. */

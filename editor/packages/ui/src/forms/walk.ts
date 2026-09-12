@@ -46,7 +46,13 @@ import { pointerOf, SchemaShapes, type Shape } from '@tensorspine/store';
 
 import { boundAlong, presentation } from '../presentation/load.js';
 import type { Binding, Presentation } from '../presentation/types.js';
-import { alternationAt, chosenOf, type Alternation, type Alternative } from './alternatives.js';
+import {
+  alternationAt,
+  chosenOf,
+  resembling,
+  type Alternation,
+  type Alternative,
+} from './alternatives.js';
 import type {
   Form,
   FormBounds,
@@ -274,6 +280,13 @@ class Walk {
     const widget = binding?.widget ?? widgetOf(facts, alternation !== undefined);
     const chosen =
       alternation === undefined ? null : chosenOf(this.context.registry, alternation, visit.value);
+    // Which alternative a value **is** is Ajv's answer; which alternative's rows a form *draws*
+    // is that answer where there is one, and the alternative the value resembles where there is
+    // none. A chooser writes the blank of the alternative it was set to, and a blank identifier
+    // is no `stack` to Ajv: without this, choosing a form would hide the very rows that repair it.
+    const drawn =
+      chosen?.alternative ??
+      (alternation === undefined ? undefined : resembling(alternation, visit.value));
 
     const row: Mutable<FormRow> = {
       path,
@@ -303,8 +316,8 @@ class Walk {
     if (alternation !== undefined) {
       const modes = collapse(alternation.alternatives.map((one) => this.modeOf(one, binding)));
       row.modes = modes;
-      if (chosen !== null) {
-        const mode = modes.find((one) => one.anchors.includes(chosen.alternative.anchor));
+      if (drawn !== undefined) {
+        const mode = modes.find((one) => one.anchors.includes(drawn.anchor));
         if (mode !== undefined) row.mode = mode.tag;
         if (mode?.referent !== undefined) row.referent = mode.referent;
         if (mode?.inline === true && mode.member !== undefined) {
@@ -326,7 +339,7 @@ class Walk {
     if (binding?.widget !== undefined) return; // the bound editor owns its subtree.
     if (visit.steps.length >= this.limit) return;
     if (alternation !== undefined) {
-      this.descendIntoMode(visit, row.modes ?? [], chosen?.alternative);
+      this.descendIntoMode(visit, row.modes ?? [], drawn);
       return;
     }
     this.descend(visit, facts, widget);

@@ -36,7 +36,6 @@ import {
   nodeAt,
   remove,
   setMemberAt,
-  setValue,
   type Command,
   type EditContext,
   type Path,
@@ -71,8 +70,11 @@ import {
   type FormRow,
 } from '../forms/index.js';
 import { text, textWith } from '../shell/strings.js';
+import { writeMember } from './edits.js';
 import { blankValue, itemShape, memberShape, valueShape } from './skeleton.js';
 import { shapeAt } from './places.js';
+import { TokenList } from './Tokens.js';
+import { editsTokens, type TokenOffers } from './tokens.js';
 
 /** What every row below is drawn with. */
 export interface RowsProps {
@@ -85,6 +87,8 @@ export interface RowsProps {
   readonly picks?: (row: FormRow) => readonly string[];
   /** What §4.13's pickers offer inside an expression editor: the quantities, the indices in scope. */
   readonly names?: (referent: string) => readonly string[];
+  /** What §4.14's token editor offers, by the member each form is written under (the core's). */
+  readonly tokens?: TokenOffers;
   /** Only the rows under this one; the top of the form otherwise. */
   readonly under?: FormRow;
 }
@@ -128,7 +132,14 @@ function GeneratedRow(props: RowsProps & { row: FormRow }): JSX.Element {
           {row.required ? <i className="sbadge req">{text('required')}</i> : null}
         </span>
         <span className="fv none">
-          {editsOneValue(row.widget) || row.widget === CHOOSER || row.widget === MAP || row.widget === LIST ? (
+          {editsOneValue(row.widget) ||
+          row.widget === CHOOSER ||
+          row.widget === MAP ||
+          row.widget === LIST ||
+          // A physical name the document does not write yet — a template instance's
+          // `weights_location_prefix` (§4.14) — is written as the empty list the schema's own
+          // blank is, and the token editor is then what fills it, chip by chip.
+          editsTokens(row.widget) ? (
             <>
               {EMPTY}
               <button
@@ -177,6 +188,26 @@ function GeneratedRow(props: RowsProps & { row: FormRow }): JSX.Element {
 
   if (editsExpression(row.widget)) {
     return <ExpressionRow {...props} at={at} shape={shape} />;
+  }
+
+  // §4.14's token editor, wherever a `physical_name` is written: an identity's location, a
+  // slice's tensor, a template instance's `weights_location_prefix`. One binding, one editor.
+  if (editsTokens(row.widget)) {
+    return (
+      <div className="frow wide" data-member={label} data-editor={row.widget}>
+        <span className="fk">{label}</span>
+        <span className="fv">
+          <TokenList
+            at={at}
+            shape={shape}
+            context={context}
+            value={nodeAt(one.session.store.tree, at)}
+            label={label}
+            {...(props.tokens === undefined ? {} : { offers: props.tokens })}
+          />
+        </span>
+      </div>
+    );
   }
 
   if (row.widget === CHOOSER) {
@@ -769,18 +800,6 @@ function scalarText(value: VocabularyValue | JsonValue | undefined): string {
 function blankOfMode(context: FormContext, shape: Shape, mode: FormMode): JsonValue {
   if (editsExpression(mode.widget)) return blankExpression(context, mode.union);
   return blankValue(context, memberShape(context, shape, mode));
-}
-
-/** Write a value at a place the document may not yet have a member for (§5.5's "appended"). */
-function writeMember(context: EditContext, at: Path, value: JsonValue, label: string): Command {
-  if (nodeAt(context.tree, at) !== undefined) return setValue(context, { path: at, value, label });
-  const name = at[at.length - 1];
-  return setMemberAt(context, {
-    path: at.slice(0, -1),
-    name: typeof name === 'string' ? name : String(name ?? ''),
-    value,
-    label,
-  });
 }
 
 /** The resolver of one document, memoised on its tree (feature 2.11's own reading). */

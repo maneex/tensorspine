@@ -389,6 +389,13 @@ export interface Facts {
    * that is refused.
    */
   readonly assignmentRefused?: readonly Problem[];
+  /**
+   * What §4.14's sheet asks about one identity, where {@link DescribeOptions.identity} named one.
+   *
+   * `null` where the document's bindings produced no instance of that rule — a rule every guard
+   * removed, or a name no binding carries.
+   */
+  readonly identity?: import('../describe/identity.js').IdentityFacts | null;
 }
 
 /** What {@link Lang.describe} takes beside a document. */
@@ -415,6 +422,16 @@ export interface DescribeOptions extends CallOptions {
    * else: the identity a slot *belongs to* is filled either way.
    */
   readonly compatibility?: boolean;
+  /**
+   * Answer {@link Facts.identity} for one binding rule as well — the sheet of §4.14.
+   *
+   * A location editor, the members it lists and the dtypes its role admits are about **one
+   * identity**, where a description is about sites; the two are one call because they are read
+   * off one analysis (§5.4's reading per revision), and a sheet that asked twice would analyse
+   * twice. Name the rule as the *normalised* document names it (`decoder.attn.q`) and say which
+   * map of `bindings` it is written in.
+   */
+  readonly identity?: import('../describe/identity.js').IdentityRequest;
 }
 
 /** What {@link Lang.validate} takes beside a document. */

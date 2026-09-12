@@ -418,7 +418,7 @@ exports[`every \`$def\` of the model schema renders > has these rows 1`] = `
     "  map arguments  required  keys #/$defs/identifier",
     "  list families  required  items>=1 unique",
     "  condition when  {boolean:toggle | condition:condition}",
-    "  list weights_location_prefix",
+    "  token-list weights_location_prefix",
   ],
   "instance_map": [
     "map instance_map  keys #/$defs/identifier",

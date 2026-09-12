@@ -12,6 +12,7 @@ import {
   toPython,
   whereOfSite,
   type JsonObject,
+  type Analysis,
   type Library,
   type SiteDerived,
   type SiteDescription,
@@ -118,6 +119,32 @@ export function derivedOf(name: string, where: string): SiteDerived {
 
 /** The role a `tensorspine/2.0` document is read under. */
 export const MODEL = 'model';
+
+const analyses = new Map<string, Analysis>();
+
+/**
+ * The semantic analysis of one corpus document — what an identity's facts are answered from.
+ *
+ * `describe` keeps it (§5.4's one reading per revision) and the worker answers `identityFacts`
+ * off it; a suite that wants the same answer reads it the same way, so what is tested is the
+ * call the sheet makes and not a second path into the core.
+ */
+export function analysisOf(name: string): Analysis {
+  const held = analyses.get(name);
+  if (held !== undefined) return held;
+  const path = `data/models/${name}.json`;
+  const held_ = tree(name);
+  const { bases, problem } = basesOf(path, toPython(held_));
+  if (problem !== null) throw new Error(`${name}: ${problem.message}`);
+  const description = describeDocument(held_, {
+    schemas: registry,
+    library: loadLibrary(bases, { schemas: registry, source: fileSource() }),
+    folded: true,
+  });
+  if (description.analysis === null) throw new Error(`${name}: no analysis`);
+  analyses.set(name, description.analysis);
+  return description.analysis;
+}
 
 /** A fresh tree of a corpus document, for a suite that edits one. */
 export function freshTree(name: string): JsonObject {

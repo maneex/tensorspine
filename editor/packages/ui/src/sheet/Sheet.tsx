@@ -28,6 +28,7 @@ import {
   identityReadings,
   isJsonNumber,
   noSiteDerived,
+  prefixTokens,
   pyStr,
   quantityReadings,
   siteDerived,
@@ -37,6 +38,8 @@ import {
   type JsonValue,
   type PyRecord,
   type SchemaFacts,
+  type CompatibleIdentity,
+  type IdentityReading,
   type SchemaRegistry,
   type SiteDescription,
 } from '@tensorspine/lang';
@@ -96,7 +99,10 @@ import {
   writeRecord,
   writeValue,
 } from './edits.js';
+import { bindPrivately, tieTo, type HeldMember, type SlotTarget } from './bindings.js';
 import { instanceSheet, type InstanceSheet, type PortRow, type SlotRow, type StateRow } from './instance.js';
+import { TokenList } from './Tokens.js';
+import { editsTokens, type TokenOffers } from './tokens.js';
 import { PlaceView, type PlaceFacts } from './Place.js';
 import { NameRow } from './Rows.js';
 import { namesFor } from './names.js';
@@ -166,7 +172,15 @@ export function SelectionSheet(): JSX.Element {
   }
   if (site !== undefined) {
     const artifact = identity === undefined ? undefined : (library.arguments.get(identity) ?? undefined);
-    return <SitePanel one={one} site={site} context={context} artifact={artifact ?? undefined} />;
+    return (
+      <SitePanel
+        one={one}
+        site={site}
+        context={context}
+        artifact={artifact ?? undefined}
+        identities={factsFor(one).identities}
+      />
+    );
   }
   // "Nothing selected | the Document sheet" (§4.11): the document's own place is the root, and
   // the sheet of a place is the same sheet wherever the place is.
@@ -258,11 +272,13 @@ function SitePanel({
   site,
   context,
   artifact,
+  identities,
 }: {
   one: OpenDocument;
   site: SiteDescription;
   context: FormContext;
   artifact: ArgumentSchema | null | undefined;
+  identities: readonly IdentityReading[];
 }): JSX.Element {
   const store = useDocumentsStore();
   const versions = useDocuments((state) => state.library.versions);
@@ -316,19 +332,20 @@ function SitePanel({
         title="Parameters"
         rows={sheet.parameters}
         note={text('This primitive declares no parameter slot.')}
+        one={one}
+        site={site}
+        identities={identities}
       />
       <Slots
         title="Constants"
         rows={sheet.constants}
         note={text('This primitive declares no constant slot.')}
+        one={one}
+        site={site}
+        identities={identities}
       />
-      <States rows={sheet.states} />
+      <States rows={sheet.states} one={one} site={site} identities={identities} />
       <Derived sheet={sheet} stale={stale} />
-      <p className="empty-sub">
-        {text(
-          'Binding a slot, tying it to an identity, sharing a state and editing a location are the bindings feature; the rows they act on are here.',
-        )}
-      </p>
       <button
         type="button"
         className="btn ghost"
@@ -428,6 +445,7 @@ function Identity({
           sheet={sheet}
           versions={versions}
           context={context}
+          tokens={prefixTokens(site.key)}
         />
       ))}
     </>
@@ -443,6 +461,7 @@ function MemberRow({
   sheet,
   versions,
   context,
+  tokens,
 }: {
   one: OpenDocument;
   row: FormRow;
@@ -461,6 +480,8 @@ function MemberRow({
   sheet: InstanceSheet;
   versions: ReadonlyMap<string, readonly string[]>;
   context: FormContext;
+  /** What §4.14's token editor offers at this site — the indices it sits under (the core's). */
+  tokens: TokenOffers;
 }): JSX.Element {
   const under = form.rows.filter(
     (each) => each.depth === row.depth + 1 && each.path.startsWith(`${row.path}/`),
@@ -512,6 +533,25 @@ function MemberRow({
         context={context}
         label={label}
       />
+    );
+  }
+  // §4.14's last sentence: "a `weights_location_prefix` on a template instance is the same token
+  // editor". One binding at `physical_name`, one editor, wherever the grammar writes one.
+  if (editsTokens(row.widget)) {
+    return (
+      <div className="frow wide" data-member={row.label} data-editor={row.widget}>
+        <span className="fk">{label}</span>
+        <span className="fv">
+          <TokenList
+            at={[...base, ...row.steps] as Path}
+            shape={shapeAt(context.shapes, [...base, ...row.steps] as Path, one.session.store.role)}
+            context={context}
+            value={nodeAt(one.session.store.tree, [...base, ...row.steps] as Path)}
+            label={label}
+            offers={tokens}
+          />
+        </span>
+      </div>
     );
   }
   if (!editsOneValue(row.widget)) {
@@ -1293,10 +1333,16 @@ function Slots({
   title,
   rows,
   note,
+  one,
+  site,
+  identities,
 }: {
   title: string;
   rows: readonly SlotRow[];
   note: string;
+  one: OpenDocument;
+  site: SiteDescription;
+  identities: readonly IdentityReading[];
 }): JSX.Element {
   const present = rows.filter((row) => row.present).length;
   return (
@@ -1332,14 +1378,197 @@ function Slots({
               {row.shape === '' ? '' : `[${row.shape}]`}
             </span>
           ) : null}
+          {row.present && row.kind === 'parameter' ? (
+            <SlotActions one={one} site={site} row={row} identities={identities} state={false} />
+          ) : null}
         </div>
       ))}
     </>
   );
 }
 
+/**
+ * The gestures §4.11 puts beside a slot row: **Bind privately**, **Tie to…** / **Share with…**,
+ * and **Edit location…** — the link to the identity's own sheet, where §4.14's editor stands.
+ *
+ * | What it shows | Answered by |
+ * |---|---|
+ * | which identities the slot may join | `describe`'s compatibility lists — V15 for a parameter, V9 for a state (§5.3) |
+ * | which identities the document has at all | the core's readings of its binding rules (`identityReadings`) |
+ * | what joining one would be refused with | `check` on that candidate, in the validator's words |
+ * | where the identity is written | the reading's own pointer — the place the *author* wrote (§5.2 rule 7) |
+ *
+ * **Every identity is offered, and the compatible ones are marked.** §4.14 asks for "the list and
+ * the reason a candidate is excluded", and Q5 forbids the editor to refuse a gesture for a
+ * semantic reason: so the list is the document's own identities, the mark is the core's
+ * compatibility list, and picking an unmarked one makes the tie and shows `check`'s line in the
+ * toast — where the validation that follows repeats it, with its pointer, in Problems.
+ *
+ * **The lists cost a call, and it is made when the button is pressed.** Feature 2.10 measured
+ * `describe` with the compatibility walk at 48.0 ms against 4.5 without it on the largest corpus
+ * document and left them off the per-keystroke branch; this is the one caller that asks for them,
+ * for its one site (`partnersOf`).
+ */
+function SlotActions({
+  one,
+  site,
+  row,
+  identities,
+  state,
+}: {
+  one: OpenDocument;
+  site: SiteDescription;
+  row: SlotRow | StateRow;
+  identities: readonly IdentityReading[];
+  state: boolean;
+}): JSX.Element {
+  const store = useDocumentsStore();
+  const [open, setOpen] = useState(false);
+  const [partners, setPartners] = useState<readonly CompatibleIdentity[] | null>(null);
+  const target: SlotTarget = { site: site.key, slot: row.name, state };
+  const held: HeldMember | null =
+    row.boundBy === null
+      ? null
+      : { rule: pathOfRule(identities, row.boundBy), at: row.boundAt };
+  const kind = state ? 'states' : 'parameters';
+  // Every identity of the same kind the document declares, in the order its rules are written.
+  const offered = identities.filter((reading) => reading.kind === kind);
+  const marked = new Set((partners ?? []).map((one_) => one_.rule));
+
+  const tie = (into: IdentityReading): void => {
+    // The verdict is asked **before** the gesture is made and never blocks it (Q5): `check` reads
+    // the analysis the session holds, so a question sent after the edit would be about a document
+    // that already carries it. The answer lands in the toast; the next validation puts the same
+    // line in Problems, with its pointer.
+    const asked = store.getState().checkMember(
+      {
+        kind: state ? 'state' : 'parameter',
+        slot: { site: site.key, name: row.name },
+        into: { identity: into.identity },
+      },
+      one.id,
+    );
+    try {
+      store.getState().edit((made) => tieTo(made, { target, held, into: pathOf(into.pointer) }));
+    } catch (error) {
+      store.getState().setToast({ text: error instanceof EditError ? error.message : String(error) });
+      return;
+    }
+    setOpen(false);
+    void asked.then((verdict) => {
+      const first = verdict?.problems[0];
+      if (first !== undefined) store.getState().setToast({ text: `[${first.code}] ${first.message}` });
+    });
+  };
+
+  return (
+    <span className="slotacts" data-slot-actions={row.name}>
+      <button
+        type="button"
+        className="rowact"
+        data-bind-private={row.name}
+        // A slot already alone in its identity is already bound privately: D3 and D4 answer how
+        // many members the identity holds, and nothing is offered that would do nothing.
+        disabled={row.boundBy !== null && row.members === 1}
+        title={text('Creates an identity of its own, named after the site and the slot.')}
+        onClick={() => {
+          try {
+            store.getState().edit((made) => bindPrivately(made, { target, held }));
+          } catch (error) {
+            store.getState().setToast({
+              text: error instanceof EditError ? error.message : String(error),
+            });
+          }
+        }}
+      >
+        {text('Bind privately')}
+      </button>
+      <button
+        type="button"
+        className="rowact"
+        data-tie-open={row.name}
+        aria-expanded={open}
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (!next) return;
+          void store.getState().partnersOf(site.where, one.id).then((described) => {
+            const found = described === undefined || described === null
+              ? []
+              : state
+                ? (described.states.find((each) => each.name === row.name)?.sharesWith ?? [])
+                : (described.parameters.find((each) => each.name === row.name)?.tiesWith ?? []);
+            setPartners(found);
+          });
+        }}
+      >
+        {state ? text('Share with…') : text('Tie to…')}
+      </button>
+      {row.boundBy === null ? null : (
+        <button
+          type="button"
+          className="rowact"
+          data-edit-identity={row.name}
+          onClick={() => {
+            store.getState().revealPlace(pathOfRule(identities, row.boundBy as string), one.id);
+          }}
+        >
+          {state ? text('Edit identity…') : text('Edit location…')}
+        </button>
+      )}
+      {!open ? null : (
+        <span className="tielist" data-tie-list={row.name}>
+          {offered.length === 0 ? (
+            <span className="dim">{text('This document declares no identity of that kind.')}</span>
+          ) : null}
+          {offered.map((reading) => (
+            <button
+              key={reading.pointer}
+              type="button"
+              className={marked.has(reading.rule) ? 'rowact fit' : 'rowact'}
+              data-tie-into={reading.rule}
+              data-compatible={String(marked.has(reading.rule))}
+              disabled={reading.rule === row.boundBy}
+              onClick={() => {
+                tie(reading);
+              }}
+            >
+              {reading.identity}
+            </button>
+          ))}
+          {partners === null ? <span className="dim">{text('asking the core…')}</span> : null}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** The place a rule is written at, as a path — the core's own reading of §5.2 rule 7. */
+function pathOfRule(identities: readonly IdentityReading[], rule: string): Path {
+  const reading = identities.find((one) => one.rule === rule);
+  return reading === undefined ? [] : pathOf(reading.pointer);
+}
+
+/** A JSON pointer as the path the store's commands take. */
+function pathOf(pointer: string): Path {
+  return pointer
+    .split('/')
+    .slice(1)
+    .map((step) => step.replace(/~1/g, '/').replace(/~0/g, '~'));
+}
+
 /** §4.11's States: the applying rule and everything it decided. */
-function States({ rows }: { rows: readonly StateRow[] }): JSX.Element {
+function States({
+  rows,
+  one,
+  site,
+  identities,
+}: {
+  rows: readonly StateRow[];
+  one: OpenDocument;
+  site: SiteDescription;
+  identities: readonly IdentityReading[];
+}): JSX.Element {
   const present = rows.filter((row) => row.present);
   return (
     <>
@@ -1367,6 +1596,9 @@ function States({ rows }: { rows: readonly StateRow[] }): JSX.Element {
                 <i className="slot st">{row.identity}</i>
               )}
             </span>
+            {row.present ? (
+              <SlotActions one={one} site={site} row={row} identities={identities} state />
+            ) : null}
           </div>
           {!row.present ? null : (
             <>

@@ -26,6 +26,8 @@ export interface BoxProps {
   readonly renaming: boolean;
   /** Whether a connection in flight is over one of this box's handles (S2's lit handle). */
   readonly litPort: string | null;
+  /** The chip a tie in flight is over, by its `data-slot`; `null` when none is. */
+  readonly litSlot?: string | null;
   readonly register: (element: HTMLElement | null) => void;
   readonly onSelect: () => void;
   readonly onRename: (to: string) => void;
@@ -47,6 +49,15 @@ export interface BoxProps {
    * schemas own (§1 b, which caught exactly this).
    */
   readonly onChip: (what: string) => void;
+  /**
+   * A slot chip was pressed (the tie's start) or clicked (the keyboard's form of it).
+   *
+   * §4.7: "drag a slot chip onto another node's slot chip → proposes tying/sharing from the core's
+   * compatibility list; creates or extends the identity". The chip's own click still selects the
+   * identity, so the canvas decides which of the two a gesture was: a release on another chip is a
+   * tie, a release on this one is the click.
+   */
+  readonly onSlot: (slot: CanvasSlot, pressed: boolean) => void;
   /** A boundary handle was clicked: the site it names is selected (§4.7, D8). */
   readonly onHandle: (site: string) => void;
 }
@@ -342,12 +353,17 @@ function Card(props: BoxProps): JSX.Element {
             <button
               key={`${slot.kind}:${slot.name}`}
               type="button"
-              className={slotClass(slot)}
+              className={slotClass(slot) + (props.litSlot === `${box.pointer}:${slot.name}` ? ' lit' : '')}
               data-slot={`${box.pointer}:${slot.name}`}
+              data-slot-kind={slot.kind}
               title={slot.identity ?? text('bound by nothing')}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                props.onSlot(slot, true);
+              }}
               onClick={(event) => {
                 event.stopPropagation();
-                props.onChip(slot.name);
+                props.onSlot(slot, false);
               }}
             >
               {`${slot.shared ? `${SHARED} ` : ''}${slotMark(slot.kind)} ${slot.name}`}

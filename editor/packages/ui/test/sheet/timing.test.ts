@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   analyse,
   describeAnalysis,
+  identityFacts,
   foldedGraph,
   identityReadings,
   parse,
@@ -42,6 +43,12 @@ import { MODEL, artifactOf, context, derivedOf, facts, siteOf, tree } from './so
  */
 
 const BOUND_MS = 400;
+
+/** The key a description holds a site under, which is the analysis's own and not the caller's. */
+function keyOfSite(described: ReturnType<typeof describeAnalysis>, where: string): string {
+  for (const [key, site] of described.sites) if (site.where === where) return key;
+  return '';
+}
 
 function median(times: number[]): number {
   times.sort((left, right) => left - right);
@@ -105,6 +112,59 @@ describe('the compatibility knob', () => {
     expect(without).toBeLessThan(BOUND_MS);
     expect(with_).toBeLessThan(BOUND_MS * 3);
   });
+});
+
+describe('what a menu of §4.11 costs, and what §4.14’s sheet costs (feature 2.13)', () => {
+  // The site is `embed` on both, because it is where there is anything to offer: 9 of the 116
+  // parameter slots the reference base declares are `shareable` (feature 1.6d), and an attention
+  // projection is not one of them — a list of nothing would measure the walk and not the answer.
+  for (const [name, where] of [
+    ['llama3-8b', 'embed'],
+    ['deepseek-v4-pro', 'embed'],
+  ] as const) {
+    it(`answers ${name}'s partner lists for one site, which is what "Tie to…" asks for`, () => {
+      const document = toPython(parse(readRepositoryFile(`data/models/${name}.json`)));
+      const analysis = analyse(document, library());
+      const times: number[] = [];
+      let partners = 0;
+      for (let run = 0; run < 3; run += 1) {
+        const at = performance.now();
+        const described = describeAnalysis(analysis, { only: [where], compatibility: true });
+        times.push(performance.now() - at);
+        const site = described.sites.get(keyOfSite(described, where));
+        partners = (site?.parameters ?? []).reduce((sum, slot) => sum + slot.tiesWith.length, 0);
+      }
+      const ms = median(times);
+      console.log(
+        `partners of ${where} (${name}): ${ms.toFixed(1)} ms for ${String(partners)} offered`,
+      );
+      expect(ms).toBeLessThan(BOUND_MS * 3);
+    });
+  }
+
+  for (const [name, rule] of [
+    ['llama3-8b', 'decoder.attn.q'],
+    ['deepseek-v4-pro', 'main.attn_hca.q_a'],
+  ] as const) {
+    it(`answers ${name}'s ${rule} — the members, the dtypes, the axes and the evaluated names`, () => {
+      const document = toPython(parse(readRepositoryFile(`data/models/${name}.json`)));
+      const analysis = analyse(document, library());
+      const times: number[] = [];
+      let instances = 0;
+      for (let run = 0; run < 5; run += 1) {
+        const at = performance.now();
+        const answer = identityFacts(analysis, library(), { rule, state: false });
+        times.push(performance.now() - at);
+        instances = answer?.instances.length ?? 0;
+      }
+      const ms = median(times);
+      console.log(
+        `identityFacts ${rule} (${name}): ${ms.toFixed(2)} ms for ${String(instances)} instances`,
+      );
+      expect(instances).toBeGreaterThan(0);
+      expect(ms).toBeLessThan(BOUND_MS);
+    });
+  }
 });
 
 describe('the facts the sheet reads', () => {
