@@ -116,32 +116,30 @@ export async function source(page: Page, path: string): Promise<string> {
 }
 
 /**
- * Drop a primitive on the canvas — §4.7's first gesture.
+ * Add an instance of a primitive by **choosing it from the catalog** — §4.4's `Add Instance…`.
  *
- * There is no palette yet (feature 3.1 builds it), so what is dispatched is the `DataTransfer`
- * the Library activity will carry; feature 2.9 built the *drop* and its own suite dispatches the
- * same transfer.
+ * Feature 2.21's own gesture, and the reason this build no longer writes a version anywhere: what
+ * is typed is a *fragment* of the name, the suggest list offers what the gathered bases carry, and
+ * the identity that is clicked is the library's own — `name@version`, both halves, byte for byte.
+ * Before it, this helper dispatched the palette's `DataTransfer` with `"version": "1.0.0"` written
+ * into it, which is precisely the hand-typing the feature was opened to remove.
+ *
+ * The pointer is moved over the canvas first, because §4.4 writes the command as "opens the
+ * library picker **at the cursor**": the canvas keeps where the pointer last was, so the instance
+ * lands where it was pointed at rather than wherever an automatic layout would put it. The *drop*
+ * of §4.7 is still a gesture and still has its own suite (`canvas.spec.ts`).
  */
-export async function dropPrimitive(page: Page, primitive: string, x: number, y: number): Promise<void> {
-  await page.locator('.canvas.graph').evaluate(
-    (element, held: { json: string; x: number; y: number }) => {
-      const transfer = new DataTransfer();
-      transfer.setData('application/x-tensorspine-primitive', held.json);
-      const corner = element.getBoundingClientRect();
-      for (const kind of ['dragover', 'drop']) {
-        element.dispatchEvent(
-          new DragEvent(kind, {
-            bubbles: true,
-            cancelable: true,
-            dataTransfer: transfer,
-            clientX: corner.left + held.x,
-            clientY: corner.top + held.y,
-          }),
-        );
-      }
-    },
-    { json: JSON.stringify({ primitive, version: '1.0.0' }), x, y },
-  );
+export async function addPrimitive(page: Page, primitive: string, x: number, y: number): Promise<void> {
+  const corner = await page.locator('.canvas.graph').boundingBox();
+  await page.mouse.move((corner?.x ?? 0) + x, (corner?.y ?? 0) + y);
+  await command(page, 'Model', 'model.add-instance');
+  const dialog = page.locator('.dlg[role="dialog"]');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('[data-catalog-filter]').fill(primitive.slice(0, 4));
+  const choice = dialog.locator(`[data-identity-choice^="${primitive}@"]`);
+  await expect(choice).toHaveCount(1);
+  await choice.click();
+  await expect(dialog).toHaveCount(0);
 }
 
 /** Rename what the sheet has open, in its Identity row (§4.4: "edited in the sheet like any value"). */
@@ -484,7 +482,7 @@ async function fill(page: Page, instance: Instance): Promise<void> {
 
 /** Drop a primitive, name it, and write what the corpus says it carries. */
 async function addInstance(page: Page, instance: Instance, x: number, y: number): Promise<void> {
-  await dropPrimitive(page, instance.primitive, x, y);
+  await addPrimitive(page, instance.primitive, x, y);
   await expect(box(page, `/instances/${instance.proposed}`)).toBeVisible();
   await expect(sheet(page).locator('.insp-title')).toHaveText(instance.proposed);
   if (instance.name !== instance.proposed) {
@@ -587,12 +585,12 @@ export async function buildLlama3(page: Page): Promise<void> {
   // grammar until it has a site *and* both interfaces (feature 2.6's own finding), and `describe`
   // gates on the grammar (feature 1.6d) — so no card has a port handle at all until the two
   // interfaces below are written, which is why they come before anything that is connected.
-  await dropPrimitive(page, EMBED.primitive, 200, 140);
+  await addPrimitive(page, EMBED.primitive, 200, 140);
   await expect(box(page, '/instances/embed')).toBeVisible();
-  await dropPrimitive(page, FINAL_N.primitive, 200, 360);
+  await addPrimitive(page, FINAL_N.primitive, 200, 360);
   await expect(box(page, `/instances/${FINAL_N.proposed}`)).toBeVisible();
   await rename(page, FINAL_N.name);
-  await dropPrimitive(page, LM_HEAD.primitive, 200, 580);
+  await addPrimitive(page, LM_HEAD.primitive, 200, 580);
   await expect(box(page, '/instances/lm_head')).toBeVisible();
 
   note('the three root instances');
@@ -785,11 +783,11 @@ export async function buildStart(page: Page): Promise<void> {
   const identifier = sheet(page).locator('[data-member="model"] [data-member-value="model"]');
   await identifier.fill('llama3-8b');
   await identifier.blur();
-  await dropPrimitive(page, EMBED.primitive, 200, 140);
+  await addPrimitive(page, EMBED.primitive, 200, 140);
   await expect(box(page, '/instances/embed')).toBeVisible();
-  await dropPrimitive(page, FINAL_N.primitive, 200, 360);
+  await addPrimitive(page, FINAL_N.primitive, 200, 360);
   await rename(page, FINAL_N.name);
-  await dropPrimitive(page, LM_HEAD.primitive, 200, 580);
+  await addPrimitive(page, LM_HEAD.primitive, 200, 580);
   await expect(box(page, '/instances/lm_head')).toBeVisible();
   await addInterface(page, 'input', { name: 'tokens', instance: 'embed', port: 'tokens', kind: 'token' });
   await addInterface(page, 'output', { name: 'logits', instance: 'lm_head', port: 'logits', generative: true });

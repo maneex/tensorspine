@@ -21,7 +21,7 @@
  * which feature 2.13's own block names one by one. Each says so where it is drawn rather than
  * looking finished.
  */
-import { useEffect, useState, type JSX } from 'react';
+import { useEffect, useMemo, useState, type JSX } from 'react';
 
 import {
   foldedGraph,
@@ -60,6 +60,9 @@ import {
 } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
+import { editsIdentity, PICKER } from '../library/primitives.js';
+import { CreateAction } from './Create.js';
+import { PrimitiveField } from './Reference.js';
 import { sizeText } from '../documents/figures.js';
 import type { OpenDocument } from '../documents/store.js';
 import { renameCommand } from '../explorer/Explorer.js';
@@ -319,13 +322,13 @@ function SitePanel({
   identities: readonly IdentityReading[];
 }): JSX.Element {
   const store = useDocumentsStore();
-  const versions = useDocuments((state) => state.library.versions);
   const [inapplicable, setInapplicable] = useState(false);
   const [problemsFirst, setProblemsFirst] = useState(false);
   const sheet = instanceSheet(
     site,
     one.reading.derived === null ? noSiteDerived() : siteDerived(one.reading.derived, site.where),
   );
+  const picks = usePicks(one, sheet.primitive);
   const args = argumentSheet({
     facts: site.arguments.facts,
     invariants: site.arguments.invariants,
@@ -353,7 +356,7 @@ function SitePanel({
         )}
       </p>
       <p className="prim-chip mono">{`${sheet.primitive}@${sheet.version}`}</p>
-      <Identity one={one} sheet={sheet} site={site} versions={versions} context={context} />
+      <Identity one={one} sheet={sheet} site={site} picks={picks} context={context} />
       <Arguments
         one={one}
         args={args}
@@ -534,13 +537,14 @@ function Identity({
   site,
   sheet,
   context,
-  versions,
+  picks,
 }: {
   one: OpenDocument;
   site: SiteDescription;
   sheet: InstanceSheet;
   context: FormContext;
-  versions: ReadonlyMap<string, readonly string[]>;
+  /** What a picker at a row offers, by the name `presentation.json` gives that list. */
+  picks: Picks;
 }): JSX.Element {
   const store = useDocumentsStore();
   const [name, setName] = useState(sheet.name);
@@ -597,8 +601,7 @@ function Identity({
           row={member}
           base={[...site.segments] as Path}
           form={form}
-          sheet={sheet}
-          versions={versions}
+          picks={picks}
           context={context}
           tokens={prefixTokens(site.key)}
         />
@@ -613,8 +616,7 @@ function MemberRow({
   row,
   base,
   form,
-  sheet,
-  versions,
+  picks,
   context,
   tokens,
 }: {
@@ -632,8 +634,7 @@ function MemberRow({
    */
   base: Path;
   form: Form;
-  sheet: InstanceSheet;
-  versions: ReadonlyMap<string, readonly string[]>;
+  picks: Picks;
   context: FormContext;
   /** What §4.14's token editor offers at this site — the indices it sits under (the core's). */
   tokens: TokenOffers;
@@ -646,7 +647,7 @@ function MemberRow({
   const label = row.label;
   if (row.widget === LIST) {
     return row.present ? (
-      <ListRow one={one} row={row} base={base} items={under} />
+      <ListRow row={row} base={base} items={under} picks={picks} />
     ) : (
       <div className="frow" data-member={row.label}>
         <span className="fk">{label}</span>
@@ -662,7 +663,7 @@ function MemberRow({
           {under.map((each) => (
             <span key={each.path} className="subfield">
               <i className="sublabel">{each.label}</i>
-              <ScalarField row={each} base={base} sheet={sheet} versions={versions} />
+              <ScalarField row={each} base={base} picks={picks} />
             </span>
           ))}
         </span>
@@ -687,6 +688,21 @@ function MemberRow({
         name={row.label}
         context={context}
         label={label}
+      />
+    );
+  }
+  // §4.11's "primitive with version select", as one field over the reference's two members
+  // (feature 2.21). One binding at `primitive_reference`, one editor, wherever a primitive is
+  // pinned — and the same component serves the Place sheet's rows (`Rows.tsx`).
+  if (editsIdentity(row.widget)) {
+    return (
+      <PrimitiveField
+        one={one}
+        at={[...base, ...row.steps] as Path}
+        shape={shapeAt(context.shapes, [...base, ...row.steps] as Path, one.session.store.role)}
+        context={context}
+        value={nodeAt(one.session.store.tree, [...base, ...row.steps] as Path)}
+        row={row}
       />
     );
   }
@@ -731,7 +747,7 @@ function MemberRow({
     <div className="frow" data-member={row.label}>
       <span className="fk">{label}</span>
       <span className="fv">
-        <ScalarField row={row} base={base} sheet={sheet} versions={versions} />
+        <ScalarField row={row} base={base} picks={picks} />
       </span>
     </div>
   );
@@ -857,20 +873,32 @@ function resolverFor(one: OpenDocument): Resolver {
 
 /** A repeatable list of names — §4.11's chip editor, with the workspace's names as suggestions. */
 function ListRow({
-  one,
   row,
   base,
   items,
+  picks,
 }: {
-  one: OpenDocument;
   row: FormRow;
   /** Where the form starts in the document — see {@link MemberRow}. */
   base: Path;
   items: readonly FormRow[];
+  picks: Picks;
 }): JSX.Element {
   const store = useDocumentsStore();
   const [adding, setAdding] = useState('');
-  const suggestions = suggestionsFor(one, items[0]?.picker);
+  const item = items[0];
+  const suggestions = item === undefined ? [] : picks(item);
+  const write = (written: string): void => {
+    if (written === '') return;
+    edit(store, (made) =>
+      insertItem(made, {
+        path: [...base, ...row.steps] as Path,
+        value: written,
+        label: `Add ${written}`,
+      }),
+    );
+    setAdding('');
+  };
   const least = row.bounds?.minItems ?? 0;
   const listId = `ts-${row.label}-names`;
   return (
@@ -912,16 +940,7 @@ function ListRow({
           onKeyDown={(event) => {
             event.stopPropagation();
             if (event.key !== 'Enter') return;
-            const written = adding.trim();
-            if (written === '') return;
-            edit(store, (made) =>
-              insertItem(made, {
-                path: [...base, ...row.steps] as Path,
-                value: written,
-                label: `Add ${written}`,
-              }),
-            );
-            setAdding('');
+            write(adding.trim());
           }}
         />
         <datalist id={listId}>
@@ -929,6 +948,21 @@ function ListRow({
             <option key={name} value={name} />
           ))}
         </datalist>
+        {/* The `create` half of the binding, drawn (feature 2.21). A family is *declared by being
+            written* — nothing refers to it and no unit carries it — so what the action does here
+            is write the word beside the chips, which is what "New family…" asks for. */}
+        <CreateAction
+          label={item?.create}
+          picker={item?.picker}
+          onCreate={() => {
+            const written = adding.trim();
+            if (written === '') {
+              store.getState().note(`${item?.create ?? ''}: type the name to add it to ${row.label}`);
+              return;
+            }
+            write(written);
+          }}
+        />
       </span>
     </div>
   );
@@ -938,17 +972,15 @@ function ListRow({
 function ScalarField({
   row,
   base,
-  sheet,
-  versions,
+  picks,
 }: {
   row: FormRow;
   /** Where the form starts in the document — see {@link MemberRow}. */
   base: Path;
-  sheet: InstanceSheet;
-  versions: ReadonlyMap<string, readonly string[]>;
+  picks: Picks;
 }): JSX.Element {
   const store = useDocumentsStore();
-  const picked = row.picker === undefined ? undefined : (versions.get(sheet.primitive) ?? []);
+  const picked = row.picker === undefined ? undefined : picks(row);
   const options = row.options?.map((one) => String(one.value)) ?? picked;
   const held = String(row.written ?? '');
   if (row.constant !== undefined || options === undefined) {
@@ -1921,22 +1953,46 @@ function instanceForm(one: OpenDocument, site: SiteDescription, context: FormCon
   });
 }
 
+/** What a picker at a row offers — the list `presentation.json` names, by that name. */
+export type Picks = (row: FormRow) => readonly string[];
+
 /**
- * What a picker's list holds, for the two the sheet offers.
+ * What each picker's list holds, dispatched by the name the binding gives it.
  *
  * A picker names a list the *editor* fills, which is why it is `presentation.json`'s and not a
- * schema's (§1). §4.11 asks for "the workspace's family names as suggestions"; what is offered is
- * the **open document's** own, which is what the editor can answer without reading every file of
- * the workspace on a keystroke — the families the core described for its sites. A suggestion is
- * not a limit: anything typed is written, as Q5 requires of every gesture.
+ * schema's (§1) — and **which** list is the picker's own name, read here rather than assumed.
+ * Feature 2.10 had two and could tell them apart by where they were drawn; feature 2.21 adds a
+ * third at a place the other two also reach, so the name is what answers.
+ *
+ * - `primitives`: every identity the gathered bases carry, the core's own projection of `by_id`;
+ * - `primitive-versions`: the versions the library carries of the primitive **this instance
+ *   pins**, which is the list feature 2.10 filled;
+ * - `families`: §4.11 asks for "the workspace's family names as suggestions" and what is offered
+ *   is the **open document's** own — what the editor can answer without reading every file of the
+ *   workspace on a keystroke, from the families the core described for its sites.
+ *
+ * A picker with no answer here offers nothing, which is the honest empty list rather than another
+ * picker's contents. A suggestion is never a limit: anything typed is written (Q5).
  */
-function suggestionsFor(one: OpenDocument, picker: string | undefined): string[] {
-  if (picker === undefined) return [];
-  const found = new Set<string>();
-  for (const site of one.reading.facts?.sites.values() ?? []) {
-    for (const family of site.families) found.add(pyStr(family));
-  }
-  return [...found].sort((a, b) => a.localeCompare(b));
+function usePicks(one: OpenDocument, primitive: string): Picks {
+  const catalog = useDocuments((state) => state.library.catalog);
+  const versions = useDocuments((state) => state.library.versions);
+  const families = useMemo(() => {
+    const found = new Set<string>();
+    for (const site of one.reading.facts?.sites.values() ?? []) {
+      for (const family of site.families) found.add(pyStr(family));
+    }
+    return [...found].sort((a, b) => a.localeCompare(b));
+  }, [one.reading.facts]);
+  return useMemo(
+    () => (row: FormRow) => {
+      if (row.picker === PICKER.primitives) return catalog.map((identity) => identity.id);
+      if (row.picker === PICKER.versions) return versions.get(primitive) ?? [];
+      if (row.picker === PICKER.families) return families;
+      return [];
+    },
+    [catalog, versions, families, primitive],
+  );
 }
 
 /**

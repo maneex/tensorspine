@@ -14,6 +14,7 @@ import {
 } from '../../packages/lang/src/index.js';
 import { referenceTags, SchemaShapes } from '../../packages/store/src/index.js';
 import { auditPresentation } from '../../packages/ui/src/presentation/audit.js';
+import { PICKER, PRIMITIVE_IDENTITY } from '../../packages/ui/src/library/primitives.js';
 import { presentation } from '../../packages/ui/src/presentation/load.js';
 import { registry, repositoryRoot } from '../../packages/ui/test/presentation/source.js';
 import { editorRoot, readEditorFile } from './tree.js';
@@ -101,11 +102,14 @@ describe('the one data file of the interface', () => {
   });
 });
 
+/** The presentation format's own schema, as the audit reads the shipped file against it. */
+const schemaOfFormat: SchemaRegistry = loadSchemas(
+  [{ path: SCHEMA, text: readEditorFile(SCHEMA) }],
+  { origin: 'editor/schemas' },
+);
+
 describe('the format has a schema, and the file is on it', () => {
-  const schemaRegistry: SchemaRegistry = loadSchemas(
-    [{ path: SCHEMA, text: readEditorFile(SCHEMA) }],
-    { origin: 'editor/schemas' },
-  );
+  const schemaRegistry = schemaOfFormat;
 
   it('ships with its companion note, as every schema of this project does', () => {
     expect(existsSync(join(editorRoot, SCHEMA))).toBe(true);
@@ -130,6 +134,46 @@ describe('the format has a schema, and the file is on it', () => {
     // rendering the running interface has never heard of still renders.
     const unknown = parse('{"a#": {"widget": "sankey"}}');
     expect(schemaRegistry.conforms(unknown, 'presentation')).toBe(false);
+  });
+});
+
+describe('the pickers and the `create` beside them', () => {
+  // Feature 2.21's own rows. A picker names a list the **editor** fills, so a name in the file
+  // that the interface does not fill is a select that would come back empty — worth the same
+  // error as a key that resolves nowhere (feature 2.2's rule, one member along). The two sets are
+  // held equal, so a picker added to the file without an answer, and an answer written for a
+  // picker nothing uses, both fail.
+  it('are the names the interface fills, exactly', () => {
+    const used = new Set(
+      file.anchors
+        .map((anchor) => file.at(anchor)?.picker)
+        .filter((one): one is string => one !== undefined),
+    );
+    expect([...used].sort()).toEqual([...new Set(Object.values(PICKER))].sort());
+  });
+
+  it('name a list for every `create`, since the action is drawn beside that field', () => {
+    for (const anchor of file.anchors) {
+      const binding = file.at(anchor);
+      if (binding?.create === undefined) continue;
+      expect(binding.picker, anchor).toBeDefined();
+    }
+    // And the format says so, so a binding with a `create` and no picker cannot be committed.
+    const off = parse('{"a#": {"create": "New thing…"}}');
+    expect(schemaOfFormat.conforms(off, 'presentation')).toBe(false);
+  });
+
+  it('bind the one field a pinned primitive is chosen in, at the definition itself', () => {
+    const anchor = `${MODEL}#/$defs/primitive_reference`;
+    const binding = file.at(anchor);
+    expect(binding?.widget).toBe(PRIMITIVE_IDENTITY);
+    expect(binding?.picker).toBe(PICKER.primitives);
+    expect(binding?.create).toBeDefined();
+    // At the definition and not at `instance_definition/properties/primitive`, so that every
+    // place the grammar pins a primitive gets the same editor — the derived document's D1 nodes
+    // included, which `$ref` this very definition.
+    expect(followAnchor(registry(), anchor)?.anchor ?? anchor).toBe(anchor);
+    expect(file.at(`${MODEL}#/$defs/instance_definition/properties/primitive`)).toBeUndefined();
   });
 });
 

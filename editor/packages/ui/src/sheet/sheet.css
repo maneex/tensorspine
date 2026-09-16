@@ -136,6 +136,16 @@
 .insp .frow > .fv { flex-wrap: wrap; }
 .insp .frow > .fv .ctl { height: 22px; max-width: 128px; }
 
+/* ── the Identity row's one field (feature 2.21, §4.11) ────────────────────
+   `name@version` is the library's own form for a pinned primitive, so the field is monospace and
+   as wide as the row lets it be; the base it came from and the `create` action sit under it, in
+   the muted ink every secondary line of a sheet uses. The field takes the row's whole width
+   because an identity is `projector.patch_merge_bottleneck@1.0.0` at its longest, which no
+   128-pixel control shows. */
+.insp .frow > .fv .ctl.wide { max-width: none; flex: 1; min-width: 96px; }
+.insp .frow > .fv > .sub { flex-basis: 100%; font-size: 10.5px; color: var(--ink-3); }
+.insp .frow > .fv > .link.create { font-size: 10.5px; }
+
 /* The expression editor of §4.13 opened under the row it belongs to (feature 2.11): a row of the
    sheet's own grid, spanning it, indented as the row it edits is. */
 .arow-editor { padding: 6px 0 10px 28px; }

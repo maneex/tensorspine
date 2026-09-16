@@ -143,6 +143,58 @@ export function identityKey(name: string, version: string): string {
 }
 
 /**
+ * The two halves of an identity key — {@link identityKey} read backwards.
+ *
+ * The sentence beside `identityKey` is what makes this total rather than a guess: `@` occurs in
+ * neither half, because a name is a `qualified_name` (letters, digits, `_`, `-`, `.`) and a
+ * version a `semantic_version`. So a key has exactly one `@`, and anything else is no key at all
+ * — `null`, which is the caller's to decide about (feature 2.21: it is what the author meant,
+ * not a verdict of the language, so the editor asks rather than refuses, §9 Q5).
+ */
+export function splitIdentity(id: string): { name: string; version: string } | null {
+  const halves = id.split('@');
+  const name = halves[0];
+  const version = halves[1];
+  if (halves.length !== 2 || name === undefined || version === undefined) return null;
+  if (name === '' || version === '') return null;
+  return { name, version };
+}
+
+/** One identity of the gathered set, as a chooser offers it (§4.6's palette, §4.11's row). */
+export interface PrimitiveIdentity {
+  readonly name: string;
+  readonly version: string;
+  /** `<name>@<version>`, the key {@link Library.byId} holds it under. */
+  readonly id: string;
+  /** The base that provided it, as the load was given it — `origin[('base-of', …)]`. */
+  readonly base: string;
+  /** Whether this version pins a template document (§4.6's `▣`, D9). */
+  readonly template: boolean;
+}
+
+/**
+ * The catalog a chooser offers: every identity `by_id` carries, with the base each came from.
+ *
+ * A projection and not the library, for {@link primitiveVersions}' reason — what travels out of
+ * the worker is what the interface reads — and the base travels with the identity because §4.6's
+ * palette is "one section per base" and a lab's own base stands beside the reference one (Q6).
+ * The order is the loader's own (`sorted(by_id.items())`, name then version, compared as Python
+ * compares two tuples), so a list nobody sorted again is already the list a reader expects.
+ */
+export function primitiveCatalog(library: Library): PrimitiveIdentity[] {
+  return sortedIdentities(library.byId).map((one) => {
+    const id = identityKey(one.name, one.version);
+    return {
+      name: one.name,
+      version: one.version,
+      id,
+      base: one.base,
+      template: library.templates.has(id),
+    };
+  });
+}
+
+/**
  * `primitive_library.primitive`: the primitive a `{name, version}` reference designates — the
  * pinned version first, falling back to the name so that a version mismatch is reported by the
  * caller rather than looking like an absent primitive.

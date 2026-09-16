@@ -69,7 +69,10 @@ import {
   type FormMode,
   type FormRow,
 } from '../forms/index.js';
+import { editsIdentity } from '../library/primitives.js';
 import { text, textWith } from '../shell/strings.js';
+import { CreateAction } from './Create.js';
+import { PrimitiveField } from './Reference.js';
 import { writeMember } from './edits.js';
 import { blankValue, itemShape, memberShape, valueShape } from './skeleton.js';
 import { shapeAt } from './places.js';
@@ -145,7 +148,11 @@ function GeneratedRow(props: RowsProps & { row: FormRow }): JSX.Element {
           // A physical name the document does not write yet — a template instance's
           // `weights_location_prefix` (§4.14) — is written as the empty list the schema's own
           // blank is, and the token editor is then what fills it, chip by chip.
-          editsTokens(row.widget) ? (
+          editsTokens(row.widget) ||
+          // A pinned primitive the document does not write yet (feature 2.21): the blank is the
+          // reference's two required members, empty, which Ajv refuses on the row at once — and
+          // the one field is then what chooses an identity into it.
+          editsIdentity(row.widget) ? (
             <>
               {EMPTY}
               <button
@@ -213,6 +220,22 @@ function GeneratedRow(props: RowsProps & { row: FormRow }): JSX.Element {
           />
         </span>
       </div>
+    );
+  }
+
+  // §4.11's "primitive with version select", as one field over the reference's two members
+  // (feature 2.21): the same editor the instance sheet's Identity section draws, wherever the
+  // grammar pins a primitive.
+  if (editsIdentity(row.widget)) {
+    return (
+      <PrimitiveField
+        one={one}
+        at={at}
+        shape={shape}
+        context={context}
+        value={nodeAt(one.session.store.tree, at)}
+        row={row}
+      />
     );
   }
 
@@ -735,6 +758,17 @@ export function ScalarField(props: RowsProps & { row: FormRow; at: Path; shape: 
             <option key={name} value={name} />
           ))}
         </datalist>
+        {/* The `create` half of the binding, drawn (feature 2.21). What it makes belongs to the
+            place, and the places whose pickers carry one are the primitive editor's (3.4): until
+            then the action says so in the Log, which is §4.4's own rule for a command nobody has
+            wired rather than a menu that lies about what it does. */}
+        <CreateAction
+          label={row.create}
+          picker={row.picker}
+          onCreate={() => {
+            store.getState().note(`${row.create ?? ''}: not built yet — it declares a unit in a base of this model (features 3.2 and 3.4)`);
+          }}
+        />
       </>
     );
   }

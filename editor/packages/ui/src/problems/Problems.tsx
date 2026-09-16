@@ -442,6 +442,18 @@ function Row({
           {fix.action.title}
         </button>
       ))}
+      {/* A repair the row **declares** and no provider can make yet (`Problem.fixes`, the member
+          feature 1.1 put there for exactly this). It is drawn as what it is — the words of the
+          repair, not a button that would do nothing — so a reader learns what is owed instead of
+          finding out by clicking. Feature 2.21's `Create primitive … in a base of this model` is
+          the first, live when 3.2 and 3.3 land. */}
+      {(row.problem.fixes ?? [])
+        .filter((action) => !fixes.some((fix) => fix.action.kind === action.kind))
+        .map((action) => (
+          <span key={action.kind} className="fix awaits" data-fix-awaited={action.kind}>
+            {action.title}
+          </span>
+        ))}
       <span className="loc" title={row.problem.path === '' ? (row.problem.file ?? '') : row.problem.path}>
         {locationOf(row)}
       </span>

@@ -412,9 +412,7 @@ exports[`every \`$def\` of the model schema renders > has these rows 1`] = `
   ],
   "instance_definition": [
     "section instance_definition",
-    "  section primitive  required",
-    "    text name  required  matches ^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*$",
-    "    text version  required  from primitive-versions  matches ^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+    "  primitive-identity primitive  required  from primitives",
     "  map arguments  required  keys #/$defs/identifier",
     "  list families  required  items>=1 unique",
     "  condition when  {boolean:toggle | condition:condition}",
@@ -498,9 +496,7 @@ exports[`every \`$def\` of the model schema renders > has these rows 1`] = `
     "list primitive_library_reference  items>=1",
   ],
   "primitive_reference": [
-    "section primitive_reference",
-    "  text name  required  matches ^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)*$",
-    "  text version  required  from primitive-versions  matches ^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+    "primitive-identity primitive_reference  from primitives",
   ],
   "public_input": [
     "section public_input",

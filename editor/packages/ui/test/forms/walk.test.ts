@@ -514,9 +514,22 @@ describe('every corpus document renders', () => {
   it('reads a name row as the definition the schema binds it to', () => {
     const text = readFileSync(join(repositoryRoot, 'data', 'models', 'llama3-8b.json'), 'utf8');
     const form = formOf(context(), { role: 'model', value: parse(text), label: 'llama3-8b' });
-    const primitive = row(form.rows, '/instances/embed/primitive/name');
-    expect(primitive.widget).toBe(TEXT);
-    expect(primitive.written).toBe('embed');
+    const named = row(form.rows, '/interfaces/inputs/tokens/to/0/instance/instance');
+    expect(named.widget).toBe(TEXT);
+    expect(named.written).toBe('embed');
     expect(row(form.rows, '/schema').constant).toBe('tensorspine/2.0');
+  });
+
+  it('stops at a pinned primitive, which one bound editor owns whole (feature 2.21)', () => {
+    // A presentation binding at `primitive_reference` takes the subtree with it — 2.3's rule for
+    // every bound editor — so the two members are the editor's to draw and not the walker's. What
+    // the row carries is what the binding says: the editor, the list and the `create` beside it.
+    const text = readFileSync(join(repositoryRoot, 'data', 'models', 'llama3-8b.json'), 'utf8');
+    const form = formOf(context(), { role: 'model', value: parse(text), label: 'llama3-8b' });
+    const pinned = row(form.rows, '/instances/embed/primitive');
+    expect(pinned.widget).toBe('primitive-identity');
+    expect(pinned.picker).toBe('primitives');
+    expect(pinned.create).toBeDefined();
+    expect(form.rows.filter((one) => one.path.startsWith('/instances/embed/primitive/'))).toEqual([]);
   });
 });

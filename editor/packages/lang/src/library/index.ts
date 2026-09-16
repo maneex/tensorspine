@@ -25,8 +25,10 @@ export {
   libraryUnits,
   loadLibrary,
   missingBases,
+  primitiveCatalog,
   primitiveOf,
   semanticVersion,
+  splitIdentity,
   templateInterfaces,
   templateOf,
   templatesOfManifest,
@@ -41,6 +43,7 @@ export {
   type LibrarySection,
   type LibraryUnit,
   type LoadedBase,
+  type PrimitiveIdentity,
   type PrimitiveVersion,
 } from './load.js';
 export {

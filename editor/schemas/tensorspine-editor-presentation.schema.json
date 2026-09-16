@@ -16,6 +16,7 @@
       "type": "object",
       "minProperties": 1,
       "additionalProperties": false,
+      "dependentRequired": { "create": ["picker"] },
       "description": "What is bound to the place the key names. A binding says nothing the schema already says: a select's options are the schema's `enum`, a union's tags are the `required` keys of its members, and help text is the schema's `description`.",
       "properties": {
         "role": {
@@ -42,8 +43,8 @@
           "description": "What labels the construct. `$key` is the name of the map member it is written under — a value binding's rule name, which is how `--view` labels an edge."
         },
         "widget": {
-          "enum": ["token-list", "expression", "condition", "axis-rows", "ordered-list"],
-          "description": "The editor bound to this construct where the generic walker has no reading of its own: the physical-name token editor, the expression and condition trees, the axis-row shape editor, the ordered rule list. A construct with no widget renders generically, which is the plan's own answer for one nobody has bound yet."
+          "enum": ["token-list", "expression", "condition", "axis-rows", "ordered-list", "primitive-identity"],
+          "description": "The editor bound to this construct where the generic walker has no reading of its own: the physical-name token editor, the expression and condition trees, the axis-row shape editor, the ordered rule list, and the one field a pinned primitive is chosen in — `name@version`, the library's own form over the two members of `primitive_reference`. A construct with no widget renders generically, which is the plan's own answer for one nobody has bound yet."
         },
         "references": {
           "type": "array",
@@ -53,13 +54,13 @@
           "description": "What a picker inside that editor offers, by the member each referent is named under: quantities and indices on the model side, argument paths on the unit side."
         },
         "picker": {
-          "enum": ["axes", "precision-roles", "primitive-versions", "families"],
-          "description": "The list a select at this place is filled from when it is not an enumeration: the axes and the precision roles the gathered library declares and the versions it carries of the primitive an instance pins, which the core answers; and the family names the workspace's own documents already write, which the editor reads off the documents it holds."
+          "enum": ["axes", "precision-roles", "primitives", "primitive-versions", "families"],
+          "description": "The list a select at this place is filled from when it is not an enumeration: the axes and the precision roles the gathered library declares, every identity its bases carry and the versions it carries of the primitive an instance pins, which the core answers; and the family names the workspace's own documents already write, which the editor reads off the documents it holds."
         },
         "create": {
           "type": "string",
           "minLength": 1,
-          "description": "The label of the action offered beside that picker when what is wanted does not exist yet."
+          "description": "The label of the action offered beside that picker when what is wanted does not exist yet: `New primitive\u2026`, `New family\u2026`, `New axis\u2026`. It is drawn beside the picker's own field, so a binding that carries one carries a `picker` too."
         },
         "prefix": {
           "type": "string",

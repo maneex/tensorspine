@@ -57,6 +57,14 @@ export const NOTICE = {
   schemaMismatch: 'schema-mismatch',
   /** A binding naming a slot or a state port the instance's arguments no longer create (§3). */
   absentSlot: 'absent-slot',
+  /** A primitive the author asked the project to declare, that no gathered base carries (2.21). */
+  wantedPrimitive: 'wanted-primitive',
+} as const;
+
+/** The fix each notice carries, by the name a provider is keyed on. */
+export const FIX = {
+  /** Declare the wanted primitive as a unit of a base of this model (Q6) — features 3.2, 3.3. */
+  createPrimitive: 'create-primitive',
 } as const;
 
 /** One notice, built the same way every row of the panel is. */
@@ -231,6 +239,84 @@ export function absentSlotBindings(reading: AbsentSlotReading): Problem[] {
         node: `${site.where}.${slot.name}`,
       });
     }
+  }
+  return found;
+}
+
+/**
+ * A primitive the author asked the project to gain — feature 2.21's *add to the project*.
+ *
+ * Declared here rather than in the document store because this is the module that reads it: the
+ * want is an editor **event**, like a dropped sidecar key, and the document has no member for one
+ * (D6's rule one level up — "the grammar closes every object … the language would refuse it").
+ */
+export interface WantedPrimitive {
+  /** The `primitive` member the confirm was raised on, as a JSON pointer. */
+  readonly pointer: string;
+  readonly name: string;
+  readonly version: string;
+}
+
+/** What {@link wantedPrimitives} reads: the wants, the catalog, and what the document now writes. */
+export interface WantedReading {
+  /** What the confirm recorded, in the order it was recorded. */
+  readonly wanted: readonly WantedPrimitive[];
+  /** Every identity the gathered bases carry, keyed `name@version` — the core's own projection. */
+  readonly catalog: ReadonlySet<string>;
+  /** The reference the document now writes at a want's place, or `null` where it writes none. */
+  readonly written: (pointer: string) => { readonly name: string; readonly version: string } | null;
+  readonly file?: string;
+}
+
+/**
+ * A notice per primitive the author asked the project to declare and no base provides yet.
+ *
+ * **What it adds to V1, and why it is not V1 again.** The core already says the document names a
+ * primitive the library lacks, in the tools' own words; what it cannot say is that the author
+ * *meant* to declare it, because that is an answer to a question the editor asked (§9 Q5's
+ * confirm) and nothing of the document records it. So this row carries the intent and the repair,
+ * and the verdict stays the core's.
+ *
+ * **It goes when it stops being true**, on both counts, so nothing has to remember to withdraw it:
+ * a base that gains the identity takes the row with it, and a place that no longer writes that
+ * identity — retyped, or deleted with its instance — takes it too.
+ *
+ * The fix is declared and not made: the base is `New Base…` (3.2) and the unit is the primitive
+ * editor (3.3), so the panel draws what the repair *will be* rather than a button that pretends
+ * (§4.17's "every fix is shown before it is applied", with nothing to apply yet).
+ */
+export function wantedPrimitives(reading: WantedReading): Problem[] {
+  const found: Problem[] = [];
+  const seen = new Set<string>();
+  for (const one of reading.wanted) {
+    const id = `${one.name}@${one.version}`;
+    if (reading.catalog.has(id)) continue;
+    const written = reading.written(one.pointer);
+    if (written === null || written.name !== one.name || written.version !== one.version) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    found.push({
+      ...notice(
+        NOTICE.wantedPrimitive,
+        textWith('primitive {} is to be declared in a base of this model', id),
+        { path: one.pointer, ...(reading.file === undefined ? {} : { file: reading.file }) },
+      ),
+      node: one.name,
+      detail: [
+        {
+          message:
+            'a base of your own is New Base… and the unit is the primitive editor; ' +
+            'neither is built yet, so the repair below is what it will be',
+          path: one.pointer,
+        },
+      ],
+      fixes: [
+        {
+          kind: FIX.createPrimitive,
+          title: textWith('Create primitive {} in a base of this model', `‘${one.name}’`),
+        },
+      ],
+    });
   }
   return found;
 }

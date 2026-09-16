@@ -40,6 +40,7 @@ import {
 import {
   DocumentSession,
   draftStanding,
+  EditError,
   FIRST_VERSION,
   fixedTag,
   gatherBases,
@@ -82,10 +83,14 @@ import {
   loadSchemas,
   nodeIndices,
   parse,
+  identityKey,
   pointLabel,
+  primitiveCatalog,
+  ROOT_INSTANCES,
   primitiveVersions,
   serialize,
   templatePrimitives,
+  type PrimitiveIdentity,
   type SchemaRegistry,
 } from '@tensorspine/lang';
 import { schemaProblem } from '@tensorspine/lang/api';
@@ -108,8 +113,11 @@ import {
   schemaMismatches,
   slotSites,
   unusedQuantities,
+  wantedPrimitives,
   type DroppedSidecarKey,
+  type WantedPrimitive,
 } from '../problems/notices.js';
+export type { WantedPrimitive };
 import { textWith } from '../shell/strings.js';
 import { formsFor, type FormContext } from '../forms/index.js';
 import {
@@ -118,6 +126,12 @@ import {
   interfaceMap,
   mapDeclaring,
 } from '../sheet/add.js';
+// §4.7's own gestures, which the picker of feature 2.21 makes without a drag: the drop's command
+// and the drill-in's, so that a primitive chosen from the list and one carried onto the canvas
+// write the same skeleton (D5) under the same proposals (Q4).
+import { addInstance, addSite, sitesOf } from '../canvas/gestures.js';
+import { shapeAt } from '../sheet/places.js';
+import { referenceMembers, referenceOf, writeReference } from '../sheet/reference.js';
 import { ArgumentSchema } from '../sheet/artifact.js';
 import { derivedBytes, derivedPathOf } from '../derived/export.js';
 import { statusFigures, type FigureShapes, type StatusFigure } from './figures.js';
@@ -243,6 +257,17 @@ export interface OpenDocument {
    * is kept here and the panel shows it until the document is closed.
    */
   readonly dropped: readonly DroppedSidecarKey[];
+  /**
+   * The primitives the author asked to *add to the project* — feature 2.21's confirm.
+   *
+   * A name the catalog does not carry is not a verdict of the language (Q5): V1 says the document
+   * names a primitive no base provides, and what the confirm adds to that is **what the author
+   * meant by it** — that this one is to be declared. That intent is the editor's own event, like
+   * a dropped sidecar key, so it is kept here and not in the document, which has no member for it
+   * (D6's rule one level up); §4.17's notice carries it, with the fix that will make it once a
+   * base and the primitive editor exist (3.2, 3.3).
+   */
+  readonly wanted: readonly WantedPrimitive[];
   /**
    * What the JSON source view has typed into this document, and what became of it (§4.10, §3).
    *
@@ -402,6 +427,15 @@ export interface LibraryState {
    */
   readonly versions: ReadonlyMap<string, readonly string[]>;
   /**
+   * Every identity the gathered bases carry, with the base each came from — feature 2.21.
+   *
+   * The list a primitive is chosen from, wherever one is chosen: §4.11's Identity row, §4.7's
+   * drop and `Model ▸ Add Instance…`. The same kind of projection as {@link versions} and for
+   * the same reason — what travels out of the worker is what the interface reads, never the
+   * library itself.
+   */
+  readonly catalog: readonly PrimitiveIdentity[];
+  /**
    * The generated argument schema of each primitive identity the sheet has asked for (F5).
    *
    * `null` where the build carries none — a primitive declared in the editor, which F5 says is
@@ -452,6 +486,40 @@ export type Dialog =
       readonly refusal?: string;
     }
   | { readonly kind: 'documents' }
+  | {
+      /**
+       * Feature 2.21's picker over the catalog: `Model ▸ Add Instance…` and §4.6's palette list.
+       *
+       * `catalog` and not the word the schemas spell a pinned primitive with, for the reason
+       * `library` above is not `base`: catching rule (b) is a scan for whole literals and the
+       * interface types no vocabulary of the schemas.
+       */
+      readonly kind: 'catalog';
+      /** Where the canvas last had the pointer, so §4.4's "at the cursor" is answerable. */
+      readonly at?: Position;
+    }
+  | {
+      /**
+       * Feature 2.21's confirm: a text that names no identity of the catalog.
+       *
+       * Q5 forbids refusing the gesture — so this asks what was meant rather than what is wrong:
+       * the nearest identity (a typo), adding the primitive to the project, keeping the text as
+       * typed and letting V1 report it, or cancelling back to what the document held.
+       */
+      readonly kind: 'identity';
+      /** The document the field belongs to. */
+      readonly id: string;
+      /** The `primitive` member of the instance, as a place of that document. */
+      readonly at: Path;
+      /** What was typed, as it was typed. */
+      readonly typed: string;
+      /** The two members that text denotes, split on the library's own `@`. */
+      readonly wanted: { readonly name: string; readonly version: string };
+      /** The nearest identity of the catalog, where one is near enough to be a typo of it. */
+      readonly nearest: string | null;
+      /** What the document held before it, which Cancel puts back. */
+      readonly held: { readonly name: string; readonly version: string };
+    }
   | { readonly kind: 'save-as'; readonly id: string; readonly path: WorkspacePath }
   | { readonly kind: 'restore'; readonly id: string }
   | {
@@ -753,6 +821,48 @@ export interface Documents extends DocumentsState {
    */
   expose(handle: FoldedHandle, side: string, id?: string): string | null;
   /**
+   * `Model ▸ Add Instance…` and §4.6's palette: the picker over the catalog, at a point or not.
+   *
+   * The point is the canvas's own — §4.4 writes the command as "opens the library picker at the
+   * cursor", and only a canvas has one. Invoked from the menu with no canvas mounted, there is no
+   * point and the automatic layout places what is added (D6's default).
+   */
+  offerPrimitives(at?: Position): void;
+  /**
+   * Add an instance of a chosen primitive — §4.7's own gesture, from the picker instead of a drop.
+   *
+   * > Drop a primitive from the palette | adds an instance (root canvas) or a **site** (drill-in)
+   *
+   * Which of the two is the tab the strip has current, exactly as the drop reads it. Answers the
+   * name it proposed (§9 Q4), or `null` where there is no document to add to.
+   */
+  addInstanceOf(
+    choice: { readonly name: string; readonly version: string },
+    at?: Position,
+    id?: string,
+  ): string | null;
+  /**
+   * Write a pinned primitive at a place — §4.11's Identity row as one field (feature 2.21).
+   *
+   * The two members of `primitive_reference` in one command, so one gesture is one undo (D13).
+   * Answers whether anything was written.
+   */
+  setReference(
+    at: Path,
+    reference: { readonly name: string; readonly version: string },
+    label: string,
+    id?: string,
+  ): boolean;
+  /**
+   * Record that the author means this primitive to be declared — the confirm's *add to the
+   * project* (Q6), which §4.17's notice then carries with the fix 3.2 and 3.3 will make.
+   */
+  wantPrimitive(
+    at: Path,
+    reference: { readonly name: string; readonly version: string },
+    id?: string,
+  ): void;
+  /**
    * Offer a command that has to be confirmed before it is made — §4.4's "Delete (cascades with
    * confirmation)". The dialog says what would go; {@link confirmed} is what makes it.
    */
@@ -1029,6 +1139,9 @@ export function createDocuments(options: DocumentsOptions): {
           // pin a template, which is what the explorer marks an instance of one by (§4.5).
           templates: templatePrimitives(loaded.library),
           versions: primitiveVersions(loaded.library),
+          // Feature 2.21's own list: every identity the gathered bases carry, with its base. The
+          // three places that choose a primitive read this and nothing else.
+          catalog: primitiveCatalog(loaded.library),
           // What the sheet already read stays read: an artifact is a function of the primitive's
           // identity and a base that reloads does not change one that was built.
           arguments: get().library.arguments,
@@ -1162,6 +1275,7 @@ export function createDocuments(options: DocumentsOptions): {
       const tag = tagOf(session.store.shapes, session.store.tree, session.store.role);
       const one: OpenDocument = {
         dropped: [],
+        wanted: [],
         id,
         path: session.path,
         workspace: session.workspace,
@@ -1223,6 +1337,26 @@ export function createDocuments(options: DocumentsOptions): {
         // an argument change took away. Nothing is walked where nothing is absent — `slotSites` is
         // a projection of the facts the sheet and the cards already hold.
         ...absentSlotBindings({ sites: slotSites(facts), index, file: one.path }),
+        // §4.17's newest editor notice (feature 2.21): a primitive the author answered the
+        // confirm about. What the *document* writes at the place is read here, through the same
+        // two members the field writes, so the row goes when the place stops naming it.
+        ...wantedPrimitives({
+          wanted: one.wanted,
+          catalog: new Set(get().library.catalog.map((identity) => identity.id)),
+          written: (pointer) => {
+            const context = forms();
+            if (context === null) return null;
+            const at = pathOfPointer(pointer);
+            const members = referenceMembers(
+              context,
+              shapeAt(context.shapes, at, one.session.store.role),
+            );
+            if (members === null) return null;
+            const value = nodeAt(one.session.store.tree, at);
+            return value === undefined ? null : referenceOf(value, members);
+          },
+          file: one.path,
+        }),
       ];
     };
 
@@ -2220,6 +2354,106 @@ export function createDocuments(options: DocumentsOptions): {
         return added;
       },
 
+      offerPrimitives(at?: Position): void {
+        set({ dialog: at === undefined ? { kind: 'catalog' } : { kind: 'catalog', at } });
+      },
+
+      addInstanceOf(
+        choice: { readonly name: string; readonly version: string },
+        at?: Position,
+        id?: string,
+      ): string | null {
+        const one = current(id);
+        const context = forms();
+        if (one === undefined || context === null) return null;
+        // §4.7's own table: "adds an instance (root canvas) or a site (drill-in)". Which one is
+        // the tab the strip has current, read the way the drop reads it.
+        const tab = tabs.current();
+        const composition = tab === null || documentTab(tab) !== one.id ? null : drillOf(tab);
+        let added: string | null = null;
+        const applied = run(
+          one,
+          ((): Command => {
+            const command =
+              composition === null
+                ? addInstance(one.session.store.context, {
+                    primitive: choice.name,
+                    version: choice.version,
+                  })
+                : addSite(one.session.store.context, {
+                    composition,
+                    primitive: choice.name,
+                    version: choice.version,
+                  });
+            added = command.name;
+            return command;
+          })(),
+        );
+        if (applied === null || added === null) return null;
+        const path = (
+          composition === null ? [...ROOT_INSTANCES, added] : [...sitesOf(composition), added]
+        ) as Path;
+        // Where the canvas had the pointer is where it goes (§4.4); with no point the automatic
+        // layout places it, which is D6's own default and what a command from the bar can honestly
+        // answer.
+        if (at !== undefined) one.session.layout.move(path, at);
+        get().selectPlace(path, one.id);
+        refreshDirty(one.id);
+        return added;
+      },
+
+      setReference(
+        at: Path,
+        reference: { readonly name: string; readonly version: string },
+        label: string,
+        id?: string,
+      ): boolean {
+        const one = current(id);
+        const context = forms();
+        if (one === undefined || context === null) return false;
+        const shape = shapeAt(context.shapes, at, one.session.store.role);
+        const members = referenceMembers(context, shape);
+        if (members === null) {
+          note(`${pointerOf(at)} is no primitive reference this editor can write`);
+          return false;
+        }
+        try {
+          return (
+            run(
+              one,
+              writeReference(one.session.store.context, at, members, reference, label),
+            ) !== null
+          );
+        } catch (error) {
+          set({ toast: { text: error instanceof EditError ? error.message : String(error) } });
+          return false;
+        }
+      },
+
+      wantPrimitive(
+        at: Path,
+        reference: { readonly name: string; readonly version: string },
+        id?: string,
+      ): void {
+        const one = current(id);
+        if (one === undefined) return;
+        const pointer = pointerOf(at);
+        patch(one.id, (open) => ({
+          ...open,
+          wanted: [
+            ...open.wanted.filter((held) => held.pointer !== pointer),
+            { pointer, name: reference.name, version: reference.version },
+          ],
+        }));
+        note(
+          `wanted: ${identityKey(reference.name, reference.version)} is to be declared in a base ` +
+            `of this model; Problems carries the repair`,
+        );
+        // The want is not in the tree, so nothing the store subscribes to moved: the run that
+        // publishes §4.17's rows is asked for here rather than waited for.
+        pipelines.get(one.id)?.now();
+      },
+
       offer(make: (context: EditContext) => Command, id?: string): void {
         const one = current(id);
         if (one === undefined) return;
@@ -2538,6 +2772,7 @@ const NO_LIBRARY: LibraryState = {
   ms: 0,
   templates: new Set(),
   versions: new Map(),
+  catalog: [],
   arguments: new Map(),
 };
 

@@ -64,7 +64,7 @@ meanings: so the declaration is bound at
 | `label` | `$key`: the construct is labelled by the name of the map member it is written under |
 | `widget` | the editor bound to a construct the generic walker has no reading for |
 | `references` | what a picker inside that editor offers, by the member each referent is named under |
-| `picker` | the list a select is filled from when it is not an enumeration: the base's axes, its precision roles, the versions it carries of a pinned primitive, the family names the workspace's documents write |
+| `picker` | the list a select is filled from when it is not an enumeration: the base's axes, its precision roles, every identity its bases carry, the versions it carries of a pinned primitive, the family names the workspace's documents write |
 | `create` | the label of the action beside that picker when what is wanted does not exist yet |
 | `prefix` | what is printed before a name written at this place, so a text form tells an index from a quantity |
 | `symbols` | a symbol per value of the enumeration at this anchor, or per tag of the union at it |
@@ -121,6 +121,35 @@ Without it a conditional expression would fall to §1's generic form, `label(a, 
 label a chooser gives that alternative is `if | then | else`, which is no name a text form can
 write or a parser can read. The audit checks each key against the members the definition declares,
 as it checks a `face`.
+
+### Pickers and their `create`
+
+A `picker` names a list the **editor** fills, which is the one thing a select can need that no
+schema states: a `version` is a `semantic_version` and nothing in the grammar says which versions
+exist. Five are named today — `primitives`, `primitive-versions` and `families` on the model side,
+`axes` and `precision-roles` on the unit side — and each is filled in exactly one place
+(`packages/ui/src/library/primitives.ts` names them beside the answers). A picker named here and
+filled by nobody fails the build, since a binding that resolves and still says nothing is worth
+the same error as one that resolves nowhere.
+
+A picker is a **suggestion and never a limit** (the editor plan's §9 Q5): what is typed is
+written, and the core is what reports a name no base provides (V1). That is also why a picker
+sits beside a *field* and not inside a select wherever the value is a name rather than an
+enumerated word.
+
+`create` is the label of the action drawn beside that field for what the list does not carry:
+`New primitive…`, `New family…`, `New axis…`. What the action *does* belongs to the place — a
+family is declared by being written, a primitive by a unit in a base of the model (Q6) — and an
+action whose feature is not built yet says so in the Log rather than being hidden, which is the
+same rule §4.4 applies to a command nobody has wired.
+
+`primitive-identity` is the one widget that reads two of these at once. `primitive_reference` has
+a `name` and a `version`, both required, and the library's own form for the pair is
+`identityKey`'s `name@version` — `@` occurs in neither half — so the editor draws **one** field
+over the two: the `primitives` picker offers the identities while the name is being typed, and
+once an `@` has settled the name half, the `primitive-versions` picker is what the rest offers.
+Which member is the version is read from *that* binding and never from its name, so no member of
+the grammar is written in the interface.
 
 ### Prefixes
 

@@ -239,6 +239,14 @@ export function wireDocuments(wiring: DocumentsWiring): {
       const one = now().open.find((open) => open.id === id);
       now().setEmittedView({ preview: one?.emitted.preview === composition ? null : composition }, id);
     },
+    // §4.4's `Model ▸ Add Instance… (opens the library picker at the cursor)` — bound at last
+    // (feature 2.21). The picker is the catalog the core gathered, and where the instance lands is
+    // §4.7's own answer: the root canvas, or the composition a drill-in has open. The **cursor**
+    // belongs to a canvas, so a mounted one rebinds this with its own point and puts this back
+    // when it goes; from the bar with nothing mounted the automatic layout places it (D6).
+    'model.add-instance': () => {
+      now().offerPrimitives();
+    },
     // §4.4's `Document Properties` — "(the model id, `primitive_libraries`, `version`)", which is
     // §4.11's Document sheet: the sheet of the document's own place, which is the sheet shown
     // when nothing else is selected. The command is the way to it from the menu.

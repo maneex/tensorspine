@@ -325,6 +325,67 @@ describe('the interface names no vocabulary of the schemas', () => {
   });
 });
 
+/**
+ * Every identity the repository's own reference base carries, read off its file tree.
+ *
+ * `<base>/primitives/<a>/<b>/<version>.json` **is** the identity: §8.2 makes the path and what is
+ * written inside agree, and the loader refuses a disagreement. So the set is read from the
+ * directory rather than loaded, which keeps this audit a scan over files and not a second library
+ * load — and a primitive added to the base joins the rule by existing.
+ */
+function identitiesOfReferenceBase(): ReadonlySet<string> {
+  const root = join(repositoryRoot, 'data', 'primitive-library', 'primitives');
+  const found = new Set<string>();
+  const walk = (current: string, name: readonly string[]): void => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        walk(join(current, entry.name), [...name, entry.name]);
+        continue;
+      }
+      if (!entry.name.endsWith('.json')) continue;
+      const identity = name.join('.');
+      found.add(identity);
+      found.add(`${identity}@${entry.name.slice(0, -'.json'.length)}`);
+    }
+  };
+  walk(root, []);
+  return found;
+}
+
+const identities = identitiesOfReferenceBase();
+const named = scripts.flatMap((path) => offencesIn(path, readEditorFile(path), identities));
+
+describe('the interface names no primitive of the library either', () => {
+  // Feature 2.21's own half of catching rule (b), and the reason it is a rule of its own: an
+  // identity is **data of a base**, not vocabulary of a schema, so the extraction above finds it
+  // and the enum scan never could. The list a chooser offers is `library.byId` — the core's
+  // projection of what was gathered — and a component that typed `attention.dense` would be
+  // offering a primitive whether or not any base provides one, which is the same mistake one
+  // level along from a hard-coded enum.
+  //
+  // The tests may type one, and do: they are what says what the catalog answers.
+
+  it('finds the identities in the base rather than listing them here', () => {
+    expect(identities.size).toBeGreaterThan(60);
+    // Both forms, since both are what a component would be tempted to write: the name a document
+    // pins and the `name@version` the library keys by.
+    expect([...identities].filter((one) => one.includes('@')).length * 2).toBe(identities.size);
+  });
+
+  it('types no identity of the reference base as a string literal', () => {
+    expect(named.map((one) => `${one.path}:${String(one.line)}: ${one.value}`)).toEqual([]);
+  });
+
+  it('would report one, which is what says the scan reaches them', () => {
+    const one = [...identities].find((name) => name.includes('@')) ?? '';
+    expect(
+      offencesIn('packages/ui/src/probe.ts', `export const p = '${one}';`, identities).map(
+        (found) => found.value,
+      ),
+    ).toEqual([one]);
+  });
+});
+
 describe('the scan itself', () => {
   const bite = (text: string): string[] =>
     offencesIn('packages/ui/src/probe.ts', text, words).map((one) => one.value);

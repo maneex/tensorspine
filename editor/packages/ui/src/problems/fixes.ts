@@ -29,10 +29,19 @@
  * | expose an unconsumed output | the interfaces sheet | 2.12 |
  * | name a scoped identity | the identities sheet | 2.13 |
  * | create a missing axis or role in an owned base | the primitive editor | 3.4 |
+ * | create a wanted primitive in a base of this model | the editor's own `wanted-primitive` notice | 3.2, 3.3 |
  *
  * Each of those needs a fact this feature has no call for — which slots an instance has under its
  * arguments, which edge a drop replaced, which base the user owns — and inventing the condition
  * from the message would put the panel in the business of re-deciding what the core decided.
+ *
+ * **A row may declare a fix nobody can make yet, and the panel draws it as such.** Feature 2.21's
+ * last row is the case: the *condition* is known here and now — the author answered the confirm
+ * and said the primitive is to be declared — and the *edit* is a unit in a base of the model,
+ * which needs `New Base…` (3.2) and the primitive editor (3.3). So the notice carries the action
+ * in `Problem.fixes`, where feature 1.1 put it, and `Problems.tsx` draws such an action as the
+ * words of the repair rather than as a button that would do nothing. No provider below claims it,
+ * and the feature that can make it becomes its provider without the row moving.
  */
 import type { FixAction, Problem } from '@tensorspine/lang/api';
 import type { Command, EditContext, ReferenceIndex } from '@tensorspine/store';

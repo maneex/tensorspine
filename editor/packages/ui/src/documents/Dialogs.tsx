@@ -29,6 +29,8 @@ import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from '
 
 import { addressOf, ageOf, nameOfRoot } from '@tensorspine/store/platform';
 
+import { identityOf, offersOf, splitIdentity, suggestIdentities } from '../library/primitives.js';
+
 import { useDocuments, useDocumentsStore } from './context.js';
 import { text, textWith } from '../shell/strings.js';
 import { usePlatform } from '../shell/context.js';
@@ -241,6 +243,212 @@ function Documents(): JSX.Element {
           {held.has(path) ? <span className="in">{text('open')}</span> : null}
         </button>
       ))}
+    </Frame>
+  );
+}
+
+/**
+ * `Model ▸ Add Instance…`: the catalog, filtered by what is typed — feature 2.21.
+ *
+ * §4.4 writes the command as "opens the library picker at the cursor" and §4.6 gives the palette
+ * the same list; until the Library activity is built (3.1) this dialog *is* that list, and it is
+ * the same one the Identity row suggests from and the drop writes with. The rows are
+ * `library.catalog` — the core's projection of `by_id` — with the base each identity came from,
+ * because a lab's own base stands beside the reference one (Q6) and which is which matters.
+ *
+ * Nothing about where it lands is decided here: §4.7's own table says a drop "adds an instance
+ * (root canvas) or a site (drill-in)", and the store reads which of the two the current tab is.
+ */
+function Catalog(): JSX.Element {
+  const store = useDocumentsStore();
+  const at = useDocuments((state) => (state.dialog?.kind === 'catalog' ? (state.dialog.at ?? null) : null));
+  const catalog = useDocuments((state) => state.library.catalog);
+  const [query, setQuery] = useState('');
+  const close = (): void => {
+    store.getState().setDialog(null);
+  };
+  const found = suggestIdentities(offersOf(catalog), query);
+  const add = (id: string): void => {
+    const reference = splitIdentity(id);
+    if (reference === null) return;
+    close();
+    store.getState().addInstanceOf(reference, at ?? undefined);
+  };
+  return (
+    <Frame
+      title={text('Add Instance…')}
+      hint={text('every primitive the gathered bases carry')}
+      onClose={close}
+      foot={
+        <>
+          <span className="note-line">
+            {textWith('{} primitive(s).', String(found.length))}{' '}
+            {text(
+              'The instance is added with the arguments empty, which V2 reports at once — the ' +
+                'name and the family are proposals you change freely.',
+            )}
+          </span>
+          <span className="right">
+            <button type="button" className="btn ghost" onClick={close}>
+              {text('Cancel')}
+            </button>
+          </span>
+        </>
+      }
+    >
+      <div className="frow">
+        <span className="fk">{text('Find')}</span>
+        <input
+          className="ctl wide mono"
+          data-catalog-filter="true"
+          aria-label={text('Find')}
+          value={query}
+          placeholder={text('part of a name')}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') return;
+            const first = found[0];
+            if (first !== undefined) add(first);
+          }}
+        />
+      </div>
+      {/* Capped as Open Model…'s list is: a base with thousands of primitives is a list nobody
+          scrolls, and the filter above is what finds one. The count in the foot is the whole
+          answer, so the cap is visible rather than silent. */}
+      {found.slice(0, 200).map((id) => {
+        const identity = catalog.find((one) => one.id === id);
+        return (
+          <button
+            key={id}
+            type="button"
+            className="cmd"
+            data-identity-choice={id}
+            onClick={() => {
+              add(id);
+            }}
+          >
+            <span className="mono">{id}</span>
+            <span className="in">{identity?.base ?? ''}</span>
+            {identity?.template === true ? <span className="in">{text('template')}</span> : null}
+          </button>
+        );
+      })}
+    </Frame>
+  );
+}
+
+/**
+ * A name the catalog does not carry — feature 2.21's confirm, and §9 Q5 made concrete.
+ *
+ * Q5 forbids refusing a gesture for a semantic reason, and a name no base provides is **not** a
+ * verdict of the language about a keystroke: V1 says a *document* names a primitive the library
+ * lacks, and what is open here is what the author meant by the text. So the four answers are the
+ * four things it can mean — a typo, a primitive that does not exist yet, a name that is right and
+ * whose base is not loaded, or a slip — and none of them is chosen for them.
+ *
+ * *Add to the project* is the one that cannot be finished yet, and it says so rather than
+ * pretending: the base is `New Base…` (3.2) and the unit is the primitive editor (3.3). What it
+ * does today is write the name and record the want, which §4.17's own notice then carries with
+ * the repair beside it.
+ */
+function Identity(): JSX.Element {
+  const store = useDocumentsStore();
+  const dialog = useDocuments((state) => (state.dialog?.kind === 'identity' ? state.dialog : null));
+  const close = (): void => {
+    store.getState().setDialog(null);
+  };
+  if (dialog === null) return <></>;
+  const write = (reference: { readonly name: string; readonly version: string }, label: string): void => {
+    close();
+    store.getState().setReference(dialog.at, reference, label, dialog.id);
+  };
+  const typed = identityOf(dialog.wanted);
+  return (
+    <Frame
+      title={textWith('{} is not in the library', typed)}
+      hint={text('what did you mean?')}
+      onClose={close}
+      foot={
+        <>
+          <span className="note-line">
+            {text(
+              'Nothing has been written: the field still holds what the document had. Keeping the ' +
+                'name as typed is allowed — the core reports it (V1) and Problems carries it — ' +
+                'which is the editor’s own rule of wiring first and fixing afterwards.',
+            )}
+          </span>
+          <span className="right">
+            <button type="button" className="btn ghost" data-cancel="identity" onClick={close}>
+              {text('Cancel')}
+            </button>
+          </span>
+        </>
+      }
+    >
+      {dialog.nearest === null ? null : (
+        <div className="frow">
+          <span className="fk">{text('Nearest')}</span>
+          <span className="fv">
+            <span className="mono">{dialog.nearest}</span>{' '}
+            <button
+              type="button"
+              className="btn pri"
+              data-identity-nearest={dialog.nearest}
+              onClick={() => {
+                const reference = splitIdentity(dialog.nearest ?? '');
+                if (reference === null) return;
+                write(reference, `Set primitive ${identityOf(reference)}`);
+              }}
+            >
+              {text('Use this')}
+            </button>
+          </span>
+        </div>
+      )}
+      <div className="frow">
+        <span className="fk">{text('Add to the project')}</span>
+        <span className="fv">
+          <button
+            type="button"
+            className="btn"
+            data-identity-create="true"
+            onClick={() => {
+              write(dialog.wanted, `Set primitive ${typed}`);
+              store.getState().wantPrimitive(dialog.at, dialog.wanted, dialog.id);
+            }}
+          >
+            {textWith('Declare {}', typed)}
+          </button>{' '}
+          <span className="sub">
+            {text(
+              'a unit in a base of this model — the base (New Base…) and the primitive editor are ' +
+                'not built yet, so this records it and raises the repair in Problems',
+            )}
+          </span>
+        </span>
+      </div>
+      <div className="frow">
+        <span className="fk">{text('Keep as typed')}</span>
+        <span className="fv">
+          <button
+            type="button"
+            className="btn"
+            data-identity-keep="true"
+            onClick={() => {
+              write(dialog.wanted, `Set primitive ${typed}`);
+            }}
+          >
+            {textWith('Write {}', typed)}
+          </button>{' '}
+          <span className="sub">{text('the core reports it as absent from the library (V1)')}</span>
+        </span>
+      </div>
+      <div className="frow">
+        <span className="fk">{text('Held')}</span>
+        <span className="fv mono" data-identity-held="true">
+          {identityOf(dialog.held) === '' ? text('—') : identityOf(dialog.held)}
+        </span>
+      </div>
     </Frame>
   );
 }
@@ -571,6 +779,8 @@ export function DocumentDialogs(): JSX.Element | null {
   if (kind === 'workspaces') return <Workspaces />;
   if (kind === 'remote') return <Remote />;
   if (kind === 'documents') return <Documents />;
+  if (kind === 'catalog') return <Catalog />;
+  if (kind === 'identity') return <Identity />;
   if (kind === 'save-as') return <SaveAs />;
   if (kind === 'restore') return <Restore />;
   if (kind === 'remove') return <Remove />;

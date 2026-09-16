@@ -79,7 +79,11 @@ test.describe('the sheet of decoder/attn', () => {
     // Identity: the name, the primitive it pins and the version, the families.
     await expect(sheet(page).locator('.insp-title')).toHaveText('attn');
     await expect(sheet(page).locator('.prim-chip')).toHaveText('attention.dense@1.0.0');
-    await expect(sheet(page).locator('[data-member-value="version"]')).toHaveValue('1.0.0');
+    // The pinned primitive is one field over the reference's two members since feature 2.21 —
+    // `name@version`, the library's own form, with the catalog behind it as a suggest list.
+    await expect(sheet(page).locator('[data-identity="/primitive"]')).toHaveValue(
+      'attention.dense@1.0.0',
+    );
     await expect(sheet(page).locator('.fchip .mono')).toHaveText('sequence_operator');
 
     // Arguments: the count S6 writes, and the rows in the states it draws them in.

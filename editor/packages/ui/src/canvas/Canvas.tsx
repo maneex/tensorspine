@@ -44,9 +44,10 @@ import {
   type PortRef,
   type Verdict as CandidateVerdict,
 } from '@tensorspine/lang';
-import { pointerOf, type Path } from '@tensorspine/store';
+import { pointerOf, type Path, type Position } from '@tensorspine/store';
 
 import { useDocuments, useDocumentsStore } from '../documents/context.js';
+import { carriedIdentity, offersOf } from '../library/primitives.js';
 import { sourceStanding, type OpenDocument } from '../documents/store.js';
 import { presentation } from '../presentation/index.js';
 import { bindPrivately, tieTo, type HeldMember, type SlotTarget } from '../sheet/bindings.js';
@@ -101,10 +102,16 @@ import {
 /** What a palette drag carries onto the canvas — §4.7's "Drop a primitive from the palette". */
 export const PRIMITIVE_TRANSFER = 'application/x-tensorspine-primitive';
 
-/** The primitive a drag carries: what to instantiate, and at which version. */
+/**
+ * The primitive a drag carries: what to instantiate, and at which version.
+ *
+ * The version is **optional** since feature 2.21: which versions a name has is a fact about the
+ * library, so a palette that carries a name alone is answered from the catalog (`carriedIdentity`)
+ * rather than by a version written into the drag.
+ */
 export interface PrimitiveTransfer {
   readonly primitive: string;
-  readonly version: string;
+  readonly version?: string;
 }
 
 /** What a drag put on the clipboard, or `null` where it carried something else. */
@@ -115,7 +122,8 @@ export function primitiveOf(transfer: DataTransfer): PrimitiveTransfer | null {
     const parsed: unknown = JSON.parse(held);
     if (typeof parsed !== 'object' || parsed === null) return null;
     const one = parsed as PrimitiveTransfer;
-    return typeof one.primitive === 'string' && typeof one.version === 'string' ? one : null;
+    if (typeof one.primitive !== 'string') return null;
+    return one.version === undefined || typeof one.version === 'string' ? one : null;
   } catch {
     return null;
   }
@@ -249,6 +257,9 @@ export function Canvas({ one, drill }: { one: OpenDocument; drill?: DrillContext
   const store = useDocumentsStore();
   const shell = useShellStore();
   const registry = useDocuments((state) => state.registry);
+  // The one catalog every chooser of a primitive reads (feature 2.21): the drop's identity and the
+  // sheet's suggest list are the same list, so a base that was not gathered is missing from both.
+  const catalog = useDocuments((state) => state.library.catalog);
   const templates = useDocuments((state) => state.library.templates);
   const toggles = useShell((state) => state.canvas);
   const zoom = useShell((state) => state.zoom);
@@ -400,6 +411,36 @@ export function Canvas({ one, drill }: { one: OpenDocument; drill?: DrillContext
       },
     });
   }, [shell, store, one.id, fitNow]);
+
+  /**
+   * Where the pointer last was on this canvas — §4.4's `Add Instance… (opens the library picker
+   * **at the cursor**)`.
+   *
+   * A ref and not state, because it is written on every pointer move and read once: a canvas that
+   * re-rendered per move would be the one thing §5.6's 60 fps forbids. The *last* place and not
+   * the current one, because reaching the command through the menu bar takes the pointer off the
+   * canvas — a person pointing at where they want it and then opening Model is the gesture.
+   */
+  const cursor = useRef<Position | null>(null);
+
+  // The command the picker of feature 2.21 opens, bound while a canvas is mounted so that the
+  // point is this canvas's; `apps/web` binds the same store call without one, which is what the
+  // cleanup puts back — so an unmounted canvas cannot answer with a point it no longer has.
+  useEffect(() => {
+    const bar = shell.getState();
+    bar.bind({
+      'model.add-instance': () => {
+        store.getState().offerPrimitives(cursor.current ?? undefined);
+      },
+    });
+    return () => {
+      bar.bind({
+        'model.add-instance': () => {
+          store.getState().offerPrimitives();
+        },
+      });
+    };
+  }, [shell, store]);
 
   /**
    * What the scrubber dims — §4.8: "set to a value it dims every site and edge absent at that
@@ -720,19 +761,23 @@ export function Canvas({ one, drill }: { one: OpenDocument; drill?: DrillContext
   );
 
   const onDrop = (event: ReactDragEvent<HTMLDivElement>): void => {
-    const carried = primitiveOf(event.dataTransfer);
-    if (carried === null) return;
+    const held = primitiveOf(event.dataTransfer);
+    if (held === null) return;
     event.preventDefault();
+    // The identity is the **catalog's**, which is the one list every chooser of a primitive reads
+    // (feature 2.21): a drag that names a version keeps it, one that names only a name is pinned
+    // at the version the library carries, and one the catalog does not carry still lands (Q5).
+    const carried = carriedIdentity(offersOf(catalog), held);
     const at = pointOf(event.clientX, event.clientY, surface.current, viewport);
     let added: string | null = null;
     const applied = store.getState().edit((edit) => {
       // §4.7's own table: the drop "adds an instance (root canvas) or a site (drill-in)".
       const command =
         drill === undefined
-          ? addInstance(edit, { primitive: carried.primitive, version: carried.version })
+          ? addInstance(edit, { primitive: carried.name, version: carried.version })
           : addSite(edit, {
               composition: drill.composition,
-              primitive: carried.primitive,
+              primitive: carried.name,
               version: carried.version,
             });
       added = command.name;
@@ -1019,6 +1064,7 @@ export function Canvas({ one, drill }: { one: OpenDocument; drill?: DrillContext
         setPan({ x: event.clientX - viewport.x, y: event.clientY - viewport.y });
       }}
       onPointerMove={(event) => {
+        cursor.current = pointOf(event.clientX, event.clientY, surface.current, viewport);
         if (band !== null) {
           const at = pointOf(event.clientX, event.clientY, surface.current, viewport);
           setBand({ ...band, toX: at.x, toY: at.y });
