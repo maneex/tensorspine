@@ -119,7 +119,6 @@ export interface SchemaAttachment {
 /** Attach the schemas, with Monaco's own validation switched off (see the module's note). */
 export function attachSchemas(monaco: MonacoApi, schemas: readonly SchemaAttachment[]): void {
   void monaco;
-  console.log('PROBE attachSchemas', jsonDefaults === null ? 'no defaults' : schemas.length, JSON.stringify(schemas.map((s) => [s.uri, s.fileMatch])));
   jsonDefaults?.setDiagnosticsOptions({
     validate: false,
     enableSchemaRequest: false,
