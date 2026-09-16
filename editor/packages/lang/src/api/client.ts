@@ -138,8 +138,21 @@ export function connectLang(port: LangPort, options: ConnectOptions = {}): Lang 
     if (signal?.aborted === true) return Promise.reject(new LangCancelled(call, 'requested'));
 
     return new Promise<T>((resolve, reject) => {
+      // The caller gave up: the request is settled **here**, and the cancel is posted all the
+      // same so the worker drops the work whenever it is in time to. Whether it is in time is the
+      // scheduler's business and not the caller's — the call is suspended on a timer task at its
+      // yield and the cancel is a message task, and nothing orders the two (see `derive` below
+      // for the measurement; the abort is the same race one message over). A result that arrives
+      // for a request no longer pending is discarded, as the listener discards every answer it
+      // did not ask for. The in-process proxy needs none of this: its signal is shared memory,
+      // read at the yield.
       const abort = (): void => {
+        const held = pending.get(id);
+        if (held === undefined) return;
+        pending.delete(id);
+        held.release();
         port.postMessage({ id: 0, call: 'cancel', args: [id] });
+        held.settle({ id, kind: 'cancelled', call, reason: 'requested' });
       };
       signal?.addEventListener('abort', abort, { once: true });
       pending.set(id, {

@@ -162,6 +162,22 @@ describe('cancellation', () => {
     }
   }, 240_000);
 
+  it('cancels an aborted derivation whether or not the worker heard in time', async () => {
+    // The abort is the supersession race one message over: the cancel reaches the host as a
+    // message and the call is waiting on a timer, and nothing orders the two. What the caller is
+    // promised is settled on this side the moment the signal fires; the cancel is still posted so
+    // the worker drops the work when it can. A hundred rounds, which no scheduling accident
+    // survives — and, as with supersession, Node's ordering favours the message, so only the
+    // browser under load distinguishes; this pins the contract rather than proving the fix.
+    const { lang, library, tree, path } = await ready();
+    for (let round = 0; round < 100; round += 1) {
+      const controller = new AbortController();
+      const pending = lang.derive(tree as never, path, { library, signal: controller.signal });
+      controller.abort();
+      await expect(pending).rejects.toMatchObject({ reason: 'requested', call: 'derive' });
+    }
+  }, 240_000);
+
   it('supersedes per document, not per session', async () => {
     const { lang } = connect();
     const schemas = await lang.loadSchemas(schemaFiles(), { origin: 'schemas' });
