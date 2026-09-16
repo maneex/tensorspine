@@ -180,6 +180,53 @@ test.describe('the Quantities table', () => {
     expect(await sourceText(page)).toContain('"quantity": "ffn_inner"');
   });
 
+  test('adds a derivation to a literal quantity — the one gesture that declares one (V11)', async ({
+    page,
+  }) => {
+    await open(page);
+    await openModel(page);
+
+    // `head_dim` is the corpus's own literal that declares how it follows (V11 checks the two
+    // agree), and the row is drawn for it. What was missing until feature 2.19 met it is the way
+    // to *write* one: an optional member whose value is an expression had no `Add` at all, so no
+    // gesture of the editor could declare a derivation or a binding rule's guard.
+    await select(page, '/quantities/head_dim');
+    await expect(sheet(page).locator('[data-member="derivation"] .xtext')).toHaveValue('d div heads');
+
+    await select(page, '/quantities/layers');
+    const row = sheet(page).locator('[data-member="derivation"]');
+    await expect(row).toHaveAttribute('data-present', 'false');
+    await row.locator('[data-add-member="/source/derivation"]').click();
+    // The blank is the first alternative the union admits — a literal — and it is a number of the
+    // tree, not a bare one: a document carrying a bare number cannot be serialized at all. It is a
+    // *real*, because a place that admits several scalar types is written under the one rule the
+    // sheet's rows write a literal under, and that rule reads a whole number only where the
+    // declaration asks for one.
+    await expect(row.locator('.xtext')).toHaveValue('0.0');
+    expect(await sourceText(page)).toContain('"derivation"');
+
+    // And §4.13's own editor is what says what it is: `layers` is 32 and so is `heads`, so the
+    // document the gesture leaves is one V11 admits.
+    await row.locator('.xtext').fill('heads');
+    await row.locator('.xtext').press('Enter');
+    await expect(row.locator('.xtext')).toHaveValue('heads');
+    const written = JSON.parse(await sourceText(page)) as {
+      quantities: { layers: { source: { derivation?: unknown } } };
+    };
+    expect(written.quantities.layers.source.derivation).toEqual({ quantity: 'heads' });
+    // `layers` is 32 and so is `heads`, so what the gesture leaves is a document V11 admits.
+    await expect(page.locator('footer.status [data-validation]')).toHaveText('no problems', {
+      timeout: 30_000,
+    });
+
+    // The same row, one construct along: a binding rule's guard is a `condition` and offers the
+    // same `Add`, which is what makes the rule a rule rather than one member's special case.
+    await select(page, '/bindings/values/lm_head.in');
+    await expect(
+      sheet(page).locator('[data-member="when"] [data-add-member="/when"]'),
+    ).toBeVisible();
+  });
+
   test('renames `d` — every reference rewritten, and undone in one step', async ({ page }) => {
     await open(page);
     await openModel(page);

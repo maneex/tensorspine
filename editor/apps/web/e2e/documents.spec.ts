@@ -146,6 +146,36 @@ test.describe('the Examples workspace', () => {
     expect(download.suggestedFilename()).toBe('llama3-8b.json');
     expect(readFileSync(await download.path(), 'utf8')).toBe(modelText);
   });
+
+  test('Save As… acts on the document behind a view of it, not on the view (§4.4)', async ({
+    page,
+  }) => {
+    await open(page);
+    await openExamples(page);
+    await openDocument(page, MODEL);
+
+    // §4.4's own rule, as feature 2.9 wrote it down: "a command with no argument acts on the
+    // document behind it (`documentTab` strips the suffix)". A view of a document — its JSON
+    // source, a composition's drill-in, the expanded graph — is a tab whose identity carries a
+    // suffix, and `Save As…` did nothing at all while one was current. Feature 2.19 met it on a
+    // build that wires a composition in its drill-in and then saves.
+    await command(page, 'View', 'view.json-source');
+    await expect(page.locator('.src-pane')).toBeVisible({ timeout: 60_000 });
+
+    await command(page, 'File', 'file.save-as');
+    const dialog = page.locator('.dlg');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('input.ctl.wide.mono')).toHaveValue(MODEL);
+    const path = 'models/elsewhere.json';
+    await dialog.locator('input.ctl.wide.mono').fill(path);
+    const [saved] = await Promise.all([
+      page.waitForEvent('download'),
+      dialog.locator('[data-save-as]').click(),
+    ]);
+    expect(saved.suggestedFilename()).toBe('elsewhere.json');
+    // The document moved with it: a tab's identity is its workspace and its path (feature 2.6).
+    await expect(page.locator(`.gcanvas[data-canvas="${path}"]`)).toBeVisible({ timeout: 60_000 });
+  });
 });
 
 /**

@@ -24,6 +24,7 @@
 import {
   identityMember,
   identitySymbol,
+  jsonObject,
   MEMBERS,
   PARAMETER_BINDINGS,
   STATE_BINDINGS,
@@ -39,6 +40,7 @@ import {
   objectAt,
   remove,
   setMemberAt,
+  shapeAt,
   unique,
   type Command,
   type EditContext,
@@ -91,7 +93,7 @@ export interface BindRequest {
  */
 export function bindPrivately(edit: EditContext, request: BindRequest): Command & { readonly name: string } {
   const { target } = request;
-  const place = bindingsPlace(edit, target);
+  const place = bindingsPlace(target);
   const proposed = request.name ?? `${target.site.name}.${target.slot}`;
   const name = unique(proposed, namesUnder(edit, place.path));
   const member = identityMember(target.site, target.slot, {
@@ -114,16 +116,15 @@ export function bindPrivately(edit: EditContext, request: BindRequest): Command 
   if (place.scope === '') {
     values[target.state ? STATE_SYMBOL : TENSOR_SYMBOL] = identitySymbol(name);
   }
-  const added = addToMap(edit, {
-    path: place.path,
-    name,
-    values,
-    label: `Bind ${target.site.name}.${target.slot} privately`,
-  });
+  const label = `Bind ${target.site.name}.${target.slot} privately`;
+  const added =
+    objectAt(edit.tree, place.path) === undefined
+      ? firstRule(edit, place.path, name, values, label)
+      : addToMap(edit, { path: place.path, name, values, label });
   // The new rule first and the old members after, for {@link sequence}'s reason: both places are
   // computed against the tree as it is, and a map takes its new entry by name whatever else goes.
   const left = [leaving(edit, request), joining === undefined ? null : leaving(edit, joining)];
-  return { ...sequence(added.label, [added, ...left]), name };
+  return { ...sequence(label, [added, ...left]), name };
 }
 
 /**
@@ -188,17 +189,69 @@ function sequence(label: string, commands: readonly (Command | null)[]): Command
   };
 }
 
-/** Where a new rule for this site goes, and the composition it is scoped to. */
-export function bindingsPlace(
-  edit: EditContext,
-  target: SlotTarget,
-): { readonly path: Path; readonly scope: string } {
+/**
+ * Where a new rule for this site goes, and the composition it is scoped to.
+ *
+ * A site of a composition is bound **inside** it whether or not the composition already has a map
+ * of that kind: that is what makes the rule one tensor per iteration (§5.2 rule 7), and a rule
+ * written at the top level instead would name one iteration's slot and leave the other thirty-one
+ * unbound (V7). The map is created where it is missing ({@link firstRule}), exactly as a scoped
+ * value rule's is — feature 2.14 does the same one map along. Until feature 2.19 built a document
+ * from nothing, every composition of the corpus already had both maps and the difference could not
+ * be seen.
+ */
+export function bindingsPlace(target: SlotTarget): { readonly path: Path; readonly scope: string } {
   const map = target.state ? STATE_BINDINGS : PARAMETER_BINDINGS;
   if (target.site.kind === 'gen') {
-    const scoped = ['compositions', target.site.composition, BINDINGS, map] as Path;
-    if (objectAt(edit.tree, scoped) !== undefined) return { path: scoped, scope: target.site.composition };
+    return {
+      path: ['compositions', target.site.composition, BINDINGS, map] as Path,
+      scope: target.site.composition,
+    };
   }
   return { path: [BINDINGS, map] as Path, scope: '' };
+}
+
+/**
+ * The first rule of a map that is not there yet: the map, and everything above it, created holding
+ * it.
+ *
+ * The grammar makes a composition's `bindings` optional and each of its four maps optional in
+ * turn, so a composition may be missing one, the other, or both. What is written is the chain from
+ * the deepest place that exists down to the rule, with the rule's own members in the schema's
+ * property order — which is what {@link addToMap} does where the map is there.
+ */
+function firstRule(
+  edit: EditContext,
+  path: Path,
+  name: string,
+  values: Readonly<Record<string, JsonValue>>,
+  label: string,
+): Command {
+  let at = path.length;
+  while (at > 0 && objectAt(edit.tree, path.slice(0, at)) === undefined) at -= 1;
+  const shape = edit.shapes.values(shapeAt(edit, path));
+  const order = edit.shapes.propertyOrder(shape);
+  const members = Object.keys(values).sort(
+    (left, right) => positionOf(order, left) - positionOf(order, right),
+  );
+  let value: JsonValue = jsonObject([
+    { name, value: jsonObject(members.map((member) => ({ name: member, value: values[member] as JsonValue }))) },
+  ]);
+  for (let depth = path.length - 1; depth > at; depth -= 1) {
+    value = jsonObject([{ name: path[depth] as string, value }]);
+  }
+  return setMemberAt(edit, {
+    path: path.slice(0, at),
+    name: path[at] as string,
+    value,
+    label,
+  });
+}
+
+/** Where a member stands in the schema's own order; the ones it does not name come last. */
+function positionOf(order: readonly string[], name: string): number {
+  const at = order.indexOf(name);
+  return at < 0 ? order.length : at;
 }
 
 /**

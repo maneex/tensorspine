@@ -141,9 +141,17 @@ export function wireDocuments(wiring: DocumentsWiring): {
     },
     'file.save': () => now().save(),
     'file.save-as': () => {
+      // §4.4's own rule, the one feature 2.9 wrote down: "a command with no argument acts on the
+      // document behind it (`documentTab` strips the suffix)". A tab that is a *view* of a
+      // document — its JSON source, a drill-in, the expanded graph — carries a suffix, and the
+      // command did nothing at all while one was current. Feature 2.19 met it on a build that
+      // wires a composition and then saves.
       const id = current();
-      const one = now().open.find((open) => open.id === id);
-      if (one === undefined) return;
+      const one = id === null ? undefined : now().open.find((open) => open.id === documentTab(id));
+      if (one === undefined) {
+        now().note('Save As…: there is no document open to save');
+        return;
+      }
       now().setDialog({ kind: 'save-as', id: one.id, path: one.path });
     },
     'file.save-all': () => now().saveAll(),

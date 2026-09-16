@@ -172,6 +172,29 @@ test.describe('an edit on a row', () => {
     );
   });
 
+  test('puts an argument the document does not write onto a quantity (§4.12)', async ({ page }) => {
+    await open(page);
+    await openModel(page);
+    await select(page, ATTN);
+
+    // `scale` is declared, applicable and unwritten — the state every argument of a freshly
+    // dropped instance is in. Choosing a source mode *writes* that mode, here with the empty name:
+    // D5's own blank, refused by Ajv on the row at once, and the select beside it is what fills it
+    // in. Before feature 2.19 met it, choosing the quantity mode wrote nothing at all, so the
+    // select never appeared and no gesture put an argument on a quantity — the one thing every
+    // corpus document is full of.
+    const held = row(page, 'scale');
+    await expect(held).toHaveAttribute('data-source', 'absent');
+    await held.locator('[data-modes="scale"]').selectOption('quantity');
+    await expect(held).toHaveAttribute('data-mode', 'quantity');
+    // The row survives the refusal the blank carries — the whole sheet used to go with it, since
+    // `describe` gates on the grammar and the core then answers no site at all.
+    await expect(sheet(page).locator('.insp-title')).toHaveText('attn');
+    await held.locator('[data-value="scale"]').selectOption('eps');
+    await expect(held.locator('[data-effective]')).toHaveText('1e-05');
+    expect(await sourceText(page)).toContain('"scale"');
+  });
+
   test('pins a defaulted value as a literal, and clears it back to nothing', async ({ page }) => {
     await open(page);
     await openModel(page);

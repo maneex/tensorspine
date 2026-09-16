@@ -6,6 +6,7 @@ import {
   foldedGraph,
   identityReadings,
   isJsonObject,
+  jsonObject,
   loadLibrary,
   quantityReadings,
   serialize,
@@ -439,6 +440,33 @@ describe('the blank of a place', () => {
     // The first alternative of the union, built from its own required members: an interval whose
     // bounds are optional is its `kind` alone.
     expect(plain(blankValue(context, shape))).toEqual({ kind: 'interval' });
+  });
+
+  it('builds a number as a number of the tree, with its float-ness stated', () => {
+    // A bare JavaScript number is not a value of the tree (feature 0.3, D12), and `serialize`
+    // refuses one — so a blank that wrote one made the document unserializable the moment it was
+    // added: no Save, no JSON source, and a fatal refusal out of the expression editor, which
+    // prints what it is given. Feature 2.19 met it twice, on `Add Quantity` and on a literal
+    // quantity's `derivation`, and this is the rule both now take: the sheet's own `literalOf`.
+    const literal = blankValue(
+      context,
+      context.shapes.at('https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_literal'),
+    );
+    expect(literal).toEqual({ kind: 'number', value: 0, real: true });
+    // And the whole quantity a `Model ▸ Add Quantity` writes serializes, which is the claim that
+    // matters: every blank of it is a value of the tree, one level down as well as at the top.
+    const quantity = blankValue(
+      context,
+      context.shapes.at('https://tensorspine.dev/schema/2.0/model.json#/$defs/quantity_definition'),
+    );
+    expect(serialize(jsonObject([{ name: 'quantity', value: quantity }]))).toContain('"value": 0.0');
+    // An expression's own blank — what `Add` writes at a `derivation` or a `when` — likewise.
+    const expression = blankValue(
+      context,
+      context.shapes.at('https://tensorspine.dev/schema/2.0/model.json#/$defs/scalar_expression'),
+    );
+    expect(plain(expression)).toEqual({ literal: 0 });
+    expect(serialize(jsonObject([{ name: 'derivation', value: expression }]))).toContain('0.0');
   });
 
   it('is off the grammar where the grammar needs a name nobody can guess', () => {

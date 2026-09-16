@@ -123,11 +123,59 @@ export function writeLiteral(
 }
 
 /**
+ * A number as the **author typed it**, in the form they typed it in.
+ *
+ * V3's own lexical rule, which finding F7's documentation set states: *a number token with a
+ * fraction or an exponent is a real, without one a whole number*. So a number a person writes
+ * carries the float-ness of what was written, and the declared type is what **judges** it rather
+ * than what rewrites it.
+ *
+ * **This is a departure from D12's parenthesis** ("the float-ness taken from the declared type: a
+ * `real` argument is a float") and it is the corpus that asks for it: `llama3-8b` writes
+ * `"theta": 500000` for an argument the reference base declares `real`, `model.py` reads it as a
+ * Python `int`, D1 carries the `int`, and the Weisfeiler-Lehman signature
+ * `tests/signatures/llama3-8b.json` records is taken over `json.dumps` of those arguments — so a
+ * writer that took the float-ness from the declaration could not spell that document at all, and
+ * feature 2.19 could not build it. D12's rule stands everywhere there is no text to read: a value
+ * the editor *computes* (`Pin value`, a blank, a mode's first option) is still written in the form
+ * the declaration asks for, which is what {@link literalOf} does.
+ *
+ * `null` where the text is not a finite number — an empty field, a half-typed `1e`, an infinity —
+ * which is a field being typed in and not a value to write.
+ */
+export function numberAsTyped(text: string, facts: SchemaFacts): JsonValue | null {
+  const value = Number(text);
+  if (text.trim() === '' || !Number.isFinite(value)) return null;
+  // A fraction or an exponent makes it a real; nothing else does, whatever the place admits.
+  return literalOf(value, { ...facts, holdsWholeNumber: !/[.eE]/.test(text), holdsNumber: /[.eE]/.test(text) });
+}
+
+/**
+ * Write a typed number at a row, in the form it was typed in.
+ *
+ * The caller asks {@link numberAsTyped} first, which is what says whether there is a number to
+ * write at all — a field being typed in is not a value.
+ */
+export function writeTypedNumber(
+  context: EditContext,
+  row: ArgumentRow,
+  text: string,
+  facts: SchemaFacts,
+): Command {
+  const value = numberAsTyped(text, facts);
+  if (value === null) throw new Error(`${row.path}: ${JSON.stringify(text)} is not a number`);
+  const mode = literalMode(row.modes);
+  if (mode === undefined) throw new Error(`${row.path} has no literal mode`);
+  return writeMode(context, row, mode, value);
+}
+
+/**
  * A scalar as the document writes it.
  *
  * A number carries its lexeme and its integer/real nature (feature 0.3, D12), and the nature is the
  * declared type's: `holdsWholeNumber` without `holdsNumber` is `--document primitive-schema`'s
- * `{"type": "integer"}`, which a cardinality and a whole-number physical both are.
+ * `{"type": "integer"}`, which a cardinality and a whole-number physical both are. Where a person
+ * *typed* the number, {@link numberAsTyped} is what reads it instead.
  */
 export function literalOf(value: string | number | boolean, facts: SchemaFacts): JsonValue {
   if (typeof value !== 'number') return value;

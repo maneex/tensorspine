@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { identityFacts, type SiteKey } from '@tensorspine/lang';
-import { DocumentStore, type Path } from '@tensorspine/store';
+import { DocumentStore, remove, type Path } from '@tensorspine/store';
 
 import { addDeclaration } from '../../src/sheet/add.js';
 import { bindPrivately, tieTo, type HeldMember } from '../../src/sheet/bindings.js';
@@ -22,14 +22,19 @@ function session(name: string): DocumentStore {
 }
 
 /** The site of one member of an identity, as the core names it. */
-function memberOf(name: string, rule: string, at: number): { site: SiteKey; slot: string; held: HeldMember } {
-  const facts = identityFacts(analysisOf(name), library(), { rule, state: false });
+function memberOf(
+  name: string,
+  rule: string,
+  at: number,
+  state = false,
+): { site: SiteKey; slot: string; held: HeldMember } {
+  const facts = identityFacts(analysisOf(name), library(), { rule, state });
   const member = facts?.members[at];
   if (member === undefined) throw new Error(`${name}: ${rule} has no member ${String(at)}`);
   return {
     site: member.site,
     slot: member.slot,
-    held: { rule: ['bindings', 'parameters', rule] as Path, at: member.at },
+    held: { rule: ['bindings', state ? 'states' : 'parameters', rule] as Path, at: member.at },
   };
 }
 
@@ -101,6 +106,55 @@ describe('a slot leaving and joining an identity', () => {
     expect(rules['attn.query']).toEqual({ members: [{ site: 'attn', parameter: 'q' }] });
     // And the rule it left had one member, so the grammar's own `minItems` took it with it.
     expect(Object.keys(rules)).not.toContain('attn.q');
+  });
+
+  it('makes the composition’s own map where it has none, rather than binding at the top level', () => {
+    // The grammar makes a composition's `bindings` optional and each of its four maps optional in
+    // turn, so a composition being written has neither until something is written into it. Until
+    // feature 2.19 built a document from nothing, every composition of the corpus already had
+    // both and a rule that fell back to the top level could not be seen — where it would name one
+    // iteration's slot and leave the other thirty-one unbound (V7).
+    const store = session('llama3-8b');
+    const member = memberOf('llama3-8b', 'decoder.attn.q', 0);
+    // Take the whole scoped map away, as a composition that has never been bound has it.
+    store.run((edit) =>
+      remove(edit, {
+        path: ['compositions', 'decoder', 'bindings', 'parameters'] as Path,
+        label: 'the map a fresh composition has not',
+      }),
+    );
+    store.run((edit) =>
+      bindPrivately(edit, { target: { site: member.site, slot: member.slot, state: false } }),
+    );
+    const written = JSON.parse(store.text) as {
+      bindings: { parameters: Record<string, unknown> };
+      compositions: { decoder: { bindings: { parameters: Record<string, unknown> } } };
+    };
+    expect(Object.keys(written.compositions.decoder.bindings.parameters)).toEqual(['attn.q']);
+    expect(written.compositions.decoder.bindings.parameters['attn.q']).toEqual({
+      members: [{ site: 'attn', parameter: 'q' }],
+    });
+    expect(Object.keys(written.bindings.parameters)).not.toContain('attn.q');
+  });
+
+  it('makes the composition’s `bindings` itself where there is none at all', () => {
+    const store = session('llama3-8b');
+    const member = memberOf('llama3-8b', 'decoder.attn.kv', 0, true);
+    store.run((edit) =>
+      remove(edit, {
+        path: ['compositions', 'decoder', 'bindings'] as Path,
+        label: 'a composition with no bindings at all',
+      }),
+    );
+    store.run((edit) =>
+      bindPrivately(edit, { target: { site: member.site, slot: member.slot, state: true } }),
+    );
+    const written = JSON.parse(store.text) as {
+      compositions: { decoder: { bindings: { states: Record<string, unknown> } } };
+    };
+    expect(written.compositions.decoder.bindings.states['attn.kv']).toEqual({
+      members: [{ site: 'attn', state: 'kv' }],
+    });
   });
 
   it('ties a scoped slot into a top-level identity with the selector the grammar asks for', () => {

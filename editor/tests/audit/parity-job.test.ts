@@ -82,8 +82,10 @@ interface Check {
   readonly proves: string;
   /** Files that run it today, relative to `editor/`. */
   readonly runs?: readonly string[];
-  /** The feature whose block builds it, when no layer runs it yet. */
+  /** The feature whose block builds it, when no layer runs it yet — or runs only half of it. */
   readonly owner?: string;
+  /** What that owner still owes, where a row is run **in part**; absent where it is not. */
+  readonly owes?: string;
 }
 
 const CHECKS: readonly Check[] = [
@@ -143,7 +145,16 @@ const CHECKS: readonly Check[] = [
   {
     check: 'Build-from-scratch e2e',
     proves: '`llama3-8b` from an empty document and `norm.rms` from an empty unit, in the GUI',
-    owner: '2.19 — phase-2 exit, and 3.3 — primitive editor forms',
+    // Feature 2.19 built the **model** half: `llama3-8b` from `File ▸ New Model` to a derived
+    // document deep-equal to the corpus's, by gestures alone, with the renaming it is compared
+    // through and that renaming's own suite beside it. The unit half waits on the forms.
+    runs: [
+      'apps/web/e2e/scratch.spec.ts',
+      'apps/web/e2e/scratch-build.ts',
+      'apps/web/e2e/derived-names.spec.ts',
+    ],
+    owner: '3.3 — primitive editor forms',
+    owes: '`norm.rms` from an empty unit, which needs a primitive editor to declare one in',
   },
   {
     check: 'Platform leak build',
@@ -160,12 +171,21 @@ const CHECKS: readonly Check[] = [
 ];
 
 describe('the checks of the plan’s §6', () => {
-  it('names every row as run by a layer or owed by a feature, never both and never neither', () => {
+  it('names every row as run by a layer or owed by a feature, and says which half where it is both', () => {
     for (const row of CHECKS) {
-      const stated = (row.runs === undefined ? 0 : 1) + (row.owner === undefined ? 0 : 1);
-      expect(stated, row.check).toBe(1);
+      expect(row.runs !== undefined || row.owner !== undefined, row.check).toBe(true);
+      // A row that is *both* is a check one feature built a part of: the part still owed is named
+      // rather than left to be inferred from the prose, and nothing else may carry that field.
+      if (row.runs !== undefined && row.owner !== undefined) {
+        expect((row.owes ?? '').length, row.check).toBeGreaterThan(20);
+      } else {
+        expect(row.owes, row.check).toBeUndefined();
+      }
     }
     expect(CHECKS).toHaveLength(12);
+    expect(CHECKS.filter((row) => row.owes !== undefined).map((row) => row.check)).toEqual([
+      'Build-from-scratch e2e',
+    ]);
   });
 
   it('finds every file a row says runs it', () => {
@@ -176,7 +196,7 @@ describe('the checks of the plan’s §6', () => {
     }
   });
 
-  it('runs seven of them today; the other five name the feature that will', () => {
+  it('runs nine of them today; four still name a feature, one of them for half a row', () => {
     const run = CHECKS.filter((row) => row.runs !== undefined).map((row) => row.check);
     expect(run).toEqual([
       'Parity job',
@@ -185,6 +205,7 @@ describe('the checks of the plan’s §6', () => {
       'No-hard-coding audit (§1 b)',
       'Presentation audit at startup',
       'Corpus and library round-trip',
+      'Build-from-scratch e2e',
       'Platform leak build',
       'Timings',
     ]);

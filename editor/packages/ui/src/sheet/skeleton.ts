@@ -15,7 +15,12 @@
  *   give an entry and a list with no item to put in it are what the author is about to fill, and
  *   inventing a name would be inventing a declaration;
  * - a **scalar** takes `blankOf`'s answer (feature 2.3): the first option, zero, false, or the
- *   empty text.
+ *   empty text — and a number is built as a **number of the tree**, with its float-ness stated,
+ *   by the one rule the sheet's own rows write a literal under ({@link literalOf}). A bare
+ *   JavaScript number is not a value of the tree (feature 0.3, D12) and the serializer refuses
+ *   one, so a blank that wrote one made the document unserializable: unsaveable, unshowable as
+ *   JSON, and fatal to the expression editor, which prints what it is given. Feature 2.19 met it
+ *   on `Add Quantity` and on a literal's `derivation`.
  *
  * **The blank can be off the grammar, and that is the honest answer.** A `value_endpoint` needs an
  * instance name and a port, and neither can be guessed: the blank writes the empty text, Ajv says
@@ -34,6 +39,7 @@ import {
   type FormContext,
   type FormMode,
 } from '../forms/index.js';
+import { literalOf } from './edits.js';
 
 /** How deep a blank is built before it stops — a recursive `$def` has no smallest value. */
 const DEPTH = 8;
@@ -67,7 +73,7 @@ export function blankValue(context: FormContext, shape: Shape, depth = 0): JsonV
         })),
     );
   }
-  return blankOf(facts, undefined) as JsonValue;
+  return literalOf(blankOf(facts, undefined), facts);
 }
 
 /** The shape of one alternative of a union — what a chooser set to that mode writes. */

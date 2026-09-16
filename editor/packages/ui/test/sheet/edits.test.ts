@@ -5,7 +5,16 @@ import { DocumentStore } from '@tensorspine/store';
 
 import type { ArgumentRow, ArgumentSheet } from '../../src/sheet/arguments.js';
 import { NO_ARGUMENT_FACTS } from '../../src/sheet/artifact.js';
-import { blankOf, clearValue, literalMode, pinValue, writeLiteral, writeMode } from '../../src/sheet/edits.js';
+import {
+  blankOf,
+  clearValue,
+  literalMode,
+  numberAsTyped,
+  pinValue,
+  writeLiteral,
+  writeMode,
+  writeTypedNumber,
+} from '../../src/sheet/edits.js';
 import { artifactOf, context, described, freshTree, sheetFor } from './source.js';
 
 /**
@@ -160,6 +169,37 @@ describe('the source modes', () => {
     held.store.apply(writeMode(held.store.context, row, quantity as never, 'layers'));
     expect(held.row('heads').value).toBe('layers');
     expect(held.row('heads').effective).toBe('32');
+  });
+
+  it('writes a typed number in the form it was typed in, not the declaration’s (V3’s own rule)', () => {
+    // `rope.theta` is declared `real` and `llama3-8b` writes `500000` there — a whole number,
+    // which `model.py` reads as a Python `int`, D1 carries as one and the Weisfeiler-Lehman
+    // signature of `tests/signatures/llama3-8b.json` is taken over. A writer that took the
+    // float-ness from the declaration (D12's parenthesis) could not spell that document at all,
+    // which is what feature 2.19 met when it tried to build it.
+    const held = new Sheeted(LLAMA, ATTN);
+    const theta = held.row('rope.theta');
+    const facts = held.facts(theta);
+    expect(numberAsTyped('500000', facts)).toEqual({ kind: 'number', value: 500000, real: false });
+    expect(numberAsTyped('500000.0', facts)).toEqual({ kind: 'number', value: 500000, real: true });
+    expect(numberAsTyped('1e-05', facts)).toEqual({ kind: 'number', value: 1e-5, real: true });
+    // A field being typed in is not a value: an empty one, a half-written exponent, an infinity.
+    for (const text of ['', ' ', '1e', 'Infinity', 'x']) {
+      expect(numberAsTyped(text, facts), text).toBeNull();
+    }
+
+    // And what it writes is what the document then holds, lexeme and all (D12).
+    held.store.apply(writeTypedNumber(held.store.context, theta, '500000', facts));
+    expect(serialize(held.store.tree)).toContain('"literal": 500000\n');
+    held.store.apply(writeTypedNumber(held.store.context, held.row('rope.theta'), '5e5', facts));
+    expect(serialize(held.store.tree)).toContain('"literal": 500000.0\n');
+
+    // A value the editor *computes* is still written in the form the declaration asks for, which
+    // is D12's own rule and is untouched: `Pin value` on a real writes a real.
+    const scale = held.row('scale');
+    expect(blankOf(held.facts(scale), scale.options)).toBe(0);
+    held.store.apply(writeLiteral(held.store.context, scale, 0.5, held.facts(scale)));
+    expect(serialize(held.store.tree)).toContain('"scale": {');
   });
 
   it('starts a literal from the first value the place admits, never from a default of its own', () => {

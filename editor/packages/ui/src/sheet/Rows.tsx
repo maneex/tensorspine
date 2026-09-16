@@ -136,6 +136,12 @@ function GeneratedRow(props: RowsProps & { row: FormRow }): JSX.Element {
           row.widget === CHOOSER ||
           row.widget === MAP ||
           row.widget === LIST ||
+          // An expression or a condition the document does not write yet — a literal quantity's
+          // `derivation` (V11), a binding rule's `when` — is written as the first alternative its
+          // union admits (`{"literal": 0}`, `{"boolean": false}`), and §4.13's editor is then what
+          // says what it is. Without this there is no gesture that declares either: feature 2.19
+          // met it on `head_dim`, which every transcription of `llama3-8b` has to write.
+          editsExpression(row.widget) ||
           // A physical name the document does not write yet — a template instance's
           // `weights_location_prefix` (§4.14) — is written as the empty list the schema's own
           // blank is, and the token editor is then what fills it, chip by chip.
@@ -367,7 +373,11 @@ function MapRow(props: RowsProps & { row: FormRow; at: Path; shape: Shape }): JS
                   ×
                 </button>
               </div>
-              {mode === 'names' ? null : <FormRows {...props} under={entry} />}
+              {mode === 'names' ? null : entryEditsItself(entry) ? (
+                <GeneratedRow {...props} row={entry} />
+              ) : (
+                <FormRows {...props} under={entry} />
+              )}
             </div>
           ))}
           <div className="frow">
@@ -401,6 +411,20 @@ function MapRow(props: RowsProps & { row: FormRow; at: Path; shape: Shape }): JS
       )}
     </div>
   );
+}
+
+/**
+ * Whether a map's entry is edited **on its own row** rather than by rows below it.
+ *
+ * The same reading a list's items get (`ListRows`): a scalar, an expression and a chooser are one
+ * row each, and everything else is a section with its members under it. Without it a map of
+ * expressions — a generated selector's `indices`, which every boundary edge of every corpus
+ * document writes — drew its name and its × and nothing to read or edit at all, the walker
+ * leaving an expression's subtree to the editor bound at it. Feature 2.19 met it on
+ * `decoder/ffn_r[layer=layers − 1]`.
+ */
+function entryEditsItself(entry: FormRow): boolean {
+  return editsOneValue(entry.widget) || editsExpression(entry.widget) || entry.widget === CHOOSER;
 }
 
 /** A list: `to` endpoints, an identity's members, the bases a document resolves from. */
@@ -482,6 +506,14 @@ function ChooserRow(props: RowsProps & { row: FormRow; at: Path; shape: Shape })
   const chosen = modes.find((mode) => mode.tag === row.mode);
   const held = nodeAt(one.session.store.tree, at);
   const inline = chosen !== undefined && chosen.inline;
+  // An **inline** alternative is one scalar and no rows below it — a `dtype_expression`'s
+  // `{"quantity": "precision"}`, or the bare dtype beside it — so the walker does not descend into
+  // one (the argument sheet edits it on the row itself, §4.12). Here there is no row to edit it
+  // on: without this the section drew its select and an empty body, and an identity's dtype could
+  // be seen but never written. What it edits is the member the mode names, or the place itself
+  // where the alternative has no member; the row already carries the widget, the options and the
+  // value, because the walker read them off the alternative when it chose the mode.
+  const within = chosen?.member === undefined ? at : ([...at, chosen.member] as Path);
   return (
     <div className="fsect" data-member={row.label} data-chooser={row.path} data-mode={row.mode ?? ''}>
       <div className="fsect-head">
@@ -491,6 +523,25 @@ function ChooserRow(props: RowsProps & { row: FormRow; at: Path; shape: Shape })
       </div>
       {held === undefined && !inline ? null : (
         <div className="fsect-body">
+          {chosen !== undefined && inline && editsOneValue(chosen.widget) ? (
+            <div className="frow" data-member={row.label}>
+              <span className="fk">{chosen.member ?? row.label}</span>
+              <span className="fv">
+                <ScalarField
+                  {...props}
+                  row={{
+                    ...row,
+                    // The *mode's* widget and options, which are the ones the alternative asserts:
+                    // the row's own are the chooser's.
+                    widget: chosen.widget,
+                    ...(chosen.options === undefined ? {} : { options: chosen.options }),
+                  }}
+                  at={within}
+                  shape={shapeAt(context.shapes, within, one.session.store.role)}
+                />
+              </span>
+            </div>
+          ) : null}
           <FormRows {...props} under={row} />
         </div>
       )}

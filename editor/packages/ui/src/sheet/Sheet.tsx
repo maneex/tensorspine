@@ -97,6 +97,8 @@ import {
   referringModes,
   writeLiteral,
   writeMode,
+  numberAsTyped,
+  writeTypedNumber,
   writeRecord,
   writeValue,
 } from './edits.js';
@@ -137,14 +139,38 @@ function outlineFor(one: OpenDocument): readonly OutlineRow[] {
   return rows;
 }
 
-/** The site the selection stands for, when it stands for one. */
+/**
+ * The site the selection stands for, when it stands for one.
+ *
+ * **The last answer stands while the core has none.** A document between two keystrokes is off the
+ * grammar — choosing a source mode writes the blank of it (D5), which for a quantity or an index
+ * is the empty name — and `describe` gates on the grammar (feature 1.6d), so the core then
+ * answers no site at all. Without this the whole sheet went with it, taking away the very rows the
+ * author needs to repair the document: feature 2.19 met it on the gesture that puts an argument on
+ * a quantity, which is the one every corpus document is full of. It is feature 2.13's own
+ * arrangement for the identity sheet one construct along (§5.4's freshness), and it is held to two
+ * things — that the core answered about *nothing*, so a site deleted from a document it can still
+ * read is gone from the sheet as it should be, and that the place is still written, so a sheet
+ * never outlives what it is open on.
+ */
+let lastSite: { document: string; pointer: string; site: SiteDescription } | null = null;
+
 function siteOf(one: OpenDocument, selection: Path | undefined): SiteDescription | undefined {
   if (selection === undefined) return undefined;
   const pointer = pointerOf(selection);
-  for (const site of one.reading.facts?.sites.values() ?? []) {
-    if (pointerOf(site.segments) === pointer) return site;
+  const sites = one.reading.facts?.sites;
+  if (sites !== undefined && sites.size > 0) {
+    for (const site of sites.values()) {
+      if (pointerOf(site.segments) !== pointer) continue;
+      lastSite = { document: one.id, pointer, site };
+      return site;
+    }
+    return undefined;
   }
-  return undefined;
+  if (lastSite === null || lastSite.document !== one.id || lastSite.pointer !== pointer) {
+    return undefined;
+  }
+  return nodeAt(one.session.store.tree, selection) === undefined ? undefined : lastSite.site;
 }
 
 /** The sheet of the current selection — §4.11's table, row by row. */
@@ -1232,7 +1258,14 @@ function ModeControl({
           return;
         }
         if (mode.referent !== undefined) {
-          store.getState().note(`sheet: choose a ${mode.referent} for ${row.path} from its select`);
+          // §4.12's quantity and index modes. The mode is *written*, with the empty name: D5's own
+          // blank, which Ajv refuses on the row at once and the select beside it fills in. Before
+          // this the mode could only be **read** — the select of names is drawn for the mode the
+          // document already writes, so a row the document does not write had nothing to choose
+          // from and no gesture put an argument on a quantity at all. Feature 2.19 met it on the
+          // first argument of the first instance it dropped; every corpus document is full of
+          // them.
+          edit(store, (made) => writeMode(made, row, mode, ''));
           return;
         }
         edit(store, (made) => writeLiteral(made, row, blankOf(facts, row.options), facts));
@@ -1417,9 +1450,11 @@ function Value({
           step={facts.holdsWholeNumber && !facts.holdsNumber ? 1 : 'any'}
           value={numberText(row)}
           onChange={(event) => {
-            const held = Number(event.target.value);
-            if (event.target.value === '' || Number.isNaN(held)) return;
-            editRows(store, rows, (made, each) => writeLiteral(made, each, held, facts));
+            // The form the number takes is the form it was typed in (V3's lexical rule), not the
+            // one the declaration would have chosen: see `numberAsTyped`.
+            const text = event.target.value;
+            if (numberAsTyped(text, facts) === null) return;
+            editRows(store, rows, (made, each) => writeTypedNumber(made, each, text, facts));
           }}
         />
         {row.unit === undefined ? null : <i className="unit">{row.unit}</i>}
