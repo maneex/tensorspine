@@ -1,0 +1,118 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   The documentation site's bar — component inventory §2 (`.docbar`), S18.
+
+   The static build is published beside the documentation site (D11), so the
+   editor is one page of that site and wears its bar. Two sources meet here
+   and neither is invented:
+
+     * **the arrangement** is the design's `.docbar` block
+       (`plans/graph-editor-design/_ts.css`): 60 px tall, 22 px of side
+       padding, 26 px between the lockup and the links, links at 12.5 px and
+       the page being read marked with a 2 px underline. The lockup is the
+       site's own at the size the site uses on a narrow screen — monogram
+       44 px, gap 9.4 px (0.21 H), name 19.2 px (0.44 H), which are the two
+       measures §4.21 names.
+     * **the palette** is the site's, token for token
+       (`docs/style/primitive-library.css`'s `:root`), restated below as
+       `--site-*` custom properties so that the mapping is legible and
+       `tests/audit/site-bar.test.ts` can hold every one of them to the
+       site's own file. The bar takes **no theme**: the documentation site
+       has one palette, and a bar that darkened while the site's pages did
+       not would be the editor pretending the site follows it.
+
+   Contrast, measured on the site's ground `#f7f5f0`: the links 7.32:1, the
+   current page 14.78:1, its underline 7.13:1. The wordmark's teal half is
+   1.99:1 and is a logotype, which WCAG 1.4.3 exempts and the browser
+   suite's axe pass excludes by `.wordmark` — the same exemption feature 2.5
+   took for the application's own bar, and for the same reason: repainting
+   it would be redrawing the logo.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* The page the site's bar is above: the bar's own height, the application
+   taking what is left. `.app` is otherwise `height: 100%` of `#root`. */
+.page-site { height: 100%; display: flex; flex-direction: column; }
+.page-site > .app { flex: 1 1 auto; height: auto; min-height: 0; }
+
+.docbar {
+  /* the documentation site's own tokens, by their names there */
+  --site-bg: #f7f5f0;
+  --site-bg-raised: #ffffff;
+  --site-rule: #e1ddd3;
+  --site-ink: #22211e;
+  --site-ink-3: #55504a;
+  --site-accent: #15577f;
+  --site-logo-blue: #175e8c;
+  --site-logo-teal: #2ac3c1;
+
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 26px;
+  height: 60px; padding: 0 22px;
+  background: var(--site-bg); border-bottom: 1px solid var(--site-rule);
+  font-family: var(--sans);
+  color-scheme: light;
+}
+
+/* The lockup, as `docs/style/nav.html` arranges it: the drawing placed and
+   scaled, the name beside it in the mark's own two colours. */
+.docbar .wordmark { flex-shrink: 0; display: flex; align-items: center; gap: 9.4px; }
+.docbar .wordmark svg.mono { display: block; height: 44px; width: auto; }
+.docbar .wordmark .name { font-family: sans-serif; font-size: 19.2px; line-height: 1; white-space: nowrap; }
+.docbar .wordmark .name span:first-child { color: var(--site-logo-blue); }
+.docbar .wordmark .name span:last-child { color: var(--site-logo-teal); }
+
+/* The entries, arranged as the site arranges them: the destinations shown,
+   the guides and the generated documents folded behind the site's own two
+   `<details>` menus, with the hairline it puts before each. Fourteen links
+   in a row do not fit the width S18 draws, and a row that scrolled would
+   hide its tail with nothing to say so — the site's grouping is what makes
+   a bar of this size hold everything the site has. `<details>` because that
+   is what `nav.html` writes: no script, and the keyboard for nothing. */
+.docbar .doclinks { display: flex; align-self: stretch; align-items: stretch; flex: 1 1 auto; min-width: 0; }
+.docbar .docgroup { display: flex; align-self: stretch; align-items: stretch; gap: 17px; }
+/* The shown group takes the room and scrolls if it ever outgrows it; the folded
+   ones keep their width at the right. It is also where the scrolling has to be:
+   `overflow-x` clips both ways, so a panel opening out of a scrolling box would
+   be cut to the bar's own height — which is why the site scrolls `.nav-main`
+   alone and leaves its two menus outside it. */
+.docbar .docgroup.shown { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.docbar .docgroup.shown::-webkit-scrollbar { display: none; }
+.docbar .docgroup.folded { flex-shrink: 0; }
+.docbar .docgroup + .docgroup {
+  margin-left: 21px; padding-left: 21px;
+  border-left: 1px solid var(--site-rule);
+}
+.docbar .doclinks a,
+.docbar .doclinks .cur,
+.docbar .docmenu > summary {
+  display: flex; align-items: center; white-space: nowrap;
+  margin-bottom: -1px; border-bottom: 2px solid transparent;
+  font-size: 12.5px; color: var(--site-ink-3); text-decoration: none;
+}
+.docbar .doclinks a:hover,
+.docbar .docmenu > summary:hover { color: var(--site-ink); }
+.docbar .doclinks .cur {
+  color: var(--site-ink); font-weight: 600; border-bottom-color: var(--site-accent);
+}
+.docbar :focus-visible { outline: 2px solid var(--site-accent); outline-offset: 2px; }
+
+/* A folded group: the site's own summary, marker and panel. */
+.docbar .docmenu { position: relative; display: flex; align-self: stretch; }
+.docbar .docmenu > summary { list-style: none; cursor: pointer; }
+.docbar .docmenu > summary::-webkit-details-marker { display: none; }
+.docbar .docmenu > summary::after {
+  content: "▾"; margin-left: 7px; font-size: 10px; color: var(--site-ink-3);
+}
+.docbar .docmenu[open] > summary {
+  color: var(--site-ink); font-weight: 600; border-bottom-color: var(--site-accent);
+}
+.docbar .docmenu-panel {
+  position: absolute; top: calc(100% - 1px); right: 0; z-index: 10;
+  display: flex; flex-direction: column; min-width: 190px; padding: 8px;
+  background: var(--site-bg); border: 1px solid var(--site-rule); border-radius: 0 0 8px 8px;
+  box-shadow: 0 14px 32px rgba(18, 51, 72, 0.14);
+}
+.docbar .docmenu-panel a {
+  display: block; margin: 0; padding: 8px 10px; border: 0; border-radius: 5px;
+  font-size: 13px; color: var(--site-ink-3); white-space: nowrap;
+}
+.docbar .docmenu-panel a:hover { color: var(--site-ink); background: var(--site-bg-raised); }

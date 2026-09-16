@@ -19,6 +19,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans": "5.3.0",
     "@tensorspine/lang": "workspace:*",
     "@tensorspine/store": "workspace:*",
     "elkjs": "^0.12.0",

@@ -37,6 +37,24 @@ export interface VendorFile {
   readonly sha256: string;
 }
 
+/**
+ * One set of vendored files written a second time as a single file — feature 2.18.
+ *
+ * Feature 2.6 measured the first document of a session at 417–449 ms against §5.6's 300 ms for a
+ * library load, of which about 130 ms was the reference base's 131 requests. A set that is always
+ * read whole is therefore fetched whole, once, and every read below it is answered from what came
+ * back. The per-file copies are still there and are still what the manifest's digests are of: a
+ * bundle is a transport, not a second source.
+ */
+export interface VendorBundle {
+  readonly name: string;
+  readonly path: string;
+  /** The vendored path prefix every file in it is under. */
+  readonly covers: string;
+  readonly files: number;
+  readonly bytes: number;
+}
+
 /** What `vendor.json` says, of what this module needs. */
 export interface VendorManifest {
   readonly repository_commit: string | null;
@@ -49,6 +67,13 @@ export interface VendorManifest {
    * literal-mode widget, its bounds, its options and its unit from the file this names.
    */
   readonly primitive_schemas?: Readonly<Record<string, string>>;
+  /**
+   * The sets written whole, for the readers that read a set whole.
+   *
+   * Absent from a vendor older than feature 2.18, and a build that serves none is a build that
+   * reads its files one at a time — slower, and right.
+   */
+  readonly bundles?: readonly VendorBundle[];
   readonly files: readonly VendorFile[];
 }
 
@@ -90,14 +115,53 @@ export class Vendor {
     readonly manifest: VendorManifest,
   ) {}
 
+  /** Each bundle's contents once it has been asked for — one request per set, per session. */
+  private readonly held = new Map<string, Promise<Readonly<Record<string, string>>>>();
+
   /** Every vendored path under a prefix, in the manifest's order (which is sorted). */
   paths(prefix: string): string[] {
     const at = prefix === '' ? '' : `${normalise(prefix)}/`;
     return this.manifest.files.map((one) => one.path).filter((path) => path.startsWith(at));
   }
 
-  /** The text of one vendored file, by its path under the vendor root. */
+  /** The bundle a vendored path is in, where the build wrote one. */
+  bundleFor(path: string): VendorBundle | null {
+    return (this.manifest.bundles ?? []).find((one) => path.startsWith(`${one.covers}/`)) ?? null;
+  }
+
+  /**
+   * One bundle's files, fetched once.
+   *
+   * The promise is what is held, not its value, so two readers that ask at the same moment — the
+   * schemas and the base of one document, the fifteen documents of a corpus round trip — make one
+   * request between them. A bundle that does not come back is not an error: the caller falls back
+   * to the file itself, which is still there.
+   */
+  private bundled(bundle: VendorBundle): Promise<Readonly<Record<string, string>>> {
+    const already = this.held.get(bundle.path);
+    if (already !== undefined) return already;
+    const reading = (async (): Promise<Readonly<Record<string, string>>> => {
+      const response = await fetch(`${this.root}${bundle.path}`);
+      if (!response.ok) return {};
+      return (await response.json()) as Readonly<Record<string, string>>;
+    })().catch(() => ({}));
+    this.held.set(bundle.path, reading);
+    return reading;
+  }
+
+  /**
+   * The text of one vendored file, by its path under the vendor root.
+   *
+   * Through the bundle its set was written into where there is one — one request for a hundred
+   * and thirty files instead of a hundred and thirty (feature 2.18) — and from the file itself
+   * otherwise, which is also what a bundle that did not arrive falls back to.
+   */
   async read(path: string): Promise<string> {
+    const bundle = this.bundleFor(path);
+    if (bundle !== null) {
+      const held = (await this.bundled(bundle))[path];
+      if (held !== undefined) return held;
+    }
     const response = await fetch(`${this.root}${path}`);
     if (!response.ok) {
       throw new PlatformError(`no vendored file ${path} (${String(response.status)})`, 'not-found');
@@ -110,7 +174,8 @@ export class Vendor {
    *
    * Read at once rather than one after another: the set is known from the manifest before the
    * first request, there are a hundred and thirty of them under the reference base, and the
-   * library load has three hundred milliseconds to its name (§5.6).
+   * library load has three hundred milliseconds to its name (§5.6). Where the build wrote the set
+   * as a bundle, "at once" is one request rather than a hundred and thirty in flight.
    */
   async readAll(prefix: string): Promise<Record<string, string>> {
     const paths = this.paths(prefix);

@@ -17,6 +17,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "e2e/**/*.ts",
+    "deploy.ts",
     "vite.config.ts",
     "playwright.config.ts"
   ]

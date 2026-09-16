@@ -14,7 +14,13 @@ import { CANVAS_VIEWS } from '@tensorspine/ui/canvas';
 import { EXPANDED_VIEWS } from '@tensorspine/ui/expanded';
 import { SOURCE_VIEWS } from '@tensorspine/ui/source';
 import { EXPLORER_ACTIVITY, ModelExplorer } from '@tensorspine/ui/explorer';
-import { createShell, documentationBase, Shell, type ShellStore } from '@tensorspine/ui/shell';
+import {
+  createShell,
+  documentationBase,
+  Shell,
+  SiteBar,
+  type ShellStore,
+} from '@tensorspine/ui/shell';
 
 import '@tensorspine/ui/style.css';
 
@@ -42,8 +48,16 @@ import { wireDocuments } from './documents.js';
  *
  * **Where the documentation is.** The Help menu's links are resolved against the directory above
  * this page: the editor is deployed *beside* the documentation site, not inside it (D11), so
- * `…/tensorspine/editor/` finds it at `…/tensorspine/`. Feature 2.18 settles the published base
- * path; until then the page reads its own address rather than carrying a host.
+ * `…/tensorspine/editor/` finds it at `…/tensorspine/`. Feature 2.18 settled that path — the
+ * build's `base` is the site's own path with `editor/` below it (`apps/web/deploy.ts`) — and the
+ * page still reads its own address rather than carrying a host, so a build served from anywhere
+ * finds its own neighbour.
+ *
+ * **The site's bar.** The same sentence of D11 that puts the editor beside the site puts it
+ * *under the site's bar*, "as the model views are" (S18), and that is a fact about this
+ * deployment and not about the renderer: the web application passes a {@link SiteBar}, an
+ * Electron window will pass none. Its entries are `docs/style/nav.html`'s, vendored, and resolve
+ * against the same directory the Help menu's links do.
  */
 export interface Application {
   readonly store: ShellStore;
@@ -75,10 +89,8 @@ export function start(platform: Platform, options: StartOptions): Application {
   if (!(root instanceof HTMLElement)) {
     throw new Error('the page has no #root to render into');
   }
-  const { store, dispose } = createShell({
-    platform,
-    docsBase: documentationBase(window.location.href),
-  });
+  const docsBase = documentationBase(window.location.href);
+  const { store, dispose } = createShell({ platform, docsBase });
   const documents = wireDocuments({
     platform,
     lang: options.lang,
@@ -102,6 +114,7 @@ export function start(platform: Platform, options: StartOptions): Application {
           platform={platform}
           views={{ ...DOCUMENT_VIEWS, ...CANVAS_VIEWS, ...EXPANDED_VIEWS, ...SOURCE_VIEWS }}
           activities={{ [EXPLORER_ACTIVITY]: ModelExplorer }}
+          siteBar={<SiteBar docsBase={docsBase} />}
         >
           <DocumentDialogs />
           <DocumentToast />

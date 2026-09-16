@@ -224,6 +224,45 @@ describe('every ink the shell writes text in', () => {
   });
 });
 
+describe('the documentation site’s bar above the editor (feature 2.18, S18)', () => {
+  /** The `--site-*` values `site-bar.css` declares — the site's own palette, by its own names. */
+  const site: Record<string, string> = {};
+  for (const match of readFileSync(join(here, '..', '..', 'src', 'shell', 'site-bar.css'), 'utf8').matchAll(
+    /(--site-[a-z0-9-]+)\s*:\s*([^;]+);/g,
+  )) {
+    site[match[1] ?? ''] = (match[2] ?? '').trim();
+  }
+
+  it('reaches §4.21’s 4.5:1 on the site’s own ground, which has no theme', () => {
+    // The bar is the site's and the site has one palette, so there is one measurement and not
+    // two. `tests/audit/site-bar.test.ts` is what holds these values to `docs/style/`.
+    const ground = site['--site-bg'] ?? '';
+    const failures: string[] = [];
+    for (const [token, on, where] of [
+      ['--site-ink-3', '--site-bg', 'an entry, a folded group’s summary and its marker'],
+      ['--site-ink', '--site-bg', 'the page being read, and an entry under the pointer'],
+      ['--site-accent', '--site-bg', 'the underline that marks it, and the focus ring'],
+      ['--site-ink-3', '--site-bg', 'an entry inside an open group’s panel, which is that ground'],
+      ['--site-ink', '--site-bg-raised', 'that entry under the pointer, which lifts its ground'],
+    ] as const) {
+      const ratio = contrast(site[token] ?? '', site[on] ?? '');
+      if (ratio < 4.5) failures.push(`${token} on ${on} is ${String(ratio)}:1 — ${where}`);
+    }
+    expect(ground).not.toBe('');
+    expect(failures).toEqual([]);
+  });
+
+  it('is a logotype where it does not, which is the one exemption (WCAG 1.4.3)', () => {
+    // The wordmark's teal half is 1.99:1 on the site's ground, there and on the site itself. It
+    // is brand text, which has no contrast requirement, and repainting it would be redrawing the
+    // logo — which §4.21 forbids in the same breath as the contrast. The browser suite excludes
+    // `.wordmark` from the colour-contrast rule alone, exactly as feature 2.5 did for the
+    // application's own bar.
+    expect(contrast(site['--site-logo-teal'] ?? '', site['--site-bg'] ?? '')).toBeLessThan(4.5);
+    expect(contrast(site['--site-logo-blue'] ?? '', site['--site-bg'] ?? '')).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe('the two names the design’s palette cannot carry text in', () => {
   it('is `--faint`, on every ground, in both themes', () => {
     const grounds = ['--bg', '--bg-chrome', '--bg-panel', '--bg-raised', '--bg-tint', '--bg-sunk'];

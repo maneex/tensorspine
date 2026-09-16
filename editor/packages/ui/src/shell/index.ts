@@ -15,7 +15,7 @@
  * The stylesheet is `@tensorspine/ui/style.css` — a separate entry point, so that a suite that
  * imports the model can be a Node one, and the application that draws it asks for the tokens.
  */
-export { Bar, initialsOf, Wordmark } from './Bar.js';
+export { Bar, initialsOf, Wordmark, type BarProps } from './Bar.js';
 export {
   acceleratorText,
   COMMANDS,
@@ -63,6 +63,14 @@ export {
   type SideState,
 } from './regions.js';
 export { isTyping, Shell, type ShellProps } from './Shell.js';
+export { SiteBar, type SiteBarProps } from './SiteBar.js';
+export { EDITOR_ENTRY, EDITOR_GROUP } from './site.js';
+export {
+  SITE_HOME,
+  SITE_NAV,
+  type SiteEntry,
+  type SiteGroup,
+} from './site-nav.js';
 export { Splitter, type SplitterProps } from './Splitter.js';
 export { StatusBar, themeLabel } from './StatusBar.js';
 export {

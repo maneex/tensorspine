@@ -1,0 +1,40 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   The two families, served from the application's own origin — feature 2.18.
+
+   Component inventory §1: "IBM Plex Sans for chrome and prose, IBM Plex Mono
+   for every identifier, shape, expression and figure. No serif anywhere —
+   that is what separates this from the documentation site, whose Newsreader
+   headings are the other half of what read as 'old'."
+
+   Feature 2.5 asked for them the way the site asks (`docs/style/doc.html`'s
+   one `<link>` to `fonts.googleapis.com`) and left the files to this
+   feature. They are vendored now, from the `@fontsource` packages of the
+   workspace's own lockfile, for three reasons and not one:
+
+     * a static page deployed on GitHub Pages should need **no third party**
+       to draw itself — the vendored schemas, corpus and reference base are
+       already the editor's own (D11, §1), and a font request is the last
+       thing that left the origin;
+     * a reader behind a firewall, offline, or on a machine that blocks the
+       request gets the design's own type rather than the fallback stack;
+     * the request is a third party learning who opens the editor, which a
+       page that computes everything in the browser has no reason to allow.
+
+   The five faces are the five the site's own request names, minus
+   Newsreader, which the inventory forbids here. Each import is the
+   package's own per-weight stylesheet — every subset the family publishes,
+   each with its `unicode-range`, exactly as the Google stylesheet delivers
+   them — so the browser fetches the latin subset for a page of English and
+   the greek one only if a document writes θ or Φ, which the corpus does.
+   Nothing is re-subsetted and no `@font-face` is written by hand:
+   `tests/audit/fonts.test.ts` reads `docs/style/doc.html` and the installed
+   packages and holds the list below to both.
+
+   `tokens.css` names the families and their fallback stacks (`--sans`,
+   `--mono`) and is untouched: nothing depends on these files arriving.
+   ───────────────────────────────────────────────────────────────────────── */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';

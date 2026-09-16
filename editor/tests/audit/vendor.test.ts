@@ -5,6 +5,14 @@ import { join, relative, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { VendorError, defaultVendorRoot, vendor, type VendorManifest } from '../../scripts/vendor.js';
+import {
+  MANIFEST,
+  provenance,
+  record,
+  sorted,
+  writeManifest,
+  type PublishedManifest,
+} from '../../scripts/manifest.js';
 import { editorRoot, readEditorFile } from './tree.js';
 
 // Feature 0.2 of the implementation plan: what the static application ships beside its own
@@ -269,6 +277,143 @@ describe('the vendored library reference', () => {
       .map((name) => readJson<Unit>(join(root, name)).name)
       .filter((name) => !reference.includes(name));
     expect(missing).toEqual([]);
+  });
+});
+
+describe('the bundles (feature 2.18)', () => {
+  /** The sets a bundle is written for: every one of more than one file. */
+  function bundled(): { name: string; path: string; files: number }[] {
+    return manifest.sets.filter((set) => set.name !== 'bundles' && set.files > 1);
+  }
+
+  it('is one per set that has more than one file, and none for a set of one', () => {
+    expect(manifest.bundles.map((one) => one.name).sort()).toEqual(
+      bundled()
+        .map((set) => set.name)
+        .sort(),
+    );
+    // The reference is one file and gets none: there is no request to save and a second copy of
+    // it is all it would be.
+    const single = manifest.sets.filter((set) => set.files === 1);
+    expect(single.length).toBeGreaterThan(0);
+    for (const set of single) expect(manifest.bundles.map((one) => one.name)).not.toContain(set.name);
+  });
+
+  it('holds exactly its set’s files, with exactly their bytes', () => {
+    expect(manifest.bundles.length).toBeGreaterThan(0);
+    for (const one of manifest.bundles) {
+      const held = readJson<Record<string, string>>(join(out, one.path));
+      const wanted = manifest.files.filter((file) => file.path.startsWith(`${one.covers}/`));
+      expect(Object.keys(held).sort(), one.name).toEqual(wanted.map((file) => file.path).sort());
+      expect(one.files, one.name).toBe(wanted.length);
+      for (const file of wanted) {
+        // Byte for byte the file beside it: a bundle is a transport, never a second source. The
+        // digests the manifest records are of the files, and this is what keeps them true of what
+        // a page actually reads.
+        expect(held[file.path], file.path).toBe(readFileSync(join(out, file.path), 'utf8'));
+      }
+    }
+  });
+
+  it('is named in the manifest like every other file it writes', () => {
+    for (const one of manifest.bundles) {
+      const recorded = manifest.files.find((file) => file.path === one.path);
+      expect(recorded, one.path).toBeDefined();
+      expect(recorded?.bytes).toBe(one.bytes);
+      expect(one.path.startsWith('bundles/')).toBe(true);
+      // And it is outside every set it bundles, so no reader sees a set twice.
+      for (const set of manifest.sets) {
+        if (set.name === 'bundles') continue;
+        expect(one.path.startsWith(`${set.path}/`), `${one.path} is inside ${set.path}`).toBe(false);
+      }
+    }
+  });
+
+  it('covers the two the first document of a session reads whole', () => {
+    // Feature 2.6 measured that load at 417–449 ms against §5.6's 300 ms, of which the transport
+    // was the reference base's 131 requests and the schemas' five. Those two are why bundles
+    // exist, so a vendor that stopped writing them should fail here rather than quietly cost
+    // a third of a second again.
+    const covers = manifest.bundles.map((one) => one.covers);
+    expect(covers).toContain('schemas');
+    expect(covers).toContain(manifest.examples.primitive_library);
+    // And the corpus, which a base's manifest points its templates at (`"templates": "../models/"`).
+    expect(covers).toContain(manifest.examples.models);
+  });
+});
+
+describe('the manifest’s writer', () => {
+  // A published file set is a set a reader can fetch over plain HTTP, which has no directory
+  // listing: the set has to be *declared*, and `vendor.json` is the shape that works — the commit,
+  // and every file with its length and its sha256. That shape is about to have a second generator
+  // (feature 2.20 publishes a base at an address), so the writer lives apart from this script's
+  // directory walk, its invocations of `tools/` and its bundles, in `scripts/manifest.ts`.
+  //
+  // What is asserted is the separation itself: the writer knows nothing about a repository, and a
+  // generator that copies nothing can still publish a set with it.
+
+  it('is a module of its own, which names no repository and walks no directory', () => {
+    const writer = readEditorFile('scripts/manifest.ts');
+    for (const named of ['readdirSync', 'tools/tensorspine', 'data/models', 'primitive-library', 'vendor(']) {
+      expect(writer, `the writer names ${named}`).not.toContain(named);
+    }
+    // And the vendor is a caller of it rather than a copy: neither the digest nor the last write
+    // is written twice.
+    const script = readEditorFile('scripts/vendor.ts');
+    expect(script).toContain("from './manifest.ts'");
+    expect(script).not.toContain('createHash');
+    expect(script).not.toContain('rev-parse');
+  });
+
+  it('publishes a set of files nothing copied, in the shape the vendor publishes', () => {
+    const out = mkdtempSync(join(tmpdir(), 'tensorspine-published-'));
+    temporary.push(out);
+    // A generator with no repository behind it at all: three files it did not write, recorded,
+    // sorted and declared. This is what a second generator has to be able to do.
+    const held: { path: string; bytes: Buffer }[] = [
+      { path: 'primitives/b/1.0.0.json', bytes: Buffer.from('{"b": 1}\n') },
+      { path: 'primitive-library.json', bytes: Buffer.from('{"schema": "x"}\n') },
+      { path: 'primitives/a/1.0.0.json', bytes: Buffer.from('{"a": 1}\n') },
+    ];
+    const published: PublishedManifest = {
+      generated_by: 'a test',
+      ...provenance(out),
+      files: sorted(held.map((one) => record(one.path, one.bytes))),
+    };
+    expect(writeManifest(out, published)).toBe(published);
+
+    const read = readJson<PublishedManifest>(join(out, MANIFEST));
+    expect(read.files.map((file) => file.path)).toEqual([
+      'primitive-library.json',
+      'primitives/a/1.0.0.json',
+      'primitives/b/1.0.0.json',
+    ]);
+    for (const file of read.files) {
+      const source = held.find((one) => one.path === file.path)?.bytes as Buffer;
+      expect(file.bytes).toBe(source.length);
+      expect(file.sha256).toBe(sha256(source));
+    }
+    // No checkout behind it, and that is an answer rather than a refusal.
+    expect(read.repository_commit).toBeNull();
+    expect(read.repository_dirty).toBeNull();
+    // The same two spaces and trailing newline every JSON of this tree has.
+    const text = readFileSync(join(out, MANIFEST), 'utf8');
+    expect(text.endsWith('}\n')).toBe(true);
+    expect(text).toContain('\n  "files": [');
+  });
+
+  it('is what the vendor’s own manifest is written with, under the one name', () => {
+    expect(MANIFEST).toBe('vendor.json');
+    expect(existsSync(join(out, MANIFEST))).toBe(true);
+    // Every member of the common half is in the vendor's manifest, with the same meanings.
+    const common: (keyof PublishedManifest)[] = [
+      'generated_by',
+      'repository_commit',
+      'repository_dirty',
+      'files',
+    ];
+    for (const member of common) expect(Object.keys(manifest)).toContain(member);
+    expect(manifest.files).toEqual(sorted(manifest.files));
   });
 });
 

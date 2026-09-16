@@ -16,9 +16,16 @@ concurrency:
 
 jobs:
   build:
+    # The site and, beside it, the TensorSpine Editor. One job and one artifact because GitHub
+    # Pages serves one site per repository: the editor is published *under the site's path*
+    # (`<site>/editor/`, the editor plan's D11), so it travels in the same upload as the pages it
+    # sits beside. `actions/configure-pages` is asked first because its `base_path` is what the
+    # editor's build needs to name its own chunks, its worker and its stylesheet.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        id: pages
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -29,7 +36,32 @@ jobs:
           python3 -m pip install "jsonschema>=4"
       - name: Build site
         run: tools/site.sh _site
-      - uses: actions/configure-pages@v5
+
+      # The editor: a static build, vendoring this checkout's schemas, corpus, reference base and
+      # generated artifacts (`pnpm build` is `pnpm vendor` then `vite build`). Python is already
+      # here, which is what the vendoring needs — the tools generate the argument schemas and the
+      # library reference, and the editor never regenerates them (F5).
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: editor/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: editor/pnpm-lock.yaml
+      - name: Install the editor's dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: editor
+      - name: Build the editor under the site's path
+        run: pnpm build
+        working-directory: editor
+        env:
+          TENSORSPINE_EDITOR_BASE: ${{ steps.pages.outputs.base_path }}/editor/
+      - name: Put the editor beside the site
+        run: |
+          mkdir -p _site/editor
+          cp -r editor/apps/web/dist/. _site/editor/
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

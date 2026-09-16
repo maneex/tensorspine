@@ -69,7 +69,15 @@ export function isTyping(element: Element | null): boolean {
 }
 
 /** The frame, inside the provider. */
-function Frame({ views, children }: { views: TabViews; children?: ReactNode }): JSX.Element {
+function Frame({
+  views,
+  siteBar,
+  children,
+}: {
+  views: TabViews;
+  siteBar?: ReactNode;
+  children?: ReactNode;
+}): JSX.Element {
   const store = useShellStore();
   const platform = usePlatform();
   const theme = useShell((state) => state.theme);
@@ -118,9 +126,12 @@ function Frame({ views, children }: { views: TabViews; children?: ReactNode }): 
     platform.shell.setMenu(menu);
   }, [platform, modifier]);
 
-  return (
+  const frame = (
     <div className={resolved === 'light' ? `app ${LIGHT_CLASS}` : 'app'} data-scheme={resolved}>
-      <Bar />
+      {/* The lockup is the page's, not the bar's: where a site bar carries it above (S18), the
+          application's bar is menus, pills and the palette alone. Two identical lockups stacked
+          read as two applications. */}
+      <Bar lockup={siteBar === undefined} />
       <div className="mid">
         <Rail />
         {side.open ? <Side /> : null}
@@ -130,6 +141,16 @@ function Frame({ views, children }: { views: TabViews; children?: ReactNode }): 
       <StatusBar />
       {palette ? <Palette /> : null}
       {children}
+    </div>
+  );
+  if (siteBar === undefined) return frame;
+  // The page under the documentation site's bar (D11, S18): the site's chrome above, in the
+  // site's own palette — it takes no theme, the site having none — and the application filling
+  // what is left.
+  return (
+    <div className="page-site">
+      {siteBar}
+      {frame}
     </div>
   );
 }
@@ -159,6 +180,15 @@ export interface ShellProps {
    */
   readonly activities?: ActivityViews;
   /**
+   * The chrome of the page the application is served on — the documentation site's bar (S18).
+   *
+   * Given by the application and not built here, because it is a fact about the **deployment**:
+   * the static build is published beside the documentation site (D11) and carries its bar; an
+   * Electron window is not on a site and carries none. `SiteBar` is what the web application
+   * passes. Where it is given, the application's own bar drops its lockup.
+   */
+  readonly siteBar?: ReactNode;
+  /**
    * What a later feature puts inside the frame beside the regions — a dialog, a toast.
    *
    * Inside, and not beside: the theme is one class on the frame (`tokens.css` puts the dark block
@@ -169,11 +199,20 @@ export interface ShellProps {
 }
 
 /** The shell, over a store and the platform that store was built on. */
-export function Shell({ store, platform, views, activities, children }: ShellProps): JSX.Element {
+export function Shell({
+  store,
+  platform,
+  views,
+  activities,
+  siteBar,
+  children,
+}: ShellProps): JSX.Element {
   return (
     <ShellProvider store={store} platform={platform}>
       <ActivityProvider views={activities ?? {}}>
-        <Frame views={{ ...SHELL_VIEWS, ...views }}>{children}</Frame>
+        <Frame views={{ ...SHELL_VIEWS, ...views }} {...(siteBar === undefined ? {} : { siteBar })}>
+          {children}
+        </Frame>
       </ActivityProvider>
     </ShellProvider>
   );

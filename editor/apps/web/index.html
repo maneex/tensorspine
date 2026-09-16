@@ -6,16 +6,11 @@
     <title>TensorSpine Editor</title>
     <!-- The two families the design names (component inventory §1: "IBM Plex Sans for chrome and
          prose, IBM Plex Mono for every identifier, shape, expression and figure. No serif
-         anywhere"), asked for the way the documentation site asks for them (docs/style/doc.html).
-         Nothing depends on the request: the token file names a fallback stack for each, so a page
-         opened offline is the same page in the browser's own faces. Vendoring the files with the
-         build is a deployment decision and belongs to feature 2.18. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
-    />
+         anywhere") are vendored with the build and served from this origin — feature 2.18,
+         packages/ui/src/shell/fonts.css. A static page deployed beside the documentation site
+         reaches for nothing outside itself: the schemas, the corpus, the reference base and now
+         the type all travel with it. Nothing depends on their arriving either — the token file
+         names a fallback stack for each. -->
   </head>
   <body>
     <div id="root" data-state="loading">Loading…</div>

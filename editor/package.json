@@ -20,6 +20,7 @@
     "test:e2e": "pnpm run vendor && pnpm --filter @tensorspine/web run test:e2e",
     "vendor": "node --experimental-strip-types scripts/vendor.ts",
     "logo": "node --experimental-strip-types scripts/logo.ts",
+    "site-nav": "node --experimental-strip-types scripts/site-nav.ts",
     "anchors": "node --experimental-strip-types scripts/anchors.ts",
     "build": "pnpm run vendor && pnpm --filter @tensorspine/web run build",
     "dev": "pnpm --filter @tensorspine/web run dev",

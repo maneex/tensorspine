@@ -139,8 +139,20 @@ function BarMenu({ id, label }: { id: MenuId; label: string }): JSX.Element {
   );
 }
 
+/** What {@link Bar} is given. */
+export interface BarProps {
+  /**
+   * Whether this bar carries the lockup (default: it does).
+   *
+   * `false` where the page already has one above it — the documentation site's bar of S18, which
+   * the static build is served under (D11). One lockup to a page: the kind ("Editor") goes with
+   * it, the site's bar marking the editor as the page being read.
+   */
+  readonly lockup?: boolean;
+}
+
 /** The bar. */
-export function Bar(): JSX.Element {
+export function Bar({ lockup = true }: BarProps = {}): JSX.Element {
   const store = useShellStore();
   const platform = usePlatform();
   const session = useShell((state) => state.session);
@@ -162,8 +174,12 @@ export function Bar(): JSX.Element {
 
   return (
     <header className="bar">
-      <Wordmark />
-      <span className="sitekind">{text('Editor')}</span>
+      {lockup ? (
+        <>
+          <Wordmark />
+          <span className="sitekind">{text('Editor')}</span>
+        </>
+      ) : null}
       <nav className="menu" role="menubar" aria-label={text('Main menu')} ref={setBar} onKeyDown={onBarKey}>
         {MENUS.map((menu) => (
           <BarMenu key={menu.id} id={menu.id} label={menu.label} />

@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+import { baseFor } from './deploy.ts';
+
 const inCI = process.env['CI'] !== undefined && process.env['CI'] !== '';
 
 // The preview server is bound to the loopback address by name, not to `localhost`, which
@@ -7,11 +9,19 @@ const inCI = process.env['CI'] !== undefined && process.env['CI'] !== '';
 const host = '127.0.0.1';
 const port = 4173;
 
+// The browser layer runs against the application **as it is published** (feature 2.18): the build
+// is made under the base path of `deploy.ts` and `vite preview` serves it there, so every claim
+// any suite makes is a claim about the artifact GitHub Pages receives. A page asked for at the
+// origin root is answered with a redirect to the base, which is why a suite may still open `/`.
+export const appBase = baseFor();
+export const origin = `http://${host}:${String(port)}`;
+export const appUrl = `${origin}${appBase}`;
+
 // Feature 2.4's two extra pages of the application's own build (`vite build --mode check`): the
 // renderer against the stub `Platform` — D11's leak build — and the driver the browser layer
 // runs the browser platform's claims through. `pnpm build` emits neither.
-export const stubUrl = `http://${host}:${String(port)}/stub.html`;
-export const platformUrl = `http://${host}:${String(port)}/e2e/page/platform.html`;
+export const stubUrl = `${appUrl}stub.html`;
+export const platformUrl = `${appUrl}e2e/page/platform.html`;
 
 // The spike of feature 0.5 is a static build of its own, served beside the application by
 // `editor/spikes/headers/serve.ts` — the same page the cross-engine runner opens in Firefox and
@@ -44,14 +54,14 @@ export default defineConfig({
   retries: inCI ? 1 : 0,
   reporter: 'list',
   use: {
-    baseURL: `http://${host}:${String(port)}`,
+    baseURL: origin,
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
       command: `vite preview --host ${host} --port ${String(port)} --strictPort`,
-      url: `http://${host}:${String(port)}/`,
+      url: appUrl,
       reuseExistingServer: !inCI,
       stdout: 'ignore',
     },

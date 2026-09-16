@@ -3,8 +3,20 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig, type UserConfig } from 'vite';
 
+import { baseFor } from './deploy.ts';
+
 // The application is a static build (the plan's D11): no server, no runtime beyond the page.
-// The base path under which it is published is decided with the deployment (feature 2.18).
+//
+// It is published **beside the documentation site**, which means under a directory of the site's
+// own path, which means the build must know that path: a page served from `/tensorspine/editor/`
+// names its chunks, its workers and its stylesheet there. `deploy.ts` is where that path is
+// decided — read from the repository's own documents, overridden by `TENSORSPINE_EDITOR_BASE`,
+// which is what the Pages workflow passes from `actions/configure-pages`.
+//
+// Everything the *page* reaches for is relative to its own address and needs no base at all: the
+// vendored material (`vendor/…`), the documentation the Help menu links to (one directory up) and
+// the site's own navigation. So a build under the wrong base still finds its material; what it
+// loses is its own code, which is why the browser layer opens the built page under the base.
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +49,7 @@ export function inputsFor(mode: string): Record<string, string> {
 
 export default defineConfig(({ mode }): UserConfig => {
   return {
+    base: baseFor(),
     build: {
       outDir: 'dist',
       emptyOutDir: true,

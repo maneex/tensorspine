@@ -16,6 +16,18 @@
  *     data/primitive-library/            the reference base
  *     generated/primitive-schema/        `--document primitive-schema`, one file per version
  *     generated/primitive-library.md     `--document primitive-library`
+ *     bundles/<set>.json                 each set above, whole, as one file (see below)
+ *
+ * **The bundles** are the same bytes a second time, and they are there because of a measurement.
+ * Feature 2.6 timed the first document of a session at 417–449 ms against §5.6's 300 ms for a
+ * library load, of which about 130 ms is the *transport*: the reference base is 131 files and the
+ * loader opens every one of them. A set that is always read whole — the schemas, a base, the
+ * corpus the base's manifest points its templates at — is therefore written a second time as one
+ * JSON object from path to text, and the page reads that instead of a hundred and thirty
+ * requests. Nothing else changes: the manifest still records every file with its own length and
+ * digest, the workspace still answers per file, and a bundle a deployment does not serve costs
+ * nothing but the fetch that falls back to the files. A set of one file gets none: there is
+ * nothing to save and a second copy of it is all it would be.
  *
  * The layout under `data/` is the repository's on purpose: a document resolves its bases
  * relative to itself (`"base": "../primitive-library/"`) and the base manifest resolves its
@@ -41,7 +53,6 @@
  *         node scripts/vendor.ts [--out DIR] [--repository DIR] [--python EXE] [--quiet]
  */
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -52,6 +63,18 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import {
+  provenance,
+  record,
+  sorted,
+  writeManifest,
+  type ManifestFile,
+  type PublishedManifest,
+} from './manifest.ts';
+
+/** The name this script's manifest is written under — every published set's (`manifest.ts`). */
+export { MANIFEST } from './manifest.ts';
 
 /** `editor/`, the workspace root: this file lives in `editor/scripts/`. */
 const editorRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,12 +101,14 @@ export interface VendorOptions {
   quiet?: boolean | undefined;
 }
 
-/** One vendored file, named relative to the vendor root, with its digest. */
-export interface VendorFile {
-  path: string;
-  bytes: number;
-  sha256: string;
-}
+/**
+ * One vendored file, named relative to the vendor root, with its digest.
+ *
+ * The record of any published file set (`scripts/manifest.ts`): what a reader needs to fetch the
+ * file and know it got it. Named here too because that is what this script's own manifest calls
+ * it and what feature 2.4's reader mirrors.
+ */
+export type VendorFile = ManifestFile;
 
 /** One vendored schema and the `$id` it declares — the key the registry indexes it by. */
 export interface VendorSchema {
@@ -99,23 +124,40 @@ export interface VendorSet {
   files: number;
 }
 
-export interface VendorManifest {
-  generated_by: string;
-  repository_commit: string | null;
-  repository_dirty: boolean | null;
+/** One set written a second time as a single file, for the pages that read it whole. */
+export interface VendorBundle {
+  /** The set this bundle holds. */
+  name: string;
+  /** Where the bundle is, under the vendor root. */
+  path: string;
+  /** The vendored path prefix every file in it is under — what a reader matches against. */
+  covers: string;
+  /** How many files it holds, and how long it is. */
+  files: number;
+  bytes: number;
+}
+
+/**
+ * The vendor's own manifest: what every published set declares, and what this one adds.
+ *
+ * The common half is `PublishedManifest` — the commit, and every file with its length and its
+ * sha256 — so a reader that knows only that can fetch the whole set; the members below are this
+ * generator's, and say what the set *is*.
+ */
+export interface VendorManifest extends PublishedManifest {
   tools: { command: string; python: string; jsonschema: string };
   examples: { root: string; models: string; primitive_library: string };
   schemas: VendorSchema[];
   primitive_schemas: Record<string, string>;
   primitive_library_reference: string;
   sets: VendorSet[];
-  files: VendorFile[];
+  bundles: VendorBundle[];
 }
 
 export interface VendorResult {
   /** The directory written. */
   out: string;
-  /** The manifest, as it was written to `vendor.json`. */
+  /** The manifest, as it was written to {@link MANIFEST}. */
   manifest: VendorManifest;
 }
 
@@ -132,6 +174,9 @@ const VENDORED_MODELS = 'data/models';
 const VENDORED_PRIMITIVE_LIBRARY = 'data/primitive-library';
 const VENDORED_PRIMITIVE_SCHEMAS = 'generated/primitive-schema';
 const VENDORED_REFERENCE = 'generated/primitive-library.md';
+
+/** Where a set written a second time as one file lands. */
+const VENDORED_BUNDLES = 'bundles';
 
 /** The `$id` the tools give a generated argument schema: `…/primitive/<name>/<version>.json`. */
 const PRIMITIVE_SCHEMA_ID = /^[a-z]+:\/\/[^/]+\/primitive\/(.+)\/([^/]+)\.json$/;
@@ -151,10 +196,6 @@ function walk(root: string, at = ''): string[] {
   return found;
 }
 
-function record(path: string, bytes: Buffer): VendorFile {
-  return { path, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
-}
-
 function write(path: string, bytes: Buffer): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, bytes);
@@ -169,6 +210,34 @@ function copyTree(from: string, out: string, prefix: string, files: VendorFile[]
     files.push(record(`${prefix}/${name}`, bytes));
   }
   return names.length;
+}
+
+/**
+ * Write each set of more than one file a second time, whole, as one JSON object.
+ *
+ * The bundle's keys are the vendored paths, exactly as `files` records them, so a reader that has
+ * the manifest needs no second naming convention: it matches a path against a bundle's `covers`
+ * and reads the text out. The order is the file list's, which is sorted.
+ *
+ * A set of one file gets no bundle, and neither does an empty one: the point is the request that
+ * is saved, and there is none to save.
+ */
+function bundle(out: string, sets: readonly VendorSet[], files: VendorFile[]): VendorBundle[] {
+  const held = new Map(files.map((file) => [file.path, file.path]));
+  const made: VendorBundle[] = [];
+  for (const set of sets) {
+    const prefix = `${set.path}/`;
+    const names = [...held.keys()].filter((path) => path.startsWith(prefix));
+    if (names.length < 2) continue;
+    const bundled: Record<string, string> = {};
+    for (const name of names) bundled[name] = readFileSync(join(out, name), 'utf8');
+    const path = `${VENDORED_BUNDLES}/${set.name}.json`;
+    const bytes = Buffer.from(`${JSON.stringify(bundled)}\n`, 'utf8');
+    write(join(out, path), bytes);
+    made.push({ name: set.name, path, covers: set.path, files: names.length, bytes: bytes.length });
+    files.push(record(path, bytes));
+  }
+  return made;
 }
 
 /** One invocation of the tools, from the repository being vendored. Its refusal is ours. */
@@ -226,15 +295,6 @@ function requirements(root: string, python: string): { python: string; jsonschem
     }
   }
   return interpreter(python, root);
-}
-
-/** The commit the vendored bytes come from, and whether the working tree still matches it. */
-function head(root: string): { commit: string | null; dirty: boolean | null } {
-  const rev = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
-  if (rev.error || rev.status !== 0) return { commit: null, dirty: null };
-  const status = spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' });
-  const dirty = status.error || status.status !== 0 ? null : status.stdout.trim() !== '';
-  return { commit: rev.stdout.trim(), dirty };
 }
 
 /** The `$id` a JSON document declares, or null when it declares none. */
@@ -339,12 +399,22 @@ export function vendor(options: VendorOptions = {}): VendorResult {
       files: 1,
     });
 
-    files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-    const { commit, dirty } = head(root);
+    // Every set written a second time as one file, for the readers that read a set whole. It
+    // comes last of the writing so that it sees every file the run produced, and its own files
+    // are a set of their own so that the manifest's accounting still adds up.
+    const bundles = bundle(out, sets, files);
+    if (bundles.length > 0) {
+      sets.push({
+        name: 'bundles',
+        path: VENDORED_BUNDLES,
+        source: 'the sets above, each whole as one file',
+        files: bundles.length,
+      });
+    }
+
     const manifest: VendorManifest = {
       generated_by: 'editor/scripts/vendor.ts',
-      repository_commit: commit,
-      repository_dirty: dirty,
+      ...provenance(root),
       tools: { command: TOOL, python: versions.python, jsonschema: versions.jsonschema },
       examples: {
         root: VENDORED_EXAMPLES,
@@ -355,10 +425,11 @@ export function vendor(options: VendorOptions = {}): VendorResult {
       primitive_schemas: primitiveSchemas,
       primitive_library_reference: VENDORED_REFERENCE,
       sets,
-      files,
+      bundles,
+      files: sorted(files),
     };
     // Last, so that a directory without it is not mistaken for a vendor.
-    writeFileSync(join(out, 'vendor.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+    writeManifest(out, manifest);
 
     if (options.quiet !== true) {
       console.log(`vendor: ${String(files.length)} file(s) -> ${out}`);

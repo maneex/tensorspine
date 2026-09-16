@@ -12,6 +12,7 @@ import {
   BrowserWorkspaces,
   DirectoryWorkspace,
   Recents,
+  Vendor,
   browserDrafts,
   browserSettings,
   browserShell,
@@ -511,6 +512,63 @@ const probes: Record<string, (argument?: string) => Promise<Outcome>> = {
         name: read?.name ?? null,
         sameEntry: read === null ? false : await read.handle.isSameEntry(handle),
         permission: await recents.permission(handle),
+      };
+    }),
+
+  /**
+   * What the first document of a session costs to *fetch* — feature 2.18.
+   *
+   * Feature 2.6 measured that first document at 417–449 ms against §5.6's 300 ms for a library
+   * load, and about 130 ms of it was transport: the reference base is 131 files, the corpus 15
+   * (a base's manifest points its templates at `../models/`), the schemas 5, and every one of
+   * them was a request. Feature 2.18's vendor writes each of those sets a second time as one
+   * file, so this measures the same bytes both ways on the same page: every file on its own, and
+   * then the three bundles, each from a `Vendor` that has fetched nothing yet.
+   *
+   * The order is deliberate — the files first, so that nothing has warmed a cache for them.
+   */
+  transport: () =>
+    timed(async () => {
+      const root = vendorRoot();
+      const listing = await Vendor.open(root);
+      const sets = [
+        'schemas',
+        listing.manifest.examples.models,
+        listing.manifest.examples.primitive_library,
+      ];
+      const paths = sets.flatMap((set) => listing.paths(set));
+
+      const directAt = performance.now();
+      const direct = await Promise.all(
+        paths.map(async (path) => (await fetch(`${listing.root}${path}`)).text()),
+      );
+      const directMs = performance.now() - directAt;
+
+      const fresh = await Vendor.open(root);
+      const bundledAt = performance.now();
+      const read = await Promise.all(sets.map((set) => fresh.readAll(set)));
+      const bundledMs = performance.now() - bundledAt;
+
+      const gathered: Record<string, string> = Object.assign({}, ...read) as Record<string, string>;
+      // A path no bundle covers falls back to its own file, which is what a build with no bundles
+      // does for everything. The vendored library reference is one file and gets no bundle.
+      const uncovered = listing.manifest.files
+        .map((one) => one.path)
+        .find((path) => !path.startsWith('bundles/') && listing.bundleFor(path) === null);
+      return {
+        files: paths.length,
+        bundles: (listing.manifest.bundles ?? []).map((one) => ({
+          covers: one.covers,
+          files: one.files,
+          bytes: one.bytes,
+        })),
+        directMs,
+        bundledMs,
+        // The same bytes, which is the whole claim: a bundle is a transport, not a second source.
+        sameTexts: paths.every((path, index) => gathered[path] === direct[index]),
+        sameCount: Object.keys(gathered).length === paths.length,
+        uncovered: uncovered ?? null,
+        uncoveredBytes: uncovered === undefined ? 0 : (await fresh.read(uncovered)).length,
       };
     }),
 

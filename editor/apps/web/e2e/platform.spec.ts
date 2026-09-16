@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium, expect, test, type Page } from '@playwright/test';
 
-import { platformUrl, stubUrl } from '../playwright.config';
+import { appBase, platformUrl, stubUrl } from '../playwright.config';
 
 /**
  * Feature 2.4 — `Platform` in a browser.
@@ -423,8 +423,18 @@ test('the application builds against the stub platform, and that page carries no
   // The shell of feature 2.5 is what the renderer draws; the stub is what it draws it over.
   await expect(page.locator('.app footer.status [data-workspace]')).toHaveText('memory');
 
+  // The chunks a page names, by the path the build wrote them under: the application is served
+  // from a directory of the documentation site (feature 2.18), so an asset is `<base>assets/…`
+  // and the file behind it is that path with the base stripped.
+  const chunksOf = (html: string): string[] =>
+    [...html.matchAll(/(?:src|href)="([^"]+\.js)"/g)].map((match) => {
+      const named = match[1] ?? '';
+      expect(named.startsWith(appBase), named).toBe(true);
+      return named.slice(appBase.length);
+    });
+
   const html = readFileSync(join(dist, 'stub.html'), 'utf8');
-  const chunks = [...html.matchAll(/(?:src|href)="\/(assets\/[^"]+\.js)"/g)].map((match) => match[1] ?? '');
+  const chunks = chunksOf(html);
   expect(chunks.length).toBeGreaterThan(1);
   const source = chunks.map((chunk) => readFileSync(join(dist, chunk), 'utf8')).join('\n');
   for (const api of [
@@ -441,8 +451,8 @@ test('the application builds against the stub platform, and that page carries no
 
   // And the application's own page does carry it, so the check above is not vacuous.
   const application = readFileSync(join(dist, 'index.html'), 'utf8');
-  const carried = [...application.matchAll(/(?:src|href)="\/(assets\/[^"]+\.js)"/g)]
-    .map((match) => readFileSync(join(dist, match[1] ?? ''), 'utf8'))
+  const carried = chunksOf(application)
+    .map((chunk) => readFileSync(join(dist, chunk), 'utf8'))
     .join('\n');
   expect(carried).toContain('showDirectoryPicker');
 });

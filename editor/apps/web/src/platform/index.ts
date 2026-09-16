@@ -71,7 +71,13 @@ export async function createBrowserPlatform(
 }
 
 export { DirectoryWorkspace, DEFAULT_POLL_MS, type DirectoryOptions } from './directory.js';
-export { Vendor, VENDOR, type VendorFile, type VendorManifest } from './examples.js';
+export {
+  Vendor,
+  VENDOR,
+  type VendorBundle,
+  type VendorFile,
+  type VendorManifest,
+} from './examples.js';
 export { Recents, type Permission, type RememberedWorkspace } from './recents.js';
 export { browserDrafts, draftsOver } from './drafts.js';
 export { browserSettings, PREFIX } from './settings.js';
