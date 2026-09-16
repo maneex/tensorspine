@@ -34,6 +34,7 @@ import {
   type MenuCommand,
   type Platform,
   type RecentWorkspace,
+  type RemoteSets,
   type Session,
   type SettingValue,
   type SettingsStore,
@@ -46,6 +47,7 @@ import {
   type Workspaces,
 } from './types.js';
 import { memoryAuth, noAuth } from './auth.js';
+import { addressOf, publishedWorkspace, type PublishedSet } from './remote.js';
 
 /** A workspace whose files are in memory, written and read back exactly as a folder's are. */
 export class MemoryWorkspace implements Workspace {
@@ -346,6 +348,49 @@ export interface StubOptions {
    * (Q8 defers the SaaS). Given, a suite can ask the other half of "no avatar without a session".
    */
   readonly session?: Session;
+  /**
+   * The published file sets this stub can be asked for, by address (feature 2.20).
+   *
+   * Whole sets rather than texts, because a set's digests are its **generator's**: a stub that
+   * hashed what it was handed would answer a manifest nobody published, and the integrity check
+   * the reader makes would then be a check of the stub against itself. A caller that wants one
+   * builds it with `heldSet` over a manifest a generator wrote.
+   */
+  readonly remote?: readonly PublishedSet[];
+}
+
+/** The stub's published sets: the ones it was given, by address, and nothing else. */
+function memoryRemote(sets: readonly PublishedSet[]): RemoteSets {
+  const held = [...sets];
+  return {
+    open: (address) => {
+      const at = addressOf(address).manifest;
+      const found = held.find((one) => one.address === at);
+      if (found === undefined) {
+        return Promise.reject(
+          new PlatformError(
+            `nothing answered at ${at}: this deployment holds the sets it was given and fetches none`,
+            'unreachable',
+          ),
+        );
+      }
+      // Newest first, as a deployment that had just fetched it would answer.
+      held.splice(held.indexOf(found), 1);
+      held.unshift(found);
+      return Promise.resolve(found);
+    },
+    held: () => held,
+    forget: (address) => {
+      if (address === undefined) held.length = 0;
+      else {
+        const at = addressOf(address).manifest;
+        const index = held.findIndex((one) => one.address === at);
+        if (index >= 0) held.splice(index, 1);
+      }
+      return Promise.resolve();
+    },
+    persistent: false,
+  };
 }
 
 /** The stub of D11: every interface of §5.2, implemented in memory and naming no platform. */
@@ -380,6 +425,7 @@ export function stubPlatform(options: StubOptions = {}): Platform & {
       Promise.resolve(
         adopt(new ReadOnlyWorkspace(textsOf('examples', 'examples', 'Examples', options.examples ?? {}), deliver)),
       ),
+    openPublished: (set: PublishedSet) => Promise.resolve(adopt(publishedWorkspace(set, deliver))),
     recent: () => Promise.resolve([] as readonly RecentWorkspace[]),
     reopen: () => Promise.resolve(null),
     forget: () => Promise.resolve(),
@@ -398,6 +444,7 @@ export function stubPlatform(options: StubOptions = {}): Platform & {
     },
     workspaces,
     checkpoints: [],
+    remote: memoryRemote(options.remote ?? []),
     auth: options.session === undefined ? noAuth('this deployment has no accounts') : memoryAuth(options.session),
     settings,
     drafts,

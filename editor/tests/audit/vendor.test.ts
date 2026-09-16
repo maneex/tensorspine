@@ -4,6 +4,12 @@ import { tmpdir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  PlatformError,
+  fetchPublishedSet,
+  readPublishedManifest,
+} from '@tensorspine/store/platform';
+
 import { VendorError, defaultVendorRoot, vendor, type VendorManifest } from '../../scripts/vendor.js';
 import {
   MANIFEST,
@@ -414,6 +420,51 @@ describe('the manifest’s writer', () => {
     ];
     for (const member of common) expect(Object.keys(manifest)).toContain(member);
     expect(manifest.files).toEqual(sorted(manifest.files));
+  });
+
+  it('is read by the editor’s own reader, which is what opens a set from an address', async () => {
+    // Feature 2.20: the vendor's manifest and a published base's are **one artifact over two
+    // roots**, and the proof is that the reader the editor fetches a base with reads this one
+    // unchanged — every file, every digest, every bundle. `manifest.test.ts` holds the other
+    // generator to the same reader; between them nothing can drift without a failure.
+    const text = readFileSync(join(out, MANIFEST), 'utf8');
+    const read = readPublishedManifest(text, 'https://example.invalid/vendor.json');
+    expect(read.files).toEqual(manifest.files.map((file) => ({ ...file })));
+    expect(read.bundles).toEqual(manifest.bundles.map((one) => ({ ...one })));
+    expect(read.repository_commit).toBe(manifest.repository_commit);
+
+    // And what the reader would fetch from an address serving this directory is what is in it,
+    // through the bundles the vendor wrote: one request for the manifest and one per bundle,
+    // which is feature 2.18's measurement stated as an arithmetic rather than as a timing.
+    const at = 'https://example.invalid/';
+    let asked = 0;
+    const set = await fetchPublishedSet({
+      address: at,
+      retrieve: (url) => {
+        asked += 1;
+        const path = join(out, url.slice(at.length));
+        if (!existsSync(path)) {
+          return Promise.reject(new PlatformError(`${url} answered 404`, 'not-found'));
+        }
+        return Promise.resolve(readFileSync(path, 'utf8'));
+      },
+      digest: (one) => Promise.resolve(sha256(Buffer.from(one, 'utf8'))),
+    });
+    expect(Object.keys(set.texts)).toHaveLength(manifest.files.length);
+    // The manifest, one request per bundle, and one for each file no bundle carries — which
+    // here is the generated library reference, a set of one file and so worth no bundle. A
+    // bundle's own file is not fetched twice: it is already in hand when its digest is checked.
+    const bundled = new Set(manifest.bundles.map((one) => one.path));
+    const alone = manifest.files.filter(
+      (file) =>
+        !bundled.has(file.path) &&
+        !manifest.bundles.some((one) => file.path.startsWith(`${one.covers}/`)),
+    );
+    expect(alone.map((file) => file.path)).toEqual([manifest.primitive_library_reference]);
+    expect(asked).toBe(1 + manifest.bundles.length + alone.length);
+    // Every file of the reference base, out of one request, with its own digest checked.
+    const unit = `${manifest.examples.primitive_library}/primitives/norm/rms/1.0.0.json`;
+    expect(set.texts[unit]).toBe(readFileSync(join(out, unit), 'utf8'));
   });
 });
 

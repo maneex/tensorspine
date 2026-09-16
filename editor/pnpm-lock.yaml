@@ -124,6 +124,9 @@ importers:
       '@tensorspine/lang':
         specifier: workspace:*
         version: link:packages/lang
+      '@tensorspine/store':
+        specifier: workspace:*
+        version: link:packages/store
       '@tensorspine/ui':
         specifier: workspace:*
         version: link:packages/ui

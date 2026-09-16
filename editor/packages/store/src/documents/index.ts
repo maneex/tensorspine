@@ -11,6 +11,7 @@ export {
   gatherSchemas,
   schemaDifferences,
   WORKSPACE_SCHEMAS,
+  type BaseMount,
   type GatheredBases,
   type GatheredSchemas,
   type SchemaDifference,

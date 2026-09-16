@@ -21,7 +21,7 @@
 import { BASE_MANIFEST, type JsonValue } from '@tensorspine/lang';
 import type { Lang, LibraryBaseFiles, Problem, SchemasHandle } from '@tensorspine/lang/api';
 
-import { fromPosix, join, toPosix, type WorkspacePath } from '../platform/paths.js';
+import { fromPosix, isUnder, join, normalise, toPosix, type WorkspacePath } from '../platform/paths.js';
 import { readTree } from '../platform/tree.js';
 import type { Workspace } from '../platform/types.js';
 
@@ -103,6 +103,45 @@ export function schemaDifferences(
   return found;
 }
 
+/**
+ * A base fetched from an address, standing in the workspace's own path space — feature 2.20.
+ *
+ * **A document pins a base by the path it resolves** (`bases_of` joins the document's directory
+ * with what `primitive_libraries` writes, `os.path`'s rules and nothing else), so a base that was
+ * fetched has to *stand somewhere* for a document to name it — and the address is not a place: the
+ * grammar's `base` is a location relative to the document, and a document naming an absolute URL
+ * resolves to a path no loader will find. That is the language as it is, and this plan does not
+ * change it.
+ *
+ * So a fetched base is **mounted**: it stands at a path of the open workspace, a document pins that
+ * path exactly as it pins a folder that is really there, and the editor is what records which
+ * address filled it and at which commit — which is what makes someone else's derivation reproduce
+ * (they open the same address at the same path, and the manifest's commit says the bytes agree).
+ *
+ * It is not a second loader and not a second reading of a base: what comes out of here is
+ * `LibraryBaseFiles` like any other, every unit of it crosses the unit schema and the loader's
+ * cross-references, and V1 refuses a redefinition of an identity another base holds (§9 Q6).
+ *
+ * **A base's `templates` location may leave the base** (feature 2.6), and a mount changes nothing
+ * about that: the location is resolved by the core against the base, and what is read for it is
+ * whatever stands at that path — the mount's own files where it points inside the mount, the
+ * workspace's where it points outside it. A fetched base whose templates are neither is refused by
+ * the **loader**, in its own words, for a template document that is not where the base says it is.
+ */
+export interface BaseMount {
+  /** Where it stands: the path a document's `primitive_libraries` entry resolves to. */
+  readonly at: WorkspacePath;
+  /** Its files, by path **relative to the mount**. */
+  readonly texts: Readonly<Record<string, string>>;
+  /** The manifest's address it was fetched from, for the log and for a second reader. */
+  readonly address: string;
+}
+
+/** The mount a path falls in, or `null` where the workspace itself answers for it. */
+function mountOf(mounts: readonly BaseMount[], at: WorkspacePath): BaseMount | null {
+  return mounts.find((mount) => isUnder(at, mount.at)) ?? null;
+}
+
 /** What {@link gatherBases} answers. */
 export interface GatheredBases {
   /** Each base with every file the loader will open for it, ready for `loadLibrary`. */
@@ -130,6 +169,7 @@ export async function gatherBases(
   workspace: Workspace,
   tree: JsonValue,
   path: WorkspacePath,
+  mounts: readonly BaseMount[] = [],
 ): Promise<GatheredBases> {
   const declared = await lang.documentBases(tree, toPosix(path));
   // The manifest first, and it alone: it is what says where the templates are, and there is no
@@ -139,7 +179,7 @@ export async function gatherBases(
       const at = inside(base);
       return {
         base,
-        files: at === null ? {} : await readOne(workspace, join(at, BASE_MANIFEST)),
+        files: at === null ? {} : await readOne(workspace, join(at, BASE_MANIFEST), mounts),
       };
     }),
   );
@@ -150,8 +190,8 @@ export async function gatherBases(
   const wanted = declared.bases.map((base, index) => ({ base, templates: templates[index] ?? null }));
   const read = await Promise.all(
     wanted.flatMap((one) => [
-      readUnder(workspace, one.base),
-      one.templates === null ? Promise.resolve({}) : readUnder(workspace, one.templates),
+      readUnder(workspace, one.base, mounts),
+      one.templates === null ? Promise.resolve({}) : readUnder(workspace, one.templates, mounts),
     ]),
   );
   const bases: LibraryBaseFiles[] = wanted.map((one, index) => ({
@@ -185,30 +225,61 @@ function inside(path: string): WorkspacePath | null {
 async function readOne(
   workspace: Workspace,
   path: WorkspacePath,
+  mounts: readonly BaseMount[] = [],
 ): Promise<Record<string, string>> {
+  const at = normalise(path);
+  const mount = mountOf(mounts, at);
+  if (mount !== null) {
+    const text = mount.texts[relativeTo(mount.at, at)];
+    return text === undefined ? {} : { [toPosix(at)]: text };
+  }
   try {
-    return { [toPosix(path)]: (await workspace.read(path)).text };
+    return { [toPosix(at)]: (await workspace.read(at)).text };
   } catch {
     return {};
   }
+}
+
+/** A path under a mount, as the mount's own files are keyed. */
+function relativeTo(mount: WorkspacePath, path: WorkspacePath): string {
+  const root = normalise(mount);
+  const under = normalise(path);
+  if (root === '') return under;
+  return under === root ? '' : under.slice(root.length + 1);
 }
 
 /** Every `.json` under a directory the core named, in the paths the core will resolve against. */
 async function readUnder(
   workspace: Workspace,
   directory: string,
+  mounts: readonly BaseMount[] = [],
 ): Promise<Record<string, string>> {
   const at = inside(directory);
   if (at === null) return {};
-  // A base the workspace does not hold answers nothing: the loader is what says a missing base is
-  // a V1, in its own words, and a reading layer that refused first would be a second one. A base
-  // that is a *file* rather than a folder is the monolithic form the loader still accepts, and it
-  // is what a failed listing means here.
-  const read: Record<WorkspacePath, string> | null = await readTree(workspace, at, {
-    suffix: '.json',
-  }).catch(() => null);
-  if (read === null) return readOne(workspace, at);
   const found: Record<string, string> = {};
-  for (const [file, text] of Object.entries(read)) found[toPosix(file)] = text;
+  // A mounted base stands in the workspace's own path space, so a base *at* or *under* a mount is
+  // the mount's files, and a base *above* one has them among its own — the same reading a folder
+  // holding a folder would give, with nothing to read from the workspace for what is not there.
+  const mount = mountOf(mounts, at);
+  if (mount === null) {
+    // A base the workspace does not hold answers nothing: the loader is what says a missing base
+    // is a V1, in its own words, and a reading layer that refused first would be a second one. A
+    // base that is a *file* rather than a folder is the monolithic form the loader still accepts,
+    // and it is what a failed listing means here.
+    const read: Record<WorkspacePath, string> | null = await readTree(workspace, at, {
+      suffix: '.json',
+    }).catch(() => null);
+    if (read === null) return readOne(workspace, at, mounts);
+    for (const [file, text] of Object.entries(read)) found[toPosix(file)] = text;
+  }
+  for (const one of mounts) {
+    if (!isUnder(one.at, at) && mount !== one) continue;
+    const prefix = mount === one ? relativeTo(one.at, at) : '';
+    for (const [file, text] of Object.entries(one.texts)) {
+      if (prefix !== '' && !isUnder(file, prefix)) continue;
+      if (!file.endsWith('.json')) continue;
+      found[toPosix(join(one.at, file))] = text;
+    }
+  }
   return found;
 }

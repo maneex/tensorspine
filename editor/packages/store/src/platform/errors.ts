@@ -19,6 +19,11 @@
  * `unsupported` — the deployment has no such facility (a browser asked to sign in where there are
  * no accounts, or to open a folder where it has no writable picker); `denied` — the user or the
  * browser said no.
+ *
+ * Two are a fetched set's (feature 2.20), and they are apart because the chrome answers them
+ * differently: `unreachable` — nothing came back from the address, which is where a cache with its
+ * age is the honest offer; `corrupt` — something came back and it is not what the set declares,
+ * which is never a cache and never a retry.
  */
 export type PlatformRefusal =
   | 'not-found'
@@ -26,7 +31,9 @@ export type PlatformRefusal =
   | 'conflict'
   | 'bad-path'
   | 'unsupported'
-  | 'denied';
+  | 'denied'
+  | 'unreachable'
+  | 'corrupt';
 
 /** A refusal of the platform, as opposed to one of the language. */
 export class PlatformError extends Error {

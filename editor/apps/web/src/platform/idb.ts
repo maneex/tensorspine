@@ -36,7 +36,26 @@ export const WORKSPACES = 'workspaces';
 /** The store of autosaved documents, keyed by workspace and path (`draftKey`). */
 export const DRAFTS = 'drafts';
 
-const STORES = [WORKSPACES, DRAFTS] as const;
+/**
+ * The store of published file sets fetched from an address, keyed by the manifest's address.
+ *
+ * Feature 2.20: a set is fetched whole and checked whole, so what is worth keeping is the whole
+ * set — which is also what makes the offline answer honest ("opens from the cache with its age
+ * shown, or refuses with the address in the message; it never opens silently stale").
+ */
+export const REMOTE = 'remote';
+
+const STORES = [WORKSPACES, DRAFTS, REMOTE] as const;
+
+/**
+ * The version of the database, bumped when a store is added.
+ *
+ * A browser that opened version 1 has no `remote` store, and `onupgradeneeded` is the only moment
+ * a store can be created — so the version is what tells it to run again. A page of an older
+ * editor still open blocks the upgrade, which {@link openDatabase} answers as a refusal, and a
+ * refusal falls back to memory: the cache is lost for that session and nothing else is.
+ */
+const VERSION = 2;
 
 /** A promise over one IndexedDB request, refusing rather than raising. */
 export function request<T>(operation: IDBRequest<T>): Promise<T> {
@@ -56,7 +75,7 @@ function openDatabase(): Promise<IDBDatabase> {
     // `indexedDB` is absent in some contexts and throws on access in others; either is a refusal.
     let opening: IDBOpenDBRequest;
     try {
-      opening = indexedDB.open(DATABASE, 1);
+      opening = indexedDB.open(DATABASE, VERSION);
     } catch (error) {
       reject(error instanceof Error ? error : new Error(String(error)));
       return;

@@ -129,6 +129,16 @@ export function wireDocuments(wiring: DocumentsWiring): {
     'file.open-recent': async () => {
       now().setDialog({ kind: 'workspaces', recent: await platform.workspaces.recent() });
     },
+    // Feature 2.20's two: a published file set opened as the workspace, and a published base
+    // stood at a path of the open one so that a document can pin it. Both ask for the address of
+    // a **manifest** — plain HTTP has no directory listing — and both refuse with the address in
+    // the message rather than spinning.
+    'file.open-workspace-url': () => {
+      now().setDialog({ kind: 'remote', target: 'workspace' });
+    },
+    'file.open-base-url': () => {
+      now().setDialog({ kind: 'remote', target: 'library' });
+    },
     'file.save': () => now().save(),
     'file.save-as': () => {
       const id = current();

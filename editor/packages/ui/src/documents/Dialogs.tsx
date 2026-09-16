@@ -18,8 +18,16 @@
  *
  * **Restore a draft**: "on reopening a document with a newer draft the editor offers to restore
  * it" (§4.3). Offered, never applied: the draft is the user's own typing and so is the file.
+ *
+ * **From a URL** (feature 2.20), which is two of the same dialog: a whole workspace fetched from
+ * an address, and a primitive library base fetched and stood at a path of the open workspace. What
+ * it asks for is the address of a **manifest** — plain HTTP has no directory listing, so a set of
+ * files cannot be discovered and has to be declared — and, for a base, the path a document will
+ * pin it by, proposed from the address and the user's to change.
  */
-import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
+
+import { addressOf, ageOf, nameOfRoot } from '@tensorspine/store/platform';
 
 import { useDocuments, useDocumentsStore } from './context.js';
 import { text, textWith } from '../shell/strings.js';
@@ -286,6 +294,149 @@ function SaveAs(): JSX.Element {
   );
 }
 
+/** The path a fetched base is proposed to stand at: the set's own name, and nothing invented. */
+function proposedPath(address: string): string {
+  try {
+    return nameOfRoot(addressOf(address).root);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Open a workspace, or a base, from an address — feature 2.20.
+ *
+ * One dialog, two targets, because what it asks and what it says are the same thing twice: an
+ * address, what that address has to be (a manifest's, since there is no listing to discover), and
+ * what the host has to permit for another origin's page to read it at all.
+ */
+function Remote(): JSX.Element {
+  const store = useDocumentsStore();
+  const target = useDocuments((state) => (state.dialog?.kind === 'remote' ? state.dialog.target : null));
+  const refusal = useDocuments((state) =>
+    state.dialog?.kind === 'remote' ? (state.dialog.refusal ?? null) : null,
+  );
+  const mounts = useDocuments((state) => state.mounts);
+  const [address, setAddress] = useState('');
+  const [where, setWhere] = useState('');
+  const [touched, setTouched] = useState(false);
+  const proposed = useMemo(() => proposedPath(address), [address]);
+  const path = touched ? where : proposed;
+  const close = (): void => {
+    store.getState().setDialog(null);
+  };
+  if (target === null) return <></>;
+  // An empty address is opened like any other and refused like any other: the reader is what says
+  // what an address is, and a button that quietly does nothing is the one thing Q5 forbids.
+  const open = (): void => {
+    if (target === 'workspace') void store.getState().openWorkspaceFromUrl(address.trim());
+    else void store.getState().openBaseFromUrl(address.trim(), path);
+  };
+  return (
+    <Frame
+      title={target === 'workspace' ? text('Open Workspace from URL…') : text('Open Base from URL…')}
+      hint={text('the address of its manifest')}
+      onClose={close}
+      foot={
+        <>
+          <span className="note-line">
+            {text(
+              'A set served over plain HTTP has no directory listing, so it declares what it holds: ' +
+                'point at its vendor.json, or at the directory holding one. Every file is checked ' +
+                'against the sha256 the manifest gives it. A host on another origin must answer with ' +
+                'Access-Control-Allow-Origin for this page to read it at all.',
+            )}
+          </span>
+          <span className="right">
+            <button type="button" className="btn ghost" onClick={close}>
+              {text('Cancel')}
+            </button>
+            <button type="button" className="btn pri" data-open-remote={target} onClick={open}>
+              {text('Open')}
+            </button>
+          </span>
+        </>
+      }
+    >
+      <label className="frow">
+        <span className="fk">{text('Address')}</span>
+        <input
+          className="ctl wide mono"
+          data-remote-address={target}
+          placeholder="https://…/vendor.json"
+          value={address}
+          onChange={(event) => setAddress(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') open();
+          }}
+        />
+      </label>
+      {target === 'library' ? (
+        <label className="frow">
+          <span className="fk">{text('Stands at')}</span>
+          <input
+            className="ctl wide mono"
+            data-remote-path="library"
+            value={path}
+            onChange={(event) => {
+              setTouched(true);
+              setWhere(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') open();
+            }}
+          />
+        </label>
+      ) : null}
+      {target === 'library' ? (
+        <div className="frow">
+          <span className="fk">{text('Pinned as')}</span>
+          <span className="fv mono">
+            {path === '' ? text('—') : textWith('primitive_libraries: {}', path)}
+          </span>
+        </div>
+      ) : null}
+      {refusal === null ? null : (
+        <div className="frow" role="alert">
+          <span className="fk">{text('Did not open')}</span>
+          <span className="fv bad" data-remote-refusal={target}>
+            {refusal}
+          </span>
+        </div>
+      )}
+      {target === 'library' && mounts.length > 0 ? (
+        <>
+          {mounts.map((one) => (
+            <div className="frow" key={one.at}>
+              <span className="fk mono">{one.at}</span>
+              <span className="fv">
+                <span className="mono" data-mounted={one.at}>
+                  {one.address}
+                </span>{' '}
+                <span className="sub">
+                  {textWith('{} file(s)', String(one.files))}
+                  {one.cached ? ` · ${textWith('cached {}', ageOf(one.fetchedAt))}` : ''}
+                  {one.commit === null ? '' : ` · ${one.commit.slice(0, 12)}`}
+                </span>{' '}
+                <button
+                  type="button"
+                  className="btn ghost"
+                  data-unmount={one.at}
+                  onClick={() => {
+                    void store.getState().unmountBase(one.at);
+                  }}
+                >
+                  {text('Forget')}
+                </button>
+              </span>
+            </div>
+          ))}
+        </>
+      ) : null}
+    </Frame>
+  );
+}
+
 /** The draft offer of §4.3 — what was autosaved, against what the file holds. */
 function Restore(): JSX.Element {
   const store = useDocumentsStore();
@@ -418,6 +569,7 @@ function Remove(): JSX.Element {
 export function DocumentDialogs(): JSX.Element | null {
   const kind = useDocuments((state) => state.dialog?.kind ?? null);
   if (kind === 'workspaces') return <Workspaces />;
+  if (kind === 'remote') return <Remote />;
   if (kind === 'documents') return <Documents />;
   if (kind === 'save-as') return <SaveAs />;
   if (kind === 'restore') return <Restore />;

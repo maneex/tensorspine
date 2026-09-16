@@ -25,9 +25,11 @@ import {
   PlatformError,
   ReadOnlyWorkspace,
   normalise,
+  publishedWorkspace,
   snapshotOf,
   textsOf,
   type Deliver,
+  type PublishedSet,
   type RecentWorkspace,
   type Unsubscribe,
   type UploadedFile,
@@ -203,6 +205,17 @@ export class BrowserWorkspaces implements Workspaces {
   /** The Examples workspace: the corpus and the reference base vendored with the build (D11). */
   async openExamples(): Promise<Workspace> {
     return this.adopt((await this.material()).workspace(this.options.deliver));
+  }
+
+  /**
+   * A published file set opened as the workspace — feature 2.20.
+   *
+   * The fetching, the integrity check and the cache are `Platform.remote`'s; this is the adoption
+   * alone, and the workspace it adopts is `ReadOnlyWorkspace` over the set's own `FileSet`, which
+   * is the shape the snapshot and the Examples workspace already read.
+   */
+  openPublished(set: PublishedSet): Promise<Workspace> {
+    return Promise.resolve(this.adopt(publishedWorkspace(set, this.options.deliver)));
   }
 
   /** The vendored material, read once per page: the examples, and the schemas beside them. */

@@ -38,6 +38,30 @@ export interface ManifestFile {
   sha256: string;
 }
 
+/**
+ * A group of the set's files written a second time, whole, as one JSON object from path to text.
+ *
+ * A transport and never a second source: the digests a manifest records are of the **files**, and
+ * a reader that takes a file's text out of a bundle checks it against the same digest it would
+ * have checked a file it fetched on its own. A set served from another origin pays a round trip
+ * per request, so a group that is always read whole — a base's units, a schema directory — is
+ * worth one request instead of a hundred and thirty (feature 2.18's measurement, feature 2.20's
+ * reason for declaring it here rather than in one generator).
+ *
+ * `covers` is the path prefix every file in it is under; the empty string is the whole set.
+ */
+export interface PublishedBundle {
+  /** What this group is called, for the manifest to name it by. */
+  name: string;
+  /** Where the bundle is, under the set's own root. */
+  path: string;
+  /** The path prefix every file in it is under; `''` is the whole set. */
+  covers: string;
+  /** How many files it holds, and how long it is. */
+  files: number;
+  bytes: number;
+}
+
 /** What the checkout a set was generated from says about itself. */
 export interface Provenance {
   /** The commit the bytes come from, or `null` outside a checkout. */
@@ -56,6 +80,13 @@ export interface Provenance {
 export interface PublishedManifest extends Provenance {
   /** The script that wrote it, named as the repository names it. */
   generated_by: string;
+  /**
+   * The groups written a second time as one file, where the generator wrote any.
+   *
+   * Optional: a set of one file has nothing to gain, a generator may decline, and a reader that
+   * finds none reads the files themselves — slower, and right.
+   */
+  bundles?: PublishedBundle[];
   files: ManifestFile[];
 }
 

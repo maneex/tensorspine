@@ -27,6 +27,8 @@ describe('the stub platform', () => {
       // Two of these are the stub's own, for the suites: what the shell was asked to do, and the
       // machine's colour-scheme preference (§4.21), which a run must not be a function of.
       'preferScheme',
+      // Feature 2.20's: the published file sets a deployment can fetch from an address.
+      'remote',
       'settings',
       'shell',
       'shellRecord',

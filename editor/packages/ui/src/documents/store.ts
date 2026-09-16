@@ -23,12 +23,20 @@
 import type {
   Draft,
   Platform,
+  PublishedSet,
   RecentWorkspace,
+  SettingValue,
   UploadedFile,
   Workspace,
   WorkspaceRef,
 } from '@tensorspine/store/platform';
-import { ABSENT, PlatformError } from '@tensorspine/store/platform';
+import {
+  ABSENT,
+  PlatformError,
+  ageOf,
+  normalise as normalisePath,
+  textsUnder,
+} from '@tensorspine/store/platform';
 import {
   DocumentSession,
   draftStanding,
@@ -53,6 +61,7 @@ import {
   writeLayout,
   zipOf,
   type Applied,
+  type BaseMount,
   type Command,
   type DraftStanding,
   type EditContext,
@@ -120,6 +129,21 @@ export const WORKSPACE_SETTING = 'documents.workspace';
 
 /** The setting the open tabs are remembered under — §4.3's "tabs restore on relaunch". */
 export const TABS_SETTING = 'documents.tabs';
+
+/**
+ * The setting the addresses of feature 2.20 are remembered under, so a reload reopens them.
+ *
+ * Two things, because the feature opens two: the address the **workspace** was fetched from, and
+ * the bases mounted in a workspace, keyed by that workspace's own identity — a mount path means
+ * something only in the workspace it was made in.
+ */
+export const REMOTE_SETTING = 'documents.remote';
+
+/** What {@link REMOTE_SETTING} holds. */
+interface RememberedRemote {
+  readonly workspace?: string;
+  readonly bases?: Readonly<Record<string, readonly { readonly address: string; readonly at: string }[]>>;
+}
 
 /** How often a dirty document is autosaved (§4.3: "every 30 s and on blur"). */
 export const AUTOSAVE_MS = 30_000;
@@ -408,6 +432,25 @@ export interface ToastLine {
  */
 export type Dialog =
   | { readonly kind: 'workspaces'; readonly recent: readonly RecentWorkspace[] }
+  | {
+      /**
+       * §4.3's two from an address (feature 2.20): a whole workspace, or a base to pin.
+       *
+       * `library` and not `base` for the reason catching rule (b) gives: `base` is a value of the
+       * unit schema's `kind` enumeration, and the interface types no vocabulary of the schemas.
+       */
+      readonly kind: 'remote';
+      readonly target: 'workspace' | 'library';
+      /**
+       * Why the last address did not open, where one did not.
+       *
+       * The refusal stays **in the dialog**, beside the address that was typed: a gesture that
+       * failed is answered where it was made, and a message naming a missing header or a file
+       * whose digest disagrees is not something to read in the two seconds a toast lasts. The Log
+       * keeps it too.
+       */
+      readonly refusal?: string;
+    }
   | { readonly kind: 'documents' }
   | { readonly kind: 'save-as'; readonly id: string; readonly path: WorkspacePath }
   | { readonly kind: 'restore'; readonly id: string }
@@ -421,9 +464,44 @@ export type Dialog =
       readonly kept: readonly string[];
     };
 
+/**
+ * A base fetched from an address and standing in the open workspace — feature 2.20.
+ *
+ * What the chrome shows of one, and what the gathering layer reads it as ({@link BaseMount}). The
+ * address and the commit are beside the path on purpose: **a document pins a base by the path it
+ * resolves**, so the path alone does not say which bytes filled it, and what makes a second
+ * reader's derivation reproduce is opening the same address — at the same path — and finding the
+ * same commit in its manifest.
+ */
+export interface MountedBase {
+  /** Where it stands in the workspace: the path a document's `primitive_libraries` entry resolves to. */
+  readonly at: WorkspacePath;
+  /** The manifest's address it was fetched from. */
+  readonly address: string;
+  /** The commit its manifest records, `null` where the generator ran outside a checkout. */
+  readonly commit: string | null;
+  /** When it was fetched, ISO 8601, and whether that came out of the cache rather than the wire. */
+  readonly fetchedAt: string;
+  readonly cached: boolean;
+  readonly files: number;
+}
+
+/** What the open workspace is, where it was fetched from an address (feature 2.20). */
+export interface RemoteWorkspace {
+  readonly address: string;
+  readonly commit: string | null;
+  readonly fetchedAt: string;
+  readonly cached: boolean;
+  readonly files: number;
+}
+
 /** The documents as the chrome reads them. */
 export interface DocumentsState {
   readonly workspace: WorkspaceRef;
+  /** Where the open workspace was fetched from, where it was (feature 2.20). */
+  readonly remote: RemoteWorkspace | null;
+  /** The bases fetched from an address and standing in the open workspace (feature 2.20). */
+  readonly mounts: readonly MountedBase[];
   readonly open: readonly OpenDocument[];
   readonly current: string | null;
   readonly library: LibraryState;
@@ -469,6 +547,22 @@ export interface Documents extends DocumentsState {
   /** The second half of a drop: the workspace the handler already asked the platform for. */
   dropped(opening: Promise<Workspace | null>): Promise<void>;
   forget(id?: string): Promise<void>;
+
+  /**
+   * §4.3's `Open Workspace from URL…` — a published file set opened as the workspace (2.20).
+   *
+   * Read-only, with Save As to copy a document out, and remembered so that a reload reopens it.
+   */
+  openWorkspaceFromUrl(address: string): Promise<void>;
+  /**
+   * §4.6's `Open Base from URL…` — a published base standing at a path of the open workspace.
+   *
+   * The path is what a document pins (`primitive_libraries`), so it is the user's to choose and
+   * the editor's to remember beside the address.
+   */
+  openBaseFromUrl(address: string, at: WorkspacePath): Promise<void>;
+  /** Take a fetched base out of the open workspace again, and forget where it came from. */
+  unmountBase(at: WorkspacePath): Promise<void>;
 
   openDocument(path: WorkspacePath): Promise<void>;
   newModel(template?: boolean): Promise<void>;
@@ -919,7 +1013,7 @@ export function createDocuments(options: DocumentsOptions): {
         }
       }
       const indexed = clock();
-      const bases = await gatherBases(lang, schemas, workspace, tree as never, path);
+      const bases = await gatherBases(lang, schemas, workspace, tree as never, path, mounted);
       for (const problem of bases.problems) note(problem.message);
       const read = clock();
       const loaded = await lang.loadLibrary(bases.bases, schemas, { forDocument: path });
@@ -1195,6 +1289,86 @@ export function createDocuments(options: DocumentsOptions): {
       return found;
     };
 
+    /**
+     * The bases fetched from an address and standing in the open workspace — feature 2.20.
+     *
+     * Held beside the state rather than in it: what the gathering layer reads is every file of
+     * each one (`BaseMount`), and what the chrome reads is where it stands and where it came from
+     * (`MountedBase`). Both are written in {@link setMounts} and nowhere else, so the two readings
+     * cannot part company.
+     */
+    let standing: readonly { mount: BaseMount; shown: MountedBase }[] = [];
+
+    /** What the gathering layer is handed: one base of files per mount. */
+    let mounted: readonly BaseMount[] = [];
+
+    const setMounts = (bases: readonly { mount: BaseMount; shown: MountedBase }[]): void => {
+      standing = bases;
+      mounted = bases.map((one) => one.mount);
+      set({ mounts: bases.map((one) => one.shown) });
+    };
+
+    /** A fetched set standing at a path: what the loader reads, and what the chrome shows. */
+    const mountAt = (
+      published: PublishedSet,
+      at: WorkspacePath,
+    ): { mount: BaseMount; shown: MountedBase } => {
+      const texts = textsUnder(published);
+      return {
+        mount: { at, texts, address: published.address },
+        shown: {
+          at,
+          address: published.address,
+          commit: published.manifest.repository_commit ?? null,
+          fetchedAt: published.fetchedAt,
+          cached: published.cached,
+          files: Object.keys(texts).length,
+        },
+      };
+    };
+
+    /** What a refusal says, whichever kind of thing raised it. */
+    const message = (error: unknown): string =>
+      error instanceof Error ? error.message : String(error);
+
+    /** What {@link REMOTE_SETTING} holds, read defensively: it is a setting and no schema describes one. */
+    const remembered = (): RememberedRemote => {
+      const held = settings.peek(REMOTE_SETTING);
+      if (typeof held !== 'object' || held === null || Array.isArray(held)) return {};
+      return held as RememberedRemote;
+    };
+
+    /**
+     * Write down where the open workspace came from, leaving the bases standing in it alone.
+     *
+     * The two halves are written apart because they are written at different moments: a workspace
+     * is adopted *before* its bases are fetched again, so a write of both there would record an
+     * empty list and lose the very addresses the remount is about to read.
+     */
+    const rememberWorkspace = (): void => {
+      const state = get();
+      const before = remembered();
+      settings.set(REMOTE_SETTING, {
+        ...(state.remote === null ? {} : { workspace: state.remote.address }),
+        ...(before.bases === undefined ? {} : { bases: before.bases as SettingValue }),
+      });
+    };
+
+    /** Write down the bases standing in the open workspace, under that workspace's own identity. */
+    const rememberMounts = (): void => {
+      const state = get();
+      const before = remembered();
+      const bases: Record<string, { address: string; at: string }[]> = {
+        ...(before.bases as Record<string, { address: string; at: string }[]> | undefined),
+      };
+      if (state.mounts.length === 0) delete bases[state.workspace.id];
+      else bases[state.workspace.id] = state.mounts.map((one) => ({ address: one.address, at: one.at }));
+      settings.set(REMOTE_SETTING, {
+        ...(before.workspace === undefined ? {} : { workspace: before.workspace }),
+        bases,
+      });
+    };
+
     const startPipeline = (id: string): void => {
       const one = get().open.find((open) => open.id === id);
       const handle = get().library.handle;
@@ -1245,7 +1419,7 @@ export function createDocuments(options: DocumentsOptions): {
       if (at !== undefined) void lang.forget(at);
     };
 
-    const adopt = async (workspace: Workspace | null): Promise<void> => {
+    const adopt = async (workspace: Workspace | null, remote: RemoteWorkspace | null = null): Promise<void> => {
       if (workspace === null) return;
       generation += 1;
       const mine = generation;
@@ -1258,18 +1432,22 @@ export function createDocuments(options: DocumentsOptions): {
       registry = null;
       shapes = null;
       figureShapes = null;
+      setMounts([]);
       set({
         registry: null,
         workspace: reference,
+        remote,
+        mounts: [],
         open: [],
         current: null,
         library: NO_LIBRARY,
-        banner: bannerFor(reference),
+        banner: remote === null ? bannerFor(reference) : remoteBanner(remote),
         dialog: null,
         documents: [],
         notices: [],
       });
       settings.set(WORKSPACE_SETTING, { id: reference.id, kind: reference.kind });
+      rememberWorkspace();
       note(`workspace: ${reference.name} · ${reference.kind}${reference.writable ? '' : ' · read-only'}`);
       // A watch is started before the first await and stopped the moment another open wins, which
       // is the defect the review repair `910539b` closed one level down.
@@ -1277,10 +1455,76 @@ export function createDocuments(options: DocumentsOptions): {
         if (generation !== mine) return;
         note(`workspace: ${event.kind} ${event.path}`);
       });
+      // The bases this workspace had standing in it, fetched again before anything is opened:
+      // a document pins one by its path, so the path has to be filled before a library is
+      // gathered rather than after (feature 2.20).
+      await remount(reference, mine);
+      if (generation !== mine) return;
       const found = await listTree(workspace, '', { suffix: '.json' }).catch(() => []);
       if (generation !== mine) return;
       set({ documents: found });
       await reopenTabs(workspace, mine);
+    };
+
+    /**
+     * Fetch again the bases a workspace had standing in it — feature 2.20's half of "a reload
+     * reopens it".
+     *
+     * A base that cannot be fetched is a line in the Log and nothing standing at its path: the
+     * loader is then what says the base is not there (V1, in the tools' own words), which is the
+     * same answer a folder that was deleted gets. Never a silent empty base.
+     */
+    const remount = async (reference: WorkspaceRef, mine: number): Promise<void> => {
+      const held = remembered().bases?.[reference.id] ?? [];
+      const bases: { mount: BaseMount; shown: MountedBase }[] = [];
+      for (const one of held) {
+        try {
+          const published = await platform.remote.open(one.address);
+          if (generation !== mine) return;
+          bases.push(mountAt(published, normalisePath(one.at)));
+        } catch (error) {
+          if (generation !== mine) return;
+          note(`base ${one.at}: ${message(error)}`);
+        }
+      }
+      if (generation !== mine) return;
+      if (bases.length > 0) setMounts(bases);
+      for (const one of bases) {
+        note(
+          `base ${one.shown.at}: ${String(one.shown.files)} file(s) from ${one.shown.address}` +
+            `${one.shown.cached ? ` · cached ${ageOf(one.shown.fetchedAt)}` : ''}`,
+        );
+      }
+    };
+
+    /**
+     * Gather the library again for what is open, after the set of bases changed.
+     *
+     * The handle every pipeline names is the gathered library's, so a base that arrives or leaves
+     * is a new handle and a new run of §5.4's pipeline for every open document. The old handle is
+     * released afterwards rather than before: a call in flight against it is answered.
+     */
+    const relibrary = async (): Promise<void> => {
+      const state = get();
+      const one = state.open.find((open) => open.id === state.current) ?? state.open[0];
+      const before = state.library.handle;
+      if (one === undefined) {
+        set({ library: NO_LIBRARY });
+        if (before !== null) await lang.release(before);
+        return;
+      }
+      let handle: LibraryHandle | null;
+      try {
+        handle = await library(platform.workspace, one.session.store.tree, one.path);
+      } catch (error) {
+        // A gather that fails leaves the library that was there: the editor goes on judging the
+        // document against what it had, and the Log says what did not happen.
+        note(`library: ${message(error)}`);
+        return;
+      }
+      if (handle === null) return;
+      for (const open of get().open) startPipeline(open.id);
+      if (before !== null && before !== handle) await lang.release(before);
     };
 
     /** §4.3's "tabs restore on relaunch", for the workspace that just opened. */
@@ -1302,6 +1546,8 @@ export function createDocuments(options: DocumentsOptions): {
 
     return {
       workspace: platform.workspace.root(),
+      remote: null,
+      mounts: [],
       open: [],
       current: null,
       library: NO_LIBRARY,
@@ -1324,8 +1570,19 @@ export function createDocuments(options: DocumentsOptions): {
         const kind = (last as LastWorkspace | undefined)?.kind;
         // A vendored workspace needs no permission and no files from anybody, so the one thing a
         // page may reopen by itself is that one. A snapshot cannot be: the files are gone.
-        if (kind === EXAMPLES) await adopt(await platform.workspaces.openExamples());
-        else set({ banner: null });
+        if (kind === EXAMPLES) {
+          await adopt(await platform.workspaces.openExamples());
+          return;
+        }
+        // A workspace fetched from an address needs no permission either — the address is the
+        // whole of it, and it was remembered (feature 2.20). A host that is down is a refusal
+        // naming the address, or the cache with its age; never a silent empty editor.
+        const address = remembered().workspace;
+        if (kind === REMOTE && typeof address === 'string' && address !== '') {
+          await get().openWorkspaceFromUrl(address);
+          return;
+        }
+        set({ banner: null });
       },
 
       adopt,
@@ -1358,6 +1615,97 @@ export function createDocuments(options: DocumentsOptions): {
 
       async dropped(opening: Promise<Workspace | null>): Promise<void> {
         await adopt(await opening);
+      },
+
+      /**
+       * §4.3's `Open Workspace from URL…` — a published file set opened as the workspace (2.20).
+       *
+       * The fetching, the integrity check and the cache are the platform's; what is decided here
+       * is that a refusal **says the address** and opens nothing, and that what did open is
+       * remembered so a reload comes back to it.
+       */
+      async openWorkspaceFromUrl(address: string): Promise<void> {
+        let published: PublishedSet;
+        try {
+          published = await platform.remote.open(address);
+        } catch (error) {
+          note(`workspace from ${address}: ${message(error)}`);
+          set({ dialog: { kind: 'remote', target: 'workspace', refusal: message(error) } });
+          return;
+        }
+        const workspace = await platform.workspaces.openPublished(published);
+        await adopt(workspace, {
+          address: published.address,
+          commit: published.manifest.repository_commit ?? null,
+          fetchedAt: published.fetchedAt,
+          cached: published.cached,
+          files: published.manifest.files.length,
+        });
+        note(
+          `workspace from ${published.address}: ${String(published.manifest.files.length)} file(s)` +
+            `${published.cached ? ` · cached ${ageOf(published.fetchedAt)}` : ` · ${String(published.requests)} request(s)`}` +
+            `${published.manifest.repository_commit === null ? '' : ` · ${published.manifest.repository_commit}`}`,
+        );
+      },
+
+      /**
+       * §4.6's `Open Base from URL…` — a published base standing at a path of this workspace.
+       *
+       * The path is what a document pins, so it is not invented here: the caller supplies it (the
+       * dialog proposes the set's own name) and the Log says which path was filled from which
+       * address, which is what a second reader needs to reproduce a derivation.
+       */
+      async openBaseFromUrl(address: string, at: WorkspacePath): Promise<void> {
+        const refuse = (why: string): void => {
+          note(`base from ${address}: ${why}`);
+          set({ dialog: { kind: 'remote', target: 'library', refusal: why } });
+        };
+        let where: WorkspacePath;
+        try {
+          where = normalisePath(at);
+        } catch (error) {
+          refuse(message(error));
+          return;
+        }
+        if (where === '') {
+          refuse(
+            'a base stands somewhere a document can pin: give it a path of its own in this workspace',
+          );
+          return;
+        }
+        let published: PublishedSet;
+        try {
+          published = await platform.remote.open(address);
+        } catch (error) {
+          refuse(message(error));
+          return;
+        }
+        const one = mountAt(published, where);
+        setMounts([...standing.filter((held) => held.shown.at !== where), one]);
+        rememberMounts();
+        note(
+          `base ${where}: ${String(one.shown.files)} file(s) from ${published.address}` +
+            `${published.cached ? ` · cached ${ageOf(published.fetchedAt)}` : ` · ${String(published.requests)} request(s)`}` +
+            `${one.shown.commit === null ? '' : ` · ${one.shown.commit}`}` +
+            ' — a document pins it by writing this path in primitive_libraries',
+        );
+        set({ dialog: null });
+        await relibrary();
+      },
+
+      /** Take a fetched base out of the workspace again, and forget where it stood. */
+      async unmountBase(at: WorkspacePath): Promise<void> {
+        let where: WorkspacePath;
+        try {
+          where = normalisePath(at);
+        } catch {
+          return;
+        }
+        if (!standing.some((one) => one.shown.at === where)) return;
+        setMounts(standing.filter((one) => one.shown.at !== where));
+        rememberMounts();
+        note(`base ${where}: no longer standing in this workspace`);
+        await relibrary();
       },
 
       async forget(id?: string): Promise<void> {
@@ -2195,6 +2543,38 @@ const NO_LIBRARY: LibraryState = {
 
 /** The `examples` workspace: the one a page may reopen by itself, needing nothing from anybody. */
 const EXAMPLES = 'examples';
+
+/** The `remote` workspace: a published file set fetched from an address (feature 2.20). */
+const REMOTE = 'remote';
+
+/**
+ * The banner a workspace fetched from an address carries — feature 2.20's Offline paragraph.
+ *
+ * Read-only for the same reason a snapshot is, and with the one thing a snapshot has not: an
+ * address, a commit, and — where nothing answered and the cache did — **how old** what is being
+ * read is. "It never opens silently stale" is a sentence about this banner.
+ */
+export function remoteBanner(remote: RemoteWorkspace): BannerLine {
+  const commit = remote.commit === null ? 'no commit' : remote.commit.slice(0, 12);
+  if (remote.cached) {
+    return {
+      kind: 'warn',
+      head: `Nothing answered at ${remote.address}: this is the copy in your browser.`,
+      body:
+        `Fetched ${ageOf(remote.fetchedAt)} · ${String(remote.files)} file(s) · ${commit}. ` +
+        'Read-only: Save As copies a document into a folder of your own. Open it again when the ' +
+        'address answers to be sure you are reading what it serves now.',
+    };
+  }
+  return {
+    kind: 'info',
+    head: `Fetched from ${remote.address}.`,
+    body:
+      `${String(remote.files)} file(s), each checked against the sha256 its manifest declares · ${commit}. ` +
+      'Read-only: Save As copies a document into a folder of your own; everything else — validation, ' +
+      'derivation, the checkpoint check — works exactly the same.',
+  };
+}
 
 /** The badge §4.3 gives a document that needs an assignment. */
 const TEMPLATE_BADGE = 'template';

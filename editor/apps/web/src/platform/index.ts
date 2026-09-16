@@ -14,17 +14,21 @@
  * | `auth` | `NoAuth` — the static application has no accounts (Q8 defers the SaaS) |
  * | `settings` | `localStorage`, loaded once, written through |
  * | `drafts` | IndexedDB |
+ * | `remote` | a published file set fetched from an address, checked against its manifest, cached in IndexedDB |
  * | `shell` | the download, the clipboard, an external link, `window.confirm` |
  */
-import { noAuth, type Platform, type Workspace } from '@tensorspine/store/platform';
+import { noAuth, type Platform, type RemoteSets, type Workspace } from '@tensorspine/store/platform';
 
 import { browserDrafts } from './drafts.js';
+import { browserRemote } from './remote.js';
 import { browserSettings } from './settings.js';
 import { browserShell, type BrowserShell } from './shell.js';
 import { BrowserWorkspaces } from './workspaces.js';
 
 /** What {@link createBrowserPlatform} is given. */
 export interface BrowserPlatformOptions {
+  /** How a published file set is fetched and cached; the browser's own by default (2.20). */
+  readonly remote?: RemoteSets;
   /** Where the vendored schemas, corpus and reference base are served from. */
   readonly vendor?: string;
   /** How often a writable workspace polls for changes made behind it. */
@@ -56,12 +60,14 @@ export async function createBrowserPlatform(
   });
   const settings = browserSettings();
   const drafts = await browserDrafts();
+  const remote = options.remote ?? (await browserRemote());
   return {
     get workspace(): Workspace {
       return workspaces.current();
     },
     workspaces,
     checkpoints: [],
+    remote,
     auth: noAuth('this deployment has no accounts: everything the editor computes runs in your browser'),
     settings,
     drafts,
@@ -79,6 +85,7 @@ export {
   type VendorManifest,
 } from './examples.js';
 export { Recents, type Permission, type RememberedWorkspace } from './recents.js';
+export { ALLOW_ORIGIN, browserDigest, browserRemote, browserRetrieve, type RemoteOptions } from './remote.js';
 export { browserDrafts, draftsOver } from './drafts.js';
 export { browserSettings, PREFIX } from './settings.js';
 export { appleConventions, browserShell, modifierOf, type BrowserShell, type LastDownload, type ShellOptions } from './shell.js';

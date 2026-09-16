@@ -14,6 +14,7 @@ import {
   Recents,
   Vendor,
   browserDrafts,
+  browserRemote,
   browserSettings,
   browserShell,
   createBrowserPlatform,
@@ -569,6 +570,46 @@ const probes: Record<string, (argument?: string) => Promise<Outcome>> = {
         sameCount: Object.keys(gathered).length === paths.length,
         uncovered: uncovered ?? null,
         uncoveredBytes: uncovered === undefined ? 0 : (await fresh.read(uncovered)).length,
+      };
+    }),
+
+  /**
+   * What a **published file set** costs to fetch from another origin — feature 2.20.
+   *
+   * The same arithmetic feature 2.18 measured one origin closer: a set of a hundred-odd files is
+   * a hundred-odd round trips unless its manifest declares the set a second time as one bundle,
+   * which `pnpm manifest` writes. Both readings are taken here on the same page, over the same
+   * address, each from a store that has fetched nothing — and every file is checked against its
+   * own sha256 either way, which is what makes the two comparable at all.
+   *
+   * The address is the suite's: this page knows no host.
+   */
+  published: (address?: string) =>
+    timed(async () => {
+      if (address === undefined) throw new Error('published: which address?');
+      const files = await browserRemote({ store: null, bundles: false });
+      const directAt = performance.now();
+      const direct = await files.open(address);
+      const directMs = performance.now() - directAt;
+
+      const bundled = await browserRemote({ store: null });
+      const bundledAt = performance.now();
+      const set = await bundled.open(address);
+      const bundledMs = performance.now() - bundledAt;
+
+      const paths = Object.keys(set.texts);
+      return {
+        files: set.manifest.files.length,
+        bundles: (set.manifest.bundles ?? []).map((one) => ({ covers: one.covers, files: one.files })),
+        directRequests: direct.requests,
+        bundledRequests: set.requests,
+        directMs,
+        bundledMs,
+        bytes: set.bytes,
+        // The same bytes, which is the whole claim: a bundle is a transport, not a second source.
+        sameTexts: paths.every((path) => set.texts[path] === direct.texts[path]),
+        sameCount: paths.length === Object.keys(direct.texts).length,
+        commit: set.manifest.repository_commit,
       };
     }),
 

@@ -250,6 +250,14 @@ test.describe('gemma3n-kvshare › decoder (S5)', () => {
   });
 
   test('has nothing axe objects to with the strip drawn, in either theme', async ({ page }) => {
+    // Two whole axe passes over the largest drill-in this repository has — gemma3n-kvshare's
+    // decoder, its thirty columns and its four guarded rows — which is **18.1 s alone** and 31.4 s
+    // when the browser layer runs it beside two hundred other cases (measured during feature
+    // 2.20, where it exceeded Playwright's 30 s default). The default is a load guard and not a
+    // claim of this test's: what it asserts — that axe finds nothing, in either theme — is
+    // untouched, and the file's own idiom for slow work is this one (`documents.spec.ts`,
+    // `deploy.spec.ts`, `headers.spec.ts` each carry one).
+    test.setTimeout(120_000);
     await open(page);
     await openModel(page, GEMMA);
     await drillIn(page, 'decoder');

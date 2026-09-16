@@ -12,9 +12,9 @@ import {
   schemaDifferences,
   WORKSPACE_SCHEMAS,
 } from '../../src/documents/gather.js';
-import { MemoryWorkspace, ReadOnlyWorkspace, textsOf } from '../../src/platform/index.js';
+import { ABSENT, MemoryWorkspace, ReadOnlyWorkspace, textsOf } from '../../src/platform/index.js';
 import { readTree } from '../../src/platform/tree.js';
-import { corpusText, repositoryRoot } from '../source.js';
+import { corpusText, editorRoot, repositoryRoot } from '../source.js';
 
 // What a document needs read before it can be judged — and, at the centre of it, **the templates
 // hand-over feature 2.4 left to this one**.
@@ -149,6 +149,92 @@ describe('what a document has read for it', () => {
     const tree = await lang.parse((await place.read('models/x.json')).text);
     const gathered = await gatherBases(lang, schemas, place, tree, 'models/x.json');
     expect(gathered.bases).toEqual([{ base: 'primitive-library', files: {} }]);
+  });
+});
+
+describe('a base fetched from an address and standing in the workspace (feature 2.20)', () => {
+  /** The acceptance fixture base of feature 1.13, which is what a laboratory's own base looks like. */
+  function fixtureBase(): Record<string, string> {
+    const root = join(editorRoot, 'tests', 'fixtures', 'base');
+    const found: Record<string, string> = {};
+    const walk = (at: string, prefix: string): void => {
+      for (const entry of readdirSync(at, { withFileTypes: true })) {
+        if (entry.isDirectory()) walk(join(at, entry.name), `${prefix}${entry.name}/`);
+        else if (entry.name.endsWith('.json')) {
+          found[`${prefix}${entry.name}`] = readFileSync(join(at, entry.name), 'utf8');
+        }
+      }
+    };
+    walk(root, '');
+    return found;
+  }
+
+  /** Where a document that uses the fetched base stands, in a workspace laid out like `data/`. */
+  const MODEL_AT = 'data/models/uses-fixture.json';
+
+  /** `declared-constant.json`, with its two bases written where this workspace keeps them. */
+  function document(where: string): string {
+    const text = readFileSync(
+      join(editorRoot, 'tests', 'fixtures', 'models', 'declared-constant.json'),
+      'utf8',
+    );
+    return text
+      .replace('../../../../data/primitive-library/', '../primitive-library/')
+      .replace('../base/', `../${where}/`);
+  }
+
+  it('is gathered from the mount, and the loader reads it as a base like any other', async () => {
+    const { lang, schemas } = await core();
+    const place = dataWorkspace();
+    // The workspace holds the corpus and the reference base and knows nothing of `lab-base`: the
+    // mount is what fills the path, and the path is what the document pins.
+    await place.write(MODEL_AT, document('lab-base'), ABSENT);
+    const tree = await lang.parse((await place.read(MODEL_AT)).text);
+    const mounts = [
+      { at: 'data/lab-base', texts: fixtureBase(), address: 'https://lab.example/lab-base/vendor.json' },
+    ];
+    const gathered = await gatherBases(lang, schemas, place, tree, MODEL_AT, mounts);
+    expect(gathered.bases.map((one) => one.base)).toEqual([
+      'data/primitive-library',
+      'data/lab-base',
+    ]);
+    expect(Object.keys(gathered.bases[1]?.files ?? {}).sort()).toEqual([
+      'data/lab-base/primitive-library.json',
+      'data/lab-base/primitives/fixture/position_bias/1.0.0.json',
+    ]);
+    // Data, not code: the loader puts every unit through the unit schema and its cross-references,
+    // and answers a library with the fetched base's own primitive in it.
+    const loaded = await lang.loadLibrary(gathered.bases, schemas, { forDocument: MODEL_AT });
+    expect(loaded.problems).toEqual([]);
+    expect([...loaded.library.byId.keys()]).toContain('fixture.position_bias@1.0.0');
+  });
+
+  it('is what the document is judged against: the same document without it is a V1', async () => {
+    const { lang, schemas } = await core();
+    const place = dataWorkspace();
+    await place.write(MODEL_AT, document('lab-base'), ABSENT);
+    const tree = await lang.parse((await place.read(MODEL_AT)).text);
+    const gathered = await gatherBases(lang, schemas, place, tree, MODEL_AT);
+    expect(gathered.bases[1]).toEqual({ base: 'data/lab-base', files: {} });
+    const loaded = await lang.loadLibrary(gathered.bases, schemas, { forDocument: MODEL_AT });
+    // The loader's own words, in the tools' wording: a base that is not there is a rejection.
+    expect(loaded.problems.map((one) => one.message).join('\n')).toContain(
+      "primitive library base 'data/lab-base' does not exist (V1)",
+    );
+  });
+
+  it('answers for what stands under it, whichever side of the mount the base is', async () => {
+    const { lang, schemas } = await core();
+    const place = dataWorkspace();
+    await place.write(MODEL_AT, document('bases/lab'), ABSENT);
+    const tree = await lang.parse((await place.read(MODEL_AT)).text);
+    const mounts = [
+      { at: 'data/bases/lab', texts: fixtureBase(), address: 'https://lab.example/lab/vendor.json' },
+    ];
+    const gathered = await gatherBases(lang, schemas, place, tree, MODEL_AT, mounts);
+    expect(Object.keys(gathered.bases[1]?.files ?? {})).toContain(
+      'data/bases/lab/primitives/fixture/position_bias/1.0.0.json',
+    );
   });
 });
 

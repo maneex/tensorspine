@@ -22,6 +22,8 @@ function nothingOpen(): Documents {
   const later = (): Promise<void> => Promise.resolve();
   return {
     workspace: { kind: 'empty', id: '', name: '', writable: false },
+    remote: null,
+    mounts: [],
     open: [],
     current: null,
     library: {
@@ -49,6 +51,9 @@ function nothingOpen(): Documents {
     openUpload: later,
     dropped: later,
     forget: later,
+    openWorkspaceFromUrl: later,
+    openBaseFromUrl: later,
+    unmountBase: later,
     openDocument: later,
     newModel: later,
     select: nothing,

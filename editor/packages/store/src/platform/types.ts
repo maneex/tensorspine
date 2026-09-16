@@ -31,6 +31,7 @@
  */
 
 import type { WorkspacePath } from './paths.js';
+import type { PublishedSet } from './remote.js';
 
 export type { WorkspacePath };
 export { PlatformError, type PlatformRefusal } from './errors.js';
@@ -49,9 +50,11 @@ export type Unsubscribe = () => void;
  * page was handed, where Save downloads; `examples` is the corpus and the reference base vendored
  * with the build; `memory` is the stub's; `empty` is the one a deployment holds before the user
  * has opened anything — it lists nothing, finds nothing, and still saves, as a download, because
- * a document made from nothing is still the user's (S17's empty state).
+ * a document made from nothing is still the user's (S17's empty state); `remote` is a published
+ * file set fetched from an address (feature 2.20), which is read-only for the same reason a
+ * snapshot is and carries an address and an age the chrome has to be able to say.
  */
-export type WorkspaceKind = 'directory' | 'snapshot' | 'examples' | 'memory' | 'empty';
+export type WorkspaceKind = 'directory' | 'snapshot' | 'examples' | 'memory' | 'empty' | 'remote';
 
 /** Which workspace is open: what `root()` answers (§5.2, "folder or project id"). */
 export interface WorkspaceRef {
@@ -219,6 +222,14 @@ export interface Workspaces {
    * read-only, always available (D11, §4.3).
    */
   openExamples(): Promise<Workspace>;
+  /**
+   * A published file set, opened as the workspace — feature 2.20's `Open Workspace from URL…`.
+   *
+   * The set is {@link RemoteSets.open}'s answer: fetching it, checking it against its manifest and
+   * caching it happen there, and this is only the adoption. Read-only, with Save As to copy a
+   * document out, as a snapshot and the Examples workspace are.
+   */
+  openPublished(set: PublishedSet): Promise<Workspace>;
   /** The folders the user opened before, most recently opened first. */
   recent(): Promise<readonly RecentWorkspace[]>;
   /**
@@ -252,6 +263,39 @@ export interface Workspaces {
    * repair `910539b` closed, and it is a caller's defect, not this interface's.
    */
   onChange(callback: (workspace: Workspace) => void): Unsubscribe;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Published file sets, fetched from an address
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The sets fetched from an address in this session, and how one is opened — feature 2.20.
+ *
+ * A **published file set** is a directory served over plain HTTP with a manifest declaring every
+ * file it holds and that file's sha256 (`editor/scripts/manifest.ts`, `./remote.ts`). Two things
+ * of the editor are one: a workspace opened from an address, and a primitive library base a
+ * laboratory publishes for others to pin.
+ *
+ * It is a member of {@link Platform} and not of {@link Workspaces} because a base is not a
+ * workspace: what is fetched is a set of files, and what is *done* with it — opened as the
+ * workspace, or mounted in the open one so that a document can pin it — is the editor's decision
+ * above this line.
+ *
+ * **Offline is an answer, never a silence.** {@link open} takes what the address gives; where
+ * nothing comes back it answers the cache, with {@link PublishedSet.cached} set and
+ * {@link PublishedSet.fetchedAt} saying how old it is, so the chrome can show the age; where there
+ * is no cache either it refuses with the address in the message. It never opens silently stale.
+ */
+export interface RemoteSets {
+  /** Fetch the set the manifest at `address` declares; the cache with its age where it cannot. */
+  open(address: string): Promise<PublishedSet>;
+  /** The sets opened in this session, most recently opened first. */
+  held(): readonly PublishedSet[];
+  /** Forget one cached set, or all of them. */
+  forget(address?: string): Promise<void>;
+  /** False where the cache refused: a set opened now is this session's alone. */
+  readonly persistent: boolean;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -476,6 +520,8 @@ export interface Platform {
   readonly workspaces: Workspaces;
   /** The checkpoints loaded in this session; feature 4.1 fills it. */
   readonly checkpoints: readonly CheckpointSource[];
+  /** Published file sets fetched from an address: a workspace, or a base to pin (feature 2.20). */
+  readonly remote: RemoteSets;
   readonly auth: AuthProvider;
   readonly settings: SettingsStore;
   readonly drafts: DraftStore;

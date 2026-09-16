@@ -41,6 +41,7 @@ export {
   type MenuCommand,
   type Platform,
   type RecentWorkspace,
+  type RemoteSets,
   type Session,
   type SettingValue,
   type SettingsStore,
@@ -77,3 +78,25 @@ export {
   type StubOptions,
 } from './memory.js';
 export { listTree, readTree, within, type TreeOptions } from './tree.js';
+export {
+  addressOf,
+  ageOf,
+  fetchPublishedSet,
+  heldSet,
+  nameOfRoot,
+  publishedFileSet,
+  publishedId,
+  publishedName,
+  publishedWorkspace,
+  PUBLISHED_MANIFEST,
+  readPublishedManifest,
+  textsUnder,
+  type Addressed,
+  type Digest,
+  type FetchOptions,
+  type PublishedBundle,
+  type PublishedFile,
+  type PublishedManifest,
+  type PublishedSet,
+  type Retrieve,
+} from './remote.js';

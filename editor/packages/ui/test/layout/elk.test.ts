@@ -200,16 +200,39 @@ describe('the folded canvas is laid out top to bottom (§4.7)', () => {
 });
 
 describe.skipIf(!oracleGenerated)('the expanded graph is laid out over D1 (§4.9)', () => {
+  /**
+   * How long a case that *runs the expanded layout* is given, and why it is written down.
+   *
+   * These two are **correctness** claims — nothing overlaps, every edge flows down — and the only
+   * clock over them was Vitest's own default of five seconds, which nobody chose. The layout they
+   * wait for is the one feature 0.4 measured at 1504 ms on an idle box and which this ledger has
+   * recorded flaking under load seven times (0.4, 2.5, 2.8 twice, 2.9, and twice during 2.20 at
+   * 5509 and 5737 ms, each passing alone in seconds). A default that decides a correctness test
+   * for the machine's reasons is a load guard, not a claim, so it is replaced by the explicit one
+   * the timing case below already carries — feature 1.3's repair of the same class, and 2.13's.
+   * **What they assert is untouched**: the *budget* is the timing case's, at three times §5.6's
+   * two seconds, and it is still the only thing here that judges how long a layout takes.
+   */
+  const LAYOUT_BUDGET_MS = 30_000;
+
   for (const model of spikeModels) {
     const diagram = expandedDiagram(model, readExpanded(model));
 
-    it(`${model}: no two boxes overlap`, async () => {
-      expect(overlappingPairs(await placedOnce(diagram))).toEqual([]);
-    });
+    it(
+      `${model}: no two boxes overlap`,
+      async () => {
+        expect(overlappingPairs(await placedOnce(diagram))).toEqual([]);
+      },
+      LAYOUT_BUDGET_MS,
+    );
 
-    it(`${model}: every edge's source is above its target`, async () => {
-      expect(notFlowingDown(await placedOnce(diagram))).toEqual([]);
-    });
+    it(
+      `${model}: every edge's source is above its target`,
+      async () => {
+        expect(notFlowingDown(await placedOnce(diagram))).toEqual([]);
+      },
+      LAYOUT_BUDGET_MS,
+    );
 
     it(`${model}: every node D1 emits is placed, in D1's order`, () => {
       const d1 = readExpanded(model).d1;

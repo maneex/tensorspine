@@ -53,14 +53,7 @@
  *         node scripts/vendor.ts [--out DIR] [--repository DIR] [--python EXE] [--quiet]
  */
 import { spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -70,8 +63,10 @@ import {
   sorted,
   writeManifest,
   type ManifestFile,
+  type PublishedBundle,
   type PublishedManifest,
 } from './manifest.ts';
+import { BUNDLES, PublishError, walk, writeBundle } from './publish.ts';
 
 /** The name this script's manifest is written under — every published set's (`manifest.ts`). */
 export { MANIFEST } from './manifest.ts';
@@ -124,18 +119,13 @@ export interface VendorSet {
   files: number;
 }
 
-/** One set written a second time as a single file, for the pages that read it whole. */
-export interface VendorBundle {
-  /** The set this bundle holds. */
-  name: string;
-  /** Where the bundle is, under the vendor root. */
-  path: string;
-  /** The vendored path prefix every file in it is under — what a reader matches against. */
-  covers: string;
-  /** How many files it holds, and how long it is. */
-  files: number;
-  bytes: number;
-}
+/**
+ * One set written a second time as a single file, for the pages that read it whole.
+ *
+ * The record of any published set's bundle (`scripts/manifest.ts`), named here too because that
+ * is what this script's own manifest calls it and what feature 2.4's reader mirrors.
+ */
+export type VendorBundle = PublishedBundle;
 
 /**
  * The vendor's own manifest: what every published set declares, and what this one adds.
@@ -175,26 +165,11 @@ const VENDORED_PRIMITIVE_LIBRARY = 'data/primitive-library';
 const VENDORED_PRIMITIVE_SCHEMAS = 'generated/primitive-schema';
 const VENDORED_REFERENCE = 'generated/primitive-library.md';
 
-/** Where a set written a second time as one file lands. */
-const VENDORED_BUNDLES = 'bundles';
+/** Where a set written a second time as one file lands — the published set's own directory. */
+const VENDORED_BUNDLES = BUNDLES;
 
 /** The `$id` the tools give a generated argument schema: `…/primitive/<name>/<version>.json`. */
 const PRIMITIVE_SCHEMA_ID = /^[a-z]+:\/\/[^/]+\/primitive\/(.+)\/([^/]+)\.json$/;
-
-/** Every regular file below `root`, as `/`-separated paths, sorted, directories descended. */
-function walk(root: string, at = ''): string[] {
-  const here = at === '' ? root : join(root, at);
-  const entries = readdirSync(here, { withFileTypes: true });
-  entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  const found: string[] = [];
-  for (const entry of entries) {
-    const path = at === '' ? entry.name : `${at}/${entry.name}`;
-    if (entry.isDirectory()) found.push(...walk(root, path));
-    else if (entry.isFile()) found.push(path);
-    else throw new VendorError(`${join(root, path)} is neither a file nor a directory — the vendor copies regular files only`);
-  }
-  return found;
-}
 
 function write(path: string, bytes: Buffer): void {
   mkdirSync(dirname(path), { recursive: true });
@@ -223,19 +198,17 @@ function copyTree(from: string, out: string, prefix: string, files: VendorFile[]
  * is saved, and there is none to save.
  */
 function bundle(out: string, sets: readonly VendorSet[], files: VendorFile[]): VendorBundle[] {
-  const held = new Map(files.map((file) => [file.path, file.path]));
+  const held = files.map((file) => file.path);
   const made: VendorBundle[] = [];
   for (const set of sets) {
     const prefix = `${set.path}/`;
-    const names = [...held.keys()].filter((path) => path.startsWith(prefix));
-    if (names.length < 2) continue;
-    const bundled: Record<string, string> = {};
-    for (const name of names) bundled[name] = readFileSync(join(out, name), 'utf8');
-    const path = `${VENDORED_BUNDLES}/${set.name}.json`;
-    const bytes = Buffer.from(`${JSON.stringify(bundled)}\n`, 'utf8');
-    write(join(out, path), bytes);
-    made.push({ name: set.name, path, covers: set.path, files: names.length, bytes: bytes.length });
-    files.push(record(path, bytes));
+    const names = held.filter((path) => path.startsWith(prefix));
+    // The writing is `scripts/publish.ts`'s, which is the other generator of this artifact: one
+    // bundle writer, one refusal for a file whose bytes are not UTF-8, one shape in the manifest.
+    const one = writeBundle(out, set.name, set.path, names);
+    if (one === null) continue;
+    made.push(one);
+    files.push(record(one.path, readFileSync(join(out, one.path))));
   }
   return made;
 }
@@ -472,7 +445,7 @@ function main(argv: string[]): number {
     vendor(options);
     return 0;
   } catch (error) {
-    if (error instanceof VendorError) {
+    if (error instanceof VendorError || error instanceof PublishError) {
       console.error(`vendor: ${error.message}`);
       return 2;
     }

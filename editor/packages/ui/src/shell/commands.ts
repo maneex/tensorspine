@@ -118,6 +118,14 @@ export const COMMANDS: readonly Command[] = [
   { id: 'file.open-folder', menu: F, label: 'Open Folder…' },
   { id: 'file.open-model', menu: F, label: 'Open Model…' },
   { id: 'file.open-recent', menu: F, label: 'Open Recent' },
+  // Two commands §4.4's table does not carry, and the one place in this file where that is true.
+  // Feature 2.20's own block puts them here — "`Open Base from URL…` and `Open Workspace from
+  // URL…` in §4.3's File menu and in §4.6's palette" — and the plan's feature blocks are what this
+  // table is transcribed from as surely as §4.4 is. The alternative, a change set that adds them
+  // to §4.4, is not this feature's to make; `test/shell/commands.test.ts` states both halves so
+  // the addition is visible rather than quietly merged into the transcription.
+  { id: 'file.open-workspace-url', menu: F, label: 'Open Workspace from URL…' },
+  { id: 'file.open-base-url', menu: F, label: 'Open Base from URL…' },
   { id: 'file.save', menu: F, label: 'Save', accelerator: { mod: true, key: 'S' }, whileTyping: true },
   { id: 'file.save-as', menu: F, label: 'Save As…' },
   { id: 'file.save-all', menu: F, label: 'Save All' },

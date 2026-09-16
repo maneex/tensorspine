@@ -159,6 +159,37 @@ const SECTION_4_4_SHORTCUTS: Readonly<Record<string, string>> = {
   'Derive Now': 'Shift+F7',
 };
 
+/**
+ * The commands a feature block adds to a menu of §4.4, and where it puts them.
+ *
+ * §4.4's table is transcribed and never designed, so a command that is not in it is a command some
+ * other part of the plan asks for by name — and that is worth stating apart rather than merging
+ * into the transcription above. One feature has done it so far:
+ *
+ * > **2.20** — "`Open Base from URL…` and `Open Workspace from URL…` in §4.3's File menu and in
+ * > §4.6's palette"
+ *
+ * The rule the pair is held to is §4.4's own: every command is in a menu and the palette lists it,
+ * which the two tests below check over the whole table.
+ */
+const ADDED: Readonly<Record<string, readonly { readonly after: string; readonly label: string }[]>> = {
+  File: [
+    { after: 'Open Recent', label: 'Open Workspace from URL…' },
+    { after: 'Open Workspace from URL…', label: 'Open Base from URL…' },
+  ],
+};
+
+/** §4.4's commands for a menu, with what a feature block added, in the order they are written. */
+function expected(menu: string): readonly string[] {
+  const labels = [...(SECTION_4_4[menu] ?? [])];
+  for (const one of ADDED[menu] ?? []) {
+    const at = labels.indexOf(one.after);
+    if (at < 0) throw new Error(`${menu}: nothing called ${one.after} to put ${one.label} after`);
+    labels.splice(at + 1, 0, one.label);
+  }
+  return labels;
+}
+
 /** A key event, as much of one as a chord is decided on. */
 function stroke(key: string, held: Partial<KeyStroke> = {}): KeyStroke {
   return { key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...held };
@@ -174,9 +205,19 @@ describe('the commands of §4.4', () => {
       expect(
         commandsOf(menu.id).map((command) => command.label),
         menu.label,
-      ).toEqual(SECTION_4_4[menu.label]);
+      ).toEqual(expected(menu.label));
     }
-    expect(COMMANDS).toHaveLength(Object.values(SECTION_4_4).flat().length);
+    expect(COMMANDS).toHaveLength(
+      Object.values(SECTION_4_4).flat().length + Object.values(ADDED).flat().length,
+    );
+  });
+
+  it('adds nothing to §4.4 that a feature block does not name', () => {
+    // The other direction of the same claim: every command that is **not** in §4.4's table is one
+    // of the pair feature 2.20's block asks for, and there is no third.
+    const written = new Set(Object.values(SECTION_4_4).flat());
+    const added = COMMANDS.map((command) => command.label).filter((label) => !written.has(label));
+    expect(added).toEqual(Object.values(ADDED).flat().map((one) => one.label));
   });
 
   it('registers each of them exactly once, under an identity nothing else carries', () => {

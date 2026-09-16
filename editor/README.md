@@ -96,11 +96,40 @@ pnpm exec playwright install chromium     # once, for the end-to-end layer
 
 ```sh
 pnpm vendor     # the schemas, corpus, reference base and generated artifacts, for the application
+pnpm manifest DIR  # declare a directory as a published file set, so it can be opened from a URL
 pnpm logo       # re-vendor the wordmark's monogram from docs/style/nav.html (rarely needed)
 pnpm site-nav   # re-vendor the documentation site's navigation from the same file (rarely needed)
 pnpm dev        # the application on Vite's dev server
 pnpm build      # the static build, into apps/web/dist (vendors first)
 ```
+
+## Publishing a primitive library base at an address
+
+Plain HTTP has no directory listing, so a set of files served over one cannot be discovered — it
+has to be **declared**. `pnpm manifest <dir>` is what declares one: it walks the directory, records
+every file with its length and its sha256, writes the set a second time as one bundle (one request
+instead of one per file), and writes `vendor.json` last. The manifest is generated, never written
+by hand — a digest somebody typed is a digest nobody checked.
+
+```sh
+pnpm manifest ../my-base       # then serve the directory as static files
+```
+
+The editor opens it with **File ▸ Open Base from URL…**, which asks for the address of the manifest
+(or of the directory holding it) and for the path the base is to stand at *in the open workspace* —
+because a document pins a base by the path it resolves (`primitive_libraries`), and an address is
+not a path. **File ▸ Open Workspace from URL…** opens a whole published set as the workspace,
+read-only, with Save As to copy a document out.
+
+What a host must permit, and what the editor checks:
+
+| | |
+|---|---|
+| **CORS** | a page on another origin can read the set only if the host answers `Access-Control-Allow-Origin`; a host that does not is a refusal naming the header, in the dialog where the address was typed |
+| **Integrity** | every file is checked against the sha256 the manifest declares, whichever way it arrived; one that disagrees refuses the whole set, naming the path |
+| **Trust** | a fetched base is *data*: every unit crosses the unit schema and the loader's cross-references, V1 refuses a redefinition of an identity another base holds, and nothing fetched is executed |
+| **Offline** | the set is cached whole; an address that answers nothing opens the cache with its age shown, and never silently stale |
+| **Pinning** | the document records the *path*; the editor records the address and the manifest's commit beside it, so a second reader opens the same address at the same path and derives the same products |
 
 The dev server and the preview serve the application **under its base path** (below), not at the
 origin root; both print the address, and both redirect the root to it.

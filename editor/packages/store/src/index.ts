@@ -99,6 +99,7 @@ export {
   WORKSPACE_SCHEMAS,
   zipOf,
   ZipError,
+  type BaseMount,
   type DraftStanding,
   type GatheredBases,
   type GatheredSchemas,
