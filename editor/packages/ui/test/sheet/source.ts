@@ -70,11 +70,17 @@ export function artifactOf(name: string, version: string): ArgumentSchema | null
   const id = `${name}@${version}`;
   const held = artifacts.get(id);
   if (held !== undefined) return held;
-  const path = resolve(
-    repositoryRoot,
-    'editor/apps/web/public/vendor/generated/primitive-schema',
-    `${name}_${version}.json`,
-  );
+  const directory = resolve(repositoryRoot, 'editor/apps/web/public/vendor/generated/primitive-schema');
+  // The directory is the vendor's and the vendor is generated (`pnpm vendor`, which `pnpm check`
+  // runs before this layer). Its *absence* is not F5's case below — it is a checkout that has not
+  // vendored, and the answer to that is the command, not ten rows quietly read off the grammar:
+  // that was five days of red CI at the unit stage (12–17 Sep 2026) that every local run passed.
+  if (!existsSync(directory)) {
+    throw new Error(
+      `no vendored argument schemas under ${directory}: run \`pnpm vendor\` (\`pnpm check\` does)`,
+    );
+  }
+  const path = resolve(directory, `${name}_${version}.json`);
   let found: ArgumentSchema | null;
   try {
     found = new ArgumentSchema(JSON.parse(readFileSync(path, 'utf8')));

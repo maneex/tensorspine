@@ -45,6 +45,18 @@ describe('pnpm check', () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
+  it('vendors before the unit layer, because that layer reads what the vendor generates', () => {
+    // The sheet's suites read the tools' generated argument schemas from the vendored directory
+    // (F5: consumed as built) — an untracked directory `pnpm vendor` produces. A check that ran
+    // the unit layer first was red on every fresh checkout and every CI run from feature 2.10 on,
+    // and green on every machine that had vendored once: the ten failures of 12–17 Sep 2026.
+    const check = manifest.scripts['check'] ?? '';
+    const vendor = check.indexOf('pnpm run vendor');
+    const unit = check.indexOf('pnpm run test:unit');
+    expect(vendor).toBeGreaterThanOrEqual(0);
+    expect(vendor).toBeLessThan(unit);
+  });
+
   it('names only Vitest projects the configuration defines', () => {
     const declared = projectNames(vitestConfig);
     expect([...declared].sort()).toEqual(['audit', 'lang', 'parity', 'snapshot', 'store', 'ui']);

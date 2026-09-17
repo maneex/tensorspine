@@ -31,7 +31,7 @@
     "spike:static": "node --experimental-strip-types spikes/static/run.ts",
     "spike:lang": "node --experimental-strip-types spikes/lang/serve.ts",
     "spike:timings": "TENSORSPINE_TIMINGS=write vitest run --project lang test/api/timings.test.ts",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run test:unit && pnpm run test:parity && pnpm run test:snapshot && pnpm run audit:rules && pnpm run test:e2e"
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run vendor && pnpm run test:unit && pnpm run test:parity && pnpm run test:snapshot && pnpm run audit:rules && pnpm run test:e2e"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.1",

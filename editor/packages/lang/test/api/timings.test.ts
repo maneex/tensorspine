@@ -250,7 +250,11 @@ describe('the budgets of §5.6, measured', () => {
     const figures = new Map<string, number>();
     for (const name of names) {
       const tree = await lang.parse(corpus(name));
-      figures.set(name, time(() => void registry.conforms(tree, 'model')));
+      // Fifteen samples, not the default three: the figure is the *best* of them, and for a call of
+      // one to four milliseconds the minimum over fifteen is what survives a loaded box — three
+      // gave 32 ms under a full run at 3 GB free (17 Sep 2026), above the guard's allowance, and
+      // 1.3 ms alone a minute later. Fifteen cost under sixty milliseconds a document.
+      figures.set(name, time(() => void registry.conforms(tree, 'model'), 15));
     }
     // Feature 1.6d measured 0.7–5.5 ms, which already brushes §5.6's five.
     guard(range('Ajv on a corpus document', figures, BUDGETS.ajv));

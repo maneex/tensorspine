@@ -187,6 +187,7 @@ regenerated, never committed.
 |---|---|---|
 | typecheck | `pnpm typecheck` | every package under strict TypeScript |
 | lint | `pnpm lint` | ESLint over the workspace, type-aware |
+| vendor | `pnpm vendor` | the tools' generated artifacts, which the unit layer's sheet suites read as built (F5) |
 | unit | `pnpm test:unit` | `packages/*/test/**` |
 | parity | `pnpm test:parity` | `packages/lang/test/parity/**`, against the oracle |
 | snapshot | `pnpm test:snapshot` | `packages/ui/test/snapshots/**` |
